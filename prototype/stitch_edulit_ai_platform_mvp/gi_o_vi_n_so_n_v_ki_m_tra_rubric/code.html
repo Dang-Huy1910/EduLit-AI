@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Merriweather:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-container-lowest":"#ffffff","on-background":"#121c2a","secondary-fixed-dim":"#6cd3f7","on-tertiary-container":"#004b22","on-secondary-fixed-variant":"#004e61","primary-container":"#d4a373","outline":"#82756a","on-tertiary":"#ffffff","surface-container":"#e6eeff","on-surface":"#121c2a","on-secondary-fixed":"#001f28","on-tertiary-fixed":"#00210b","secondary-container":"#76dcff","surface-variant":"#d9e3f6","on-primary-fixed-variant":"#623f18","tertiary-container":"#72bd82","surface":"#f8f9ff","background":"#f8f9ff","on-primary":"#ffffff","on-error-container":"#93000a","outline-variant":"#d4c4b7","surface-container-highest":"#d9e3f6","inverse-primary":"#f0bd8b","tertiary":"#1f6c3a","secondary":"#006780","on-secondary-container":"#006077","secondary-fixed":"#b7eaff","tertiary-fixed-dim":"#8bd79b","tertiary-fixed":"#a6f4b5","on-error":"#ffffff","error-container":"#ffdad6","surface-bright":"#f8f9ff","on-tertiary-fixed-variant":"#005226","surface-container-high":"#dee9fc","primary":"#7d562d","error":"#ba1a1a","on-surface-variant":"#50453b","inverse-surface":"#27313f","primary-fixed":"#ffdcbd","on-secondary":"#ffffff","surface-tint":"#7d562d","surface-container-low":"#eff4ff","on-primary-fixed":"#2c1600","inverse-on-surface":"#eaf1ff","primary-fixed-dim":"#f0bd8b","surface-dim":"#d0dbed","on-primary-container":"#5b3912"},"borderRadius":{"DEFAULT":"0.25rem","lg":"0.5rem","xl":"0.75rem","full":"9999px"},"spacing":{"space-xs":"0.25rem","space-sm":"0.5rem","gutter":"1.5rem","space-lg":"1.5rem","space-xl":"2.5rem","margin":"2rem","margin-sm":"1rem","space-md":"1rem","gutter-sm":"1rem"},"fontFamily":{"headline-md":["Merriweather"],"headline-lg":["Merriweather"],"caption":["Inter"],"label-sm":["Inter"],"literary-body-md":["Merriweather"],"display-lg-mobile":["Merriweather"],"literary-body-lg":["Merriweather"],"label-md":["Inter"],"body-lg":["Inter"],"body-md":["Inter"],"headline-sm":["Merriweather"],"display-lg":["Merriweather"]},"fontSize":{"headline-md":["22px",{"lineHeight":"32px","fontWeight":"700"}],"headline-lg":["28px",{"lineHeight":"40px","fontWeight":"700"}],"caption":["11px",{"lineHeight":"16px","fontWeight":"400"}],"label-sm":["12px",{"lineHeight":"16px","fontWeight":"500"}],"literary-body-md":["16px",{"lineHeight":"28px","fontWeight":"400"}],"display-lg-mobile":["28px",{"lineHeight":"38px","fontWeight":"700"}],"literary-body-lg":["18px",{"lineHeight":"32px","fontWeight":"400"}],"label-md":["14px",{"lineHeight":"20px","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"26px","fontWeight":"400"}],"body-md":["14px",{"lineHeight":"22px","fontWeight":"400"}],"headline-sm":["18px",{"lineHeight":"28px","fontWeight":"700"}],"display-lg":["36px",{"lineHeight":"48px","fontWeight":"700"}]}}}};</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between"><div class="flex flex-col"><div class="h-16 px-space-lg flex items-center gap-space-sm"><img alt="EduLit-AI Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1Xxl7YdyuVxd3219oxQo-xAYRjDdALRYoB3auoOnR0K_iS1HZpsZB8yTt_fKVM5ZbgpraKyjIPeD3gadXai_89pmflZq4nSAIpmRu0rxuq3QJlsP3DOwKOYfR87blfaPfIkQ2Je_tOuDVyohzGgICpiWDaff1PaqH_4agiELFoajFgK-7lTbzs3oVPZ8qpAHbt3G-1FX3SYdy9r6Dm5eP59mvuAgAidyR6eEBnnIuRmRCkTqtnEpw"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary tracking-tight">EduLit-AI</span><span class="font-caption text-caption text-on-surface-variant">GDPT 2018 • Ngữ văn THPT</span></div></div><div class="px-space-md py-space-sm"><div class="px-space-sm pb-space-xs font-label-sm text-label-sm uppercase tracking-wider text-outline">Không gian Giáo viên</div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-primary-container text-on-primary-container font-label-md"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="bai-tap" href="#"><span class="material-symbols-outlined text-[20px]">assignment</span><span>Bài tập &amp; Đề kiểm tra</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="hoc-lieu" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span><span>Kho ngữ liệu &amp; Chuyên đề</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="bao-cao-lop" href="#"><span class="material-symbols-outlined text-[20px]">analytics</span><span>Báo cáo năng lực lớp</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="cham-bai-ai" href="#"><span class="material-symbols-outlined text-[20px]">auto_awesome</span><span>Trợ lý chấm &amp; Rubric</span></a></nav></div><div class="px-space-md pt-space-sm"><div class="my-space-sm h-[1px] bg-outline-variant/30"></div><div class="px-space-sm pb-space-xs flex items-center justify-between"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Xem trước vai trò</span><span class="font-caption text-caption text-secondary bg-secondary-fixed/50 px-space-xs py-0.5 rounded-full">Học sinh</span></div><nav class="flex flex-col gap-space-xs" data-active-classes="bg-secondary-container text-on-secondary-container font-label-md"><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="bai-tap-hoc-sinh" href="#"><span class="material-symbols-outlined text-[20px]">edit_note</span><span>Bài tập của em</span></a><a class="flex items-center gap-space-sm px-space-md py-space-sm rounded-lg font-label-md text-label-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all" data-path="bai-da-nop-hoc-sinh" href="#"><span class="material-symbols-outlined text-[20px]">task_alt</span><span>Bài đã nộp &amp; Nhận xét</span></a></nav></div></div><div class="p-space-md bg-surface-container-low/50 m-space-md rounded-xl"><div class="flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[22px]">psychology</span><div><p class="font-label-md text-label-md text-on-surface">Mô hình Văn học AI</p><p class="font-caption text-caption text-on-surface-variant">Chuẩn ma trận GDPT 2018</p></div></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs font-label-md text-label-md text-on-surface-variant"><span class="material-symbols-outlined text-[18px] text-outline">school</span><span>Khối 11 - Văn 1</span><span class="text-outline-variant">/</span><span class="text-on-surface font-label-md text-label-md">Nghị luận văn học (Tác phẩm thơ 1945 - 1975)</span></div><span class="font-caption text-caption text-primary bg-primary-fixed px-space-sm py-0.5 rounded-full font-label-sm">Chế độ xem thử</span></div><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-xs bg-surface-container px-space-sm py-1 rounded-lg text-on-surface-variant font-caption text-caption"><span class="material-symbols-outlined text-[16px] text-tertiary">verified</span><span>Đã khớp Rubric Bộ GD&amp;ĐT</span></div><div class="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40"><div class="text-right"><div class="font-label-md text-label-md text-on-surface">Cô Nguyễn Thu Hà</div><div class="font-caption text-caption text-on-surface-variant">GV Ngữ văn • THPT Chu Văn An</div></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-primary-container/40" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC47lasG5P1kuqZ9W4tNY1SV_H1AATRF88gg06VrZLj8DJuWUnkw6T_pVjQRKSq_P86_FKqba3A0xCpcGXoU7tohUjCkG5RBNkBkIBiv_S-SotE1sGNJKmdsEgwqyYjAIDIiDQe4-4moF9onD7OZRwDdXoKNjZdNry-82J8h3yTp6gFFz07yLsMWaufN-ksJd6wwxEHA6beNP5_iEgBuB7JSLNdPZJG8rWw00ZzrF3KJXQax2wU"/></div></div></header><main class="w-full pt-16 bg-surface min-h-screen px-space-lg py-space-lg"><div class="flex flex-col w-full">
+<!-- Top Action & Navigation Banner -->
+<div class="flex flex-col gap-space-sm mb-space-lg">
+<!-- Breadcrumb & Control Bar -->
+<div class="flex flex-wrap items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-xs font-label-md text-label-md text-on-surface-variant">
+<span class="hover:text-primary cursor-pointer transition-colors">Quản lý bài tập</span>
+<span class="material-symbols-outlined text-[16px] text-outline">chevron_right</span>
+<span class="text-on-surface font-semibold">Soạn đề bài mới &amp; Cấu hình Rubric</span>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-space-sm">
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md transition-all shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">save</span>
+<span>Lưu bản nháp</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2 rounded-lg bg-primary-container hover:opacity-95 text-on-primary-container font-label-md text-label-md transition-all shadow-sm" id="btn-publish" type="button">
+<span class="material-symbols-outlined text-[18px]">rule</span>
+<span>Xác nhận Rubric &amp; Giao bài</span>
+</button>
+</div>
+</div>
+<!-- Pedagogical Policy Alert & Version Callout -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+<div class="flex items-start md:items-center gap-space-sm">
+<div class="p-2 rounded-lg bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+</div>
+<div>
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-label-md text-label-md text-on-surface font-bold">Barem Rubric v1.4</span>
+<span class="px-space-xs py-0.5 rounded-full text-caption font-caption bg-tertiary-fixed text-on-tertiary-fixed font-medium">Bản chuẩn sư phạm 2024</span>
+<span class="text-outline text-caption font-caption">• GDPT 2018 Thang điểm 10</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">
+            Lưu ý: Mọi chỉnh sửa tiêu chí sau khi học sinh đã nộp bài sẽ bảo lưu phiên bản gốc đối với các bài đã chấm trước đó.
+          </p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs shrink-0 self-end md:self-auto">
+<span class="material-symbols-outlined text-tertiary text-[18px]">task_alt</span>
+<span class="font-label-sm text-label-sm text-tertiary font-semibold">Ma trận đã đồng bộ</span>
+</div>
+</div>
+</div>
+<!-- Primary Workspace Grid (8 cols / 4 cols) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+<!-- LEFT COLUMN: Main Configuration & Rubric Matrix (8 cols) -->
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<!-- KHU VỰC 1: THÔNG TIN ĐỀ BÀI -->
+<section class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-md relative overflow-hidden">
+<div class="flex items-center justify-between pb-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-bold">1</span>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Thông tin đề bài &amp; Yêu cầu sư phạm</h2>
+<p class="font-caption text-caption text-on-surface-variant">Cấu hình thời gian, phạm vi phân bổ học sinh và câu lệnh nghị luận</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">tune</span>
+</div>
+<!-- Title Input -->
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Tên đề bài / Chủ đề đánh giá</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest rounded-lg py-2.5 px-3 font-literary-body-md text-literary-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30 shadow-sm" type="text" value="Nghị luận xã hội: Ý nghĩa của tinh thần tự chủ trong kỷ nguyên chuyển đổi số"/>
+</div>
+</div>
+<!-- Class, Grade & Due Date Meta Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Khối học</label>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-3 py-2 rounded-lg">
+<span class="material-symbols-outlined text-secondary text-[18px]">school</span>
+<span class="font-label-md text-label-md text-on-surface font-medium">Khối 12 THPT</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Lớp phân công</label>
+<div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-lg">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-[18px]">group</span>
+<span class="font-label-md text-label-md text-on-surface font-medium">12A1 (Chu Văn An)</span>
+</div>
+<span class="font-caption text-caption text-on-surface-variant bg-surface-container px-1.5 py-0.5 rounded">38 HS</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-outline">Hạn nộp bài</label>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-3 py-2 rounded-lg text-primary">
+<span class="material-symbols-outlined text-[18px]">event</span>
+<span class="font-label-md text-label-md font-semibold">25/10/2024 - 23:59</span>
+</div>
+</div>
+</div>
+<!-- Prompt Textarea with Rich Quill-like Topbar -->
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<label class="font-label-sm text-label-sm uppercase tracking-wider text-outline font-semibold">Yêu cầu sư phạm &amp; Hướng dẫn triển khai</label>
+<span class="font-caption text-caption text-outline">Chuẩn dung lượng: ~600 chữ (khoảng 2 trang vở)</span>
+</div>
+<div class="bg-surface-container-low rounded-xl p-3 flex flex-col gap-2">
+<!-- Mini Formatting Bar -->
+<div class="flex items-center gap-1 pb-2 text-on-surface-variant">
+<button class="p-1 hover:bg-surface-container rounded" type="button"><span class="material-symbols-outlined text-[18px]">format_bold</span></button>
+<button class="p-1 hover:bg-surface-container rounded" type="button"><span class="material-symbols-outlined text-[18px]">format_italic</span></button>
+<button class="p-1 hover:bg-surface-container rounded" type="button"><span class="material-symbols-outlined text-[18px]">format_list_bulleted</span></button>
+<button class="p-1 hover:bg-surface-container rounded" type="button"><span class="material-symbols-outlined text-[18px]">format_quote</span></button>
+<span class="text-outline-variant/60 mx-1">|</span>
+<span class="font-caption text-caption text-outline">Gợi ý từ khóa AI: #TuChu #ChuyenDoiSo #BanLinhHocDuong</span>
+</div>
+<textarea class="w-full bg-surface-container-lowest rounded-lg p-3 font-literary-body-md text-literary-body-md text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/40 leading-relaxed resize-none shadow-sm" rows="4">Viết bài văn nghị luận xã hội (khoảng 600 chữ) trình bày suy nghĩ của anh/chị về sự tự chủ và bản lĩnh cá nhân trước làn sóng công nghệ số, mạng xã hội và trí tuệ nhân tạo (AI). Bài viết cần xác định đúng trọng tâm, có hệ thống luận điểm rõ ràng, kết hợp dẫn chứng thực tế thuyết phục và rút ra bài học hành động xác đáng cho thế hệ trẻ.</textarea>
+</div>
+</div>
+</section>
+<!-- KHU VỰC 4: BAREM RUBRIC ĐÁNH GIÁ NĂNG LỰC (EDITABLE RUBRIC MATRIX) -->
+<section class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-lg">
+<!-- Rubric Header with Live Score Validator -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-bold">2</span>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Barem Rubric đánh giá năng lực</h2>
+<p class="font-caption text-caption text-on-surface-variant">Thiết kế thang tiêu chí chi tiết cho AI và giáo viên cùng tham chiếu</p>
+</div>
+</div>
+<!-- Live Total Score Badge Indicator -->
+<div class="flex items-center gap-space-xs px-3 py-1.5 rounded-xl bg-tertiary-fixed/30 text-on-tertiary-fixed shadow-sm" id="score-counter-container">
+<span class="material-symbols-outlined text-[20px] text-tertiary" id="validation-icon">check_circle</span>
+<div class="flex items-baseline gap-1">
+<span class="font-caption text-caption text-on-surface-variant">Tổng điểm:</span>
+<span class="font-headline-sm text-headline-sm text-tertiary font-bold" id="current-total-score">10.0</span>
+<span class="font-caption text-caption text-on-surface font-semibold">/ 10.0</span>
+</div>
+<span class="font-caption text-caption text-tertiary font-bold ml-1 bg-surface-container-lowest px-2 py-0.5 rounded-full" id="status-pill">Hợp lệ 100%</span>
+</div>
+</div>
+<!-- Rubric List Item Cards -->
+<div class="flex flex-col gap-space-md" id="rubric-criteria-list">
+<!-- Tiêu chí 1: Bố cục bài viết -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm transition-all hover:bg-surface-container-high/60">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary text-[22px]">view_quilt</span>
+<div>
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Tiêu chí 1: Bố cục &amp; Cấu trúc bài viết nghị luận</h3>
+<p class="font-caption text-caption text-on-surface-variant">Đánh giá tính cân đối giữa Mở bài - Thân bài - Kết bài</p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center bg-surface-container-lowest px-2 py-1 rounded-lg shadow-sm">
+<span class="font-caption text-caption text-outline mr-1">Tối đa:</span>
+<input class="score-input w-12 font-label-md text-label-md font-bold text-primary text-center bg-transparent focus:outline-none" step="0.5" type="number" value="2.0"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">đ</span>
+</div>
+<button class="text-outline hover:text-error transition-colors p-1" title="Xóa tiêu chí" type="button">
+<span class="material-symbols-outlined text-[18px]">delete_outline</span>
+</button>
+</div>
+</div>
+<!-- Descriptive Score Ladders -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm pt-space-xs">
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm font-semibold text-tertiary">Mức Đạt (Tối đa)</span>
+<span class="font-caption text-caption bg-tertiary-fixed/30 text-tertiary px-1.5 py-0.2 rounded font-bold">2.0đ</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    Đầy đủ 3 phần Mở - Thân - Kết; chuyển ý mạch lạc, các đoạn văn được liên kết tự nhiên, có điểm nhấn.
+                  </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm font-semibold text-secondary">Mức Khá</span>
+<span class="font-caption text-caption bg-secondary-fixed/50 text-secondary px-1.5 py-0.2 rounded font-bold">1.5đ</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    Có đủ 3 phần nhưng phần liên kết giữa các đoạn còn gượng ép hoặc phân bổ dung lượng chưa thật sự cân đối.
+                  </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm font-semibold text-outline">Mức Cần cố gắng</span>
+<span class="font-caption text-caption bg-surface-container text-outline px-1.5 py-0.2 rounded font-bold">1.0đ</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    Bố cục rời rạc, thiếu kết bài hoặc mở bài chưa nêu được vấn đề nghị luận xã hội.
+                  </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Tiêu chí 2: Luận điểm và dẫn chứng (Trọng số cao) -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm transition-all hover:bg-surface-container-high/60">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[22px]">lightbulb</span>
+<div>
+<div class="flex items-center gap-space-xs">
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Tiêu chí 2: Hệ thống Luận điểm &amp; Dẫn chứng thực tiễn</h3>
+<span class="bg-primary-fixed text-primary font-caption text-caption px-1.5 py-0.5 rounded font-semibold">Trọng tâm</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant">Đánh giá tính thuyết phục, lập luận sắc bén và dẫn chứng số học thực tế</p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center bg-surface-container-lowest px-2 py-1 rounded-lg shadow-sm">
+<span class="font-caption text-caption text-outline mr-1">Tối đa:</span>
+<input class="score-input w-12 font-label-md text-label-md font-bold text-primary text-center bg-transparent focus:outline-none" step="0.5" type="number" value="4.0"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">đ</span>
+</div>
+<button class="text-outline hover:text-error transition-colors p-1" title="Xóa tiêu chí" type="button">
+<span class="material-symbols-outlined text-[18px]">delete_outline</span>
+</button>
+</div>
+</div>
+<!-- Mandatory Constraint Tag -->
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-3 py-1.5 rounded-lg text-primary text-caption font-caption font-medium">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+<span>Yêu cầu sư phạm bắt buộc: Tối thiểu 02 dẫn chứng cụ thể từ thời sự hoặc hiện tượng công nghệ số (không lấy dẫn chứng chung chung).</span>
+</div>
+<!-- Descriptive Score Ladders -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm font-semibold text-tertiary">Mức Xuất sắc</span>
+<span class="font-caption text-caption bg-tertiary-fixed/30 text-tertiary px-1.5 py-0.2 rounded font-bold">4.0đ</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    Luận điểm sắc sảo, đa chiều; có phân tích phản đề (lạm dụng AI vs tự chủ tư duy); dẫn chứng mới mẻ, thuyết phục cao.
+                  </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm font-semibold text-secondary">Mức Đạt</span>
+<span class="font-caption text-caption bg-secondary-fixed/50 text-secondary px-1.5 py-0.2 rounded font-bold">3.0đ</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    Nêu được bản chất sự tự chủ trong thời đại số, có ít nhất 1-2 dẫn chứng nhưng lập luận phân tích còn sơ lược.
+                  </p>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm font-semibold text-outline">Mức Chưa đạt</span>
+<span class="font-caption text-caption bg-surface-container text-outline px-1.5 py-0.2 rounded font-bold">1.5đ</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+                    Lí lẽ mơ hồ, dẫn chứng lạc đề hoặc chỉ liệt kê mà không phân tích làm sáng tỏ bản lĩnh tự chủ.
+                  </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Tiêu chí 3: Diễn đạt và quy tắc chính tả -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm transition-all hover:bg-surface-container-high/60">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary text-[22px]">spellcheck</span>
+<div>
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Tiêu chí 3: Chuẩn chính tả, ngữ pháp &amp; Diễn đạt văn phong</h3>
+<p class="font-caption text-caption text-on-surface-variant">Quy tắc câu, từ ngữ chuẩn tiếng Việt học đường GDPT 2018</p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center bg-surface-container-lowest px-2 py-1 rounded-lg shadow-sm">
+<span class="font-caption text-caption text-outline mr-1">Tối đa:</span>
+<input class="score-input w-12 font-label-md text-label-md font-bold text-primary text-center bg-transparent focus:outline-none" step="0.5" type="number" value="2.0"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">đ</span>
+</div>
+<button class="text-outline hover:text-error transition-colors p-1" title="Xóa tiêu chí" type="button">
+<span class="material-symbols-outlined text-[18px]">delete_outline</span>
+</button>
+</div>
+</div>
+<!-- Penalty Configuration Snippet -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex items-center justify-between">
+<div>
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">Không quá 02 lỗi chính tả / ngữ pháp</span>
+<p class="font-caption text-caption text-on-surface-variant">Đạt trọn vẹn điểm số quy chuẩn</p>
+</div>
+<span class="font-label-md text-label-md text-tertiary font-bold">+2.0đ</span>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded-lg flex items-center justify-between">
+<div>
+<span class="font-label-sm text-label-sm font-semibold text-on-surface">Quy chuẩn trừ điểm vi phạm</span>
+<p class="font-caption text-caption text-on-surface-variant">Mỗi 03 lỗi sai tiếp theo trừ điểm tự động</p>
+</div>
+<span class="font-label-md text-label-md text-error font-bold">-0.25đ / lỗi</span>
+</div>
+</div>
+</div>
+<!-- Tiêu chí 4: Sáng tạo và liên hệ bản thân -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm transition-all hover:bg-surface-container-high/60">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary-container text-[22px]">auto_awesome</span>
+<div>
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Tiêu chí 4: Tính sáng tạo, tư duy phản biện &amp; Liên hệ bản thân</h3>
+<p class="font-caption text-caption text-on-surface-variant">Điểm phát hiện độc đáo, góc nhìn cá nhân không rập khuôn khuôn sáo</p>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center bg-surface-container-lowest px-2 py-1 rounded-lg shadow-sm">
+<span class="font-caption text-caption text-outline mr-1">Tối đa:</span>
+<input class="score-input w-12 font-label-md text-label-md font-bold text-primary text-center bg-transparent focus:outline-none" step="0.5" type="number" value="2.0"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">đ</span>
+</div>
+<button class="text-outline hover:text-error transition-colors p-1" title="Xóa tiêu chí" type="button">
+<span class="material-symbols-outlined text-[18px]">delete_outline</span>
+</button>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-sm rounded-lg">
+<p class="font-literary-body-md text-literary-body-md text-on-surface leading-relaxed italic">
+                “Có phát hiện mới mẻ, sâu sắc về cách định vị cái tôi trước các thuật toán định hướng thông tin; cảm xúc chân thành và hành động cụ thể, không hô hào sáo rỗng.”
+              </p>
+</div>
+</div>
+</div>
+<!-- Add Criterion Action Row -->
+<div class="flex items-center justify-between pt-space-xs">
+<button class="flex items-center gap-space-xs text-secondary font-label-md text-label-md hover:opacity-80 transition-all p-2 rounded-lg hover:bg-secondary-fixed/20" id="btn-add-criterion" type="button">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>Thêm tiêu chí đánh giá mới</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary font-caption text-caption flex items-center gap-1 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">restart_alt</span>
+<span>Khôi phục mẫu mặc định Bộ GD&amp;ĐT</span>
+</button>
+</div>
+</section>
+</div>
+<!-- RIGHT COLUMN: Materials & Learning Goals (4 cols) -->
+<div class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- KHU VỰC 2: LIÊN KẾT HỌC LIỆU CHUẨN TỪ KHO HỌC LIỆU -->
+<section class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="p-1.5 rounded-lg bg-secondary-fixed text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">local_library</span>
+</div>
+<div>
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Học liệu liên kết</h3>
+<p class="font-caption text-caption text-on-surface-variant">Từ Kho ngữ liệu Screen 03</p>
+</div>
+</div>
+<span class="font-caption text-caption bg-tertiary-fixed text-on-tertiary-fixed px-2 py-0.5 rounded-full font-semibold">2 mục đã chọn</span>
+</div>
+<!-- Linked Material Cards -->
+<div class="flex flex-col gap-space-sm">
+<!-- Ngữ liệu chính card -->
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col gap-2 relative">
+<div class="flex items-start justify-between gap-space-xs">
+<span class="font-caption text-caption uppercase tracking-wider text-secondary font-bold">Ngữ liệu chính</span>
+<span class="flex items-center gap-0.5 text-caption font-caption text-tertiary font-medium">
+<span class="material-symbols-outlined text-[14px]">verified</span> Đã duyệt
+              </span>
+</div>
+<p class="font-label-md text-label-md text-on-surface font-semibold line-clamp-2">
+              Văn bản đọc hiểu số 04: Ý nghĩa của tinh thần tự chủ trong kỷ nguyên chuyển đổi số
+            </p>
+<div class="flex items-center justify-between text-caption font-caption text-on-surface-variant pt-1">
+<span>Trích báo cáo số VNU • 850 từ</span>
+<a class="text-secondary font-semibold hover:underline flex items-center gap-0.5" href="#">
+<span>Xem ngữ liệu</span>
+<span class="material-symbols-outlined text-[14px]">open_in_new</span>
+</a>
+</div>
+</div>
+<!-- Barem khung card -->
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col gap-2">
+<div class="flex items-start justify-between gap-space-xs">
+<span class="font-caption text-caption uppercase tracking-wider text-primary font-bold">Barem khung mẫu</span>
+<span class="font-caption text-caption text-outline">Thang 10 điểm</span>
+</div>
+<p class="font-label-md text-label-md text-on-surface font-semibold">
+              Barem thang điểm chuẩn 2024 - Nghị luận xã hội THPT
+            </p>
+<div class="flex items-center justify-between text-caption font-caption text-on-surface-variant pt-1">
+<span>Được áp dụng chung toàn khối 12</span>
+<span class="material-symbols-outlined text-[18px] text-outline">lock</span>
+</div>
+</div>
+</div>
+<!-- Add Material Secondary Action Button -->
+<button class="w-full py-2.5 px-3 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center justify-center gap-space-xs transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">add_box</span>
+<span>+ Thêm học liệu từ Kho lưu trữ</span>
+</button>
+</section>
+<!-- KHU VỰC 3: MỤC TIÊU HỌC TẬP (LEARNING GOALS) -->
+<section class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="p-1.5 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">flag</span>
+</div>
+<div>
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Mục tiêu học tập</h3>
+<p class="font-caption text-caption text-on-surface-variant">Ánh xạ chuẩn đầu ra GDPT 2018</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">help_outline</span>
+</div>
+<div class="flex flex-col gap-space-md">
+<!-- Goal 1 -->
+<div class="flex flex-col gap-1.5 p-space-sm rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-on-secondary text-[11px] font-bold">1</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Tư duy lập luận logic</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+              Học sinh xác định đúng vấn đề nghị luận và lập luận có hệ thống, phản biện đa chiều.
+            </p>
+<div class="pt-1 flex items-center gap-1">
+<span class="font-caption text-caption text-outline">Gắn tiêu chí:</span>
+<span class="px-2 py-0.5 rounded-full font-caption text-caption bg-primary-container/30 text-on-primary-container font-medium">
+                Luận điểm &amp; dẫn chứng (4.0đ)
+              </span>
+</div>
+</div>
+<!-- Goal 2 -->
+<div class="flex flex-col gap-1.5 p-space-sm rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-on-secondary text-[11px] font-bold">2</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Thực tiễn &amp; Cập nhật số</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+              Biết sử dụng dẫn chứng thực tiễn cập nhật từ làn sóng chuyển đổi số và trí tuệ nhân tạo.
+            </p>
+<div class="pt-1 flex items-center gap-1">
+<span class="font-caption text-caption text-outline">Gắn tiêu chí:</span>
+<span class="px-2 py-0.5 rounded-full font-caption text-caption bg-secondary-fixed/50 text-secondary font-medium">
+                Sáng tạo &amp; Bản thân (2.0đ)
+              </span>
+</div>
+</div>
+<!-- Goal 3 -->
+<div class="flex flex-col gap-1.5 p-space-sm rounded-lg bg-surface-container-low">
+<div class="flex items-center gap-2">
+<span class="flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-on-secondary text-[11px] font-bold">3</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Năng lực ngôn ngữ tiếng Việt</span>
+</div>
+<p class="font-caption text-caption text-on-surface-variant leading-relaxed">
+              Diễn đạt trong sáng, giàu cảm xúc, chuẩn mực chính tả và dấu câu học đường.
+            </p>
+<div class="pt-1 flex items-center gap-1">
+<span class="font-caption text-caption text-outline">Gắn tiêu chí:</span>
+<span class="px-2 py-0.5 rounded-full font-caption text-caption bg-tertiary-fixed/40 text-on-tertiary-container font-medium">
+                Diễn đạt &amp; Ngữ pháp (2.0đ)
+              </span>
+</div>
+</div>
+</div>
+<!-- AI Assistant Recommendation Box -->
+<div class="p-space-sm rounded-xl bg-surface-container-high/60 flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-primary text-[20px] shrink-0">psychology</span>
+<div>
+<h4 class="font-label-sm text-label-sm font-bold text-on-surface">Khuyến nghị sư phạm AI</h4>
+<p class="font-caption text-caption text-on-surface-variant mt-0.5">
+              Đề tài phù hợp với năng lực học kỳ 1 lớp 12. Tỉ lệ học sinh phân tích đúng trọng tâm dự kiến đạt ~86%.
+            </p>
+</div>
+</div>
+</section>
+<!-- Pedagogical Quality Checklist Card -->
+<section class="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-sm">
+<h3 class="font-label-md text-label-md text-on-surface font-bold">Thẩm định trước khi giao bài</h3>
+<div class="flex flex-col gap-2 text-caption font-caption text-on-surface-variant">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-0" type="checkbox"/>
+<span class="text-on-surface">Đã liên kết đúng văn bản đọc hiểu</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-0" type="checkbox"/>
+<span class="text-on-surface">Tổng điểm Rubric bằng đúng 10.0</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-secondary focus:ring-0" type="checkbox"/>
+<span class="text-on-surface">Có ràng buộc tối thiểu dẫn chứng thực tế</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer">
+<input class="w-4 h-4 rounded text-secondary focus:ring-0" type="checkbox"/>
+<span class="text-on-surface">Gửi thông báo tức thì lên ứng dụng Học sinh</span>
+</label>
+</div>
+</section>
+</div>
+</div>
+<!-- Interactive JavaScript logic for dynamic score calculation -->
+<script>
+    (function() {
+      const scoreInputs = document.querySelectorAll('.score-input');
+      const totalDisplay = document.getElementById('current-total-score');
+      const statusPill = document.getElementById('status-pill');
+      const scoreContainer = document.getElementById('score-counter-container');
+      const validationIcon = document.getElementById('validation-icon');
+      const btnPublish = document.getElementById('btn-publish');
+
+      function calculateTotal() {
+        let sum = 0;
+        scoreInputs.forEach(input => {
+          const val = parseFloat(input.value) || 0;
+          sum += val;
+        });
+
+        // Round to 1 decimal place
+        sum = Math.round(sum * 10) / 10;
+        totalDisplay.textContent = sum.toFixed(1);
+
+        if (Math.abs(sum - 10.0) < 0.001) {
+          // Valid state: Exact 10 points
+          scoreContainer.className = 'flex items-center gap-space-xs px-3 py-1.5 rounded-xl bg-tertiary-fixed/30 text-on-tertiary-fixed shadow-sm';
+          statusPill.textContent = 'Hợp lệ 100%';
+          statusPill.className = 'font-caption text-caption text-tertiary font-bold ml-1 bg-surface-container-lowest px-2 py-0.5 rounded-full';
+          validationIcon.textContent = 'check_circle';
+          validationIcon.className = 'material-symbols-outlined text-[20px] text-tertiary';
+          btnPublish.disabled = false;
+          btnPublish.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+          // Invalid state: Sum mismatch
+          scoreContainer.className = 'flex items-center gap-space-xs px-3 py-1.5 rounded-xl bg-error-container text-on-error-container shadow-sm';
+          const diff = (10.0 - sum).toFixed(1);
+          statusPill.textContent = diff > 0 ? `Thiếu ${diff}đ` : `Dư ${Math.abs(diff)}đ`;
+          statusPill.className = 'font-caption text-caption text-error font-bold ml-1 bg-surface-container-lowest px-2 py-0.5 rounded-full';
+          validationIcon.textContent = 'error';
+          validationIcon.className = 'material-symbols-outlined text-[20px] text-error';
+          btnPublish.disabled = true;
+          btnPublish.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      }
+
+      scoreInputs.forEach(input => {
+        input.addEventListener('input', calculateTotal);
+      });
+
+      // Quick toast on publish action
+      btnPublish.addEventListener('click', function() {
+        if (!this.disabled) {
+          const originalHTML = this.innerHTML;
+          this.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Đang đồng bộ Rubric...</span>';
+          setTimeout(() => {
+            this.innerHTML = '<span class="material-symbols-outlined text-[18px]">done_all</span><span>Đã giao thành công!</span>';
+            setTimeout(() => {
+              this.innerHTML = originalHTML;
+            }, 2500);
+          }, 800);
+        }
+      });
+    })();
+  </script>
+</div></main></div></body></html>

@@ -1,0 +1,49 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# JavaScript / TypeScript dependencies and generated output
+node_modules/
+.next/
+.nuxt/
+.turbo/
+dist/
+build/
+*.tsbuildinfo
+
+# Python dependencies and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Test and evaluation output
+coverage/
+.coverage
+.coverage.*
+htmlcov/
+playwright-report/
+test-results/
+/evaluations/results/
+
+# Runtime files, private uploads and local databases
+/var/
+/data/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Local editor and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
