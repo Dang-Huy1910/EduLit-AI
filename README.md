@@ -137,7 +137,7 @@ EduLit-AI/
 
 1. **Clone mã nguồn về máy:**
    ```bash
-   git clone https://github.com/huydqhe182408/EduLit-AI.git
+   git clone https://github.com/huydqhe182408/EduLit-AI.git](https://github.com/Dang-Huy1910/EduLit-AI
    cd EduLit-AI/frontend
    ```
 
