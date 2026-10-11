@@ -14,6 +14,10 @@ export default function TeacherAssignmentsView() {
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [showCallout, setShowCallout] = useState(true);
 
+  const publishedCount = assignments.filter((a) => a.status === 'published').length;
+  const draftCount = assignments.filter((a) => a.status === 'draft').length;
+  const blockedCount = assignments.filter((a) => a.status === 'blocked').length;
+
   const filteredAssignments = showEmptyState
     ? []
     : assignments.filter((a) => {
@@ -44,7 +48,7 @@ export default function TeacherAssignmentsView() {
               <span>Quản lý Kho học liệu</span>
             </Link>
             <Link
-              href="/assignments/assign-nlxh-01"
+              href="/assignments/new"
               className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container hover:brightness-95 text-sm font-semibold flex items-center gap-2 transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
@@ -127,7 +131,7 @@ export default function TeacherAssignmentsView() {
                   : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container border border-outline-variant/40'
               }`}
             >
-              Tất cả (4)
+              Tất cả ({assignments.length})
             </button>
             <button
               onClick={() => {
@@ -140,7 +144,7 @@ export default function TeacherAssignmentsView() {
                   : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container border border-outline-variant/40'
               }`}
             >
-              Đã giao (2)
+              Đã giao ({publishedCount})
             </button>
             <button
               onClick={() => {
@@ -153,7 +157,7 @@ export default function TeacherAssignmentsView() {
                   : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container border border-outline-variant/40'
               }`}
             >
-              Bản nháp (1)
+              Bản nháp ({draftCount})
             </button>
             <button
               onClick={() => {
@@ -166,7 +170,7 @@ export default function TeacherAssignmentsView() {
                   : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container border border-outline-variant/40'
               }`}
             >
-              Chưa đủ học liệu (1)
+              Chưa đủ học liệu ({blockedCount})
             </button>
           </div>
 
@@ -192,7 +196,7 @@ export default function TeacherAssignmentsView() {
               Hãy khởi tạo bài viết đầu tiên, nạp ngữ liệu và thiết lập thang điểm Rubric GDPT 2018 cho học sinh.
             </p>
             <Link
-              href="/assignments/assign-nlxh-01"
+              href="/assignments/new"
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-xs font-semibold hover:brightness-95 transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-base">add</span>

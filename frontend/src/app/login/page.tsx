@@ -8,7 +8,7 @@ import ToastContainer from '@/components/ToastContainer';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setUser, setRole, addToast } = useAppStore();
+  const { setUser, setRole, addToast, resetDemoState } = useAppStore();
 
   const [username, setUsername] = useState('dang.loan@thptdanphuong.edu.vn');
   const [password, setPassword] = useState('DanPhuong@2024');
@@ -292,9 +292,22 @@ export default function LoginPage() {
 
             {/* Quick 1-Click Demo Accounts */}
             <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                Đăng nhập nhanh 1-Click (Demo Prototype):
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Đăng nhập nhanh 1-Click:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetDemoState();
+                    addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
+                  }}
+                  className="text-[10px] text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-0.5 hover:underline"
+                >
+                  <span className="material-symbols-outlined text-[13px]">restart_alt</span>
+                  <span>Khôi phục Demo</span>
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <button
                   type="button"

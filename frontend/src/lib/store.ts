@@ -44,7 +44,15 @@ interface AppState {
   activeRubric: Rubric;
   updateRubricCriterion: (criterionId: string, updates: Partial<Rubric['criteria'][0]>) => void;
   addAssignment: (assignment: Assignment) => void;
-  publishAssignment: (id: string) => void;
+  updateAssignment: (id: string, updates: Partial<Assignment>) => void;
+  publishAssignment: (id: string, updates?: Partial<Assignment>) => void;
+
+  // Student Submissions tracking
+  submittedAssignmentIds: string[];
+  submitAssignment: (id: string) => void;
+
+  // Reset Demo
+  resetDemoState: () => void;
 
   // Materials
   materials: Material[];
@@ -185,12 +193,57 @@ export const useAppStore = create<AppState>()(
       addAssignment: (assignment) => {
         set((state) => ({ assignments: [assignment, ...state.assignments] }));
       },
-      publishAssignment: (id) => {
+      updateAssignment: (id, updates) => {
         set((state) => ({
           assignments: state.assignments.map((a) =>
-            a.id === id ? { ...a, status: 'published', statusLabel: 'Đã giao' } : a
+            a.id === id ? { ...a, ...updates } : a
           ),
         }));
+      },
+      publishAssignment: (id, updates) => {
+        set((state) => {
+          const exists = state.assignments.some((a) => a.id === id);
+          if (exists) {
+            return {
+              assignments: state.assignments.map((a) =>
+                a.id === id
+                  ? {
+                      ...a,
+                      status: 'published',
+                      statusLabel: 'Đã giao',
+                      ...updates,
+                    }
+                  : a
+              ),
+            };
+          } else if (updates) {
+            const newAssignment: Assignment = {
+              id,
+              code: `VAN12-NL-${Math.floor(10 + Math.random() * 90)}`,
+              title: updates.title || 'Bài tập mới',
+              studentTitle: updates.title || 'Bài tập mới',
+              topic: updates.title || 'Bài tập mới',
+              instructions: updates.instructions || '',
+              gradeLevel: 12,
+              classId: '12A1',
+              className: 'Lớp 12A1 • THPT Đan Phượng (40 HS)',
+              status: 'published',
+              statusLabel: 'Đã giao',
+              deadline: updates.deadline || '30/11/2024 23:59',
+              totalSubmissions: 0,
+              assessedSubmissions: 0,
+              flaggedSubmissions: 0,
+              rubricId: 'RUBRIC_V12_NLXH_2026',
+              linkedMaterialIds: ['mat-ngulieu-04', 'mat-barem-2024'],
+              learningGoals: [],
+              ...updates,
+            };
+            return {
+              assignments: [newAssignment, ...state.assignments],
+            };
+          }
+          return state;
+        });
       },
 
       materials: MOCK_MATERIALS,
@@ -305,6 +358,49 @@ export const useAppStore = create<AppState>()(
       setOcrStatus: (status) => set({ ocrStatus: status }),
 
       studentResult: MOCK_STUDENT_RESULT,
+
+      submittedAssignmentIds: [],
+      submitAssignment: (id) => {
+        set((state) => ({
+          submittedAssignmentIds: state.submittedAssignmentIds.includes(id)
+            ? state.submittedAssignmentIds
+            : [...state.submittedAssignmentIds, id],
+          assignments: state.assignments.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  totalSubmissions: (a.totalSubmissions || 0) + 1,
+                  assessedSubmissions: (a.assessedSubmissions || 0) + 1,
+                }
+              : a
+          ),
+        }));
+      },
+
+      resetDemoState: () => {
+        set({
+          currentUser: MOCK_TEACHER,
+          assignments: MOCK_ASSIGNMENTS,
+          activeRubric: MOCK_RUBRIC,
+          materials: MOCK_MATERIALS,
+          outline: INITIAL_OUTLINE,
+          socraticMessages: INITIAL_SOCRATIC_MESSAGES,
+          uploadedPages: [
+            { id: 'p1', url: '/mock-paper-1.jpg', size: '2.4 MB', piiMasked: true },
+            { id: 'p2', url: '/mock-paper-2.jpg', size: '1.9 MB', piiMasked: true },
+          ],
+          piiStatus: 'success',
+          flaggedSegments: [
+            { lineRef: 14, text: 'sáng suốt', confidence: 0.71, isCorrected: false },
+          ],
+          ocrStatus: 'needs_review',
+          studentResult: MOCK_STUDENT_RESULT,
+          submittedAssignmentIds: [],
+        });
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('edulit-ai-storage');
+        }
+      },
     }),
     {
       name: 'edulit-ai-storage',

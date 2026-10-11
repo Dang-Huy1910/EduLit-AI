@@ -2,14 +2,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 
 export default function SubmitPhotosPage() {
   const router = useRouter();
+  const params = useParams();
+  const assignmentId = (params?.id as string) || 'assign-nlxh-01';
   const {
+    assignments,
     uploadedPages,
     addUploadedPage,
     removeUploadedPage,
@@ -18,6 +21,8 @@ export default function SubmitPhotosPage() {
     setPiiStatus,
     addToast,
   } = useAppStore();
+
+  const assignment = assignments.find((a) => a.id === assignmentId);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [demoState, setDemoState] = useState<'success' | 'processing' | 'failed'>(piiStatus);
@@ -64,14 +69,14 @@ export default function SubmitPhotosPage() {
 
     setTimeout(() => {
       setIsSubmitting(false);
-      router.push('/assignments/assign-nlxh-01/ocr');
+      router.push(`/assignments/${assignmentId}/ocr`);
     }, 1200);
   };
 
   const canSubmit = uploadedPages.length > 0 && uploadedPages.length <= 4 && demoState === 'success';
 
   return (
-    <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle="Khối 12 - Lớp 12A1">
+    <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle={assignment?.title || 'Khối 12 - Lớp 12A1'}>
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
@@ -80,7 +85,7 @@ export default function SubmitPhotosPage() {
               <span className="text-xs bg-primary-fixed text-primary font-bold px-2 py-0.5 rounded-full">
                 Giai đoạn 3 / Viết tay &amp; Nộp ảnh
               </span>
-              <span className="text-xs text-on-surface-variant">Hạn nộp: 25/10/2024 23:59</span>
+              <span className="text-xs text-on-surface-variant">Hạn nộp: {assignment?.deadline || '25/10/2024 23:59'}</span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">
               Nộp ảnh bài viết tay &amp; Bảo vệ quyền riêng tư (PII-Shield)
@@ -88,7 +93,7 @@ export default function SubmitPhotosPage() {
           </div>
 
           <Link
-            href="/assignments/assign-nlxh-01/socratic"
+            href={`/assignments/${assignmentId}/socratic`}
             className="px-3.5 py-1.5 rounded-lg border border-outline-variant/60 text-xs font-semibold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1 shadow-sm shrink-0"
           >
             <span className="material-symbols-outlined text-sm">arrow_back</span>
@@ -97,7 +102,7 @@ export default function SubmitPhotosPage() {
         </div>
 
         {/* Unified 5-Step Workflow Stepper */}
-        <AssignmentWorkflowStepper currentStep="submit" />
+        <AssignmentWorkflowStepper currentStep="submit" assignmentId={assignmentId} />
 
         {/* Demo Switcher Bar */}
         <div className="p-3 bg-surface-container-low/70 rounded-xl border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 text-xs">

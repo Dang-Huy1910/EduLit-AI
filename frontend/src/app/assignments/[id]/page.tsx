@@ -13,11 +13,27 @@ export default function AssignmentEditorPage() {
   const { assignments, activeRubric, updateRubricCriterion, publishAssignment, addToast } = useAppStore();
 
   const assignmentId = (params?.id as string) || 'assign-nlxh-01';
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const isNew = assignmentId === 'new';
+  const assignment = assignments.find((a) => a.id === assignmentId);
 
-  const [title, setTitle] = useState(assignment?.title || 'Nghị luận xã hội: Ý nghĩa của tinh thần tự chủ trong kỷ nguyên chuyển đổi số');
-  const [instructions, setInstructions] = useState(assignment?.instructions || '');
-  const [deadline, setDeadline] = useState(assignment?.deadline || '25/10/2024 23:59');
+  const [title, setTitle] = useState(
+    assignment?.title ||
+      (isNew
+        ? 'Nghị luận xã hội: Ý thức trách nhiệm của thanh niên đối với cộng đồng'
+        : 'Nghị luận xã hội: Ý nghĩa của tinh thần tự chủ trong kỷ nguyên chuyển đổi số')
+  );
+  const [instructions, setInstructions] = useState(
+    assignment?.instructions ||
+      (isNew
+        ? `Anh/chị hãy viết một bài văn nghị luận (khoảng 600 chữ) bàn về tinh thần trách nhiệm của người trẻ trước những vấn đề thời sự của quê hương, đất nước.
+Yêu cầu:
+1. Giải thích ý niệm về trách nhiệm công dân của người trẻ trong kỷ nguyên mới.
+2. Nêu dẫn chứng người thật việc thật trong đời sống thực tế năm 2024.
+3. Phản biện thói vô cảm, bàng quan trước khó khăn của cộng đồng.
+4. Rút ra bài học hành động cụ thể cho bản thân trong học tập và rèn luyện.`
+        : '')
+  );
+  const [deadline, setDeadline] = useState(assignment?.deadline || '30/11/2024 23:59');
 
   // Criteria state
   const [criteria, setCriteria] = useState<RubricCriterion[]>(activeRubric.criteria);
@@ -36,7 +52,18 @@ export default function AssignmentEditorPage() {
   };
 
   const handleSaveDraft = () => {
-    addToast('Đã lưu bản nháp đề bài và cấu hình Rubric thành công.', 'success');
+    const targetId = isNew ? `assign-draft-${Date.now()}` : assignmentId;
+    publishAssignment(targetId, {
+      title,
+      studentTitle: title,
+      topic: title,
+      instructions,
+      deadline,
+      status: 'draft',
+      statusLabel: 'Bản nháp',
+    });
+    addToast(`Đã lưu bản nháp đề bài "${title}" thành công.`, 'success');
+    router.push('/assignments');
   };
 
   const handlePublish = () => {
@@ -45,8 +72,17 @@ export default function AssignmentEditorPage() {
       return;
     }
 
-    publishAssignment(assignmentId);
-    addToast('Đã xác nhận Rubric v1.4 và giao bài thành công cho Lớp 12A1!', 'success');
+    const targetId = isNew ? `assign-new-${Date.now()}` : assignmentId;
+    publishAssignment(targetId, {
+      title,
+      studentTitle: title,
+      topic: title,
+      instructions,
+      deadline,
+      status: 'published',
+      statusLabel: 'Đã giao',
+    });
+    addToast(`Đã áp dụng Barem Rubric v1.4 và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
     router.push('/assignments');
   };
 

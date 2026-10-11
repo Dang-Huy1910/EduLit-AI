@@ -2,14 +2,17 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 
 export default function SocraticChatPage() {
   const router = useRouter();
+  const params = useParams();
+  const assignmentId = (params?.id as string) || 'assign-nlxh-01';
   const {
+    assignments,
     socraticMessages,
     addSocraticMessage,
     outline,
@@ -18,6 +21,8 @@ export default function SocraticChatPage() {
     removeOutlinePoint,
     addToast,
   } = useAppStore();
+
+  const assignment = assignments.find((a) => a.id === assignmentId);
 
   const [inputMessage, setInputMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +77,7 @@ export default function SocraticChatPage() {
                 Socratic Writing Scaffold
               </span>
               <span className="text-xs text-on-surface-variant font-medium">
-                Bài viết số 1: Ý chí và lòng kiên định
+                {assignment?.title || 'Bài viết số 1: Ý chí và lòng kiên định'}
               </span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">
@@ -99,7 +104,7 @@ export default function SocraticChatPage() {
         </div>
 
         {/* Unified 5-Step Workflow Stepper */}
-        <AssignmentWorkflowStepper currentStep="socratic" />
+        <AssignmentWorkflowStepper currentStep="socratic" assignmentId={assignmentId} />
 
         {/* Demo Toolbar */}
         <div className="p-2.5 bg-surface-container-low/70 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs border border-outline-variant/20">
@@ -368,7 +373,7 @@ export default function SocraticChatPage() {
               <button
                 type="button"
                 disabled={simIncompleteState}
-                onClick={() => router.push('/assignments/assign-nlxh-01/submit')}
+                onClick={() => router.push(`/assignments/${assignmentId}/submit`)}
                 className="w-full py-2.5 bg-primary-container text-on-primary-container font-bold text-xs rounded-lg hover:brightness-95 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>Chuyển sang viết tay (Nộp ảnh bài viết)</span>

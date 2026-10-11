@@ -9,12 +9,17 @@ import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 
 interface EvaluationResultViewProps {
   viewMode?: 'student' | 'teacher';
+  assignmentId?: string;
 }
 
-export default function EvaluationResultView({ viewMode = 'student' }: EvaluationResultViewProps) {
+export default function EvaluationResultView({
+  viewMode = 'student',
+  assignmentId = 'assign-nlxh-01',
+}: EvaluationResultViewProps) {
   const router = useRouter();
-  const { studentResult, addToast } = useAppStore();
+  const { assignments, studentResult, addToast } = useAppStore();
 
+  const assignment = assignments.find((a) => a.id === assignmentId);
   const [highlightedLine, setHighlightedLine] = useState<number | null>(14);
   const [demoState, setDemoState] = useState<'graded' | 'grading' | 'pending_teacher'>('graded');
 
@@ -57,7 +62,7 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
                   Bài tập của em
                 </Link>
                 <Link
-                  href="/assignments/assign-nlxh-01/ocr"
+                  href={`/assignments/${assignmentId}/ocr`}
                   className="px-3 py-1.5 rounded-lg border border-outline-variant/50 text-xs text-secondary hover:bg-surface-container flex items-center gap-1"
                 >
                   <span className="material-symbols-outlined text-sm">document_scanner</span>
@@ -77,7 +82,7 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
 
         {/* Unified 5-Step Workflow Stepper */}
         {viewMode === 'student' && (
-          <AssignmentWorkflowStepper currentStep="result" />
+          <AssignmentWorkflowStepper currentStep="result" assignmentId={assignmentId} />
         )}
 
         {/* Disclaimer Card */}
@@ -167,7 +172,7 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
                   </span>
                 </div>
                 <h2 className="font-headline-md text-lg font-bold text-on-surface font-merriweather">
-                  Bài làm: Ý chí và lòng kiên định của giới trẻ
+                  Bài làm: {assignment?.title || 'Ý chí và lòng kiên định của giới trẻ'}
                 </h2>
                 <p className="text-xs text-on-surface-variant mt-0.5">
                   Học sinh: <strong>{result.studentName}</strong> • Lớp 12A1 • THPT Đan Phượng
@@ -334,7 +339,7 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
                         <button
                           onClick={() => {
                             if (task.id === 'TASK_3') {
-                              router.push('/assignments/assign-nlxh-01/socratic');
+                              router.push(`/assignments/${assignmentId}/socratic`);
                             } else {
                               addToast(`Đã mở bài tập luyện tập: ${task.title}`, 'info');
                             }

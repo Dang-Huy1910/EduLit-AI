@@ -19,7 +19,7 @@ export default function StudentShell({
 }: StudentShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentUser, setRole, logout } = useAppStore();
+  const { currentUser, setRole, logout, resetDemoState, addToast } = useAppStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const studentNavItems = [
@@ -70,9 +70,21 @@ export default function StudentShell({
             <span className="font-headline-sm text-headline-sm text-primary">EduLit-AI</span>
           </div>
         </div>
-        <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs font-semibold">
-          {currentUser.name || 'Bùi Hà My'}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              resetDemoState();
+              addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
+            }}
+            title="Khôi phục trạng thái Demo"
+            className="p-1 rounded text-amber-700 hover:bg-amber-100 flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-lg">restart_alt</span>
+          </button>
+          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs font-semibold">
+            {currentUser.name || 'Bùi Hà My'}
+          </span>
+        </div>
       </div>
 
       {/* Sidebar Navigation */}
@@ -173,6 +185,18 @@ export default function StudentShell({
               <span className="material-symbols-outlined text-[20px] text-primary">school</span>
               <span>Chuyển sang Giáo viên</span>
             </button>
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  resetDemoState();
+                  addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all font-semibold shadow-xs"
+              >
+                <span className="material-symbols-outlined text-base text-amber-600">restart_alt</span>
+                <span>⚡ Khôi phục Demo (Reset)</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -204,6 +228,17 @@ export default function StudentShell({
             <span className="font-caption text-xs text-secondary bg-secondary-fixed/50 px-space-sm py-0.5 rounded-full font-semibold">
               Chế độ xem thử: Học sinh
             </span>
+            <button
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu của hệ thống demo"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs transition-all shadow-xs"
+            >
+              <span className="material-symbols-outlined text-sm text-amber-600">restart_alt</span>
+              <span>Khôi phục Demo</span>
+            </button>
           </div>
 
           <div className="flex items-center gap-space-lg">
