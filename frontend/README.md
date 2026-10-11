@@ -1,29 +1,27 @@
-# Frontend
+# Frontend — EduLit-AI
 
-Giao diện dành cho giáo viên và học sinh. Thư mục được chuẩn bị độc lập với framework; `src/app` sẽ chứa điểm khởi tạo, bố cục và định tuyến phù hợp với công nghệ được chọn.
+Ứng dụng web Next.js 15 dành cho Giáo viên (**Cô Đặng Loan**) và Học sinh (**Bùi Hà My**) trường **THPT Đan Phượng**, hỗ trợ chu trình Dạy – Học và Đánh giá môn Ngữ văn theo chương trình GDPT 2018.
+
+---
+
+## 🏛️ Cấu trúc thư mục
 
 | Thư mục | Trách nhiệm |
-| --- | --- |
-| `src/app/` | Khởi tạo ứng dụng, route, layout và provider toàn cục |
-| `src/features/` | Màn hình, trạng thái, hook và lời gọi API theo từng nghiệp vụ |
-| `src/components/` | Thành phần giao diện dùng chung giữa các feature |
-| `src/lib/` | API client và tiện ích dùng chung |
-| `src/styles/` | Style toàn cục và token giao diện |
-| `public/` | Tài nguyên tĩnh công khai của sản phẩm |
-| `tests/unit/` | Kiểm thử thành phần và logic giao diện |
-| `tests/integration/` | Kiểm thử phối hợp giữa màn hình, trạng thái và API client |
+| :--- | :--- |
+| `src/app/` | Next.js 15 App Router: Định tuyến, Layout và Providers toàn cục |
+| `src/app/assignments/` | Danh sách bài tập, Soạn đề & Cấu hình Rubric 10.0đ |
+| `src/app/assignments/[id]/` | Chu trình 5 bước làm bài: `/socratic`, `/submit`, `/ocr`, `/result` |
+| `src/app/materials/` | Kho học liệu & Quản lý ngữ liệu đọc hiểu, barem GDPT 2018 |
+| `src/app/reports/` | Báo cáo năng lực lớp 12A1 & Kế hoạch điều chỉnh giáo án |
+| `src/app/login/` | Màn hình đăng nhập phong cách VLearn với nền trường THPT Đan Phượng |
+| `src/components/` | Shell giao diện (`TeacherShell`, `StudentShell`), Stepper 5 bước, Toasts |
+| `src/features/` | Components nghiệp vụ (`assignments`, `assessment`, `reports`) |
+| `src/lib/` | Zustand Store (`store.ts`), Types (`types.ts`), Dữ liệu mẫu THPT Đan Phượng (`mock/`) |
+| `public/` | Tài nguyên tĩnh (ảnh trường THPT Đan Phượng `anh-truong.jpg`, favicon) |
 
-`features` gồm bốn phân hệ cốt lõi và vị trí dự kiến cho `identity`, `classrooms`, `assignments`. Quy trình đăng nhập và quản lý lớp/bài tập cần được chốt theo SRS trước triển khai.
+---
 
-`features/grounding` dành cho màn hình giáo viên tải tài liệu, xem trạng thái xử lý và kiểm tra rubric. `features/socratic` dành cho giao diện chat, chọn đề và theo dõi dàn ý. Lịch sử chat được lưu theo phiên ở backend; parsing tài liệu, chọn ngữ cảnh và gọi mô hình cũng do backend thực hiện.
-
-Các route giáo viên/học sinh dùng lại feature phù hợp. Backend kiểm tra quyền truy cập vào tài liệu, đề và phiên chat cho từng yêu cầu; việc ẩn nút hoặc phân route trên frontend chỉ phục vụ trải nghiệm giao diện.
-
-Khi feature phát triển, có thể chia thành `components/`, `hooks/`, `api/`, `types/` bên trong feature đó. Chỉ tạo thư mục con khi có nhu cầu thực tế.
-
-Ảnh bài làm học sinh không được đặt trong `public/`. Ứng dụng web gọi backend để thực hiện nghiệp vụ; khóa dịch vụ AI/OCR thuộc cấu hình backend.
-
-## Hướng dẫn chạy Clickable Prototype
+## 🚀 Hướng dẫn khởi chạy (Local Development)
 
 ```bash
 cd frontend
@@ -31,9 +29,24 @@ npm install
 npm run dev
 ```
 
-Truy cập: [http://localhost:3000](http://localhost:3000)
+Truy cập trình duyệt: **[http://localhost:3000](http://localhost:3000)** (tự động chuyển hướng về `/login`).
 
-- **Đăng nhập nhanh:** Tại màn hình đăng nhập, bấm vào thẻ Giáo viên (Cô Nguyễn Thu Hà) hoặc Học sinh (Trần Minh Quân) để vào ngay.
-- **Dữ liệu minh họa:** 100% dữ liệu là dữ liệu giả lập (synthetic demo data) dành riêng cho trường THPT Đan Phượng.
-- **Điều hướng 10 màn hình:** Bao phủ trọn vẹn 4 phân hệ (Grounding, Socratic Outline, OCR Verification, Rubric Assessment & Feedback).
+---
 
+## 🔑 Tài khoản đăng nhập nhanh (1-Click Demo)
+
+Tại màn hình đăng nhập, hệ thống cung cấp sẵn 2 nút đăng nhập 1-click để kiểm thử nhanh hai vai trò:
+
+1. **Giáo viên:** Bấm **"Cô Đặng Loan"** (GV Ngữ văn • Lớp 12A1 THPT Đan Phượng)
+   - Quản lý đề bài, giao đề mới, cấu hình Rubric 4 tiêu chí.
+   - Theo dõi báo cáo năng lực lớp và điều chỉnh giáo án.
+2. **Học sinh:** Bấm **"Bùi Hà My"** (Học sinh Lớp 12A1 • Mã định danh: `VN-12A1-048`)
+   - Xem bài tập cần làm & bài đã nộp.
+   - Trải nghiệm chu trình 5 bước: Đọc hiểu &rarr; Lập dàn ý Socratic &rarr; Viết tay & Nộp ảnh (PII-Shield) &rarr; Soát lỗi OCR &rarr; Nhận bảng điểm Rubric 7.5đ.
+
+---
+
+## ⚡ Nút "Khôi phục Demo (Reset)"
+
+Ở thanh Header và Sidebar của cả hai vai trò đều có nút **⚡ Khôi phục Demo (Reset)**.  
+Bấm nút này sẽ xóa sạch cache `sessionStorage` và đưa toàn bộ đề bài, dàn ý, bài nộp về trạng thái xuất phát ban đầu để sẵn sàng chạy lại kịch bản thuyết trình.
