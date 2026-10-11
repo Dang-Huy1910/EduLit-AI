@@ -23,4 +23,17 @@ Khi feature phát triển, có thể chia thành `components/`, `hooks/`, `api/`
 
 Ảnh bài làm học sinh không được đặt trong `public/`. Ứng dụng web gọi backend để thực hiện nghiệp vụ; khóa dịch vụ AI/OCR thuộc cấu hình backend.
 
-Chưa có mã chạy, dependency hoặc lệnh khởi động. Bổ sung hướng dẫn sau khi chọn framework.
+## Hướng dẫn chạy Clickable Prototype
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Truy cập: [http://localhost:3000](http://localhost:3000)
+
+- **Đăng nhập nhanh:** Tại màn hình đăng nhập, bấm vào thẻ Giáo viên (Cô Nguyễn Thu Hà) hoặc Học sinh (Trần Minh Quân) để vào ngay.
+- **Dữ liệu minh họa:** 100% dữ liệu là dữ liệu giả lập (synthetic demo data) dành riêng cho trường THPT Đan Phượng.
+- **Điều hướng 10 màn hình:** Bao phủ trọn vẹn 4 phân hệ (Grounding, Socratic Outline, OCR Verification, Rubric Assessment & Feedback).
+
