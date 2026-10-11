@@ -71,7 +71,7 @@ export default function StudentShell({
           </div>
         </div>
         <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs font-semibold">
-          Học sinh 48
+          {currentUser.name || 'Bùi Hà My'}
         </span>
       </div>
 
@@ -215,14 +215,14 @@ export default function StudentShell({
             <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
               <div className="text-right">
                 <div className="font-label-md text-sm text-on-surface font-semibold">
-                  Học sinh 48 ({currentUser.name})
+                  {currentUser.name || 'Bùi Hà My'}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
                   Lớp 12A1 • THPT Đan Phượng
                 </div>
               </div>
               <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs ring-2 ring-secondary-container/40">
-                48
+                {currentUser.avatarInitials || 'HM'}
               </div>
               <button
                 onClick={handleLogout}

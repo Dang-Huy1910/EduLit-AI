@@ -10,7 +10,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { setUser, setRole, addToast } = useAppStore();
 
-  const [username, setUsername] = useState('nguyen.thuha@thptdanphuong.edu.vn');
+  const [username, setUsername] = useState('dang.loan@thptdanphuong.edu.vn');
   const [password, setPassword] = useState('DanPhuong@2024');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
@@ -38,7 +38,7 @@ export default function LoginPage() {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      if (username.includes('thuha') || username.includes('gv') || username.includes('teacher')) {
+      if (username.includes('loan') || username.includes('dangloan') || username.includes('gv') || username.includes('teacher')) {
         setUser(MOCK_TEACHER);
         setRole('teacher');
         addToast('Đăng nhập thành công với vai trò Giáo viên.', 'success');
@@ -55,14 +55,14 @@ export default function LoginPage() {
   const handleQuickLoginTeacher = () => {
     setUser(MOCK_TEACHER);
     setRole('teacher');
-    addToast('Đăng nhập nhanh: Cô Nguyễn Thu Hà (Giáo viên)', 'success');
+    addToast('Đăng nhập nhanh: Cô Đặng Loan (Giáo viên)', 'success');
     router.push('/assignments');
   };
 
   const handleQuickLoginStudent = () => {
     setUser(MOCK_STUDENT);
     setRole('student');
-    addToast('Đăng nhập nhanh: Trần Minh Quân (Học sinh 48)', 'success');
+    addToast('Đăng nhập nhanh: Bùi Hà My (Học sinh)', 'success');
     router.push('/assignments');
   };
 
@@ -220,7 +220,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="nguyen.thuha@thptdanphuong.edu.vn"
+                  placeholder="dang.loan@thptdanphuong.edu.vn"
                   className="w-full px-3 py-2.5 rounded-lg border border-yellow-200 bg-amber-50/50 text-slate-900 text-xs font-medium focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
                 />
               </div>
@@ -301,7 +301,7 @@ export default function LoginPage() {
                   onClick={handleQuickLoginTeacher}
                   className="p-2 rounded-lg border border-slate-200 hover:border-primary hover:bg-amber-50/40 text-left transition-all"
                 >
-                  <div className="font-bold text-slate-800">Cô Thu Hà</div>
+                  <div className="font-bold text-slate-800">Cô Đặng Loan</div>
                   <div className="text-[10px] text-primary font-medium">Giáo viên &rarr;</div>
                 </button>
                 <button
@@ -309,8 +309,8 @@ export default function LoginPage() {
                   onClick={handleQuickLoginStudent}
                   className="p-2 rounded-lg border border-slate-200 hover:border-secondary hover:bg-cyan-50/40 text-left transition-all"
                 >
-                  <div className="font-bold text-slate-800">Minh Quân</div>
-                  <div className="text-[10px] text-secondary font-medium">Học sinh 48 &rarr;</div>
+                  <div className="font-bold text-slate-800">Bùi Hà My</div>
+                  <div className="text-[10px] text-secondary font-medium">Học sinh &rarr;</div>
                 </button>
               </div>
             </div>

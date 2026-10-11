@@ -14,7 +14,7 @@ export default function TeacherStudentResultPage() {
             Báo cáo lớp 12A1
           </Link>
           <span className="text-outline-variant">/</span>
-          <span className="text-on-surface font-semibold">Trần Minh Quân (HS 48) - 7.5đ</span>
+          <span className="text-on-surface font-semibold">Bùi Hà My (HS 48) - 7.5đ</span>
         </div>
       }
     >

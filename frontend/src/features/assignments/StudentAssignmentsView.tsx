@@ -43,7 +43,7 @@ export default function StudentAssignmentsView() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2 py-0.5 rounded-full">
-                Học sinh 48 (Lớp 12A1)
+                Học sinh Bùi Hà My (Lớp 12A1)
               </span>
               <span className="text-xs bg-surface-container text-on-surface-variant font-medium px-2 py-0.5 rounded-full">
                 Dữ liệu minh họa (Prototype Demo)

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
+import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 
 export default function SubmitPhotosPage() {
@@ -71,7 +72,7 @@ export default function SubmitPhotosPage() {
 
   return (
     <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle="Khối 12 - Lớp 12A1">
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
           <div>
@@ -94,6 +95,9 @@ export default function SubmitPhotosPage() {
             <span>Quay lại Dàn ý Socratic</span>
           </Link>
         </div>
+
+        {/* Unified 5-Step Workflow Stepper */}
+        <AssignmentWorkflowStepper currentStep="submit" />
 
         {/* Demo Switcher Bar */}
         <div className="p-3 bg-surface-container-low/70 rounded-xl border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -132,34 +136,6 @@ export default function SubmitPhotosPage() {
             >
               3. Ảnh mờ / Lỗi PII
             </button>
-          </div>
-        </div>
-
-        {/* Stepper Pipeline (5 steps) */}
-        <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1.5 text-tertiary font-medium">
-            <span className="material-symbols-outlined text-base">check_circle</span>
-            <span>1. Tải &amp; Kiểm tra ảnh</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1.5 text-secondary font-bold bg-secondary-fixed/40 px-2.5 py-1 rounded-full">
-            <span className="material-symbols-outlined text-base animate-pulse">lock</span>
-            <span>2. Bảo vệ PII (Hiện tại)</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1.5 text-outline">
-            <span className="material-symbols-outlined text-base">document_scanner</span>
-            <span>3. Nhận dạng OCR</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1.5 text-outline">
-            <span className="material-symbols-outlined text-base">fact_check</span>
-            <span>4. Kiểm tra bản chép</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1.5 text-outline">
-            <span className="material-symbols-outlined text-base">gavel</span>
-            <span>5. Đánh giá Rubric</span>
           </div>
         </div>
 
@@ -213,7 +189,7 @@ export default function SubmitPhotosPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {uploadedPages.map((page, idx) => (
               <div
                 key={page.id}

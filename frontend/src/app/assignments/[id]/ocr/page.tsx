@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
+import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { MOCK_TRANSCRIPTION_LINES } from '@/lib/mock/data';
 
@@ -74,6 +75,9 @@ export default function OcrVerificationPage() {
             </button>
           </div>
         </div>
+
+        {/* Unified 5-Step Workflow Stepper */}
+        <AssignmentWorkflowStepper currentStep="ocr" />
 
         {/* Demo Toolbar */}
         <div className="p-3 bg-surface-container-low/70 rounded-xl border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 text-xs">

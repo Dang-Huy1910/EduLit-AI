@@ -180,7 +180,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 </div>
               </div>
               <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs ring-2 ring-primary-container/40">
-                {currentUser.avatarInitials || 'TH'}
+                {currentUser.avatarInitials || 'ĐL'}
               </div>
               <button
                 onClick={handleLogout}

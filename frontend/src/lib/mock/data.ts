@@ -4,23 +4,23 @@ export const SCHOOL_NAME = 'THPT Đan Phượng';
 
 export const MOCK_TEACHER: User = {
   id: 'user-teacher-01',
-  name: 'Cô Nguyễn Thu Hà',
+  name: 'Cô Đặng Loan',
   role: 'teacher',
-  email: 'nguyen.thuha@thptdanphuong.edu.vn',
+  email: 'dang.loan@thptdanphuong.edu.vn',
   school: 'THPT Đan Phượng',
   classId: '12A1',
-  avatarInitials: 'TH',
+  avatarInitials: 'ĐL',
 };
 
 export const MOCK_STUDENT: User = {
   id: 'user-student-48',
-  name: 'Trần Minh Quân',
+  name: 'Bùi Hà My',
   role: 'student',
-  email: 'tran.minhquan@thptdanphuong.edu.vn',
+  email: 'bui.hamy@thptdanphuong.edu.vn',
   school: 'THPT Đan Phượng',
   classId: '12A1',
   code: 'VN-12A1-048',
-  avatarInitials: 'MQ',
+  avatarInitials: 'HM',
 };
 
 export const MOCK_RUBRIC: Rubric = {
@@ -251,7 +251,7 @@ export const MOCK_STUDENT_RESULT: SubmissionResult = {
   id: 'SUB_20261012_001',
   assignmentId: 'assign-nlxh-01',
   studentId: 'user-student-48',
-  studentName: 'Trần Minh Quân',
+  studentName: 'Bùi Hà My',
   studentCode: 'VN-12A1-048',
   totalScore: 7.5,
   maxScore: 10.0,
@@ -396,7 +396,7 @@ export const MOCK_REPORT_METRICS = {
   ],
   studentRows: [
     { id: '1', name: 'Lê Hoàng Yến', code: 'VN-12A1-002', score: 9.0, status: 'Đã chấm', statusColor: 'tertiary' },
-    { id: '2', name: 'Trần Minh Quân (HS 48)', code: 'VN-12A1-048', score: 7.5, status: 'Đã chấm', statusColor: 'secondary' },
+    { id: '2', name: 'Bùi Hà My (HS 48)', code: 'VN-12A1-048', score: 7.5, status: 'Đã chấm', statusColor: 'secondary' },
     { id: '3', name: 'Nguyễn Đắc Anh', code: 'VN-12A1-015', score: 6.0, status: 'Đã chấm', statusColor: 'secondary' },
     { id: '4', name: 'Phạm Thu Ngân', code: 'VN-12A1-028', score: null, status: 'Chờ duyệt ảnh / OCR đang xử lý', statusColor: 'outline' },
     { id: '5', name: 'Vũ Thị Minh Thư', code: 'VN-12A1-039', score: 8.25, status: 'Đã chấm', statusColor: 'tertiary' },

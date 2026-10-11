@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { MOCK_STUDENT_RESULT } from '@/lib/mock/data';
+import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 
 interface EvaluationResultViewProps {
   viewMode?: 'student' | 'teacher';
@@ -74,6 +75,11 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
           </div>
         </div>
 
+        {/* Unified 5-Step Workflow Stepper */}
+        {viewMode === 'student' && (
+          <AssignmentWorkflowStepper currentStep="result" />
+        )}
+
         {/* Disclaimer Card */}
         <div className="p-3 bg-surface-container-low/70 rounded-xl border border-outline-variant/30 text-xs text-on-surface-variant flex items-center gap-2.5">
           <span className="material-symbols-outlined text-secondary text-base">policy</span>
@@ -136,7 +142,7 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
             Bài thi đang chờ giáo viên xác nhận bản chép OCR
           </h3>
           <p className="text-xs text-on-surface-variant max-w-md mx-auto">
-            Phát hiện 01 đoạn chữ tay bị nghiêng ở dòng 14. Kết quả điểm chính thức sẽ được công bố ngay sau khi Cô Nguyễn Thu Hà duyệt bản chép.
+            Phát hiện 01 đoạn chữ tay bị nghiêng ở dòng 14. Kết quả điểm chính thức sẽ được công bố ngay sau khi Cô Đặng Loan duyệt bản chép.
           </p>
         </div>
       ) : (
@@ -356,7 +362,7 @@ export default function EvaluationResultView({ viewMode = 'student' }: Evaluatio
                   </button>
                   <button
                     onClick={() => {
-                      addToast('Đã gửi câu hỏi thắc mắc tới Cô Nguyễn Thu Hà.', 'success');
+                      addToast('Đã gửi câu hỏi thắc mắc tới Cô Đặng Loan.', 'success');
                     }}
                     className="w-1/2 py-2 rounded-lg bg-secondary text-white text-center font-bold hover:bg-secondary/90 shadow-sm"
                   >

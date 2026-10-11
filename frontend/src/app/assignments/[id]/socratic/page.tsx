@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
+import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 
 export default function SocraticChatPage() {
@@ -97,28 +98,8 @@ export default function SocraticChatPage() {
           </div>
         </div>
 
-        {/* 4-Step FSM Stepper */}
-        <div className="p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1 text-tertiary font-medium">
-            <span className="material-symbols-outlined text-sm">check_circle</span>
-            <span>1. Khởi tạo đề bài</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1 text-tertiary font-medium">
-            <span className="material-symbols-outlined text-sm">check_circle</span>
-            <span>2. Xác định vấn đề</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1 text-primary font-bold bg-primary-container/20 px-2.5 py-1 rounded-full">
-            <span className="material-symbols-outlined text-sm animate-pulse">psychology</span>
-            <span>3. Lập dàn ý Socratic (Hiện tại)</span>
-          </div>
-          <span className="text-outline-variant">&rarr;</span>
-          <div className="flex items-center gap-1 text-outline">
-            <span className="material-symbols-outlined text-sm">edit_note</span>
-            <span>4. Rà soát &amp; Viết tay</span>
-          </div>
-        </div>
+        {/* Unified 5-Step Workflow Stepper */}
+        <AssignmentWorkflowStepper currentStep="socratic" />
 
         {/* Demo Toolbar */}
         <div className="p-2.5 bg-surface-container-low/70 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs border border-outline-variant/20">
@@ -193,9 +174,9 @@ export default function SocraticChatPage() {
                       </>
                     ) : (
                       <>
-                        <span className="font-semibold text-on-surface">Học sinh 48</span>
+                        <span className="font-semibold text-on-surface">Bùi Hà My</span>
                         <span className="w-5 h-5 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-[10px]">
-                          48
+                          HM
                         </span>
                       </>
                     )}
