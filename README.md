@@ -5,6 +5,8 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
+**Trạng thái triển khai:** Giao diện hiện chạy bằng dữ liệu giả lập. Kiến trúc MVP đã được thiết kế với **Next.js + NestJS + PostgreSQL + Gemini 2.5 Flash**; backend, worker và AI thật chưa được triển khai. Bắt đầu từ [kiến trúc và công nghệ](docs/architecture/system-design.md), [mô hình dữ liệu](docs/architecture/data-model.md) và [lộ trình triển khai](docs/development/implementation-roadmap.md).
+
 ---
 
 ## 🌟 1. Bối cảnh & Bài toán giải quyết (Problem Statement)
@@ -44,7 +46,7 @@ EduLit-AI được thiết kế như một **Trợ lý sư phạm đồng hành 
  └─────────────────┘       └─────────────────┘
 ```
 
-1. **Kho tri thức học liệu chuẩn (Grounding & RAG):** Nạp trước văn bản đọc hiểu, barem chấm và giáo án để làm căn cứ đối chiếu vững chắc cho AI, bảo đảm tính xác thực và loại bỏ hoàn toàn hiện tượng ảo giác (hallucination).
+1. **Kho tri thức học liệu chuẩn (Grounding):** Cung cấp văn bản đọc hiểu, barem và giáo án theo đúng đề để giảm nguy cơ nhận xét thiếu căn cứ. MVP truy xuất theo đề và metadata; kiểm tra nguồn và đánh giá chất lượng vẫn cần thiết.
 2. **Trợ lý gợi mở tư duy Socratic (Socratic Writing Assistant):** Hướng dẫn học sinh lập dàn ý 3 phần (Mở bài - Thân bài - Kết bài) bằng các câu hỏi gợi ý mở. **Tuyệt đối không viết văn hộ**; kiên quyết từ chối yêu cầu "viết giúp mở bài/bài mẫu".
 3. **Bảo vệ quyền riêng tư (PII-Shield) & Nhận dạng chữ viết tay (OCR):** Tự động che mờ họ tên, trường lớp trên ảnh bài viết ngay tại trình duyệt của học sinh trước khi gửi xử lý. Trích xuất bản chép số hóa theo từng dòng để học sinh và giáo viên cùng rà soát đối chiếu.
 4. **Đánh giá đa tiêu chí Rubric GDPT 2018:** Chấm điểm theo Barem chuẩn 4 tiêu chí (Tổng 10.0đ), chỉ rõ điểm mạnh, đoạn cần bổ sung, bắt lỗi chính tả/ngữ pháp và giao bài tập khắc phục cá nhân hóa.
@@ -87,15 +89,24 @@ sequenceDiagram
 
 ## 🛠️ 4. Công nghệ sử dụng (Tech Stack)
 
-- **Frontend:** [Next.js 15](https://nextjs.org/) (App Router), [React 19](https://react.dev/), [TypeScript](https://www.typescriptlang.org/)
-- **Styling & Design System:** [Tailwind CSS](https://tailwindcss.com/), Google Fonts (*Merriweather* cho văn bản, *Plus Jakarta Sans* cho giao diện), Material Symbols
-- **State Management & Persistence:** [Zustand](https://github.com/pmndrs/zustand) với middleware `persist` lưu trữ trạng thái tại `sessionStorage`, hỗ trợ cơ chế khôi phục nhanh (Demo Reset)
-- **Kiến trúc Backend dự kiến:** Modular Monolith chia theo 4 domain core:
-  - `grounding`: Quản lý kho học liệu, tài liệu tham khảo, ngữ liệu đọc hiểu.
-  - `socratic`: Động cơ hội thoại sư phạm, guardrails phòng chống gian lận và viết hộ.
-  - `assessment`: OCR nhận dạng chữ viết tay, ẩn danh PII, chấm điểm theo Rubric JSON Schema.
-  - `analytics`: Tổng hợp báo cáo phổ điểm lớp, phân tích năng lực và gợi ý giáo án.
-- **Quy chuẩn hợp đồng:** JSON Schema & OpenAPI 3.0 trong thư mục `contracts/`.
+| Lớp | Công nghệ | Trạng thái |
+| --- | --- | --- |
+| Giao diện | Next.js 15 App Router, React 19, TypeScript, Tailwind CSS 3, Recharts | Đã có prototype |
+| Trạng thái | Zustand cho UI; TanStack Query cho dữ liệu API | Zustand hiện có; Query sẽ bổ sung |
+| API | NestJS/TypeScript, modular monolith | Đã chọn cho thiết kế MVP, chưa scaffold |
+| Runtime/gói | Node.js 24 LTS, npm | Khóa patch khi scaffold MVP |
+| Dữ liệu | PostgreSQL 17 + Prisma | Chưa triển khai |
+| Tác vụ nền | pg-boss trên PostgreSQL; worker cùng codebase backend | Chưa triển khai |
+| Model | **Gemini 2.5 Flash**, `gemini-2.5-flash`, SDK `@google/genai` | Người dùng đã chọn; chưa gọi API thật |
+| File/ảnh | Local private storage khi dev; GCS khi deploy; Canvas + Sharp | Thiết kế đích; chưa tích hợp thật |
+| Auth | Tài khoản cấp trước, Argon2id, session PostgreSQL và cookie HttpOnly | Chưa triển khai; đăng nhập hiện là demo |
+| Contract | OpenAPI, JSON Schema + Ajv | Đã thiết kế danh sách contract; chưa có schema thực thi |
+
+Backend gồm `identity`, `classrooms`, `assignments`, `grounding`, `socratic`, `assessment`, `writing-profile`, `analytics`. API và worker dùng chung database; OCR/chấm chạy nền, chatbot trả nội dung sau kiểm tra guardrail. Học liệu và rubric được chốt phiên bản theo đề; hồ sơ viết lưu nhận xét có bằng chứng.
+
+Luồng MVP thật bổ sung privacy review và giáo viên xác nhận bản chép/công bố điểm; demo hiện tại vẫn minh họa luồng tương tác. Xem [Gemini pipeline](docs/architecture/gemini-pipeline.md) và [API design](docs/api/api-design.md). Các mục tiêu độ trễ và chất lượng phải được đo, không suy từ prototype.
+
+Theo [tài liệu Google](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash), quyền truy cập Gemini 2.5 Flash hiện phụ thuộc lịch sử sử dụng tài khoản. Milestone đầu tiên kiểm tra model trên project thực tế; hệ thống không tự đổi model khi không truy cập được.
 
 ---
 
@@ -130,8 +141,8 @@ EduLit-AI/
 ## 🚀 6. Hướng dẫn cài đặt & Khởi chạy (Quick Start)
 
 ### Yêu cầu môi trường
-- **Node.js:** Phiên bản 18.18 trở lên (Khuyến nghị Node.js 20 LTS)
-- **Trình quản lý gói:** `npm`, `pnpm` hoặc `yarn`
+- **Node.js:** Chọn Node.js 24 LTS cho MVP; khóa patch chung frontend/backend khi scaffold.
+- **Trình quản lý gói:** `npm`, giữ `frontend/package-lock.json`.
 
 ### Các bước thực hiện
 
@@ -188,6 +199,12 @@ Bấm nút này bất cứ lúc nào để xóa sạch dữ liệu chạy thử 
 - 📋 [Đặc tả yêu cầu phần mềm chi tiết (SRS.md)](SRS.md)
 - 🎨 [Quy chuẩn thiết kế giao diện & Design Tokens (DESIGN.md)](DESIGN.md)
 - 🏗️ [Cấu trúc dự án và quy tắc tổ chức mã nguồn (docs/architecture/project-structure.md)](docs/architecture/project-structure.md)
+- 🧩 [Kiến trúc và công nghệ MVP](docs/architecture/system-design.md)
+- 🗃️ [Mô hình dữ liệu, phiên bản và trạng thái](docs/architecture/data-model.md)
+- 🧠 [Pipeline Gemini 2.5 Flash và hồ sơ văn phong](docs/architecture/gemini-pipeline.md)
+- 🔌 [Thiết kế API MVP](docs/api/api-design.md)
+- 🛣️ [Lộ trình từ prototype đến thí điểm](docs/development/implementation-roadmap.md)
+- 📝 [ADR-0001 — Quyết định công nghệ](docs/architecture/decisions/0001-mvp-stack.md)
 - 🤖 [Chi tiết luồng học liệu và Trợ lý Socratic (docs/architecture/knowledge-and-chatbot.md)](docs/architecture/knowledge-and-chatbot.md)
 - 🤝 [Hướng dẫn đóng góp phát triển (CONTRIBUTING.md)](CONTRIBUTING.md)
 

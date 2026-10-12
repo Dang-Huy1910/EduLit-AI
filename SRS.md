@@ -5,13 +5,15 @@
 | Thuộc tính | Giá trị |
 | --- | --- |
 | Dự án | EduLit-AI |
-| Phiên bản tài liệu | 1.0 |
-| Ngày cập nhật | 11/10/2026 |
+| Phiên bản tài liệu | 1.1 |
+| Ngày cập nhật | 12/10/2026 |
 | Trạng thái | Bản dự thảo đặc tả yêu cầu |
 | Nguồn | Nội dung yêu cầu do người dùng cung cấp |
 | Đối tượng sử dụng tài liệu | Nhóm phát triển, kiểm thử, giáo viên và bên phụ trách sản phẩm |
 
 > Tài liệu mô tả yêu cầu dự kiến của hệ thống, không xác nhận các chức năng đã được triển khai. Các nội dung chưa được xác định trong nguồn được ghi tại mục 11; các quy tắc chuẩn hóa bổ sung được nêu rõ để xem xét.
+
+Ngày 12/10/2026, người dùng chọn **Gemini 2.5 Flash**. [Thiết kế kiến trúc](docs/architecture/system-design.md) và [ADR-0001](docs/architecture/decisions/0001-mvp-stack.md) chọn stack triển khai từ prototype. Các đề xuất policy review/retention/outline và ngưỡng chất lượng trong thiết kế không tự trở thành yêu cầu đã nghiệm thu.
 
 ## 1. Giới thiệu
 
@@ -106,8 +108,8 @@ Hệ thống không cung cấp chức năng viết thay đoạn văn hoặc bài
 - Phân hệ 2 và 3 phụ thuộc vào học liệu, đề bài và rubric từ phân hệ 1.
 - Phân hệ 4 phụ thuộc vào kết quả đánh giá từ phân hệ 3 và mục tiêu giáo án từ phân hệ 1.
 - Khả năng nhận dạng chữ viết tay tiếng Việt phụ thuộc chất lượng ảnh và dịch vụ OCR/Vision được lựa chọn.
-- Gemini Vision hoặc Qwen2-VL API là các phương án được nêu trong nguồn, chưa phải lựa chọn công nghệ đã chốt.
-- Không có yêu cầu giao diện, nền tảng triển khai hoặc công nghệ lưu trữ cụ thể trong tài liệu nguồn.
+- Người dùng đã chọn `gemini-2.5-flash` cho Vision/OCR, đánh giá và hướng dẫn. Quyền truy cập model trên project cần kiểm tra trước tích hợp; không tự thay model.
+- Stack triển khai được thiết kế từ prototype Next.js: NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và file riêng tư local/GCS. Đây là lựa chọn kiến trúc bổ sung, không phải mô tả hệ thống đã chạy.
 
 ## 3. Phân hệ 1 — Teacher Knowledge Grounding & Rubric Engine
 
@@ -393,6 +395,7 @@ Lưu ý chuẩn hóa:
 
 - `student_id` trong dữ liệu gửi dịch vụ bên ngoài phải là mã ẩn danh, không chứa định danh trực tiếp.
 - `ocr_confidence` nằm trong khoảng `[0, 1]`; mẫu nguồn chỉ có độ tin cậy toàn bài. Schema độ tin cậy từng đoạn theo FR-14 cần bổ sung tại TBD-04.
+- Thiết kế Gemini đề xuất confidence nullable kèm nguồn và `needsReview`; self-confidence của model chưa là xác suất OCR đúng đã hiệu chuẩn. Giá trị `0.94` trong ví dụ không phải kết quả kiểm thử. Contract thực thi và điều kiện review cần hoàn thiện theo TBD-04/TBD-10.
 - `scoring_summary.grade_level` là nhãn xếp loại, khác với khối học trong Rubric Schema; có thể đổi thành `performance_level` khi chốt hợp đồng API.
 - `line_ref` tham chiếu dòng của bản chép được đánh số ổn định; quy ước dòng và liên kết về trang ảnh cần chốt tại TBD-04.
 - Các nhận xét và lỗi trong ví dụ chỉ minh họa cấu trúc; `transcription` được rút gọn, không phải một bài làm hoàn chỉnh để kiểm chứng kết quả chấm.
@@ -500,10 +503,11 @@ Tiêu chí cấu trúc và nhất quán dữ liệu không thay thế đánh gi�
 | TBD-08 | Môi trường và cách đo hiệu năng: tải đồng thời, kích thước ảnh, dịch vụ AI, mạng, thời điểm bắt đầu đo và tỷ lệ yêu cầu cần đạt mục tiêu. |
 | TBD-09 | Chính sách timeout/thử lại, giới hạn chi phí gọi API và xử lý dữ liệu sai schema hoặc kết quả chưa hoàn tất. |
 | TBD-10 | Bộ dữ liệu kiểm thử tiếng Việt, chỉ số/ngưỡng chất lượng OCR và mức độ đồng thuận điểm giữa AI với giáo viên. |
-| TBD-11 | Kiến trúc triển khai, nền tảng giao diện, API nội bộ, cơ sở dữ liệu và lựa chọn nhà cung cấp AI/OCR chính thức. |
+| TBD-11 | Đã có thiết kế stack trong ADR-0001 và model người dùng chọn là Gemini 2.5 Flash; còn khóa runtime/dependencies, xác nhận quyền model và cấp môi trường triển khai trước thực thi. |
 
 ## 12. Lịch sử phiên bản
 
 | Phiên bản | Ngày | Thay đổi |
 | --- | --- | --- |
 | 1.0 | 11/10/2026 | Chuyển nội dung yêu cầu được cung cấp thành SRS; bổ sung mã yêu cầu, tiêu chí nghiệm thu, quy tắc chuẩn hóa đề xuất và danh sách nội dung cần xác định. |
+| 1.1 | 12/10/2026 | Ghi lựa chọn Gemini 2.5 Flash và liên kết kiến trúc/stack MVP; phân biệt confidence minh họa với độ đúng đã đo. Giữ FR/BR/NFR và các policy còn mở. |

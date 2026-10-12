@@ -1,6 +1,8 @@
 # Backend API
 
-Ứng dụng backend dự kiến tổ chức theo modular monolith. Module giữ quyền sở hữu nghiệp vụ; hạ tầng và tác vụ nền dùng lại các use case của module.
+Backend đích dùng **NestJS/TypeScript**, tổ chức theo modular monolith, với hai tiến trình API và worker dùng chung codebase. PostgreSQL 17/Prisma giữ dữ liệu, pg-boss chạy tác vụ nền, SDK `@google/genai` gọi **`gemini-2.5-flash`**. Chưa có backend thực thi, dependency hoặc migration.
+
+Đọc [kiến trúc và công nghệ](../docs/architecture/system-design.md), [mô hình dữ liệu](../docs/architecture/data-model.md), [pipeline Gemini](../docs/architecture/gemini-pipeline.md) và [API design](../docs/api/api-design.md). Module giữ quyền sở hữu nghiệp vụ; hạ tầng và tác vụ nền dùng lại các use case của module.
 
 | Thư mục | Trách nhiệm |
 | --- | --- |
@@ -11,14 +13,15 @@
 | `src/modules/identity/` | Vị trí dự kiến cho xác thực và phân quyền |
 | `src/modules/classrooms/` | Vị trí dự kiến cho lớp học và thành viên |
 | `src/modules/assignments/` | Vị trí dự kiến cho bài tập, mã đề và liên kết rubric |
+| `src/modules/writing-profile/` | Observations có bằng chứng, profile snapshots và tiến bộ theo thể loại |
 | `src/core/` | Cấu hình, chuẩn lỗi và các thành phần nền tảng dùng chung |
-| `src/infrastructure/ai/` | Adapter nhà cung cấp mô hình ngôn ngữ |
-| `src/infrastructure/vision/` | Adapter dịch vụ Vision/OCR |
-| `src/infrastructure/database/` | Kết nối cơ sở dữ liệu và cơ chế persistence |
-| `src/infrastructure/storage/` | Tích hợp lưu trữ tệp có kiểm soát truy cập |
-| `src/infrastructure/queue/` | Adapter hàng đợi nếu cần xử lý bất đồng bộ |
+| `src/infrastructure/ai/` | Gemini adapter, structured outputs, budget/quota/usage và timeout |
+| `src/infrastructure/vision/` | Vision transcription port; dùng Gemini 2.5 Flash, tách lượt OCR/chấm |
+| `src/infrastructure/database/` | Prisma client và transaction PostgreSQL |
+| `src/infrastructure/storage/` | Local private/GCS adapters, kiểm soát truy cập và lifecycle |
+| `src/infrastructure/queue/` | pg-boss adapter; outbox dispatcher và idempotent consumers |
 | `src/jobs/` | Điểm vào tác vụ nền, gọi use case của module |
-| `migrations/` | Thay đổi schema cơ sở dữ liệu có phiên bản |
+| `prisma/schema.prisma`, `prisma/migrations/` | Vị trí đích cho schema và migrations; chưa tạo |
 | `tests/unit/` | Kiểm thử quy tắc nghiệp vụ độc lập |
 | `tests/integration/` | Kiểm thử API và tích hợp hạ tầng |
 
@@ -49,4 +52,4 @@ modules/<module>/
 
 Tác vụ OCR/chấm có thể chạy từ `src/jobs` trong tiến trình riêng khi cần. Backend và tiến trình nền dùng cùng mã nghiệp vụ; chỉ bổ sung ứng dụng worker riêng khi yêu cầu triển khai thực tế làm điều đó cần thiết.
 
-Chưa có mã chạy, dependency, database hay dịch vụ queue được cấu hình. Bổ sung hướng dẫn sau khi chốt công nghệ.
+MVP sẽ có `src/main.ts` cho API và `src/worker.ts` cho worker; các entrypoint này chưa được tạo. [.env.example](.env.example) hiện là template thiết kế, chưa được config loader đọc. Không có lệnh chạy backend tại thời điểm này; scaffold và lệnh thực tế nằm trong milestone M1 của [lộ trình](../docs/development/implementation-roadmap.md).
