@@ -34,6 +34,10 @@ interface AppState {
   setUser: (user: User) => void;
   logout: () => void;
 
+  // Sidebar Layout Collapse
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+
   // Toasts
   toasts: ToastMessage[];
   addToast: (message: string, type?: ToastMessage['type']) => void;
@@ -165,6 +169,9 @@ export const useAppStore = create<AppState>()(
       logout: () => {
         set({ currentUser: MOCK_TEACHER });
       },
+
+      sidebarCollapsed: false,
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
       toasts: [],
       addToast: (message: string, type: ToastMessage['type'] = 'info') => {
@@ -395,6 +402,7 @@ export const useAppStore = create<AppState>()(
           ],
           ocrStatus: 'needs_review',
           studentResult: MOCK_STUDENT_RESULT,
+          sidebarCollapsed: false,
           submittedAssignmentIds: [],
         });
         if (typeof window !== 'undefined') {
