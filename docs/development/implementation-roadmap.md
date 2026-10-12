@@ -15,7 +15,7 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 ## M1 — Nền tảng và dữ liệu thật
 
 - Scaffold NestJS API/worker trên Node.js 24 LTS/npm, lock patch runtime và dependencies, cấu hình lint/typecheck/test.
-- PostgreSQL/Prisma, migrations, pg-boss và transactional outbox; dev Docker Compose và storage adapter riêng tư.
+- PostgreSQL/Prisma schema MVP chín bảng, migrations, seed và persistence helpers đã có trên `feat/database` ([minimal-database.md](../architecture/minimal-database.md)). pg-boss, outbox, identity HTTP và storage adapter vẫn để milestone này.
 - Identity/session, membership authorization, CSRF, request IDs, usage reservations, idempotency và audit.
 - JSON Schemas/OpenAPI, mapper từ prototype camelCase/mock sang contract chính thức; fixture giả lập cho một lớp.
 - Thêm API client/TanStack Query; chuyển assignments/materials khỏi Zustand persisted data dần theo feature.

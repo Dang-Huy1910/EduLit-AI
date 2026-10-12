@@ -5,7 +5,7 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
-**Trạng thái triển khai:** Giao diện hiện chạy bằng dữ liệu giả lập. Kiến trúc MVP đã được thiết kế với **Next.js + NestJS + PostgreSQL + Gemini 2.5 Flash**; backend, worker và AI thật chưa được triển khai. Bắt đầu từ [kiến trúc và công nghệ](docs/architecture/system-design.md), [mô hình dữ liệu](docs/architecture/data-model.md) và [lộ trình triển khai](docs/development/implementation-roadmap.md).
+**Trạng thái triển khai:** Giao diện hiện chạy bằng dữ liệu giả lập. Data layer MVP (PostgreSQL 17 + Prisma 7, chín bảng) nằm trên nhánh `feat/database` — xem [minimal-database.md](docs/architecture/minimal-database.md). HTTP API, worker và AI thật chưa được triển khai. Bắt đầu từ [kiến trúc và công nghệ](docs/architecture/system-design.md), [mô hình dữ liệu](docs/architecture/data-model.md) và [lộ trình triển khai](docs/development/implementation-roadmap.md).
 
 ---
 

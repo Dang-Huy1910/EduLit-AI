@@ -2,7 +2,7 @@
 
 - Ngày: 12/10/2026.
 - Trạng thái: chọn làm cơ sở triển khai; Gemini 2.5 Flash là lựa chọn rõ của người dùng, các thành phần còn lại do thiết kế này đề xuất.
-- Phạm vi: thí điểm EduLit-AI từ prototype hiện có; chưa triển khai backend/hạ tầng.
+- Phạm vi: thí điểm EduLit-AI từ prototype hiện có; hạ tầng đầy đủ (queue/outbox/OCR) vẫn để sau. Database tối giản: [ADR-0002](0002-minimal-mvp-database.md).
 
 ## Bối cảnh
 

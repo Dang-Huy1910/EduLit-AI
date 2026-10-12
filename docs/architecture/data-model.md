@@ -1,6 +1,6 @@
 # Mô hình dữ liệu EduLit-AI
 
-Ngày: 12/10/2026. Đây là thiết kế logical cho PostgreSQL/Prisma, chưa phải migration đã thực thi. Bổ sung cho [SRS](../../SRS.md) và [system design](system-design.md).
+Ngày: 12/10/2026. Đây là thiết kế logical đầy đủ cho PostgreSQL/Prisma. Schema MVP đã triển khai hẹp hơn, xem [minimal-database.md](minimal-database.md) và [ADR-0002](decisions/0002-minimal-mvp-database.md). Bổ sung cho [SRS](../../SRS.md) và [system design](system-design.md).
 
 ## 1. Quy ước
 

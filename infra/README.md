@@ -14,4 +14,4 @@ Worker phải thường trú để nhận job; không xử lý lâu bên trong N
 
 Chỉ commit template và cấu hình không chứa secret. Credentials và giá trị cấu hình nhạy cảm được cấp qua môi trường triển khai. Tài liệu vận hành nằm trong `docs/deployment/`; lệnh hỗ trợ bảo trì nằm trong `scripts/maintenance/`.
 
-Hiện chưa có container, dịch vụ, tài nguyên cloud hoặc môi trường được triển khai.
+Dev PostgreSQL 17: `docker/compose.database.yml` (volume `edulit_pg_data`, healthcheck, cổng host `POSTGRES_PORT` mặc định 5433). Xem lệnh trong [backend/README.md](../backend/README.md). Chưa có Dockerfile ứng dụng, GCS hay môi trường staging/production.

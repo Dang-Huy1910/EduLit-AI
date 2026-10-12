@@ -1,0 +1,39 @@
+{
+  "name": "edulit-ai-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "prisma db seed",
+    "db:up": "docker compose --env-file .env -f ../infra/docker/compose.database.yml up -d --wait",
+    "db:check": "tsx src/infrastructure/database/check-connection.ts",
+    "db:setup": "npm run db:up && npm run prisma:generate && npm run prisma:migrate:deploy && npm run prisma:seed",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "tsx --test tests/unit/*.test.ts",
+    "test:db": "tsx scripts/run-db-tests.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "argon2": "0.44.0",
+    "dotenv": "17.4.2",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

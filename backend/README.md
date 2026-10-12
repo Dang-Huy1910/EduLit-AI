@@ -1,55 +1,67 @@
-# Backend API
+# Backend — data layer MVP
 
-Backend đích dùng **NestJS/TypeScript**, tổ chức theo modular monolith, với hai tiến trình API và worker dùng chung codebase. PostgreSQL 17/Prisma giữ dữ liệu, pg-boss chạy tác vụ nền, SDK `@google/genai` gọi **`gemini-2.5-flash`**. Chưa có backend thực thi, dependency hoặc migration.
+Backend đích vẫn là NestJS/TypeScript. **Đợt này chỉ có data layer:** PostgreSQL 17, Prisma ORM 7.10.0, persistence helpers và seed giả lập. Chưa có HTTP server, controller, auth endpoint, worker hay gọi Gemini.
 
-Đọc [kiến trúc và công nghệ](../docs/architecture/system-design.md), [mô hình dữ liệu](../docs/architecture/data-model.md), [pipeline Gemini](../docs/architecture/gemini-pipeline.md) và [API design](../docs/api/api-design.md). Module giữ quyền sở hữu nghiệp vụ; hạ tầng và tác vụ nền dùng lại các use case của module.
+Đọc [ADR-0002](../docs/architecture/decisions/0002-minimal-mvp-database.md), [minimal-database.md](../docs/architecture/minimal-database.md) và [database-handoff.md](../docs/development/database-handoff.md).
 
-| Thư mục | Trách nhiệm |
-| --- | --- |
-| `src/modules/grounding/` | Nhập học liệu, parsing/chunking, quản lý rubric và cung cấp ngữ cảnh theo đề |
-| `src/modules/socratic/` | Phiên hướng dẫn, FSM lập dàn ý, guardrail và rà soát dàn ý |
-| `src/modules/assessment/` | Bài nộp, xử lý ảnh, điều phối OCR, đánh giá và kiểm tra điểm |
-| `src/modules/analytics/` | Tổng hợp lớp/khối, heatmap, chênh lệch mục tiêu và kiến nghị sư phạm |
-| `src/modules/identity/` | Vị trí dự kiến cho xác thực và phân quyền |
-| `src/modules/classrooms/` | Vị trí dự kiến cho lớp học và thành viên |
-| `src/modules/assignments/` | Vị trí dự kiến cho bài tập, mã đề và liên kết rubric |
-| `src/modules/writing-profile/` | Observations có bằng chứng, profile snapshots và tiến bộ theo thể loại |
-| `src/core/` | Cấu hình, chuẩn lỗi và các thành phần nền tảng dùng chung |
-| `src/infrastructure/ai/` | Gemini adapter, structured outputs, budget/quota/usage và timeout |
-| `src/infrastructure/vision/` | Vision transcription port; dùng Gemini 2.5 Flash, tách lượt OCR/chấm |
-| `src/infrastructure/database/` | Prisma client và transaction PostgreSQL |
-| `src/infrastructure/storage/` | Local private/GCS adapters, kiểm soát truy cập và lifecycle |
-| `src/infrastructure/queue/` | pg-boss adapter; outbox dispatcher và idempotent consumers |
-| `src/jobs/` | Điểm vào tác vụ nền, gọi use case của module |
-| `prisma/schema.prisma`, `prisma/migrations/` | Vị trí đích cho schema và migrations; chưa tạo |
-| `tests/unit/` | Kiểm thử quy tắc nghiệp vụ độc lập |
-| `tests/integration/` | Kiểm thử API và tích hợp hạ tầng |
+## Yêu cầu
 
-Các vị trí đã chuẩn bị cho luồng tài liệu và chatbot:
+- Node.js 24 LTS (`backend/.nvmrc`), npm 10+
+- Docker Engine + Compose v2 (PostgreSQL)
+- Không dùng lockfile frontend; mọi lệnh database chạy với cwd `backend/`
 
-| Thư mục | Trách nhiệm dự kiến |
-| --- | --- |
-| `src/modules/grounding/application/ingestion/` | Điều phối tiếp nhận, parsing, chunking và lưu metadata học liệu |
-| `src/modules/grounding/application/retrieval/` | Chọn ngữ cảnh từ học liệu đã xử lý, theo đề bài và phạm vi truy cập |
-| `src/modules/grounding/application/rubrics/` | Trích xuất, kiểm tra và cung cấp rubric tương ứng |
-| `src/modules/socratic/application/conversations/` | Điều phối lượt chat, lịch sử phiên và tiến trình FSM |
-| `src/modules/socratic/application/guardrails/` | Áp dụng quy tắc hỏi gợi mở, giới hạn phản hồi và từ chối viết hộ |
-| `src/jobs/ingestion/` | Điểm vào tác vụ xử lý tài liệu nền khi cần |
+## Setup từ clone sạch
 
-Đây là khung trách nhiệm, chưa có pipeline thực thi. Xem [luồng học liệu và chatbot](../docs/architecture/knowledge-and-chatbot.md) để hiểu cách phối hợp và các điểm cần chốt.
-
-Khi triển khai một module, nhóm mã theo các trách nhiệm sau, với tên file phù hợp ngôn ngữ/framework được chọn:
-
-```text
-modules/<module>/
-├── domain/          # Thực thể, giá trị và quy tắc nghiệp vụ
-├── application/     # Use case và interface cho dịch vụ phụ thuộc
-├── presentation/    # Route/controller và ánh xạ đầu vào, đầu ra
-└── persistence/     # Repository cụ thể thuộc module, nếu cần
+```bash
+cd backend
+cp .env.example .env
+# Sửa POSTGRES_PASSWORD, DATABASE_URL, DATABASE_URL_TEST, SHADOW_DATABASE_URL, DEV_SEED_PASSWORD
+npm install
+npm run db:up
+npm run prisma:generate
+npm run prisma:migrate:deploy
+npm run prisma:seed
+npm run db:check
 ```
 
-Đây là hướng dẫn mở rộng; hiện chỉ có một số thư mục `application` được chuẩn bị cho luồng tài liệu và chatbot. Các phần còn lại được tạo khi triển khai mã. `domain` giữ độc lập với HTTP, ORM và SDK nhà cung cấp; các adapter phụ thuộc interface của tầng ứng dụng. Module trao đổi qua interface/use case rõ ràng, giữ thao tác dữ liệu trong module sở hữu.
+Compose: `infra/docker/compose.database.yml`. Cổng host mặc định **5433** (tránh đụng PostgreSQL sẵn có trên 5432), đổi bằng `POSTGRES_PORT`. Volume `edulit_pg_data`. Không đặt `container_name` cố định.
 
-Tác vụ OCR/chấm có thể chạy từ `src/jobs` trong tiến trình riêng khi cần. Backend và tiến trình nền dùng cùng mã nghiệp vụ; chỉ bổ sung ứng dụng worker riêng khi yêu cầu triển khai thực tế làm điều đó cần thiết.
+Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_shadow`. Local bootstrap user có quyền tạo DB; môi trường thật dùng role ứng dụng không phải superuser.
 
-MVP sẽ có `src/main.ts` cho API và `src/worker.ts` cho worker; các entrypoint này chưa được tạo. [.env.example](.env.example) hiện là template thiết kế, chưa được config loader đọc. Không có lệnh chạy backend tại thời điểm này; scaffold và lệnh thực tế nằm trong milestone M1 của [lộ trình](../docs/development/implementation-roadmap.md).
+## Scripts
+
+| Script | Việc |
+| --- | --- |
+| `npm run db:up` | `docker compose … up -d --wait` |
+| `npm run prisma:validate` | `prisma validate` |
+| `npm run prisma:generate` | sinh client vào `src/generated/prisma` |
+| `npm run prisma:migrate:dev` | tạo/apply migration (dev, cần shadow DB) |
+| `npm run prisma:migrate:deploy` | apply migration (test/deploy) |
+| `npm run prisma:seed` | seed giả lập, idempotent |
+| `npm run db:check` | kiểm tra kết nối; không in URL/password |
+| `npm run db:setup` | up + generate + deploy + seed |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run build` | compile `src/` |
+| `npm test` | unit tests (không cần DB) |
+| `npm run test:db` | migrate DB test rồi chạy integration; bắt buộc `DATABASE_URL_TEST` |
+
+Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu.
+
+## Seed
+
+Một giáo viên (`dang.loan`), hai học sinh (`bui.hamy`, `nguyen.an`), hai đề rubric khác nhau, bài nộp trước/sau, assessment `PUBLISHED`, observation có evidence. Password lấy `DEV_SEED_PASSWORD`, hash Argon2id. Không phải kết quả AI thật; hồ sơ chưa hội tụ.
+
+## Tổ chức mã
+
+```text
+prisma/schema.prisma
+prisma/migrations/
+src/infrastructure/database/   # Prisma client, provider Nest-shaped, check kết nối
+src/modules/assignments/
+src/modules/socratic/
+src/modules/assessment/
+src/modules/writing-profile/
+src/data-layer.ts              # export helpers cho cộng sự
+```
+
+Module vẫn theo domain/application/persistence. Chưa có `presentation/`.

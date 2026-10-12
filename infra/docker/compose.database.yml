@@ -1,0 +1,24 @@
+name: edulit
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-edulit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-edulit_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-edulit}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - edulit_pg_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  edulit_pg_data:

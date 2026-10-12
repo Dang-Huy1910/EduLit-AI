@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  TEACHER
+  STUDENT
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("user_status")
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+
+  @@map("assignment_status")
+}
+
+enum SocraticSessionStatus {
+  ACTIVE
+  COMPLETED
+
+  @@map("socratic_session_status")
+}
+
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+
+  @@map("chat_message_role")
+}
+
+enum AssessmentStatus {
+  AI_DRAFT
+  PUBLISHED
+
+  @@map("assessment_status")
+}
+
+enum ObservationKind {
+  STRENGTH
+  WEAKNESS
+  STYLE
+
+  @@map("observation_kind")
+}
+
+enum ObservationStatus {
+  PROVISIONAL
+  SUPPORTED
+  RESOLVED
+  INVALIDATED
+
+  @@map("observation_status")
+}
+
+model User {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  loginId      String     @unique @map("login_id")
+  displayName  String     @map("display_name")
+  passwordHash String     @map("password_hash")
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sessions            AuthSession[]
+  taughtAssignments   Assignment[]         @relation("AssignmentTeacher")
+  socraticSessions    SocraticSession[]
+  submissions         Submission[]
+  writingObservations WritingObservation[]
+  writingProfile      WritingProfile?
+
+  @@map("users")
+}
+
+model AuthSession {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model Assignment {
+  id                   String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  teacherId            String           @map("teacher_id") @db.Uuid
+  code                 String           @unique
+  title                String
+  instructions         String
+  genre                String
+  gradeLevel           Int              @map("grade_level")
+  learningMaterialText String           @map("learning_material_text") @db.Text
+  rubric               Json
+  maxScore             Decimal          @map("max_score") @db.Decimal(8, 2)
+  scoreStep            Decimal          @map("score_step") @db.Decimal(8, 2)
+  status               AssignmentStatus @default(DRAFT)
+  publishedAt          DateTime?        @map("published_at") @db.Timestamptz(6)
+  dueAt                DateTime?        @map("due_at") @db.Timestamptz(6)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher          User              @relation("AssignmentTeacher", fields: [teacherId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  socraticSessions SocraticSession[]
+  submissions      Submission[]
+
+  @@index([teacherId])
+  @@index([status])
+  @@map("assignments")
+}
+
+model SocraticSession {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId       String                @map("student_id") @db.Uuid
+  assignmentId    String                @map("assignment_id") @db.Uuid
+  contextSnapshot Json                  @map("context_snapshot")
+  outline         Json
+  status          SocraticSessionStatus @default(ACTIVE)
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student     User           @relation(fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assignment  Assignment     @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  messages    ChatMessage[]
+  submissions Submission[]
+
+  @@unique([studentId, assignmentId])
+  @@unique([id, studentId, assignmentId])
+  @@index([assignmentId])
+  @@map("socratic_sessions")
+}
+
+model ChatMessage {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId String          @map("session_id") @db.Uuid
+  sequence  Int
+  role      ChatMessageRole
+  content   String          @db.Text
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  session SocraticSession @relation(fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([sessionId, sequence])
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+model Submission {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId          String   @map("student_id") @db.Uuid
+  assignmentId       String   @map("assignment_id") @db.Uuid
+  socraticSessionId  String?  @map("socratic_session_id") @db.Uuid
+  text               String   @db.Text
+  contentHash        String   @map("content_hash")
+  assignmentSnapshot Json     @map("assignment_snapshot")
+  submittedAt        DateTime @map("submitted_at") @db.Timestamptz(6)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student         User             @relation(fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assignment      Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  socraticSession SocraticSession? @relation(fields: [socraticSessionId, studentId, assignmentId], references: [id, studentId, assignmentId], onDelete: Restrict, onUpdate: Restrict)
+  assessment      Assessment?
+
+  @@unique([studentId, assignmentId])
+  @@unique([id, studentId])
+  @@index([assignmentId])
+  @@index([socraticSessionId])
+  @@map("submissions")
+}
+
+model Assessment {
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  submissionId        String           @unique @map("submission_id") @db.Uuid
+  studentId           String           @map("student_id") @db.Uuid
+  rubricSnapshot      Json             @map("rubric_snapshot")
+  detailedEvaluations Json             @map("detailed_evaluations")
+  totalScore          Decimal          @map("total_score") @db.Decimal(8, 2)
+  maxScore            Decimal          @map("max_score") @db.Decimal(8, 2)
+  status              AssessmentStatus @default(AI_DRAFT)
+  modelName           String           @default("gemini-2.5-flash") @map("model_name")
+  promptVersion       String           @map("prompt_version")
+  assessedAt          DateTime         @map("assessed_at") @db.Timestamptz(6)
+  publishedAt         DateTime?        @map("published_at") @db.Timestamptz(6)
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  submission   Submission           @relation(fields: [submissionId, studentId], references: [id, studentId], onDelete: Restrict, onUpdate: Restrict)
+  observations WritingObservation[]
+
+  @@unique([id, studentId])
+  @@unique([submissionId, studentId])
+  @@index([studentId])
+  @@map("assessments")
+}
+
+model WritingObservation {
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId     String            @map("student_id") @db.Uuid
+  assessmentId  String            @map("assessment_id") @db.Uuid
+  kind          ObservationKind
+  featureKey    String            @map("feature_key")
+  description   String
+  genre         String
+  evidenceQuote String            @map("evidence_quote") @db.Text
+  evidenceStart Int               @map("evidence_start")
+  evidenceEnd   Int               @map("evidence_end")
+  status        ObservationStatus @default(PROVISIONAL)
+  observedAt    DateTime          @map("observed_at") @db.Timestamptz(6)
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assessment Assessment @relation(fields: [assessmentId, studentId], references: [id, studentId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([studentId, assessmentId, featureKey])
+  @@index([studentId, observedAt])
+  @@index([assessmentId])
+  @@map("writing_observations")
+}
+
+model WritingProfile {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId      String   @unique @map("student_id") @db.Uuid
+  declaredGoals  Json     @map("declared_goals")
+  summary        Json
+  observationIds Json     @map("observation_ids")
+  version        Int      @default(1)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@map("writing_profiles")
+}
