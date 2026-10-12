@@ -10,6 +10,10 @@ Nội dung học liệu, rubric và bài làm được đưa vào lúc xử lý 
 
 Prompt hiện chưa được triển khai; quy tắc Socratic tham chiếu mục 4.4 của [SRS](../SRS.md).
 
+## Prompt triển khai database
+
+- [Grok — Database MVP trên nhánh feat/database](grok-database.md): Prompt triển khai PostgreSQL/Prisma cho phạm vi MVP tối giản mới nhất. Toàn bộ schema, migrations, seed, kiểm tra và bàn giao nằm trong một nhánh `feat/database`; chuyển sang chức năng khác mới tạo nhánh mới. Chưa yêu cầu gọi AI hoặc xây CRUD HTTP.
+
 ## Prompt giao diện (UI)
 
 - [Google Stitch MVP Prompt](stitch-prompt.md): Prompt tự chứa ngữ cảnh để thiết kế 10 màn hình cho bốn phân hệ trong `SRS.md`, dùng bảng màu từ `DESIGN.md`. Bao gồm luồng giáo viên/học sinh, trạng thái xử lý và bố cục mobile.
