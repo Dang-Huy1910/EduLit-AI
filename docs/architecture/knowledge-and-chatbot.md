@@ -1,8 +1,8 @@
 # Luồng học liệu giáo viên và chatbot
 
-Ngày tạo: 12/10/2026. Trạng thái: thiết kế tổ chức dự kiến, chưa triển khai chức năng.
+Ngày cập nhật: 12/10/2026. Trạng thái: thiết kế triển khai, chưa có pipeline thực thi.
 
-Tài liệu bổ sung cách tổ chức để thực hiện FR-01–FR-10 của [SRS](../../SRS.md). Các đề xuất về trạng thái xử lý, truy xuất, phiên bản và xác nhận học liệu dưới đây cần được chốt cùng các mục TBD liên quan; chúng không xác nhận lựa chọn framework hoặc nhà cung cấp AI.
+Tài liệu bổ sung cách tổ chức để thực hiện FR-01–FR-10 của [SRS](../../SRS.md). Stack đích là NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và **Gemini 2.5 Flash** theo [system design](system-design.md). Các policy sư phạm/retention còn mở vẫn cần chốt; lựa chọn công nghệ không đồng nghĩa chức năng đã chạy.
 
 ## 1. Phân chia trách nhiệm
 
@@ -28,19 +28,21 @@ Cấu trúc `frontend/` và `backend/` phù hợp với hệ thống có chatbot
 flowchart TD
     A[Giáo viên tải tài liệu hoặc nhập nội dung] --> B[Backend kiểm tra quyền và đầu vào]
     B --> C[Lưu tệp riêng tư và metadata]
-    C --> D[Grounding: parsing và chunking]
+    C --> P[Privacy review trước nhánh Gemini]
+    P --> D[Grounding: parsing và chunking]
     D --> E[Trích xuất và kiểm tra rubric nếu có barem]
-    E --> F[Học liệu sẵn sàng cho đề bài tương ứng]
+    E --> R[Giáo viên duyệt rubric]
+    R --> F[Học liệu sẵn sàng cho đề bài tương ứng]
     F --> G[Cung cấp ngữ cảnh cho chatbot và chấm bài]
 ```
 
-Đề xuất trạng thái học liệu gồm `UPLOADED`, `PROCESSING`, `READY`, `FAILED`. Giao diện hiển thị trạng thái từ backend; nội dung chưa xử lý xong không được coi là nguồn ngữ cảnh sẵn sàng.
+Trạng thái học liệu gồm `UPLOADED`, `PRIVACY_REVIEW`, `PROCESSING`, `READY`, `FAILED`; rubric có lifecycle riêng `DRAFT → APPROVED`. Giao diện hiển thị trạng thái từ backend; nội dung chưa xử lý xong không được coi là nguồn ngữ cảnh sẵn sàng. Parsing cục bộ có thể thực hiện trước review; chỉ dữ liệu đã qua privacy gate mới được gửi Gemini.
 
 Mỗi học liệu cần metadata về chủ sở hữu, phạm vi lớp/đề, phiên bản và trạng thái xử lý. Tệp được lưu qua storage; nội dung đã trích xuất, chunk và metadata được lưu qua persistence phù hợp. Quan hệ cụ thể cần chốt theo TBD-01, TBD-02 và chính sách lưu trữ theo TBD-06.
 
 Việc tải thêm tài liệu cập nhật kho tri thức và ngữ cảnh của ứng dụng. Luồng này không bao gồm huấn luyện lại hoặc fine-tune mô hình. Cơ chế chọn ngữ cảnh có thể bắt đầu bằng lấy các đoạn theo đề và metadata; nếu cần tìm kiếm ngữ nghĩa trên kho lớn, có thể bổ sung embeddings và adapter tìm kiếm sau khi có yêu cầu cụ thể.
 
-Giáo viên nên có bước kiểm tra rubric do AI trích xuất trước khi dùng chấm chính thức. Đây là đề xuất cần chốt, cùng với quyền chỉnh sửa/xác nhận và cơ chế phiên bản, không phải chức năng đã triển khai.
+Thiết kế MVP yêu cầu giáo viên kiểm tra/approve rubric do AI trích xuất trước khi giao đề. Giao đề pin assignment/rubric/material versions; sửa phiên bản không đổi lịch sử chấm. Đây là workflow đích, chưa được triển khai.
 
 ## 3. Học sinh sử dụng chatbot
 
@@ -58,7 +60,7 @@ flowchart TD
 
 Module `socratic` sử dụng interface do `grounding` cung cấp để lấy ngữ cảnh. Việc chọn nội dung dựa trên đúng đề và quyền truy cập; lịch sử chat được gắn với học sinh/phiên. Lịch sử dài cần có chiến lược giới hạn ngữ cảnh khi triển khai, theo khả năng của mô hình và yêu cầu lưu phiên được chốt tại TBD-03.
 
-Nội dung từ tài liệu được xem là dữ liệu tham khảo, không được cấp quyền thay đổi chỉ dẫn hệ thống. Guardrail phải được áp dụng trong luồng xử lý theo BR-01–BR-04; mẫu prompt là một phần của cơ chế này. Quy trình xử lý phản hồi vi phạm và cách kiểm tra streaming cần chốt khi triển khai để đáp ứng mục tiêu TTFT trong SRS.
+Nội dung từ tài liệu được xem là dữ liệu tham khảo, không được cấp quyền thay đổi chỉ dẫn hệ thống. Guardrail áp dụng theo BR-01–BR-04; prompt là một phần của cơ chế. MVP buffer nội dung đến khi schema/guardrail đã kiểm tra, rồi mới trả học sinh. Nếu thêm SSE, phát trạng thái và message đã duyệt, không phát raw tokens. TTFT provider và độ trễ nội dung đã duyệt đo riêng; mục tiêu SRS chưa được bảo đảm. Xem [Gemini pipeline](gemini-pipeline.md).
 
 ## 4. Phạm vi và phiên bản học liệu
 

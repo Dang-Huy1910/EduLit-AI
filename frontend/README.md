@@ -2,6 +2,8 @@
 
 Ứng dụng web Next.js 15 dành cho Giáo viên (**Cô Đặng Loan**) và Học sinh (**Bùi Hà My**) trường **THPT Đan Phượng**, hỗ trợ chu trình Dạy – Học và Đánh giá môn Ngữ văn theo chương trình GDPT 2018.
 
+Hiện đây là prototype với mock data và Zustand/sessionStorage. [Kiến trúc MVP](../docs/architecture/system-design.md) giữ frontend, bổ sung API NestJS và TanStack Query cho dữ liệu máy chủ. [Lộ trình chuyển đổi](../docs/development/implementation-roadmap.md#chuyển-frontend-từng-phần) tách API/mock mode, scope chat/outline theo phiên và thay OCR/điểm giả lập bằng trạng thái thật. Gemini 2.5 Flash chỉ được gọi từ backend; không đưa API key vào bundle trình duyệt.
+
 ---
 
 ## 🏛️ Cấu trúc thư mục

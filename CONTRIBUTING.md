@@ -4,7 +4,7 @@
 
 Đọc [SRS](SRS.md) và [cấu trúc dự án](docs/architecture/project-structure.md). Khi một thay đổi giải quyết yêu cầu cụ thể, ghi mã `FR`, `BR`, `NFR` hoặc `AC` liên quan trong mô tả thay đổi.
 
-Framework, package manager và công nghệ lưu trữ chưa được chốt. Sau khi lựa chọn, bổ sung manifest, lockfile, cấu hình kiểm tra mã và hướng dẫn chạy trong README của từng ứng dụng.
+Stack MVP đã được chọn trong [ADR-0001](docs/architecture/decisions/0001-mvp-stack.md): Next.js hiện có, NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và Gemini 2.5 Flash. Dùng npm; khóa runtime và dependency khi scaffold backend. Đọc [system design](docs/architecture/system-design.md) và [lộ trình](docs/development/implementation-roadmap.md) trước khi bổ sung manifest, lockfile và lệnh thực thi.
 
 ## Tổ chức mã
 
@@ -19,7 +19,7 @@ Framework, package manager và công nghệ lưu trữ chưa được chốt. Sa
 
 Chọn kiểm thử phù hợp với hành vi thay đổi: unit cho quy tắc nghiệp vụ, integration cho tích hợp, contract cho schema, e2e cho luồng sử dụng, performance cho thời gian xử lý. Với thay đổi prompt hoặc nhà cung cấp AI, chạy bộ đánh giá tương ứng trong `evaluations` khi bộ đánh giá đã được triển khai.
 
-Hiện chưa có lệnh kiểm thử hoặc build vì repository mới chứa khung thư mục. Không coi thư mục kiểm thử hay workflow trống là một kiểm tra đã được triển khai.
+Frontend đã có lệnh `npm run build` trong `frontend/`; backend và AI evaluations chưa có runner. Chọn kiểm tra theo phần thay đổi; tài liệu cần kiểm tra liên kết và `git diff --check`, không đòi gọi model hoặc build UI khi không đổi code. Không coi thư mục kiểm thử hay workflow trống là một kiểm tra đã được triển khai.
 
 ## Dữ liệu và cấu hình
 

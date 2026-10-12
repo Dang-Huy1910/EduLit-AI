@@ -1,14 +1,16 @@
 # Cấu trúc dự án EduLit-AI
 
-Ngày tạo: 12/10/2026. Trạng thái: khung tổ chức mã ban đầu; công nghệ triển khai vẫn cần chốt theo TBD-11 của [SRS](../../SRS.md).
+Ngày cập nhật: 12/10/2026. Trạng thái: frontend có prototype; backend là khung thư mục. Công nghệ MVP đã được chọn trong [ADR-0001](decisions/0001-mvp-stack.md); xem [system design](system-design.md) để biết các thành phần còn phải triển khai.
 
 ## 1. Cách tổ chức
 
 Repository dùng monorepo để giữ giao diện, backend, hợp đồng và tài liệu cùng phiên bản. Backend dự kiến là modular monolith: các phân hệ có ranh giới nghiệp vụ riêng trong một ứng dụng. Cách tổ chức này giúp nhóm nhỏ phát triển và kiểm thử chu trình liên quan đến rubric, hướng dẫn, bài nộp và báo cáo trong cùng repository.
 
-Các tích hợp AI/OCR, storage, database và queue nằm ở lớp hạ tầng. Các use case nghiệp vụ làm việc qua interface để có thể thay adapter khi công nghệ hoặc nhà cung cấp thay đổi.
+Các tích hợp AI/OCR, storage, database và queue nằm ở lớp hạ tầng. Các use case nghiệp vụ làm việc qua interface để có thể thay adapter khi công nghệ hoặc nhà cung cấp thay đổi. Thiết kế đích dùng NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và Gemini 2.5 Flash. API/worker dùng hai entrypoint trong `backend/`, không tách repository.
 
 ## 2. Cây thư mục
+
+Cây dưới đây thể hiện cách tổ chức đích. Frontend đã có code prototype; phần backend, contracts, prompts nghiệp vụ và tests phần lớn mới là vị trí dự kiến. Không coi tên file trong cây là chức năng đã được triển khai.
 
 ```text
 EduLit-AI/
@@ -34,8 +36,11 @@ EduLit-AI/
 │   │   └── unit/
 │   └── README.md
 ├── backend/
-│   ├── migrations/
+│   ├── prisma/                 # schema.prisma và migrations khi scaffold
+│   ├── .env.example            # template cấu hình đã có
 │   ├── src/
+│   │   ├── main.ts             # API entrypoint dự kiến
+│   │   ├── worker.ts           # worker entrypoint dự kiến
 │   │   ├── core/
 │   │   ├── infrastructure/
 │   │   │   ├── ai/
@@ -56,6 +61,7 @@ EduLit-AI/
 │   │       │       ├── retrieval/
 │   │       │       └── rubrics/
 │   │       ├── identity/
+│   │       ├── writing-profile/
 │   │       └── socratic/
 │   │           └── application/
 │   │               ├── conversations/
@@ -74,6 +80,7 @@ EduLit-AI/
 │   ├── assessment/
 │   ├── grounding/
 │   ├── socratic/
+│   ├── writing-profile/
 │   └── README.md
 ├── tests/
 │   ├── contracts/
@@ -84,15 +91,22 @@ EduLit-AI/
 │   ├── grading/
 │   ├── ocr/
 │   ├── socratic/
+│   ├── writing-profile/
 │   └── README.md
 ├── docs/
 │   ├── api/
+│   │   └── api-design.md
 │   ├── architecture/
 │   │   ├── decisions/
+│   │   │   └── 0001-mvp-stack.md
+│   │   ├── system-design.md
+│   │   ├── data-model.md
+│   │   ├── gemini-pipeline.md
 │   │   ├── knowledge-and-chatbot.md
 │   │   └── project-structure.md
 │   ├── deployment/
 │   └── development/
+│       └── implementation-roadmap.md
 ├── infra/
 │   ├── docker/
 │   ├── environments/
@@ -121,6 +135,7 @@ EduLit-AI/
 | Tài khoản và phân quyền | `identity` | TBD-01; phạm vi chi tiết cần chốt |
 | Lớp và thành viên | `classrooms` | TBD-01, TBD-07; phạm vi chi tiết cần chốt |
 | Mã đề, bài tập và liên kết rubric | `assignments` | FR-05, FR-06, TBD-02 |
+| Hồ sơ viết, bằng chứng và progressive profiling | `writing-profile` | Mở rộng theo trao đổi sản phẩm; chưa có FR riêng trong SRS |
 
 ## 4. Ranh giới trách nhiệm
 
@@ -157,9 +172,11 @@ Nếu cần lưu cục bộ lúc phát triển, dùng `var/` hoặc `data/` ở 
 
 ## 7. Mở rộng khi bắt đầu viết mã
 
-1. Chốt framework, runtime, package manager và cơ sở dữ liệu; ghi quyết định kiến trúc và cập nhật README ứng dụng.
+1. Triển khai stack trong ADR-0001; khóa phiên bản runtime/dependency và xác nhận project có quyền gọi `gemini-2.5-flash`.
 2. Thêm manifest, lockfile, entrypoint, cấu hình lint/format và lệnh phát triển cho ứng dụng tương ứng.
 3. Hoàn thiện hợp đồng dữ liệu theo SRS và các điểm TBD; sau đó triển khai module với kiểm tra phù hợp.
 4. Thêm cấu hình container, CI và hướng dẫn triển khai khi ứng dụng đã có lệnh chạy/kiểm tra thực tế.
 
 Khi phát sinh mã dùng chung giữa các ứng dụng với cùng hệ công nghệ, có thể thêm `packages/` cho thư viện đó. Khi cần triển khai worker độc lập, có thể thêm `worker/` và tách thư viện nghiệp vụ dùng chung. Mỗi bước mở rộng cần có nhu cầu cụ thể và được phản ánh trong tài liệu.
+
+Chi tiết tiến trình và milestone: [lộ trình triển khai](../development/implementation-roadmap.md). Logical entities và constraints: [mô hình dữ liệu](data-model.md). Migration nghiệp vụ tương lai dùng `backend/prisma/migrations/`; thư mục `backend/migrations/` hiện là placeholder, chưa có migration cần chuyển.
