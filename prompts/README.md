@@ -2,7 +2,7 @@
 
 Bốn thư mục `grounding`, `socratic`, `assessment`, `analytics` giữ các chỉ dẫn mô hình tương ứng với bốn phân hệ trong SRS.
 
-Thiết kế MVP dùng **Gemini 2.5 Flash** (`gemini-2.5-flash`) cho các task riêng, gồm Socratic, assessment và writing-profile. [Gemini pipeline](../docs/architecture/gemini-pipeline.md) mô tả input/output, version, schema và guardrail. Prompt OCR chép nguyên văn; prompt chấm chỉ nhận bản chép đã xác nhận; profile không đưa vào scoring context.
+Thiết kế MVP ban đầu chọn **Gemini 2.5 Flash** (`gemini-2.5-flash`) cho các task riêng, gồm Socratic, assessment và writing-profile. Working tree hiện có thay đổi sang tên model khác; [prompt Codex sửa nền AI](codex-ai-foundation.md) yêu cầu kiểm tra và chuyển sang cấu hình provider/model, giữ lựa chọn đã cấu hình của người dùng. [Gemini pipeline](../docs/architecture/gemini-pipeline.md) mô tả input/output, version, schema và guardrail. Prompt OCR chép nguyên văn; prompt chấm chỉ nhận bản chép đã xác nhận; profile không đưa vào scoring context.
 
 Khi bổ sung prompt, dùng tên thể hiện vai trò và phiên bản, ví dụ `system.v1.md`, kèm mô tả đầu vào, đầu ra và bộ đánh giá liên quan. Ứng dụng nạp prompt bằng `import.meta.url` + copy vào `dist/` lúc build; không phụ thuộc cwd.
 
@@ -23,6 +23,15 @@ Socratic v1 đã có `prompts/socratic/system.v1.md` và `output.v1.schema.json`
 - [Lộ trình MVP theo feature](../docs/development/minimal-mvp-roadmap.md): Thứ tự database → Socratic → Socratic integration → assessment → writing profile và ranh giới công việc với cộng sự.
 
 Hai feature cuối đã triển khai lần lượt trên `feat/assessment` rồi `feat/writing-profile`. Phạm vi này tập trung pipeline AI/database; HTTP/UI nộp/chấm, công bố điểm và quản lý profile được bàn giao cho cộng sự.
+
+## Prompt Codex tiếp quản và hoàn thiện pipeline
+
+Chạy theo thứ tự; đây là yêu cầu triển khai mới, chưa phải mô tả chức năng đã hoàn thành:
+
+1. [Codex — sửa nền AI và Socratic](codex-ai-foundation.md): `feat/ai-foundation`; kiểm chứng/sửa thay đổi Grok, CAS/scaffold/replay, provenance và adapter Gemini/OpenAI cho ba task hiện có.
+2. [Codex — hoàn thiện pipeline](codex-complete-pipeline.md): teacher CRUD/công bố → trang đọc → Socratic → upload ảnh riêng tư/che thông tin → OCR có giáo viên xác nhận → chấm/duyệt/công bố → profile và đề tiếp theo. Gồm DB/API/UI/tests, seed demo phong phú và bàn giao cách chạy.
+
+Prompt thứ hai chia nhánh theo chức năng: `feat/teacher-assignments` → `feat/submission-ocr` → `feat/assessment-integration` → `feat/writing-profile-integration`. Dataset demo đi cùng các feature, không cần nhánh database thứ hai. Phạm vi mới có OCR và cho Codex nối cả HTTP/UI, thay cho phạm vi text/application-only của các prompt Grok trước đây.
 
 ## Prompt giao diện (UI)
 

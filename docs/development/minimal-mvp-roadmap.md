@@ -2,7 +2,7 @@
 
 Ngày: 13/10/2026. Lộ trình này ưu tiên phạm vi nhỏ đã thống nhất; [lộ trình nền tảng đầy đủ](implementation-roadmap.md) giữ làm tham chiếu dài hạn.
 
-Người dùng sở hữu database và pipeline AI/văn phong. Cộng sự phụ trách backend auth/CRUD và HTTP API. MVP nhập đề, học liệu, rubric và bài viết bằng văn bản; chưa làm OCR, queue, nhiều trường/lớp hoặc dashboard nâng cao.
+Người dùng sở hữu database và pipeline AI/văn phong. Phạm vi ban đầu giao backend auth/CRUD và HTTP API cho cộng sự, chỉ nhập bài bằng văn bản. Yêu cầu mới mở rộng sang năm bước có nộp ảnh/OCR và cho Codex hoàn thiện cả DB/API/UI. Chưa làm queue, nhiều trường/lớp hoặc dashboard nâng cao. Bảng dưới ghi lại các feature nền đã triển khai; không đồng nghĩa pipeline giao diện đã hoàn thành.
 
 | Thứ tự | Nhánh | Phạm vi | Trạng thái |
 | --- | --- | --- | --- |
@@ -14,11 +14,27 @@ Người dùng sở hữu database và pipeline AI/văn phong. Cộng sự phụ
 
 Mỗi hàng là một feature. Adapter/context/tests cùng thuộc `feat/socratic`; không tách chúng thành nhiều nhánh nhỏ. Với feature mới, tạo nhánh từ base đã chứa các feature phụ thuộc; không tự merge/push để đổi base.
 
+## Phạm vi tiếp theo: pipeline giao diện đầy đủ
+
+Các feature sau mới được đặc tả bằng prompt, chưa được triển khai bởi việc bổ sung tài liệu này:
+
+| Thứ tự | Nhánh | Phạm vi | Prompt |
+| --- | --- | --- | --- |
+| 6 | `feat/ai-foundation` | Sửa nền Grok/Socratic, config Gemini/OpenAI, provenance và concurrency | [Codex sửa nền AI](../../prompts/codex-ai-foundation.md) |
+| 7 | `feat/teacher-assignments` | Form đề/barem, draft/publish/close, chia sẻ mã, trang đọc và progress thật | [Codex full pipeline](../../prompts/codex-complete-pipeline.md) |
+| 8 | `feat/submission-ocr` | Private upload/masking, duyệt ảnh, OCR/revisions/báo lỗi, xác nhận bản chép | Cùng prompt full pipeline |
+| 9 | `feat/assessment-integration` | HTTP/UI chấm, duyệt/chỉnh kết quả giữ AI draft, publish và student result | Cùng prompt full pipeline |
+| 10 | `feat/writing-profile-integration` | Extraction bền vững sau publish, profile/review, Socratic đề sau, seed và E2E hoàn chỉnh | Cùng prompt full pipeline |
+
+Mỗi feature bao gồm migrations cần thiết, API, UI, tests và tài liệu. Dataset demo thêm dần, chốt ở feature cuối, dùng namespace riêng và không reset/overwrite dữ liệu đang có. Chia sẻ mã đề cho học sinh trong pilot; chưa có giao riêng theo lớp/người nhận. Barem nhập bằng form, ngữ liệu văn bản; tự đọc file PDF/DOCX thành rubric nằm ngoài yêu cầu này.
+
+Điều kiện nghiệm thu mới: teacher tạo/công bố đề trên UI; student đọc, lưu dàn ý, upload ảnh riêng tư; teacher duyệt ảnh và xác nhận bản chép OCR; AI chấm draft, teacher duyệt/công bố; student xem điểm chính thức/profile; Socratic đề sau dùng đúng evidence. Test fake AI với DB/HTTP/storage thật và kiểm chứng model live được báo riêng.
+
 ## Writing profile
 
-Assessment application/CLI đã có trên `feat/assessment`. Bàn giao: [assessment-handoff.md](assessment-handoff.md). Hồ sơ văn phong: [writing-profile-handoff.md](writing-profile-handoff.md). Teacher CRUD và HTTP nộp/chấm/profile chưa có; cộng sự nối theo handoff.
+Assessment application/CLI đã có trên `feat/assessment`. Bàn giao: [assessment-handoff.md](assessment-handoff.md). Hồ sơ văn phong: [writing-profile-handoff.md](writing-profile-handoff.md). Teacher CRUD và HTTP nộp/chấm/profile chưa có; prompt Codex full pipeline tiếp quản việc nối theo handoff.
 
-Chỉ trích xuất từ assessment `PUBLISHED`. Không đưa profile vào context chấm điểm. HTTP/UI quản lý do cộng sự nối.
+Chỉ trích xuất từ assessment `PUBLISHED`. Không đưa profile vào context chấm điểm. HTTP/UI quản lý thuộc yêu cầu full pipeline mới.
 
 Hai feature cuối: [assessment](../../prompts/grok-assessment.md) (đã làm) → [writing profile](../../prompts/grok-writing-profile.md) (đã làm trên `feat/writing-profile`).
 
