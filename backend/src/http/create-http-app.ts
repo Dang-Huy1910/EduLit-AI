@@ -11,13 +11,14 @@ import { AuthController } from "../modules/identity/auth.controller.js";
 import { AuthService } from "../modules/identity/auth.service.js";
 import { LoginRateLimiter } from "../modules/identity/login-rate-limiter.js";
 import { AssignmentsController } from "../modules/assignments/presentation/assignments.controller.js";
+import { TeacherAssignmentsController } from "../modules/assignments/presentation/teacher-assignments.controller.js";
 import { SocraticController } from "../modules/socratic/presentation/socratic.controller.js";
 import { SocraticFacade } from "../modules/socratic/presentation/socratic.facade.js";
 import { ApiExceptionFilter, ApiHttpException, ERROR_MESSAGES } from "./api-error.js";
 import { HTTP_CONFIG, SOCRATIC_AI, type HttpConfig } from "./config.js";
 import { OriginGuard } from "./origin.guard.js";
 import { SessionAuthGuard } from "./session.guard.js";
-import { StudentGuard } from "./auth-user.js";
+import { StudentGuard, TeacherGuard } from "./auth-user.js";
 import { PrismaShutdownService, PRISMA_SHUTDOWN } from "./prisma-shutdown.service.js";
 
 export type HttpAppDeps = {
@@ -37,7 +38,7 @@ function resolveCookieParser(): RequestHandler {
 
 export async function createHttpApp(deps: HttpAppDeps): Promise<NestExpressApplication> {
   @Module({
-    controllers: [AuthController, AssignmentsController, SocraticController],
+    controllers: [AuthController, AssignmentsController, TeacherAssignmentsController, SocraticController],
     providers: [
       { provide: PRISMA, useValue: deps.prisma },
       { provide: SOCRATIC_AI, useValue: deps.ai },
@@ -47,6 +48,7 @@ export async function createHttpApp(deps: HttpAppDeps): Promise<NestExpressAppli
       OriginGuard,
       SessionAuthGuard,
       StudentGuard,
+      TeacherGuard,
       LoginRateLimiter,
       AuthService,
       SocraticFacade,

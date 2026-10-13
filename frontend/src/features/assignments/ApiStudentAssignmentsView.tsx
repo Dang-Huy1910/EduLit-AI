@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
-import { listAssignments } from '@/lib/api/assignments';
+import { getAssignmentByCode, listAssignments } from '@/lib/api/assignments';
 import { ApiError, type ApiAssignment } from '@/lib/api/types';
 import { useApiAuthStore } from '@/lib/api-auth-store';
 import { useAppStore } from '@/lib/store';
@@ -44,15 +44,15 @@ export default function ApiStudentAssignmentsView() {
   const todo = assignments.filter((item) => !item.submission);
   const submitted = assignments.filter((item) => item.submission);
 
-  const handleOpenCode = (event: React.FormEvent) => {
+  const handleOpenCode = async (event: React.FormEvent) => {
     event.preventDefault();
     const clean = codeInput.trim().toUpperCase();
-    const matched = assignments.find((item) => item.code.toUpperCase() === clean);
-    if (matched) {
+    try {
+      const matched = await getAssignmentByCode(clean);
       setCodeError(false);
       addToast(`Mở thành công: ${matched.title}`, 'success');
-      router.push(`/assignments/${matched.id}/socratic`);
-    } else {
+      router.push(`/assignments/${matched.id}`);
+    } catch {
       setCodeError(true);
       addToast('Mã đề không tồn tại hoặc chưa được công bố.', 'error');
     }
@@ -75,7 +75,7 @@ export default function ApiStudentAssignmentsView() {
               Không gian học tập &amp; Bài viết của em
             </h1>
             <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
-              Chọn đề đã công bố để lập dàn ý Socratic. Nộp bài, chấm điểm và báo cáo chưa có API trong feature này.
+              Đọc đề, ngữ liệu và barem trước khi lập dàn ý Socratic.
             </p>
           </div>
           <div className="bg-surface-container-low/70 p-3.5 rounded-xl border border-outline-variant/40 sm:max-w-xs w-full">
@@ -169,7 +169,7 @@ export default function ApiStudentAssignmentsView() {
                   <div className="pt-3 border-t border-outline-variant/20 flex justify-end">
                     <Link
                       data-testid={`open-socratic-${assignment.code}`}
-                      href={`/assignments/${assignment.id}/socratic`}
+                      href={`/assignments/${assignment.id}`}
                       className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-semibold"
                     >
                       {assignment.socraticSession ? 'Tiếp tục lập dàn ý Socratic' : 'Bắt đầu lập dàn ý Socratic'}

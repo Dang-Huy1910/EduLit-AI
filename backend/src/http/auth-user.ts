@@ -62,3 +62,15 @@ export class StudentGuard implements CanActivate {
     return true;
   }
 }
+
+@Injectable()
+export class TeacherGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<AuthedRequest>();
+    const user = request.authUser;
+    if (!user) throw new ApiHttpException(401, "AUTH_INVALID", ERROR_MESSAGES.AUTH_INVALID);
+    if (user.status !== "ACTIVE") throw new ApiHttpException(403, "ACCOUNT_INACTIVE", ERROR_MESSAGES.ACCOUNT_INACTIVE);
+    if (user.role !== "TEACHER") throw new ApiHttpException(403, "FORBIDDEN_ROLE", ERROR_MESSAGES.FORBIDDEN_ROLE);
+    return true;
+  }
+}

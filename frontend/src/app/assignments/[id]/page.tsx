@@ -7,17 +7,14 @@ import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { RubricCriterion } from '@/lib/types';
 import { isApiMode } from '@/lib/data-mode';
-import UnimplementedPanel from '@/components/UnimplementedPanel';
+import { useApiAuthStore } from '@/lib/api-auth-store';
+import ApiTeacherAssignmentEditor from '@/features/assignments/ApiTeacherAssignmentEditor';
+import ApiAssignmentReadView from '@/features/assignments/ApiAssignmentReadView';
 
 export default function AssignmentEditorPage() {
+  const apiUser = useApiAuthStore((state) => state.user);
   if (isApiMode()) {
-    return (
-      <UnimplementedPanel
-        shell="teacher"
-        title="Soạn đề chưa có API"
-        description="Teacher CRUD đề và rubric chưa nằm trong feature socratic-integration."
-      />
-    );
+    return apiUser?.role === 'TEACHER' ? <ApiTeacherAssignmentEditor /> : <ApiAssignmentReadView />;
   }
   return <MockAssignmentEditorPage />;
 }

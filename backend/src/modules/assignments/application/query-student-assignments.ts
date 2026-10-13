@@ -38,6 +38,7 @@ export type StudentAssignmentListItem = {
   rubric: unknown;
   submission: { id: string; submittedAt: string } | null;
   socraticSession: { sessionId: string; status: "ACTIVE" | "COMPLETED" } | null;
+  progress: { readAt: string | null } | null;
 };
 
 export type StudentAssignmentDetail = StudentAssignmentListItem & {
@@ -55,7 +56,7 @@ export async function listPublishedAssignmentsForStudent(
     orderBy: [{ publishedAt: "desc" }, { code: "asc" }],
   });
   const ids = assignments.map((item) => item.id);
-  const [submissions, sessions] = await Promise.all([
+  const [submissions, sessions, progress] = await Promise.all([
     prisma.submission.findMany({
       where: { studentId, assignmentId: { in: ids } },
       select: { id: true, assignmentId: true, submittedAt: true },
@@ -64,9 +65,14 @@ export async function listPublishedAssignmentsForStudent(
       where: { studentId, assignmentId: { in: ids } },
       select: { id: true, assignmentId: true, status: true },
     }),
+    prisma.assignmentProgress.findMany({
+      where: { studentId, assignmentId: { in: ids } },
+      select: { assignmentId: true, readAt: true },
+    }),
   ]);
   const submissionByAssignment = new Map(submissions.map((row) => [row.assignmentId, row]));
   const sessionByAssignment = new Map(sessions.map((row) => [row.assignmentId, row]));
+  const progressByAssignment = new Map(progress.map((row) => [row.assignmentId, row]));
   return assignments.map((item) => {
     const submission = submissionByAssignment.get(item.id);
     const session = sessionByAssignment.get(item.id);
@@ -87,6 +93,9 @@ export async function listPublishedAssignmentsForStudent(
         ? { id: submission.id, submittedAt: submission.submittedAt.toISOString() }
         : null,
       socraticSession: session ? { sessionId: session.id, status: session.status } : null,
+      progress: progressByAssignment.get(item.id)
+        ? { readAt: progressByAssignment.get(item.id)?.readAt?.toISOString() ?? null }
+        : null,
     };
   });
 }
@@ -103,7 +112,7 @@ export async function getPublishedAssignmentForStudent(
   if (!assignment || assignment.status !== "PUBLISHED") {
     throw new ApiHttpException(404, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
   }
-  const [submission, session] = await Promise.all([
+  const [submission, session, progress] = await Promise.all([
     prisma.submission.findUnique({
       where: { studentId_assignmentId: { studentId, assignmentId } },
       select: { id: true, submittedAt: true },
@@ -112,6 +121,7 @@ export async function getPublishedAssignmentForStudent(
       where: { studentId_assignmentId: { studentId, assignmentId } },
       select: { id: true, status: true },
     }),
+    prisma.assignmentProgress.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } } }),
   ]);
   return {
     id: assignment.id,
@@ -131,6 +141,7 @@ export async function getPublishedAssignmentForStudent(
       ? { id: submission.id, submittedAt: submission.submittedAt.toISOString() }
       : null,
     socraticSession: session ? { sessionId: session.id, status: session.status } : null,
+    progress: progress ? { readAt: progress.readAt?.toISOString() ?? null } : null,
   };
 }
 

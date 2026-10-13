@@ -44,6 +44,7 @@ async function main(): Promise<void> {
       "tests/integration/writing-profile.test.ts",
       "tests/integration/http-auth.test.ts",
       "tests/integration/http-socratic.test.ts",
+      "tests/integration/http-teacher-assignments.test.ts",
       "tests/integration/http-shutdown.test.ts",
     ],
     { DATABASE_URL: testUrl, DATABASE_URL_TEST: testUrl },

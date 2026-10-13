@@ -52,6 +52,39 @@ export type ApiAssignment = {
   };
   submission: { id: string; submittedAt: string } | null;
   socraticSession: { sessionId: string; status: 'ACTIVE' | 'COMPLETED' } | null;
+  progress: { readAt: string | null } | null;
+};
+
+export type ApiTeacherAssignment = {
+  id: string;
+  code: string;
+  title: string;
+  instructions: string;
+  genre: 'NLXH' | 'NLVH';
+  gradeLevel: number;
+  learningMaterialText: string;
+  rubric: NonNullable<ApiAssignment['rubric']>;
+  maxScore: string;
+  scoreStep: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
+  dueAt: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  worklist?: { opened: number; read: number; submitted: number; aiDraft: number; published: number };
+};
+
+export type AssignmentDraftInput = {
+  code?: string;
+  title: string;
+  instructions: string;
+  genre: 'NLXH' | 'NLVH';
+  gradeLevel: number;
+  learningMaterialText: string;
+  rubric: NonNullable<ApiAssignment['rubric']>;
+  maxScore: string;
+  scoreStep: string;
+  dueAt?: string | null;
 };
 
 export type ApiOutline = {

@@ -81,6 +81,7 @@ model User {
   taughtAssignments   Assignment[]         @relation("AssignmentTeacher")
   socraticSessions    SocraticSession[]
   submissions         Submission[]
+  assignmentProgress  AssignmentProgress[]
   writingObservations WritingObservation[]
   writingProfile      WritingProfile?
 
@@ -123,10 +124,26 @@ model Assignment {
   teacher          User              @relation("AssignmentTeacher", fields: [teacherId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   socraticSessions SocraticSession[]
   submissions      Submission[]
+  progress         AssignmentProgress[]
 
   @@index([teacherId])
   @@index([status])
   @@map("assignments")
+}
+
+model AssignmentProgress {
+  studentId     String     @map("student_id") @db.Uuid
+  assignmentId  String     @map("assignment_id") @db.Uuid
+  readAt        DateTime?  @map("read_at") @db.Timestamptz(6)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([studentId, assignmentId])
+  @@index([assignmentId])
+  @@map("assignment_progress")
 }
 
 model SocraticSession {

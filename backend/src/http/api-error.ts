@@ -56,7 +56,12 @@ export function mapDomainError(error: DomainError): ApiHttpException {
     case "SESSION_OWNERSHIP":
       return new ApiHttpException(HttpStatus.NOT_FOUND, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
     case "SESSION_ASSIGNMENT":
+    case "ASSIGNMENT_STATUS":
+    case "ASSIGNMENT_CONFLICT":
       return new ApiHttpException(HttpStatus.CONFLICT, "SESSION_ASSIGNMENT", ERROR_MESSAGES.CONFLICT);
+    case "ASSIGNMENT_NOT_FOUND":
+    case "ASSIGNMENT_OWNERSHIP":
+      return new ApiHttpException(HttpStatus.NOT_FOUND, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
     case "SESSION_COMPLETED":
       return new ApiHttpException(HttpStatus.CONFLICT, "SESSION_COMPLETED", ERROR_MESSAGES.SESSION_COMPLETED);
     case "SESSION_CLOSED":
@@ -72,6 +77,13 @@ export function mapDomainError(error: DomainError): ApiHttpException {
     case "OUTLINE_INVALID":
     case "CHAT_CONTENT":
     case "SESSION_SNAPSHOT":
+    case "ASSIGNMENT_INPUT":
+    case "ASSIGNMENT_CODE":
+    case "GRADE_LEVEL":
+    case "RUBRIC_SHAPE":
+    case "RUBRIC_CRITERION":
+    case "RUBRIC_WEIGHT":
+    case "RUBRIC_WEIGHT_SUM":
       return new ApiHttpException(HttpStatus.BAD_REQUEST, error.code, ERROR_MESSAGES.VALIDATION);
     case "CONTEXT_TOO_LARGE":
       return new ApiHttpException(HttpStatus.PAYLOAD_TOO_LARGE, "CONTEXT_TOO_LARGE", ERROR_MESSAGES.CONTEXT_TOO_LARGE);
