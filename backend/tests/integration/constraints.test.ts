@@ -142,6 +142,12 @@ test("CHECK constraints reject invalid grade, scores, offsets and version", asyn
         },
       }),
     );
+    await assert.rejects(() =>
+      prisma.assessment.update({
+        where: { id: assessment.id },
+        data: { totalScore: "99.00", maxScore: "10.00" },
+      }),
+    );
   });
 });
 

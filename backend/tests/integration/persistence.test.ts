@@ -59,7 +59,7 @@ test("changing an assignment does not mutate stored session or submission snapsh
     });
     const submissionAfter = await prisma.submission.findUniqueOrThrow({ where: { id: submission.id } });
     const assignmentSnapshot = submissionAfter.assignmentSnapshot as { title: string };
-    assert.equal(assignmentSnapshot.title, "Đề bản B");
+    assert.equal(assignmentSnapshot.title, "Đề bản A");
     const live = await prisma.assignment.findUniqueOrThrow({ where: { id: assignment.id } });
     assert.equal(live.title, "Đề bản C");
   });

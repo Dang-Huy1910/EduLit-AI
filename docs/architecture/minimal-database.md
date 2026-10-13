@@ -32,7 +32,7 @@ Chín bảng nghiệp vụ (`users`, `auth_sessions`, `assignments`, `socratic_s
 | socratic_sessions | (student_id, assignment_id); (id, student_id, assignment_id) | student/assignment RESTRICT |
 | chat_messages | (session_id, sequence) | sequence ≥ 0 |
 | submissions | (student_id, assignment_id); (id, student_id) | session kép khớp student+assignment (MATCH SIMPLE khi session null) |
-| assessments | submission_id; (id, student_id) | FK kép (submission_id, student_id); điểm ≥ 0; max_score > 0 |
+| assessments | submission_id; (id, student_id) | FK kép (submission_id, student_id); điểm ≥ 0; max_score > 0; total_score ≤ max_score |
 | writing_observations | (student_id, assessment_id, feature_key) | FK kép (assessment_id, student_id); 0 ≤ start < end |
 | writing_profiles | student_id | version ≥ 1 |
 
@@ -40,12 +40,12 @@ Mọi quan hệ `ON DELETE RESTRICT` / `ON UPDATE RESTRICT`. Session token khôn
 
 ## 3. Invariants (validator + transaction)
 
-- Rubric: `weight` là điểm tối đa, không phải hệ số nhân. Tổng weight = maxScore. Điểm theo scoreStep.
-- Snapshot đề lấy từ server lúc nộp; client không được tự khai snapshot.
+- Rubric: `weight` là điểm tối đa, không phải hệ số nhân. Tổng weight = maxScore. Điểm theo scoreStep. Giá trị điểm phải khớp `numeric(8,2)` (hai chữ số), không bị làm tròn khi lưu.
+- Snapshot: nộp kèm session dùng `contextSnapshot` của phiên; nộp không session dùng assignment `PUBLISHED` hiện tại. Client không tự khai snapshot. Chỉ nhận bài khi đề `PUBLISHED`; `dueAt` không chặn nộp.
 - `assessments.rubricSnapshot` phải khớp rubric trong `submissions.assignmentSnapshot`. Không lấy rubric hiện tại của assignment để chấm bài cũ.
 - Observation: quote = `submission.text.slice(start, end)` theo UTF-16 JS/TS, khoảng `[start, end)`. Normalize trước khi lưu text; offset luôn trỏ text bất biến.
-- Hồ sơ chỉ dùng assessment `PUBLISHED`. Observation INVALIDATED không vào query/context.
-- Support count theo số bài nguồn (assessment) khác nhau, không theo số lần retry cùng input.
+- Hồ sơ chỉ dùng assessment `PUBLISHED`. Query coaching chỉ lấy `PROVISIONAL`/`SUPPORTED`. `RESOLVED` là lịch sử (`summary.resolvedItems`). `INVALIDATED` không vào hồ sơ. Retry trích xuất không hồi sinh hai trạng thái cuối.
+- Support count theo số bài nguồn (assessment) khác nhau, không theo số lần retry cùng input. Ghi profile khóa hàng học sinh trước.
 - Version profile tăng trong transaction; `expectedProfileVersion` sai → xung đột, không ghi đè.
 - Chat history theo session; unique `(sessionId, sequence)` giữ thứ tự khi timestamp trùng.
 

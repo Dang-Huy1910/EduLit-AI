@@ -37,6 +37,7 @@ import {
   saveAssessment,
   publishAssessment,
   saveObservationsAndRefreshProfile,
+  setObservationStatus,
   getProfileContextForSession,
 } from "./data-layer.js";
 ```
@@ -88,11 +89,11 @@ const submission = await submitAssignment(handle.prisma, {
 });
 ```
 
-`submitAssignment` tự đóng băng snapshot từ hàng assignment phía server.
+`submitAssignment` chỉ nhận đề `PUBLISHED`. Có `socraticSessionId` thì snapshot lấy từ context phiên (khớp hướng dẫn đã đóng băng); không có session thì snapshot lấy assignment hiện tại. `dueAt` là thông tin, không chặn nộp.
 
 ## 4. Transaction
 
-`saveObservationsAndRefreshProfile` và `appendChatMessage` chạy trong transaction. Profile dùng `SELECT … FOR UPDATE` + `version`. Truyền `expectedProfileVersion` khi cập nhật đồng thời.
+`saveObservationsAndRefreshProfile`, `setObservationStatus` và `appendChatMessage` chạy trong transaction. Trước khi sửa observation/profile, helper khóa hàng `users` của học sinh rồi mới khóa assessment/profile. Profile dùng `SELECT … FOR UPDATE` + `version`. Truyền `expectedProfileVersion` khi cập nhật đồng thời. Đổi `INVALIDATED`/`RESOLVED` bằng `setObservationStatus`, không qua retry trích xuất.
 
 Không xóa cascade user/assignment. Vô hiệu hóa user: `status = INACTIVE`; thu hồi session: `revokedAt`.
 
@@ -102,7 +103,7 @@ Không xóa cascade user/assignment. Vô hiệu hóa user: `status = INACTIVE`; 
 - Session/submission/profile thuộc student.
 - Nếu có `socraticSessionId`, session phải cùng student và assignment (helper + FK kép).
 - Observation `studentId` phải là tác giả submission của assessment (FK kép + helper).
-- Query `getProfileContextForSession(studentId)` không trả observation học sinh khác, không trả INVALIDATED.
+- Query `getProfileContextForSession(studentId)` không trả observation học sinh khác, không trả `INVALIDATED` hay `RESOLVED`. `RESOLVED` nằm ở `summary.resolvedItems` như lịch sử/tiến bộ, không phải nhu cầu luyện hiện tại.
 
 ## 6. Scripts (cwd `backend/`)
 

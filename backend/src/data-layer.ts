@@ -16,6 +16,7 @@ export { submitAssignment } from "./modules/assessment/application/submit-assign
 export { saveAssessment, publishAssessment } from "./modules/assessment/application/save-assessment.js";
 export {
   saveObservationsAndRefreshProfile,
+  setObservationStatus,
   refreshWritingProfile,
 } from "./modules/writing-profile/application/save-observations.js";
 export { getProfileContextForSession } from "./modules/writing-profile/application/query-profile-context.js";

@@ -19,6 +19,10 @@
 6. Cột `assessments.student_id` được denormalize và khóa kép với submission để observation không thể gán nhầm học sinh. Đây là cột toàn vẹn, không phải bảng thứ mười.
 7. Tài khoản cấp sẵn, một giáo viên và nhóm học sinh cố định. Quyền chi tiết do backend quản lý sau; database không thay thế authorization.
 8. Local Compose dùng user bootstrap (tạo DB/schema). Môi trường thật: role ứng dụng không phải superuser, chỉ quyền trên schema nghiệp vụ.
+9. Điểm `numeric(8,2)`: từ chối input không biểu diễn đúng hai chữ số thập phân; không làm tròn âm thầm. CHECK `total_score <= max_score`.
+10. Nộp bài chỉ khi đề `PUBLISHED`. `dueAt` là thông tin, không chặn nộp trong MVP. Nộp kèm `socraticSessionId` dùng `contextSnapshot` của phiên; nộp không session dùng hàng assignment hiện tại. Cả hai đường đóng băng trong transaction có khóa hàng.
+11. Ghi observation/profile khóa hàng `users` của học sinh trước, để hai assessment đồng thời không mất dữ liệu khi tạo profile lần đầu.
+12. Retry trích xuất không đổi `INVALIDATED`/`RESOLVED`. Đổi vòng đời qua `setObservationStatus`. `RESOLVED` là lịch sử/tiến bộ, không đưa vào nhu cầu luyện hiện tại.
 
 ## Phạm vi cố ý để sau
 

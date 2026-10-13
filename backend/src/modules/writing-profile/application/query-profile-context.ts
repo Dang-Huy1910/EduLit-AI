@@ -36,7 +36,7 @@ export async function getProfileContextForSession(
   const recentObservations = await prisma.writingObservation.findMany({
     where: {
       studentId,
-      status: { not: "INVALIDATED" },
+      status: { in: ["PROVISIONAL", "SUPPORTED"] },
       assessment: { status: "PUBLISHED", studentId },
     },
     orderBy: { observedAt: "desc" },

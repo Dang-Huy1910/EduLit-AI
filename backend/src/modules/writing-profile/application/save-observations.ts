@@ -1,4 +1,4 @@
-import { Prisma } from "../../../generated/prisma/client.js";
+import { Prisma, type ObservationStatus } from "../../../generated/prisma/client.js";
 import { DomainError, VersionConflictError } from "../../../core/errors.js";
 import { assertEvidenceQuote } from "../../../core/utf16.js";
 import type { EduLitPrisma } from "../../../infrastructure/database/prisma.client.js";
@@ -16,6 +16,15 @@ export type SaveObservationsInput = {
   expectedProfileVersion?: number;
 };
 
+export type SetObservationStatusInput = {
+  studentId: string;
+  observationId: string;
+  status: ObservationStatus;
+  expectedProfileVersion?: number;
+};
+
+const TERMINAL_OBSERVATION_STATUSES: ObservationStatus[] = ["INVALIDATED", "RESOLVED"];
+
 export async function saveObservationsAndRefreshProfile(
   prisma: EduLitPrisma,
   input: SaveObservationsInput,
@@ -25,6 +34,7 @@ export async function saveObservationsAndRefreshProfile(
   }
 
   return prisma.$transaction(async (tx) => {
+    await lockStudentRow(tx, input.studentId);
     const assessmentRows = await tx.$queryRaw<
       Array<{
         id: string;
@@ -81,7 +91,7 @@ export async function saveObservationsAndRefreshProfile(
         observation.evidenceEnd,
         observation.evidenceQuote,
       );
-      await tx.writingObservation.upsert({
+      const existing = await tx.writingObservation.findUnique({
         where: {
           studentId_assessmentId_featureKey: {
             studentId: input.studentId,
@@ -89,17 +99,28 @@ export async function saveObservationsAndRefreshProfile(
             featureKey: observation.featureKey,
           },
         },
-        update: {
-          kind: observation.kind,
-          description: observation.description,
-          genre: observation.genre || snapshot.genre || "",
-          evidenceQuote: observation.evidenceQuote,
-          evidenceStart: observation.evidenceStart,
-          evidenceEnd: observation.evidenceEnd,
-          status: observation.status ?? "PROVISIONAL",
-          observedAt: now,
-        },
-        create: {
+      });
+      if (existing && TERMINAL_OBSERVATION_STATUSES.includes(existing.status)) {
+        continue;
+      }
+      if (existing) {
+        await tx.writingObservation.update({
+          where: { id: existing.id },
+          data: {
+            kind: observation.kind,
+            description: observation.description,
+            genre: observation.genre || snapshot.genre || "",
+            evidenceQuote: observation.evidenceQuote,
+            evidenceStart: observation.evidenceStart,
+            evidenceEnd: observation.evidenceEnd,
+            status: observation.status ?? existing.status,
+            observedAt: now,
+          },
+        });
+        continue;
+      }
+      await tx.writingObservation.create({
+        data: {
           studentId: input.studentId,
           assessmentId: input.assessmentId,
           kind: observation.kind,
@@ -119,14 +140,41 @@ export async function saveObservationsAndRefreshProfile(
   });
 }
 
+export async function setObservationStatus(prisma: EduLitPrisma, input: SetObservationStatusInput) {
+  return prisma.$transaction(async (tx) => {
+    await lockStudentRow(tx, input.studentId);
+    const observation = await tx.writingObservation.findUnique({
+      where: { id: input.observationId },
+    });
+    if (!observation || observation.studentId !== input.studentId) {
+      throw new DomainError("OBSERVATION_MISSING", "observation not found for student");
+    }
+    await tx.writingObservation.update({
+      where: { id: observation.id },
+      data: { status: input.status },
+    });
+    return refreshProfileInTransaction(tx, input.studentId, input.expectedProfileVersion);
+  });
+}
+
 export async function refreshWritingProfile(
   prisma: EduLitPrisma,
   studentId: string,
   expectedProfileVersion?: number,
 ) {
-  return prisma.$transaction((tx) =>
-    refreshProfileInTransaction(tx, studentId, expectedProfileVersion),
+  return prisma.$transaction(async (tx) => {
+    await lockStudentRow(tx, studentId);
+    return refreshProfileInTransaction(tx, studentId, expectedProfileVersion);
+  });
+}
+
+export async function lockStudentRow(tx: Prisma.TransactionClient, studentId: string): Promise<void> {
+  const rows = await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`SELECT id FROM users WHERE id = ${studentId}::uuid FOR UPDATE`,
   );
+  if (rows.length === 0) {
+    throw new DomainError("OBSERVATION_STUDENT", "student not found");
+  }
 }
 
 async function refreshProfileInTransaction(

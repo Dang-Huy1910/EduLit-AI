@@ -1,5 +1,6 @@
 import { DomainError } from "../../../core/errors.js";
 import {
+  assertNonNegativeDecimal,
   decimal,
   decimalString,
   isMultipleOfStep,
@@ -63,7 +64,7 @@ export function validateAssessmentScores(input: {
     if (!criterion) {
       throw new DomainError("EVALUATION_CRITERION", `unknown criterionId ${row.criterionId}`);
     }
-    const awarded = decimal(asDecimalInput(row.awardedScore, "awardedScore"));
+    const awarded = assertNonNegativeDecimal(asDecimalInput(row.awardedScore, "awardedScore"), "awardedScore");
     const weight = decimal(criterion.weight);
     if (awarded.lt(0) || awarded.gt(weight)) {
       throw new DomainError(
@@ -98,7 +99,7 @@ export function validateAssessmentScores(input: {
     throw new DomainError("EVALUATION_CRITERION", "evaluations must cover every rubric criterion");
   }
 
-  const totalScore = decimal(input.totalScore);
+  const totalScore = assertNonNegativeDecimal(input.totalScore, "totalScore");
   if (!totalScore.eq(awardedSum)) {
     throw new DomainError("EVALUATION_TOTAL", "totalScore must equal the sum of awardedScore");
   }

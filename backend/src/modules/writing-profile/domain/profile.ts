@@ -4,10 +4,18 @@ export type DeclaredGoals = {
   items: Array<{ id: string; text: string }>;
 };
 
+export type ResolvedProfileItem = {
+  featureKey: string;
+  description: string;
+  kind: ObservationKind;
+  assessmentId: string;
+};
+
 export type ProfileSummary = {
   strengths: string[];
   practiceNeeds: string[];
   expressionTendencies: string[];
+  resolvedItems: ResolvedProfileItem[];
   sourceAssessmentIds: string[];
   sourceAssignmentIds: string[];
   supportCountByFeature: Record<string, number>;
@@ -39,6 +47,7 @@ export function emptySummary(): ProfileSummary {
     strengths: [],
     practiceNeeds: [],
     expressionTendencies: [],
+    resolvedItems: [],
     sourceAssessmentIds: [],
     sourceAssignmentIds: [],
     supportCountByFeature: {},
@@ -46,6 +55,10 @@ export function emptySummary(): ProfileSummary {
     lastObservedAt: null,
     note: PROFILE_NOTE,
   };
+}
+
+export function isCurrentObservationStatus(status: ObservationStatus): boolean {
+  return status === "PROVISIONAL" || status === "SUPPORTED";
 }
 
 export function buildProfileSummary(
@@ -60,7 +73,8 @@ export function buildProfileSummary(
     observedAt: Date;
   }>,
 ): { summary: ProfileSummary; observationIds: string[] } {
-  const active = observations.filter((item) => item.status !== "INVALIDATED");
+  const current = observations.filter((item) => isCurrentObservationStatus(item.status));
+  const resolved = observations.filter((item) => item.status === "RESOLVED");
   const supportCountByFeature: Record<string, number> = {};
   const featureAssessments = new Map<string, Set<string>>();
   const sourceAssessmentIds = new Set<string>();
@@ -68,9 +82,10 @@ export function buildProfileSummary(
   const strengths: string[] = [];
   const practiceNeeds: string[] = [];
   const expressionTendencies: string[] = [];
+  const resolvedItems: ResolvedProfileItem[] = [];
   let lastObservedAt: Date | null = null;
 
-  for (const item of active) {
+  for (const item of current) {
     sourceAssessmentIds.add(item.assessmentId);
     sourceAssignmentIds.add(item.assignmentId);
     const assessments = featureAssessments.get(item.featureKey) ?? new Set<string>();
@@ -90,20 +105,30 @@ export function buildProfileSummary(
     }
   }
 
+  for (const item of resolved) {
+    resolvedItems.push({
+      featureKey: item.featureKey,
+      description: item.description,
+      kind: item.kind,
+      assessmentId: item.assessmentId,
+    });
+  }
+
   for (const [featureKey, assessments] of featureAssessments) {
     supportCountByFeature[featureKey] = assessments.size;
   }
 
   return {
-    observationIds: active.map((item) => item.id),
+    observationIds: current.map((item) => item.id),
     summary: {
       strengths,
       practiceNeeds,
       expressionTendencies,
+      resolvedItems,
       sourceAssessmentIds: [...sourceAssessmentIds],
       sourceAssignmentIds: [...sourceAssignmentIds],
       supportCountByFeature,
-      observationCount: active.length,
+      observationCount: current.length,
       lastObservedAt: lastObservedAt ? lastObservedAt.toISOString() : null,
       note: PROFILE_NOTE,
     },
