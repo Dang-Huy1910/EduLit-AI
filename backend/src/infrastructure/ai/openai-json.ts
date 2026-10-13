@@ -61,7 +61,7 @@ export async function generateOpenAiJson(
               type: "json_schema",
               name: "edulit_output",
               strict: true,
-              schema: request.responseJsonSchema,
+              schema: toOpenAiStrictSchema(request.responseJsonSchema),
             },
           },
           max_output_tokens: options.maxOutputTokens,
@@ -82,7 +82,11 @@ export async function generateOpenAiJson(
       const rawText = data.output_text?.trim() ?? data.output?.flatMap((item) => item.content ?? []).find((item) => item.type === "output_text")?.text?.trim() ?? "";
       if (!rawText) throw new DomainError("AI_INVALID_OUTPUT", "provider returned empty text");
       let parsed: unknown;
-      try { parsed = JSON.parse(rawText); } catch { throw new DomainError("AI_INVALID_OUTPUT", "provider returned non-JSON text"); }
+      try {
+        parsed = normalizeOpenAiOptionalNulls(JSON.parse(rawText), request.responseJsonSchema);
+      } catch {
+        throw new DomainError("AI_INVALID_OUTPUT", "provider returned non-JSON text");
+      }
       const usage = data.usage && {
         ...(typeof data.usage.input_tokens === "number" ? { promptTokenCount: data.usage.input_tokens } : {}),
         ...(typeof data.usage.output_tokens === "number" ? { candidatesTokenCount: data.usage.output_tokens } : {}),
@@ -98,6 +102,75 @@ export async function generateOpenAiJson(
     }
   }
   throw mapOpenAiError(lastError, true);
+}
+
+/**
+ * OpenAI Structured Outputs in strict mode requires every object property to
+ * be required. Optional local fields are represented as nullable on the wire,
+ * then restored to absent fields before existing local validation runs.
+ */
+export function toOpenAiStrictSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  return strictifySchema(structuredClone(schema)) as Record<string, unknown>;
+}
+
+export function normalizeOpenAiOptionalNulls(value: unknown, schema: Record<string, unknown>): unknown {
+  return removeOptionalNulls(value, schema);
+}
+
+function strictifySchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(strictifySchema);
+  if (!isRecord(value)) return value;
+
+  const result: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    result[key] = strictifySchema(child);
+  }
+  const properties = isRecord(value.properties) ? value.properties : undefined;
+  if (!properties) return result;
+
+  const required = new Set(
+    Array.isArray(value.required)
+      ? value.required.filter((key): key is string => typeof key === "string")
+      : [],
+  );
+  const strictProperties: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(properties)) {
+    const strictChild = strictifySchema(child);
+    strictProperties[key] = required.has(key) ? strictChild : { anyOf: [strictChild, { type: "null" }] };
+  }
+  result.properties = strictProperties;
+  result.required = Object.keys(strictProperties);
+  return result;
+}
+
+function removeOptionalNulls(value: unknown, schema: unknown): unknown {
+  if (Array.isArray(value)) {
+    const itemSchema = isRecord(schema) ? schema.items : undefined;
+    return value.map((item) => removeOptionalNulls(item, itemSchema));
+  }
+  if (!isRecord(value) || !isRecord(schema)) return value;
+
+  const properties = isRecord(schema.properties) ? schema.properties : undefined;
+  if (!properties) return value;
+  const required = new Set(
+    Array.isArray(schema.required)
+      ? schema.required.filter((key): key is string => typeof key === "string")
+      : [],
+  );
+  const normalized: Record<string, unknown> = { ...value };
+  for (const [key, propertySchema] of Object.entries(properties)) {
+    if (!(key in normalized)) continue;
+    if (normalized[key] === null && !required.has(key)) {
+      delete normalized[key];
+      continue;
+    }
+    normalized[key] = removeOptionalNulls(normalized[key], propertySchema);
+  }
+  return normalized;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isRetryable(error: unknown): boolean {

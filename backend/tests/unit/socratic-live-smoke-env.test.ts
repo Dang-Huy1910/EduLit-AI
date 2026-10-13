@@ -13,9 +13,17 @@ const tsxCli = path.join(backendRoot, "node_modules/tsx/dist/cli.mjs");
 function spawnLiveSmoke(cwd: string, args: string[] = []): Promise<{ code: number; output: string }> {
   return new Promise((resolve, reject) => {
     const env = { ...process.env };
-    delete env.GEMINI_API_KEY;
-    delete env.SOCRATIC_LIVE;
-    delete env.GEMINI_MODEL;
+    for (const key of [
+      "AI_MODE",
+      "AI_PROVIDER",
+      "AI_MODEL",
+      "GEMINI_API_KEY",
+      "GEMINI_MODEL",
+      "OPENAI_API_KEY",
+      "SOCRATIC_LIVE",
+    ]) {
+      delete env[key];
+    }
     const child = spawn(process.execPath, [tsxCli, script, ...args], {
       cwd,
       env,
@@ -47,11 +55,11 @@ test("live smoke loads SOCRATIC_LIVE and GEMINI_API_KEY from cwd .env", async ()
       ].join("\n"),
       "utf8",
     );
-    const result = await spawnLiveSmoke(tmp);
-    assert.equal(result.code, 1);
-    assert.match(result.output, /AI_NOT_CONFIGURED/);
-    assert.doesNotMatch(result.output, /thiếu GEMINI_API_KEY/);
-    assert.doesNotMatch(result.output, /live smoke chưa chạy/);
+    const result = await spawnLiveSmoke(tmp, ["--dry-run"]);
+    assert.equal(result.code, 0);
+    assert.match(result.output, /"provider":"gemini"/);
+    assert.match(result.output, /"model":"gemini-1.5-pro"/);
+    assert.match(result.output, /"key":"configured"/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -65,10 +73,10 @@ test("live smoke --live reads GEMINI_API_KEY from cwd .env", async () => {
       ["GEMINI_API_KEY=synthetic-review-key", "GEMINI_MODEL=not-gemini-3.8-flash", ""].join("\n"),
       "utf8",
     );
-    const result = await spawnLiveSmoke(tmp, ["--live"]);
-    assert.equal(result.code, 1);
-    assert.match(result.output, /AI_NOT_CONFIGURED/);
-    assert.doesNotMatch(result.output, /thiếu GEMINI_API_KEY/);
+    const result = await spawnLiveSmoke(tmp, ["--live", "--dry-run"]);
+    assert.equal(result.code, 0);
+    assert.match(result.output, /"provider":"gemini"/);
+    assert.match(result.output, /"model":"not-gemini-3.8-flash"/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

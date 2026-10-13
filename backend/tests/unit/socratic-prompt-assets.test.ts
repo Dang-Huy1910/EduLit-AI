@@ -8,6 +8,10 @@ import {
   loadSocraticPromptBundle,
   resolveSocraticAssetsDir,
 } from "../../src/modules/socratic/prompt-assets.js";
+import {
+  normalizeOpenAiOptionalNulls,
+  toOpenAiStrictSchema,
+} from "../../src/infrastructure/ai/openai-json.js";
 import { SOCRATIC_OUTLINE_INIT_PROMPT_VERSION, SOCRATIC_PROMPT_VERSION } from "../../src/modules/socratic/domain/output.js";
 import { socraticMessageId } from "../../src/modules/socratic/domain/message-ids.js";
 
@@ -50,4 +54,27 @@ test("message ids are stable per session, request and role", () => {
   assert.notEqual(a, c);
   assert.notEqual(a, d);
   assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+});
+
+test("OpenAI strict schema preserves optional Socratic source references as nullable fields", () => {
+  const bundle = loadSocraticPromptBundle();
+  const strict = toOpenAiStrictSchema(bundle.providerSchema);
+  const rootProperties = strict.properties as Record<string, unknown>;
+  assert.deepEqual(strict.required, ["replySentences", "focusCriterionIds", "sourceRefs"]);
+
+  const sourceRefs = rootProperties.sourceRefs as { anyOf: Array<{ items?: Record<string, unknown> }> };
+  const sourceRef = sourceRefs.anyOf[0]?.items as Record<string, unknown>;
+  assert.deepEqual(sourceRef.required, ["kind", "criterionId"]);
+  const criterionId = (sourceRef.properties as Record<string, unknown>).criterionId as { anyOf: Array<{ type?: string }> };
+  assert.ok(criterionId.anyOf.some((entry) => entry.type === "null"));
+
+  const normalized = normalizeOpenAiOptionalNulls(
+    {
+      replySentences: ["Em muốn bắt đầu từ đâu?"],
+      focusCriterionIds: [],
+      sourceRefs: [{ kind: "learningMaterial", criterionId: null }],
+    },
+    bundle.providerSchema,
+  ) as { sourceRefs: Array<{ kind: string; criterionId?: string }> };
+  assert.deepEqual(normalized.sourceRefs, [{ kind: "learningMaterial" }]);
 });
