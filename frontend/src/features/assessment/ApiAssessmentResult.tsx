@@ -1,0 +1,16 @@
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import StudentShell from '@/components/StudentShell';
+import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
+import { getAssignment } from '@/lib/api/assignments';
+import { getStudentSubmission } from '@/lib/api/submissions';
+import { ApiError, type ApiStudentSubmission } from '@/lib/api/types';
+
+export default function ApiAssessmentResult() {
+  const params = useParams(); const assignmentId = String(params?.id ?? ''); const [result, setResult] = useState<ApiStudentSubmission | null>(null); const [message, setMessage] = useState('Đang tải trạng thái bài nộp…');
+  useEffect(() => { let active = true; void (async () => { try { const assignment = await getAssignment(assignmentId); if (!assignment.submission) { if (active) setMessage('Bài ảnh chưa được giáo viên xác nhận nên chưa có kết quả chấm.'); return; } const row = await getStudentSubmission(assignment.submission.id); if (active) setResult(row); } catch (cause) { if (active) setMessage(cause instanceof ApiError ? cause.message : 'Không tải được kết quả.'); } })(); return () => { active = false; }; }, [assignmentId]);
+  return <StudentShell headerTitle="Kết quả đánh giá Rubric" headerSubtitle="Bước 5 / 5"><main className="mx-auto max-w-4xl space-y-5"><AssignmentWorkflowStepper currentStep="result" assignmentId={assignmentId}/>{!result ? <section className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-8 text-center text-sm text-on-surface-variant">{message}<div className="mt-4"><Link href={`/assignments/${assignmentId}/ocr`} className="font-bold text-primary">Xem bản chép OCR</Link></div></section> : result.assessment.status === 'PENDING' ? <section className="rounded-xl border border-secondary/30 bg-secondary-fixed/30 p-8 text-center"><h1 className="font-merriweather text-xl font-bold">Bài đã xác nhận, đang chờ giáo viên chấm và công bố</h1><p className="mt-2 text-sm text-on-surface-variant">Điểm nháp của AI không được hiển thị trước khi giáo viên duyệt.</p></section> : <><section className="rounded-xl border border-tertiary/30 bg-tertiary-container/20 p-6"><p className="text-sm font-bold text-tertiary">KẾT QUẢ CHÍNH THỨC</p><h1 className="mt-2 font-merriweather text-3xl font-bold">{result.assessment.totalScore} / {result.assessment.maxScore} điểm</h1></section><section className="space-y-3">{result.assessment.detailedEvaluations.map((evaluation) => <article key={evaluation.criterionId} className="rounded-xl border border-outline-variant/30 bg-surface-container-lowest p-5"><div className="flex items-start justify-between gap-3"><h2 className="font-bold">{evaluation.criterionId}</h2><span className="rounded-full bg-primary-fixed px-3 py-1 text-sm font-bold text-primary">{evaluation.awardedScore}đ</span></div><p className="mt-3 text-sm leading-6">{evaluation.comment}</p>{evaluation.evidence.map((evidence, index) => <blockquote key={index} className="mt-3 border-l-2 border-secondary pl-3 text-sm italic text-on-surface-variant">“{evidence.quote}”</blockquote>)}{evaluation.weaknesses.length > 0 && <p className="mt-3 text-xs text-on-surface-variant">Cần luyện thêm: {evaluation.weaknesses.join('; ')}</p>}</article>)}</section></>}</main></StudentShell>;
+}

@@ -20,7 +20,7 @@ const STEPS: StepConfig[] = [
     stepNumber: 1,
     label: 'Đề bài & Ngữ liệu',
     icon: 'menu_book',
-    href: '/materials',
+    href: '/assignments/assign-nlxh-01',
   },
   {
     id: 'socratic',
@@ -74,11 +74,11 @@ export default function AssignmentWorkflowStepper({
           // Target URL
           const targetHref =
             step.id === 'reading'
-              ? '/materials'
+              ? `/assignments/${assignmentId}`
               : step.id === 'socratic'
                 ? `/assignments/${assignmentId}/socratic`
                 : `/assignments/${assignmentId}/${step.id}`;
-          const unimplemented = isApiMode() && step.id !== 'socratic';
+          const unimplemented = false;
 
           return (
             <React.Fragment key={step.id}>

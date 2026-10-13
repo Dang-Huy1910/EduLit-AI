@@ -17,7 +17,7 @@ export function setApiAuthBridge(bridge: AuthBridge): void {
 
 export type ApiRequestOptions = {
   method?: string;
-  body?: unknown;
+  body?: unknown | FormData;
   timeoutMs?: number;
   signal?: AbortSignal;
 };
@@ -39,10 +39,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const headers: Record<string, string> = {};
-  let body: string | undefined;
+  let body: string | FormData | undefined;
   if (options.body !== undefined) {
-    headers['Content-Type'] = 'application/json';
-    body = JSON.stringify(options.body);
+    if (options.body instanceof FormData) {
+      body = options.body;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(options.body);
+    }
   }
 
   let response: Response;

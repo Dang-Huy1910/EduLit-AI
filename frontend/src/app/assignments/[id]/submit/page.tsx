@@ -8,15 +8,11 @@ import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { isApiMode } from '@/lib/data-mode';
 import UnimplementedPanel from '@/components/UnimplementedPanel';
+import ApiSubmissionUpload from '@/features/assessment/ApiSubmissionUpload';
 
 export default function SubmitPhotosPage() {
   if (isApiMode()) {
-    return (
-      <UnimplementedPanel
-        title="Nộp bài viết tay chưa có API"
-        description="Nộp ảnh, PII-Shield và OCR sẽ thuộc feature assessment. Em hãy dùng Socratic để lập dàn ý."
-      />
-    );
+    return <ApiSubmissionUpload />;
   }
   return <MockSubmitPhotosPage />;
 }

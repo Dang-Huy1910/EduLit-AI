@@ -9,15 +9,11 @@ import { useAppStore } from '@/lib/store';
 import { MOCK_TRANSCRIPTION_LINES } from '@/lib/mock/data';
 import { isApiMode } from '@/lib/data-mode';
 import UnimplementedPanel from '@/components/UnimplementedPanel';
+import ApiOcrVerification from '@/features/assessment/ApiOcrVerification';
 
 export default function OcrVerificationPage() {
   if (isApiMode()) {
-    return (
-      <UnimplementedPanel
-        title="Đối chiếu OCR chưa có API"
-        description="Bước OCR chưa được triển khai trên HTTP. Feature hiện tại dừng ở lập dàn ý Socratic."
-      />
-    );
+    return <ApiOcrVerification />;
   }
   return <MockOcrVerificationPage />;
 }

@@ -1,0 +1,21 @@
+import { apiRequest } from './http';
+import type { ApiSubmissionDraft, ApiStudentSubmission, ApiTeacherAssessment, ApiTeacherSubmission } from './types';
+
+export const openSubmissionDraft = (assignmentId: string) => apiRequest<ApiSubmissionDraft>('/submission-drafts', { method: 'POST', body: { assignmentId } });
+export const getSubmissionDraft = (draftId: string) => apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}`);
+export const uploadDraftPage = (draftId: string, expectedRevision: number, file: File) => { const form = new FormData(); form.set('expectedRevision', String(expectedRevision)); form.set('file', file); return apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}/pages`, { method: 'POST', body: form, timeoutMs: 60_000 }); };
+export const deleteDraftPage = (draftId: string, pageId: string, expectedRevision: number) => apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}/pages/${pageId}`, { method: 'DELETE', body: { expectedRevision } });
+export const setPageMasks = (draftId: string, pageId: string, expectedRevision: number, masks: ApiSubmissionDraft['pages'][number]['masks']) => apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}/pages/${pageId}/masks`, { method: 'PUT', body: { expectedRevision, masks } });
+export const reorderDraftPages = (draftId: string, expectedRevision: number, pageIds: string[]) => apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}/pages/order`, { method: 'PUT', body: { expectedRevision, pageIds } });
+export const requestPrivacyReview = (draftId: string, expectedRevision: number) => apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}/privacy-review`, { method: 'POST', body: { expectedRevision } });
+export const reportOcrIssue = (draftId: string, body: { ocrRevisionId: string; pageId?: string; segmentId?: string; reportedText: string; note?: string }) => apiRequest(`/submission-drafts/${draftId}/ocr-issues`, { method: 'POST', body });
+export const listTeacherSubmissions = (assignmentId: string) => apiRequest<ApiTeacherSubmission[]>(`/teacher/assignments/${assignmentId}/submissions`);
+export const listTeacherDrafts = (assignmentId: string) => apiRequest<ApiSubmissionDraft[]>(`/teacher/assignments/${assignmentId}/submission-drafts`);
+export const reviewPrivacy = (draftId: string, approve: boolean, reason?: string) => apiRequest<ApiSubmissionDraft>(`/teacher/submission-drafts/${draftId}/privacy-review`, { method: 'POST', body: { approve, reason } });
+export const runOcr = (draftId: string) => apiRequest<ApiSubmissionDraft>(`/teacher/submission-drafts/${draftId}/ocr`, { method: 'POST', body: {}, timeoutMs: 60_000 });
+export const correctOcr = (draftId: string, expectedOcrRevision: number, correctedText: string, reason?: string) => apiRequest<ApiSubmissionDraft['ocr']>(`/teacher/submission-drafts/${draftId}/ocr/correct`, { method: 'POST', body: { expectedOcrRevision, correctedText, reason } });
+export const confirmOcr = (draftId: string, expectedOcrRevision: number) => apiRequest<{ id: string }>(`/teacher/submission-drafts/${draftId}/ocr/confirm`, { method: 'POST', body: { expectedOcrRevision } });
+export const gradeSubmission = (submissionId: string) => apiRequest<{ assessment: ApiTeacherAssessment; replayed: boolean }>(`/teacher/submissions/${submissionId}/assess`, { method: 'POST', body: {}, timeoutMs: 60_000 });
+export const reviewAssessment = (assessmentId: string, body: { expectedReviewRevision: number; detailedEvaluations: ApiTeacherAssessment['detailedEvaluations']; totalScore: string; reason?: string }) => apiRequest<ApiTeacherAssessment>(`/teacher/assessments/${assessmentId}/review`, { method: 'POST', body });
+export const publishAssessment = (assessmentId: string) => apiRequest<{ assessment: ApiTeacherAssessment }>(`/teacher/assessments/${assessmentId}/publish`, { method: 'POST', body: {} });
+export const getStudentSubmission = (submissionId: string) => apiRequest<ApiStudentSubmission>(`/submissions/${submissionId}`);

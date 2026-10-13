@@ -139,3 +139,14 @@ export type ApiTurnResult = {
   lastSequence: number;
   outlineRevision: number;
 };
+
+export type ApiDraftPage = { id: string; pageIndex: number; mimeType: string; masks: Array<{ x: number; y: number; width: number; height: number }>; derivativeUrl: string };
+export type ApiSubmissionDraft = {
+  id: string; assignmentId: string; studentId: string; status: 'DRAFT' | 'AWAITING_PRIVACY_REVIEW' | 'PRIVACY_RETURNED' | 'PRIVACY_APPROVED' | 'OCR_PROCESSING' | 'OCR_FAILED' | 'OCR_REVIEW' | 'CONFIRMED'; revision: number; privacyReturnReason: string | null; ocrErrorCode: string | null;
+  pages: ApiDraftPage[];
+  ocr: null | { id: string; revision: number; sourceRevision: number; rawPages: { pages: Array<{ pageId: string; segments: Array<{ id: string; text: string; needsReview: boolean; reason?: string }> }> }; correctedText: string; issues: Array<{ id: string; pageId: string | null; segmentId: string | null; reportedText: string; note: string | null; status: string }> };
+};
+export type ApiTeacherSubmission = { id: string; studentId: string; student: { displayName: string; loginId: string }; source: 'LEGACY_TEXT' | 'IMAGE_OCR'; submittedAt: string; ocrStatus: string | null; assessment: ApiTeacherAssessment | null };
+export type ApiEvaluation = { criterionId: string; awardedScore: string; comment: string; strengths: string[]; weaknesses: string[]; evidence: Array<{ quote: string; start: number; end: number }>; missingElements: string[] };
+export type ApiTeacherAssessment = { id: string; submissionId: string; studentId: string; status: 'AI_DRAFT' | 'PUBLISHED'; totalScore: string; maxScore: string; detailedEvaluations: ApiEvaluation[]; aiDetailedEvaluations: ApiEvaluation[] | null; aiTotalScore: string | null; reviewedById: string | null; reviewedAt: string | null; reviewReason: string | null; reviewRevision: number; rubricSnapshot: unknown; modelName: string; promptVersion: string; assessedAt: string; publishedAt: string | null; createdAt: string };
+export type ApiStudentSubmission = { audience: 'student'; submission: { id: string; text: string; assignmentId: string; submittedAt: string }; assessment: { status: 'PENDING' } | { status: 'PUBLISHED'; id: string; totalScore: string; maxScore: string; detailedEvaluations: ApiEvaluation[]; publishedAt: string | null } };
