@@ -124,6 +124,32 @@ test("open with AI writes a suggested outline and welcome once; resume does not 
   });
 });
 
+test("concurrent AI opens coalesce into one scaffold request", async () => {
+  await withTestPrisma(async (prisma) => {
+    const fake = new FakeSocraticAi();
+    const { assignment, actor } = await publishedFixture(prisma, "SOC-SCAFFOLD-SINGLE-FLIGHT");
+    let releaseProvider!: () => void;
+    fake.hold = new Promise<void>((resolve) => {
+      releaseProvider = resolve;
+    });
+
+    const first = openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id, ai: fake });
+    for (let attempt = 0; attempt < 20 && fake.outlineCalls.length === 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert.equal(fake.outlineCalls.length, 1);
+
+    const second = openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id, ai: fake });
+    releaseProvider();
+    const [opened, resumed] = await Promise.all([first, second]);
+
+    assert.equal(opened.sessionId, resumed.sessionId);
+    assert.equal(opened.resumed, false);
+    assert.equal(resumed.resumed, true);
+    assert.equal(fake.outlineCalls.length, 1);
+  });
+});
+
 test("wrong actor, foreign session, closed/completed/submitted are blocked without calling the provider", async () => {
   await withTestPrisma(async (prisma) => {
     const fake = new FakeSocraticAi();

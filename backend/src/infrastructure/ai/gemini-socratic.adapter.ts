@@ -1,11 +1,14 @@
-import { ApiError, FinishReason, GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { Logger } from "@nestjs/common";
+import { ApiError, FinishReason, GoogleGenAI, ThinkingLevel, type Models } from "@google/genai";
 import { DomainError } from "../../core/errors.js";
 import { sanitizeErrorMessage } from "../../core/sanitize.js";
 import { SOCRATIC_PROMPT_VERSION, type SocraticModelOutput } from "../../modules/socratic/domain/output.js";
 import {
+  SOCRATIC_MAX_ATTEMPTS,
   SOCRATIC_MAX_OUTPUT_TOKENS,
+  SOCRATIC_RETRY_BASE_DELAY_MS,
   SOCRATIC_RETRY_BUDGET_MS,
-
+  SOCRATIC_RETRY_MAX_DELAY_MS,
   SOCRATIC_TIMEOUT_MS,
 } from "./ai-config.js";
 import type {
@@ -18,14 +21,20 @@ import type {
 } from "./socratic-ai.port.js";
 
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504]);
+const RETRYABLE_DOMAIN_CODES = new Set(["RATE_LIMITED", "MODEL_UNAVAILABLE", "AI_TIMEOUT"]);
+type GenerateGeminiContent = Models["generateContent"];
 
 export class GeminiSocraticAdapter implements SocraticAiPort {
+  private readonly logger = new Logger(GeminiSocraticAdapter.name);
+
   constructor(
     private readonly options: {
       apiKey?: string;
       model?: string;
       timeoutMs?: number;
       retryBudgetMs?: number;
+      maxAttempts?: number;
+      generateContent?: GenerateGeminiContent;
     } = {},
   ) {}
 
@@ -54,11 +63,12 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
     if (!apiKey || !model) throw new DomainError("AI_NOT_CONFIGURED", "Gemini adapter requires a resolved API key and model");
     const timeoutMs = this.options.timeoutMs ?? SOCRATIC_TIMEOUT_MS;
     const budgetMs = this.options.retryBudgetMs ?? SOCRATIC_RETRY_BUDGET_MS;
+    const maxAttempts = this.options.maxAttempts ?? SOCRATIC_MAX_ATTEMPTS;
     const started = Date.now();
     let attempt = 0;
     let lastError: unknown;
 
-    while (attempt < 2) {
+    while (attempt < maxAttempts) {
       if (Date.now() - started >= budgetMs) {
         throw wrapGeminiError(lastError, Date.now() - started, true);
       }
@@ -70,14 +80,43 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
         return result;
       } catch (error) {
         lastError = error;
-        if (!isRetryable(error) || attempt === 1) {
+        if (signal?.aborted || !isRetryable(error) || attempt === maxAttempts - 1) {
           throw wrapGeminiError(error, Date.now() - started, false);
         }
+        const elapsedMs = Date.now() - started;
+        const remainingBudgetMs = budgetMs - elapsedMs;
+        const retryDelayMs = retryDelayFor(attempt);
+        if (retryDelayMs >= remainingBudgetMs) {
+          this.logRetry("retry_budget_exhausted", model, attempt + 1, error, elapsedMs, retryDelayMs);
+          throw wrapGeminiError(error, elapsedMs, true);
+        }
+        this.logRetry("retrying", model, attempt + 1, error, elapsedMs, retryDelayMs);
         attempt += 1;
-        await new Promise((resolve) => setTimeout(resolve, 1_500));
+        await waitForRetry(retryDelayMs, signal);
       }
     }
     throw wrapGeminiError(lastError, Date.now() - started, true);
+  }
+
+  private logRetry(
+    event: "retrying" | "retry_budget_exhausted",
+    model: string,
+    attempt: number,
+    error: unknown,
+    elapsedMs: number,
+    retryDelayMs: number,
+  ): void {
+    // Deliberately omit the upstream error text: it may contain prompt content.
+    this.logger.warn(JSON.stringify({
+      event,
+      provider: "gemini",
+      model,
+      attempt,
+      status: statusFrom(error),
+      code: error instanceof DomainError ? error.code : undefined,
+      elapsedMs,
+      retryDelayMs,
+    }));
   }
 
   private async callOnce(
@@ -97,9 +136,9 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
       }
     }
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const client = new GoogleGenAI({ apiKey });
+    const generateContent = this.options.generateContent ?? new GoogleGenAI({ apiKey }).models.generateContent;
     try {
-      const response = await client.models.generateContent({
+      const response = await generateContent({
         model,
         contents: request.userPayload,
         config: {
@@ -196,7 +235,7 @@ function usageFrom(meta: {
 
 function isRetryable(error: unknown): boolean {
   if (error instanceof DomainError) {
-    return error.code === "RATE_LIMITED" || error.code === "MODEL_UNAVAILABLE";
+    return RETRYABLE_DOMAIN_CODES.has(error.code);
   }
   if (error instanceof ApiError) {
     return TRANSIENT_STATUS.has(error.status);
@@ -206,6 +245,49 @@ function isRetryable(error: unknown): boolean {
   }
   const message = sanitizeErrorMessage(error).toLowerCase();
   return message.includes("econnreset") || message.includes("socket hang up") || message.includes("fetch failed");
+}
+
+/** Exponential backoff with bounded jitter prevents simultaneous retries from becoming another burst. */
+export function retryDelayFor(attempt: number, random = Math.random): number {
+  const exponentialDelay = Math.min(
+    SOCRATIC_RETRY_MAX_DELAY_MS,
+    SOCRATIC_RETRY_BASE_DELAY_MS * 2 ** Math.max(0, attempt),
+  );
+  const jitterFloor = Math.floor(exponentialDelay / 2);
+  const jitter = Math.min(1, Math.max(0, random()));
+  return jitterFloor + Math.floor(jitter * (exponentialDelay - jitterFloor));
+}
+
+function statusFrom(error: unknown): number | undefined {
+  if (error instanceof ApiError) return error.status;
+  if (error && typeof error === "object" && "status" in error) {
+    const status = Number((error as { status: unknown }).status);
+    return Number.isFinite(status) ? status : undefined;
+  }
+  return undefined;
+}
+
+function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DomainError("AI_TIMEOUT", "gemini request was aborted"));
+      return;
+    }
+    const timer = setTimeout(cleanupAndResolve, delayMs);
+    const onAbort = () => {
+      clearTimeout(timer);
+      cleanup();
+      reject(new DomainError("AI_TIMEOUT", "gemini request was aborted"));
+    };
+    function cleanupAndResolve(): void {
+      cleanup();
+      resolve();
+    }
+    function cleanup(): void {
+      signal?.removeEventListener("abort", onAbort);
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 function wrapGeminiError(error: unknown, _latencyMs: number, exhausted: boolean): DomainError {

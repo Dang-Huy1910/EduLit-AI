@@ -2,6 +2,9 @@ import { DomainError } from "../../core/errors.js";
 
 export const SOCRATIC_TIMEOUT_MS = 60_000;
 export const SOCRATIC_RETRY_BUDGET_MS = 80_000;
+export const SOCRATIC_MAX_ATTEMPTS = 4;
+export const SOCRATIC_RETRY_BASE_DELAY_MS = 1_000;
+export const SOCRATIC_RETRY_MAX_DELAY_MS = 8_000;
 export const SOCRATIC_MAX_OUTPUT_TOKENS = 2048;
 
 export const SOCRATIC_MAX_INPUT_CHARS = 80_000;

@@ -20,11 +20,43 @@ export type OpenOrResumeSocraticSessionInput = {
   ai?: SocraticAiPort;
 };
 
+type OpenOrResumeResult = SocraticSessionView & { resumed: boolean };
+
+/**
+ * One browser page can issue two opens in development mode, and a user can also
+ * reload while the first request is waiting on the provider. Coalesce those
+ * identical operations before generating a scaffold, not only at DB insert.
+ */
+const openingSessions = new Map<string, Promise<OpenOrResumeResult>>();
+
 export async function openOrResumeSocraticSession(
   prisma: EduLitPrisma,
   input: OpenOrResumeSocraticSessionInput,
-): Promise<SocraticSessionView & { resumed: boolean }> {
+): Promise<OpenOrResumeResult> {
   const actor = await assertActiveStudentActor(prisma, input.actor);
+  const key = `${actor.id}:${input.assignmentId}`;
+  const inFlight = openingSessions.get(key);
+  if (inFlight) {
+    const result = await inFlight;
+    return { ...result, resumed: true };
+  }
+
+  const operation = openOrResumeSocraticSessionOnce(prisma, input, actor.id);
+  openingSessions.set(key, operation);
+  try {
+    return await operation;
+  } finally {
+    if (openingSessions.get(key) === operation) {
+      openingSessions.delete(key);
+    }
+  }
+}
+
+async function openOrResumeSocraticSessionOnce(
+  prisma: EduLitPrisma,
+  input: OpenOrResumeSocraticSessionInput,
+  studentId: string,
+): Promise<OpenOrResumeResult> {
   const assignment = await prisma.assignment.findUnique({ where: { id: input.assignmentId } });
   if (!assignment) {
     throw new DomainError("SESSION_ASSIGNMENT", "assignment not found");
@@ -32,12 +64,12 @@ export async function openOrResumeSocraticSession(
 
   const existing = await prisma.socraticSession.findUnique({
     where: {
-      studentId_assignmentId: { studentId: actor.id, assignmentId: assignment.id },
+      studentId_assignmentId: { studentId, assignmentId: assignment.id },
     },
   });
   if (existing) {
     if (input.ai) {
-      await maybeAttachScaffold(prisma, input.ai, actor.id, existing.id);
+      await maybeAttachScaffold(prisma, input.ai, studentId, existing.id);
     }
     const view = await getSocraticSession(prisma, { actor: input.actor, sessionId: existing.id });
     return { ...view, resumed: true };
@@ -51,7 +83,7 @@ export async function openOrResumeSocraticSession(
   const sessionId = randomUUID();
   try {
     await prisma.$transaction(async (tx) => {
-      await lockStudentThenAssignment(tx, actor.id, assignment.id);
+      await lockStudentThenAssignment(tx, studentId, assignment.id);
       const current = await tx.assignment.findUniqueOrThrow({ where: { id: assignment.id } });
       if (current.status !== "PUBLISHED") {
         throw new DomainError("SESSION_ASSIGNMENT", "assignment closed while the session scaffold was generated");
@@ -60,13 +92,13 @@ export async function openOrResumeSocraticSession(
         throw new DomainError("TURN_CONFLICT", "assignment changed while the session scaffold was generated");
       }
       const submitted = await tx.submission.findUnique({
-        where: { studentId_assignmentId: { studentId: actor.id, assignmentId: assignment.id } },
+        where: { studentId_assignmentId: { studentId, assignmentId: assignment.id } },
       });
       if (submitted) throw new DomainError("SESSION_SUBMITTED", "submitted assignments do not accept a socratic session");
       await tx.socraticSession.create({
         data: {
           id: sessionId,
-          studentId: actor.id,
+          studentId,
           assignmentId: assignment.id,
           contextSnapshot: contextSnapshot as Prisma.InputJsonValue,
           outline: (scaffold?.outline ?? emptyOutline()) as Prisma.InputJsonValue,
@@ -94,14 +126,14 @@ export async function openOrResumeSocraticSession(
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       const raced = await prisma.socraticSession.findUnique({
         where: {
-          studentId_assignmentId: { studentId: actor.id, assignmentId: assignment.id },
+          studentId_assignmentId: { studentId, assignmentId: assignment.id },
         },
       });
       if (!raced) {
         throw error;
       }
       if (input.ai) {
-        await maybeAttachScaffold(prisma, input.ai, actor.id, raced.id);
+        await maybeAttachScaffold(prisma, input.ai, studentId, raced.id);
       }
       const view = await getSocraticSession(prisma, { actor: input.actor, sessionId: raced.id });
       return { ...view, resumed: true };
