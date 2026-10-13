@@ -7,7 +7,7 @@ import { useAppStore } from '@/lib/store';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 import { isApiMode } from '@/lib/data-mode';
-import { useApiAuthStore } from '@/lib/api-auth-store';
+import { initialsFromName, useApiAuthStore } from '@/lib/api-auth-store';
 
 interface TeacherShellProps {
   children: React.ReactNode;
@@ -36,7 +36,10 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
   ];
 
   const apiMode = isApiMode();
+  const apiUser = useApiAuthStore((state) => state.user);
   const apiLogout = useApiAuthStore((state) => state.logout);
+  const displayName = apiMode ? apiUser?.displayName || currentUser.name : currentUser.name;
+  const avatarInitials = apiMode ? initialsFromName(displayName) : currentUser.avatarInitials;
   const handleLogout = async () => {
     if (apiMode) {
       await apiLogout();
@@ -66,6 +69,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {!apiMode && (
           <button
             onClick={() => {
               resetDemoState();
@@ -76,8 +80,9 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
           >
             <span className="material-symbols-outlined text-lg">restart_alt</span>
           </button>
+          )}
           <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs">
-            Giáo viên
+            {displayName || 'Giáo viên'}
           </span>
         </div>
       </div>
@@ -238,14 +243,14 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
               <div className="text-right">
                 <div className="font-label-md text-sm text-on-surface font-semibold">
-                  {currentUser.name}
+                  {displayName}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
-                  GV Ngữ văn • THPT Đan Phượng
+                  {apiMode ? (apiUser?.loginId ? `@${apiUser.loginId} • THPT Đan Phượng` : 'Tổ Ngữ văn • THPT Đan Phượng') : 'GV Ngữ văn • THPT Đan Phượng'}
                 </div>
               </div>
               <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs ring-2 ring-primary-container/40">
-                {currentUser.avatarInitials || 'ĐL'}
+                {avatarInitials || 'ĐL'}
               </div>
               <button
                 data-testid="logout-button"

@@ -323,11 +323,9 @@ export default function StudentShell({
                 <div className="font-label-md text-sm text-on-surface font-semibold">
                   {displayName || 'Học sinh'}
                 </div>
-                {!apiMode && (
                 <div className="font-caption text-xs text-on-surface-variant">
-                  Lớp 12A1 • THPT Đan Phượng
+                  {apiMode ? (apiUser?.loginId ? `@${apiUser.loginId} • THPT Đan Phượng` : 'THPT Đan Phượng') : 'Lớp 12A1 • THPT Đan Phượng'}
                 </div>
-                )}
               </div>
               <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs ring-2 ring-secondary-container/40">
                 {avatarInitials || 'HS'}
