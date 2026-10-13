@@ -248,7 +248,8 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 {currentUser.avatarInitials || 'ĐL'}
               </div>
               <button
-                onClick={handleLogout}
+                data-testid="logout-button"
+                onClick={() => void handleLogout()}
                 title="Đăng xuất"
                 className="ml-2 p-1 text-on-surface-variant hover:text-error transition-colors"
               >

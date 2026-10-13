@@ -68,6 +68,7 @@ export function mapDomainError(error: DomainError): ApiHttpException {
     case "ASSESSMENT_MISSING":
     case "SUBMISSION_NOT_FOUND":
     case "ASSESSMENT_OWNERSHIP":
+    case "OBSERVATION_MISSING":
       return new ApiHttpException(HttpStatus.NOT_FOUND, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
     case "SESSION_COMPLETED":
       return new ApiHttpException(HttpStatus.CONFLICT, "SESSION_COMPLETED", ERROR_MESSAGES.SESSION_COMPLETED);
@@ -83,6 +84,8 @@ export function mapDomainError(error: DomainError): ApiHttpException {
     case "OCR_CONFLICT":
     case "ASSESSMENT_UNIQUE":
     case "SUBMISSION_CONFLICT":
+    case "PROFILE_EXTRACTION_BUSY":
+    case "VERSION_CONFLICT":
       return new ApiHttpException(HttpStatus.CONFLICT, error.code, ERROR_MESSAGES.CONFLICT);
     case "OUTLINE_VERSION":
       return new ApiHttpException(HttpStatus.CONFLICT, "OUTLINE_VERSION", ERROR_MESSAGES.OUTLINE_VERSION);
@@ -105,6 +108,7 @@ export function mapDomainError(error: DomainError): ApiHttpException {
     case "SUBMISSION_ASSIGNMENT":
     case "SUBMISSION_UNCONFIRMED":
     case "ASSESSMENT_STATUS":
+    case "OBSERVATION_STATUS":
     case "ASSESSMENT_REVIEW_REASON":
     case "EVALUATION_SHAPE":
     case "EVALUATION_CRITERION":

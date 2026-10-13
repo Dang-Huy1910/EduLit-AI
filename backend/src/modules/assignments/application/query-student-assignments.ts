@@ -32,7 +32,7 @@ export type StudentAssignmentListItem = {
   gradeLevel: number;
   maxScore: string;
   scoreStep: string;
-  status: "PUBLISHED";
+  status: "PUBLISHED" | "CLOSED";
   publishedAt: string | null;
   dueAt: string | null;
   rubric: unknown;
@@ -51,7 +51,20 @@ export async function listPublishedAssignmentsForStudent(
   studentId: string,
 ): Promise<StudentAssignmentListItem[]> {
   const assignments = await prisma.assignment.findMany({
-    where: { status: "PUBLISHED" },
+    where: {
+      OR: [
+        { status: "PUBLISHED" },
+        {
+          status: "CLOSED",
+          OR: [
+            { socraticSessions: { some: { studentId } } },
+            { submissions: { some: { studentId } } },
+            { submissionDrafts: { some: { studentId } } },
+            { progress: { some: { studentId } } },
+          ],
+        },
+      ],
+    },
     select: LIST_SELECT,
     orderBy: [{ publishedAt: "desc" }, { code: "asc" }],
   });
@@ -85,7 +98,7 @@ export async function listPublishedAssignmentsForStudent(
       gradeLevel: item.gradeLevel,
       maxScore: decimalString(item.maxScore),
       scoreStep: decimalString(item.scoreStep),
-      status: "PUBLISHED",
+      status: item.status === "CLOSED" ? "CLOSED" : "PUBLISHED",
       publishedAt: item.publishedAt?.toISOString() ?? null,
       dueAt: item.dueAt?.toISOString() ?? null,
       rubric: item.rubric,
@@ -109,10 +122,10 @@ export async function getPublishedAssignmentForStudent(
     where: { id: assignmentId },
     select: DETAIL_SELECT,
   });
-  if (!assignment || assignment.status !== "PUBLISHED") {
+  if (!assignment || (assignment.status !== "PUBLISHED" && assignment.status !== "CLOSED")) {
     throw new ApiHttpException(404, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
   }
-  const [submission, session, progress] = await Promise.all([
+  const [submission, session, progress, draft] = await Promise.all([
     prisma.submission.findUnique({
       where: { studentId_assignmentId: { studentId, assignmentId } },
       select: { id: true, submittedAt: true },
@@ -122,7 +135,11 @@ export async function getPublishedAssignmentForStudent(
       select: { id: true, status: true },
     }),
     prisma.assignmentProgress.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } } }),
+    prisma.submissionDraft.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } }, select: { id: true } }),
   ]);
+  if (assignment.status === "CLOSED" && !submission && !session && !progress && !draft) {
+    throw new ApiHttpException(404, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
+  }
   return {
     id: assignment.id,
     code: assignment.code,
@@ -132,7 +149,7 @@ export async function getPublishedAssignmentForStudent(
     gradeLevel: assignment.gradeLevel,
     maxScore: decimalString(assignment.maxScore),
     scoreStep: decimalString(assignment.scoreStep),
-    status: "PUBLISHED",
+    status: assignment.status === "CLOSED" ? "CLOSED" : "PUBLISHED",
     publishedAt: assignment.publishedAt?.toISOString() ?? null,
     dueAt: assignment.dueAt?.toISOString() ?? null,
     learningMaterialText: assignment.learningMaterialText,

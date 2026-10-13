@@ -117,7 +117,8 @@ export async function reorderDraftPages(prisma: EduLitPrisma, input: { studentId
     if (locked.studentId !== input.studentId || locked.revision !== input.expectedRevision || !isEditableStatus(locked.status)) throw new DomainError("DRAFT_CONFLICT", "draft changed before reorder");
     const pages = await tx.submissionDraftPage.findMany({ where: { draftId: draft.id }, orderBy: { pageIndex: "asc" } });
     if (pages.length !== input.pageIds.length || new Set(input.pageIds).size !== pages.length || pages.some((page) => !input.pageIds.includes(page.id))) throw new DomainError("PAGE_ORDER", "pageIds must contain each draft page once");
-    for (const [pageIndex, pageId] of input.pageIds.entries()) await tx.submissionDraftPage.update({ where: { id: pageId }, data: { pageIndex: -pageIndex - 1 } });
+    const stagingOffset = 1000;
+    for (const [pageIndex, pageId] of input.pageIds.entries()) await tx.submissionDraftPage.update({ where: { id: pageId }, data: { pageIndex: stagingOffset + pageIndex } });
     for (const [pageIndex, pageId] of input.pageIds.entries()) await tx.submissionDraftPage.update({ where: { id: pageId }, data: { pageIndex } });
     await tx.submissionDraft.update({ where: { id: draft.id }, data: { revision: { increment: 1 }, status: "DRAFT", ocrErrorCode: null } });
   });
@@ -159,7 +160,10 @@ export async function runOcr(prisma: EduLitPrisma, storage: PrivateStoragePort, 
   if (claimed.count !== 1) throw new DomainError("DRAFT_CONFLICT", "OCR job was claimed by another request");
   try {
     const pages = await prisma.submissionDraftPage.findMany({ where: { draftId: draft.id }, orderBy: { pageIndex: "asc" } });
-    const requestPages = await Promise.all(pages.map(async (page) => { const file = await storage.read(page.derivativeFileId); return { pageId: page.id, mimeType: file.mimeType, data: file.data, contentHash: page.contentHash }; }));
+    const requestPages = await Promise.all(pages.map(async (page) => {
+      const [file, original] = await Promise.all([storage.read(page.derivativeFileId), storage.read(page.originalFileId)]);
+      return { pageId: page.id, mimeType: file.mimeType, data: file.data, contentHash: page.contentHash, sourceHash: sha256Buffer(original.data) };
+    }));
     const output = await ai.transcribe({ systemInstruction: "Bạn chép nguyên văn chữ viết tay tiếng Việt theo từng trang. Không sửa chính tả, không chấm điểm, không suy đoán phần không đọc được.", userPayload: "Ảnh dưới đây đã được che thông tin riêng. Trả JSON đúng schema OCR.", responseJsonSchema: ocrSchema(), promptVersion: "ocr-transcription.v1", pages: requestPages });
     const validated = validateOcrOutput(output.output, pages.map((page) => page.id)); const text = joinOcrPages(validated);
     await prisma.$transaction(async (tx) => {
@@ -252,4 +256,28 @@ function ocrSchema() {
 function validateOcrOutput(output: VisionTranscriptionOutput, expectedIds: string[]) { if (!Array.isArray(output?.pages) || output.pages.length !== expectedIds.length || new Set(output.pages.map((page) => page.pageId)).size !== expectedIds.length || output.pages.some((page) => !expectedIds.includes(page.pageId) || !Array.isArray(page.segments) || page.segments.some((segment) => !segment.id || typeof segment.text !== "string" || typeof segment.needsReview !== "boolean"))) throw new DomainError("AI_INVALID_OUTPUT", "OCR output does not match pages or schema"); if (output.pages.reduce((size, page) => size + page.segments.reduce((n, segment) => n + segment.text.length, 0), 0) > MAX_TEXT_CHARS) throw new DomainError("AI_INVALID_OUTPUT", "OCR text exceeds limit"); return output; }
 function joinOcrPages(output: VisionTranscriptionOutput) { return output.pages.map((page) => page.segments.map((segment) => segment.text).join("\n")).join("\n\n"); }
 async function latestOcr(prisma: EduLitPrisma, draftId: string) { return prisma.ocrRevision.findFirst({ where: { draftId, status: "COMPLETED" }, orderBy: { revision: "desc" } }); }
-async function serializeDraft(prisma: EduLitPrisma, draftId: string) { const draft = await prisma.submissionDraft.findUniqueOrThrow({ where: { id: draftId }, include: { pages: { orderBy: { pageIndex: "asc" } }, ocrRevisions: { where: { status: "COMPLETED" }, orderBy: { revision: "desc" }, take: 1, include: { issues: { orderBy: { createdAt: "asc" } } } } } }); const current = draft.ocrRevisions[0] ?? null; return { id: draft.id, assignmentId: draft.assignmentId, studentId: draft.studentId, status: draft.status, revision: draft.revision, privacyReturnReason: draft.privacyReturnReason, ocrErrorCode: draft.ocrErrorCode, pages: draft.pages.map((page) => ({ id: page.id, pageIndex: page.pageIndex, mimeType: page.mimeType, masks: page.masks, derivativeUrl: `/api/files/${page.derivativeFileId}` })), ocr: current ? { id: current.id, revision: current.revision, sourceRevision: current.sourceRevision, rawPages: current.rawPages, correctedText: current.correctedText, issues: current.issues.map((issue) => ({ id: issue.id, pageId: issue.pageId, segmentId: issue.segmentId, reportedText: issue.reportedText, note: issue.note, status: issue.status })) } : null }; }
+async function serializeDraft(prisma: EduLitPrisma, draftId: string) {
+  const draft = await prisma.submissionDraft.findUniqueOrThrow({
+    where: { id: draftId },
+    include: {
+      student: { select: { id: true, displayName: true, loginId: true } },
+      pages: { orderBy: { pageIndex: "asc" } },
+      ocrRevisions: { where: { status: "COMPLETED" }, orderBy: { revision: "desc" }, take: 1, include: { issues: { orderBy: { createdAt: "asc" } } } },
+    },
+  });
+  const current = draft.ocrRevisions[0] ?? null;
+  return {
+    id: draft.id,
+    assignmentId: draft.assignmentId,
+    studentId: draft.studentId,
+    student: draft.student,
+    status: draft.status,
+    revision: draft.revision,
+    privacyReturnReason: draft.privacyReturnReason,
+    ocrErrorCode: draft.ocrErrorCode,
+    pages: draft.pages.map((page) => ({ id: page.id, pageIndex: page.pageIndex, mimeType: page.mimeType, masks: page.masks, derivativeUrl: `/api/files/${page.derivativeFileId}` })),
+    ocr: current
+      ? { id: current.id, revision: current.revision, sourceRevision: current.sourceRevision, rawPages: current.rawPages, correctedText: current.correctedText, issues: current.issues.map((issue) => ({ id: issue.id, pageId: issue.pageId, segmentId: issue.segmentId, reportedText: issue.reportedText, note: issue.note, status: issue.status })) }
+      : null,
+  };
+}

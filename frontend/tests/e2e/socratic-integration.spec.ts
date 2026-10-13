@@ -31,6 +31,13 @@ test.describe('Socratic integration', () => {
     await expect(page.getByTestId('assignment-card-VAN12-NLXH-SOC')).toBeVisible();
     await page.getByTestId('assignment-code-input').fill('VAN12-NLXH-SOC');
     await page.getByTestId('assignment-code-open').click();
+    await page.waitForURL(/\/assignments\/[0-9a-f-]{36}$/);
+    await expect(page.getByTestId('assignment-reading')).toBeVisible();
+    if (await page.getByTestId('mark-read').isVisible()) {
+      await page.getByTestId('mark-read').click();
+    }
+    await expect(page.getByTestId('continue-socratic')).toBeVisible();
+    await page.getByTestId('continue-socratic').click();
     await page.waitForURL(/\/assignments\/.+\/socratic/);
     await expect(page.getByTestId('socratic-messages')).toBeVisible();
     await expect.poll(async () => (await outlineValues(page)).length).toBeGreaterThan(0);
@@ -97,6 +104,13 @@ test.describe('Socratic integration', () => {
     await expect(otherPage.getByTestId('assignment-card-VAN12-NLXH-SOC')).toBeVisible();
     await otherPage.getByTestId('assignment-code-input').fill('VAN12-NLXH-SOC');
     await otherPage.getByTestId('assignment-code-open').click();
+    await otherPage.waitForURL(/\/assignments\/[0-9a-f-]{36}$/);
+    await expect(otherPage.getByTestId('assignment-reading')).toBeVisible();
+    if (await otherPage.getByTestId('mark-read').isVisible()) {
+      await otherPage.getByTestId('mark-read').click();
+    }
+    await expect(otherPage.getByTestId('continue-socratic')).toBeVisible();
+    await otherPage.getByTestId('continue-socratic').click();
     await otherPage.waitForURL(/\/assignments\/.+\/socratic/);
     await expect(otherPage.getByTestId('socratic-messages')).not.toContainText(marker);
     await expect.poll(async () => (await outlineValues(otherPage)).includes(outlinePoint)).toBe(false);

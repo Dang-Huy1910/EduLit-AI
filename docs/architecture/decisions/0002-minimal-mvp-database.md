@@ -2,7 +2,7 @@
 
 - Ngày: 13/10/2026.
 - Trạng thái: chấp nhận cho nhánh `feat/database`.
-- Phạm vi: data layer thí điểm; chưa có HTTP CRUD, đăng nhập, chatbot hay gọi Gemini.
+- Phạm vi: data layer thí điểm ban đầu (chín bảng). Pipeline 2026-10 mở rộng upload/OCR/job extraction; xem [full-pipeline-contract.md](../../development/full-pipeline-contract.md).
 - Bổ sung, không thay thế: [ADR-0001](0001-mvp-stack.md), [data-model.md](../data-model.md).
 
 ## Bối cảnh
@@ -26,7 +26,7 @@
 
 ## Phạm vi cố ý để sau
 
-OCR/ảnh/file, PDF/DOCX, revision học liệu riêng, FSM Socratic bốn bước, nộp lại, nhiều lần chấm, queue/pg-boss/outbox, embeddings, Redis, nhiều trường/lớp, dashboard/heatmap, HTTP/auth, gọi `gemini-2.5-flash`.
+Quyết định chín bảng là của MVP văn bản cũ. Pipeline hiện tại đã thêm bảng/cột cho upload draft, pages, OCR revisions và `profile_extraction_jobs`. Vẫn ngoài scope: PDF/DOCX thành rubric, nộp lại, nhiều lần chấm, queue/Redis, embeddings, nhiều trường/lớp, dashboard nâng cao.
 
 ## Hệ quả
 

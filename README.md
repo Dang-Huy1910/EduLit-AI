@@ -5,7 +5,7 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
-**Trạng thái triển khai:** Prototype mock vẫn chạy khi `NEXT_PUBLIC_DATA_MODE=mock`. Data layer MVP, Socratic (application + HTTP học sinh), pipeline chấm bài ([assessment-handoff.md](docs/development/assessment-handoff.md)) và pipeline hồ sơ văn phong ([writing-profile-handoff.md](docs/development/writing-profile-handoff.md)) đã có. Worker, OCR, HTTP nộp/chấm/profile và teacher CRUD chưa có. Bắt đầu từ [lộ trình MVP theo feature](docs/development/minimal-mvp-roadmap.md).
+**Trạng thái triển khai:** Prototype mock vẫn chạy khi `NEXT_PUBLIC_DATA_MODE=mock`. API mode (`NEXT_PUBLIC_DATA_MODE=api`) nối teacher tạo/công bố đề, học sinh đọc/Socratic/nộp ảnh, OCR private, chấm AI_DRAFT, công bố điểm và hồ sơ văn phong. Backend `AI_MODE=mock` chỉ giả provider; auth/DB/upload/OCR workflow là thật. Live Gemini/OpenAI chưa kiểm chứng trong lượt này. Dataset: [demo-data.md](docs/development/demo-data.md). Contract: [full-pipeline-contract.md](docs/development/full-pipeline-contract.md). Bàn giao: [full-pipeline-handoff.md](docs/development/full-pipeline-handoff.md).
 
 ---
 
@@ -98,7 +98,7 @@ sequenceDiagram
 | Dữ liệu | PostgreSQL 17 + Prisma 7 | Đã triển khai trên `feat/database` |
 | Tác vụ nền | pg-boss trên PostgreSQL; worker cùng codebase backend | Chưa triển khai |
 | Model | Gemini hoặc OpenAI qua adapter backend | Provider/model theo cấu hình; fake AI chỉ dùng khi `AI_MODE=mock` |
-| File/ảnh | Local private storage khi dev; GCS khi deploy; Canvas + Sharp | Thiết kế đích; chưa tích hợp thật |
+| File/ảnh | Local private storage (`LOCAL_STORAGE_PATH`); mask burn-in Sharp; stream qua cookie | Đã có trong API mode; GCS chưa nối |
 | Auth | Tài khoản cấp trước, Argon2id, session PostgreSQL và cookie HttpOnly | Đã triển khai; mock mode vẫn là demo 1-click |
 | Contract | OpenAPI, JSON Schema + Ajv | Đã thiết kế danh sách contract; chưa có schema thực thi |
 

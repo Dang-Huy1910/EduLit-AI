@@ -1,6 +1,6 @@
 # Backend — data layer, Socratic và HTTP học sinh
 
-Backend NestJS/TypeScript ESM. **Hiện có** data layer (PostgreSQL 17, Prisma ORM 7.10.0), application Socratic, HTTP tối thiểu học sinh, pipeline chấm bài (submit → grade → AI_DRAFT → publish), **và pipeline hồ sơ văn phong** (extract từ PUBLISHED, evidence, cập nhật profile, Socratic lượt sau). Chưa có worker, teacher CRUD hay HTTP nộp/chấm/profile.
+Backend NestJS/TypeScript ESM. **Hiện có** data layer (PostgreSQL 17, Prisma ORM 7.10.0), Socratic HTTP, teacher CRUD đề, upload ảnh private/OCR, chấm AI_DRAFT → publish, và hồ sơ văn phong (job extraction sau publish). Chưa có worker/queue/Redis hay lớp học.
 
 Đọc [ADR-0002](../docs/architecture/decisions/0002-minimal-mvp-database.md), [minimal-database.md](../docs/architecture/minimal-database.md) và [database-handoff.md](../docs/development/database-handoff.md).
 
@@ -53,6 +53,8 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run assessment:live-smoke` | opt-in chấm bằng provider/model đã cấu hình; cần `ASSESSMENT_LIVE=1` hoặc `--live` |
 | `npm run writing-profile:demo` | CLI extract / show / review-status (mặc định `AI_MODE=mock`) |
 | `npm run writing-profile:live-smoke` | opt-in extraction bằng provider/model đã cấu hình; cần `WRITING_PROFILE_LIVE=1` hoặc `--live`; không ghi DB |
+| `npm run seed:demo` | dataset additive `DEMO-*` (2 GV, 12 HS, 8 đề, 24 tiến độ); từ chối production |
+| `npm run ocr:fixtures` | ghi PNG mock in (không phải chữ viết tay) vào `frontend/tests/e2e/fixtures/ocr/` |
 
 Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Lỗi live không được đổi thành fake thành công.
 
@@ -60,7 +62,9 @@ AI runtime dùng `AI_MODE=mock|live`, `AI_PROVIDER=gemini|openai` và `AI_MODEL`
 
 ## Seed
 
-Một giáo viên (`dang.loan`), hai học sinh (`bui.hamy`, `nguyen.an`), hai đề rubric khác nhau, bài nộp trước/sau, assessment `PUBLISHED`, observation có evidence. Password lấy `DEV_SEED_PASSWORD`, hash Argon2id. Không phải kết quả AI thật; hồ sơ chưa hội tụ.
+`npm run prisma:seed`: một giáo viên (`dang.loan`), hai học sinh (`bui.hamy`, `nguyen.an`), đề VAN12-*. Password `DEV_SEED_PASSWORD`.
+
+`npm run seed:demo`: thêm `pham.thuha`, `tran.minhquan` và nhóm học sinh/đề `DEMO-*`. Chi tiết [demo-data.md](../docs/development/demo-data.md). Không phải kết quả AI thật.
 
 ## Tổ chức mã
 
@@ -73,13 +77,13 @@ src/infrastructure/database/   # Prisma client, provider Nest-shaped, check kế
 src/modules/identity/          # login/logout/me
 src/modules/assignments/       # query đề học sinh + presentation
 src/modules/socratic/          # use cases, guardrail, prompt assets, presentation
-src/modules/assessment/        # use cases chấm, prompt assets; chưa có HTTP
+src/modules/assessment/        # use cases + HTTP chấm/review/publish
 src/infrastructure/ai/         # Socratic + Assessment + writing-profile ports, Gemini/fake
-src/modules/writing-profile/   # extract/review profile, taxonomy, prompt assets; chưa có HTTP
+src/modules/writing-profile/   # extract/review profile, job PENDING/FAILED/COMPLETED
 src/data-layer.ts              # export helpers cho cộng sự
 ```
 
-Bàn giao Socratic: [socratic-handoff.md](../docs/development/socratic-handoff.md). HTTP/UI học sinh: [socratic-integration.md](../docs/development/socratic-integration.md). Chấm bài: [assessment-handoff.md](../docs/development/assessment-handoff.md) (chưa có HTTP/UI). Hồ sơ văn phong: [writing-profile-handoff.md](../docs/development/writing-profile-handoff.md) (chưa có HTTP/UI).
+Bàn giao pipeline: [full-pipeline-handoff.md](../docs/development/full-pipeline-handoff.md). Contract: [full-pipeline-contract.md](../docs/development/full-pipeline-contract.md).
 
 ## HTTP học sinh
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
@@ -460,8 +461,21 @@ export default function ApiSocraticView() {
                   </div>
                 ))}
               </div>
-              <div className="p-4 border-t text-[11px] text-on-surface-variant">
-                Nộp bài viết tay chưa có API trong feature này. Em sửa dàn ý trực tiếp; AI không ghi đè bản em đã lưu.
+              <div className="p-4 border-t space-y-2">
+                <p className="text-[11px] text-on-surface-variant">Em sửa dàn ý trực tiếp; AI không ghi đè bản em đã lưu. Có thể sang bước viết khi dàn ý còn đang hoàn thiện.</p>
+                <Link
+                  data-testid="continue-to-write"
+                  href={`/assignments/${assignmentId}/submit`}
+                  onClick={(event) => {
+                    if (dirty) {
+                      const ok = window.confirm('Dàn ý chưa lưu. Vẫn sang bước viết tay?');
+                      if (!ok) event.preventDefault();
+                    }
+                  }}
+                  className="inline-flex w-full items-center justify-center rounded-lg bg-primary-container px-3 py-2 text-xs font-bold text-on-primary-container"
+                >
+                  Chốt dàn ý, sang viết tay →
+                </Link>
               </div>
             </div>
           </div>

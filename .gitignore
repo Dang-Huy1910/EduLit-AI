@@ -37,6 +37,7 @@ test-results/
 
 # Runtime files, private uploads and local databases
 /var/
+backend/var/
 /data/
 *.log
 *.sqlite

@@ -29,9 +29,6 @@ export async function openOrResumeSocraticSession(
   if (!assignment) {
     throw new DomainError("SESSION_ASSIGNMENT", "assignment not found");
   }
-  if (assignment.status !== "PUBLISHED") {
-    throw new DomainError("SESSION_ASSIGNMENT", "only PUBLISHED assignments can open a socratic session");
-  }
 
   const existing = await prisma.socraticSession.findUnique({
     where: {
@@ -44,6 +41,9 @@ export async function openOrResumeSocraticSession(
     }
     const view = await getSocraticSession(prisma, { actor: input.actor, sessionId: existing.id });
     return { ...view, resumed: true };
+  }
+  if (assignment.status !== "PUBLISHED") {
+    throw new DomainError("SESSION_ASSIGNMENT", "only PUBLISHED assignments can open a socratic session");
   }
 
   const contextSnapshot = buildAssignmentSnapshot(assignment, new Date());

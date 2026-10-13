@@ -63,7 +63,12 @@ test("teacher owns draft CRUD/publish/close while students can open only the pub
     const closed = await apiRequest(client.baseUrl, `/teacher/assignments/${draft.id}/close`, { method: "POST", body: {}, cookie: teacherCookie });
     assert.equal(closed.status, 201);
     const reopened = await apiRequest(client.baseUrl, `/assignments/code/${draft.code}`, { cookie: studentCookie });
-    assert.equal(reopened.status, 404);
-    assert.equal(errorCode(reopened.json), "NOT_FOUND");
+    assert.equal(reopened.status, 200);
+    assert.equal((reopened.json as { status: string }).status, "CLOSED");
+    const stranger = await createUserWithPassword(client.prisma, { loginId: `hs-stranger-${randomUUID()}`, displayName: "Học sinh mới", role: "STUDENT" });
+    const strangerCookie = await loginCookie(client, stranger.loginId);
+    const hidden = await apiRequest(client.baseUrl, `/assignments/code/${draft.code}`, { cookie: strangerCookie });
+    assert.equal(hidden.status, 404);
+    assert.equal(errorCode(hidden.json), "NOT_FOUND");
   });
 });

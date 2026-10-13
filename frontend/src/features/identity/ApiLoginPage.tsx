@@ -11,6 +11,7 @@ const DEMO_ACCOUNTS: Array<Pick<ApiUser, 'loginId' | 'displayName' | 'role'>> = 
   { loginId: 'dang.loan', displayName: 'Cô Đặng Loan', role: 'TEACHER' },
   { loginId: 'bui.hamy', displayName: 'Bùi Hà My', role: 'STUDENT' },
   { loginId: 'nguyen.an', displayName: 'Nguyễn An', role: 'STUDENT' },
+  { loginId: 'tran.minhquan', displayName: 'Trần Minh Quân', role: 'STUDENT' },
 ];
 
 export default function ApiLoginPage() {
@@ -154,7 +155,7 @@ export default function ApiLoginPage() {
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                 Đăng nhập nhanh 1-click
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                 {DEMO_ACCOUNTS.map((account) => (
                   <button
                     key={account.loginId}

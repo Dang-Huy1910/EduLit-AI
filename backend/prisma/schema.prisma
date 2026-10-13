@@ -103,6 +103,15 @@ enum ObservationStatus {
   @@map("observation_status")
 }
 
+enum ProfileExtractionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+
+  @@map("profile_extraction_status")
+}
+
 model User {
   id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   loginId      String     @unique @map("login_id")
@@ -368,11 +377,30 @@ model Assessment {
 
   submission   Submission           @relation(fields: [submissionId, studentId], references: [id, studentId], onDelete: Restrict, onUpdate: Restrict)
   observations WritingObservation[]
+  profileExtractionJob ProfileExtractionJob?
 
   @@unique([id, studentId])
   @@unique([submissionId, studentId])
   @@index([studentId])
   @@map("assessments")
+}
+
+model ProfileExtractionJob {
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assessmentId         String                  @unique @map("assessment_id") @db.Uuid
+  status               ProfileExtractionStatus @default(PENDING)
+  attempts             Int                     @default(0)
+  leaseUntil           DateTime?               @map("lease_until") @db.Timestamptz(6)
+  leaseToken           String?                 @map("lease_token")
+  errorCode            String?                 @map("error_code")
+  noObservations       Boolean                 @default(false) @map("no_observations")
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([status, leaseUntil])
+  @@map("profile_extraction_jobs")
 }
 
 model WritingObservation {

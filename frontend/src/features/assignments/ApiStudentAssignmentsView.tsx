@@ -97,7 +97,7 @@ export default function ApiStudentAssignmentsView() {
               </button>
             </form>
             {codeError && <p className="text-[11px] text-error mt-1">Mã không hợp lệ hoặc chưa được công bố.</p>}
-            <p className="text-[10px] text-on-surface-variant mt-2">Mã thử chat mới: VAN12-NLXH-SOC</p>
+            <p className="text-[10px] text-on-surface-variant mt-2">Pipeline mới: DEMO-NLXH-12 · Socratic sẵn: VAN12-NLXH-SOC</p>
           </div>
         </div>
 
@@ -168,11 +168,11 @@ export default function ApiStudentAssignmentsView() {
                   )}
                   <div className="pt-3 border-t border-outline-variant/20 flex justify-end">
                     <Link
-                      data-testid={`open-socratic-${assignment.code}`}
+                      data-testid={`open-assignment-${assignment.code}`}
                       href={`/assignments/${assignment.id}`}
                       className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-semibold"
                     >
-                      {assignment.socraticSession ? 'Tiếp tục lập dàn ý Socratic' : 'Bắt đầu lập dàn ý Socratic'}
+                      {assignment.progress?.readAt ? 'Tiếp tục bài' : 'Đọc đề và ngữ liệu'}
                     </Link>
                   </div>
                 </article>
@@ -189,13 +189,18 @@ export default function ApiStudentAssignmentsView() {
                   <span className="text-xs font-mono text-secondary">{assignment.code}</span>
                   <h3 className="font-headline-md text-base font-bold font-merriweather">{assignment.title}</h3>
                   <p className="text-xs text-on-surface-variant">
-                    Đã nộp {assignment.submission ? new Date(assignment.submission.submittedAt).toLocaleString('vi-VN') : ''}. Chấm điểm chưa có API.
+                    Đã nộp {assignment.submission ? new Date(assignment.submission.submittedAt).toLocaleString('vi-VN') : ''}.
                   </p>
-                  {assignment.socraticSession && (
-                    <Link href={`/assignments/${assignment.id}/socratic?sessionId=${assignment.socraticSession.sessionId}`} className="text-xs font-semibold text-secondary">
-                      Xem lịch sử Socratic
+                  <div className="flex flex-wrap gap-3">
+                    <Link data-testid={`open-result-${assignment.code}`} href={`/assignments/${assignment.id}/result`} className="text-xs font-semibold text-primary">
+                      Xem kết quả chấm
                     </Link>
-                  )}
+                    {assignment.socraticSession && (
+                      <Link href={`/assignments/${assignment.id}/socratic?sessionId=${assignment.socraticSession.sessionId}`} className="text-xs font-semibold text-secondary">
+                        Xem lịch sử Socratic
+                      </Link>
+                    )}
+                  </div>
                 </article>
               ))
             )}

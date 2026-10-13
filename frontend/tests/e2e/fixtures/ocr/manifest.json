@@ -1,0 +1,30 @@
+[
+  {
+    "id": "nlxh-p1",
+    "file": "nlxh-p1.png",
+    "sourceHash": "5ea934fcce05fc8ccd9956555db5fd405a99ba34a5cf79d93710762089b57a66",
+    "text": "Ý chí giúp người trẻ không bỏ cuộc khi gặp khó khăn. Tuy nhiên, kiên định không đồng nghĩa với bảo thủ.",
+    "printedSynthetic": true
+  },
+  {
+    "id": "nlxh-p2",
+    "file": "nlxh-p2.png",
+    "sourceHash": "bde5889ef2358a284b030b7511463c05a5f3a301415825276c41b0e3a3dca48a",
+    "text": "Em lấy gương một bạn lớp mình kiên trì ôn tập giữa áp lực thi cử, chứ không sao chép văn mẫu. 🙂",
+    "printedSynthetic": true
+  },
+  {
+    "id": "illegible",
+    "file": "illegible.png",
+    "sourceHash": "de5ca5fbb594c268b3316411f9b72e202eb1d00076e4673293425a5b78f75b3e",
+    "text": "Một đoạn chữ bị nhoè nên không đọc được hết.",
+    "printedSynthetic": true
+  },
+  {
+    "id": "unicode",
+    "file": "unicode.png",
+    "sourceHash": "ad049522333947e4d2e0ca57a0b37d7f90a091f238735b6ebafece8d2a781ebf",
+    "text": "Sông Hương vừa trữ tình vừa dữ dội 👍 — chuỗi gần giống: kiên định / kiên định.",
+    "printedSynthetic": true
+  }
+]

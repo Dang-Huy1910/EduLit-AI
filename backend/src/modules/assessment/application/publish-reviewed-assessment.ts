@@ -49,6 +49,7 @@ export async function publishReviewedAssessment(
     });
 
     if (assessment.status === "PUBLISHED") {
+      await tx.profileExtractionJob.upsert({ where: { assessmentId: assessment.id }, create: { assessmentId: assessment.id }, update: {} });
       return { assessment: toTeacherAssessmentView(assessment), replayed: true };
     }
 
@@ -59,6 +60,7 @@ export async function publishReviewedAssessment(
         publishedAt: new Date(),
       },
     });
+    await tx.profileExtractionJob.upsert({ where: { assessmentId: updated.id }, create: { assessmentId: updated.id }, update: {} });
     return { assessment: toTeacherAssessmentView(updated), replayed: false };
   });
 }

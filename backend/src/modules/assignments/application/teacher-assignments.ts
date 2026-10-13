@@ -82,6 +82,7 @@ export async function listTeacherAssignments(prisma: EduLitPrisma, teacherId: st
     include: {
       _count: { select: { submissions: true, socraticSessions: true, progress: true } },
       submissions: { include: { assessment: { select: { status: true } } } },
+      submissionDrafts: { select: { status: true } },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -93,6 +94,11 @@ export async function listTeacherAssignments(prisma: EduLitPrisma, teacherId: st
       submitted: row._count.submissions,
       aiDraft: row.submissions.filter((submission) => submission.assessment?.status === "AI_DRAFT").length,
       published: row.submissions.filter((submission) => submission.assessment?.status === "PUBLISHED").length,
+      awaitingPrivacy: row.submissionDrafts.filter((draft) => draft.status === "AWAITING_PRIVACY_REVIEW").length,
+      ocrQueue: row.submissionDrafts.filter((draft) =>
+        draft.status === "PRIVACY_APPROVED" || draft.status === "OCR_FAILED" || draft.status === "OCR_REVIEW" || draft.status === "OCR_PROCESSING",
+      ).length,
+      waitingGrade: row.submissions.filter((submission) => !submission.assessment).length,
     },
   }));
 }
@@ -103,7 +109,20 @@ export async function getTeacherAssignment(prisma: EduLitPrisma, teacherId: stri
 
 export async function markAssignmentRead(prisma: EduLitPrisma, studentId: string, assignmentId: string) {
   const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId }, select: { status: true } });
-  if (!assignment || assignment.status !== "PUBLISHED") throw new DomainError("ASSIGNMENT_NOT_FOUND", "published assignment not found");
+  if (!assignment || (assignment.status !== "PUBLISHED" && assignment.status !== "CLOSED")) {
+    throw new DomainError("ASSIGNMENT_NOT_FOUND", "published assignment not found");
+  }
+  if (assignment.status === "CLOSED") {
+    const [session, submission, draft, progress] = await Promise.all([
+      prisma.socraticSession.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } }, select: { id: true } }),
+      prisma.submission.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } }, select: { id: true } }),
+      prisma.submissionDraft.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } }, select: { id: true } }),
+      prisma.assignmentProgress.findUnique({ where: { studentId_assignmentId: { studentId, assignmentId } }, select: { studentId: true } }),
+    ]);
+    if (!session && !submission && !draft && !progress) {
+      throw new DomainError("ASSIGNMENT_NOT_FOUND", "published assignment not found");
+    }
+  }
   return prisma.assignmentProgress.upsert({
     where: { studentId_assignmentId: { studentId, assignmentId } },
     create: { studentId, assignmentId, readAt: new Date() },

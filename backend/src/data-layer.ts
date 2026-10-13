@@ -57,6 +57,7 @@ export { createWritingProfileServices } from "./modules/writing-profile/applicat
 export { extractPublishedObservations } from "./modules/writing-profile/application/extract-published-observations.js";
 export { getOwnWritingProfile } from "./modules/writing-profile/application/get-own-writing-profile.js";
 export { reviewObservationStatus } from "./modules/writing-profile/application/review-observation-status.js";
+export { processProfileExtraction, getProfileExtractionJob } from "./modules/writing-profile/application/process-profile-extraction.js";
 export { loadWritingProfilePromptBundle } from "./modules/writing-profile/prompt-assets.js";
 export type { WritingObservationAiPort } from "./infrastructure/ai/writing-observation-ai.port.js";
 export { FakeWritingObservationAi } from "./infrastructure/ai/fake-writing-observation.adapter.js";

@@ -37,7 +37,7 @@ export type ApiAssignment = {
   gradeLevel: number;
   maxScore: string;
   scoreStep: string;
-  status: 'PUBLISHED';
+  status: 'PUBLISHED' | 'CLOSED';
   publishedAt: string | null;
   dueAt: string | null;
   learningMaterialText?: string;
@@ -71,7 +71,16 @@ export type ApiTeacherAssignment = {
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  worklist?: { opened: number; read: number; submitted: number; aiDraft: number; published: number };
+  worklist?: {
+    opened: number;
+    read: number;
+    submitted: number;
+    aiDraft: number;
+    published: number;
+    awaitingPrivacy: number;
+    ocrQueue: number;
+    waitingGrade: number;
+  };
 };
 
 export type AssignmentDraftInput = {
@@ -140,11 +149,57 @@ export type ApiTurnResult = {
   outlineRevision: number;
 };
 
+export type WorkflowStepState = 'not_started' | 'in_progress' | 'waiting_teacher' | 'complete';
+export type ApiAssignmentProgress = {
+  assignmentId: string;
+  assignmentStatus: 'PUBLISHED' | 'CLOSED';
+  readAt: string | null;
+  socratic: { sessionId: string; status: 'ACTIVE' | 'COMPLETED'; outlineRevision: number; outlineSaved: boolean } | null;
+  draft: { id: string; status: string; revision: number } | null;
+  submission: { id: string; source: string } | null;
+  assessment: { status: 'PENDING' } | { status: 'PUBLISHED'; id: string } | null;
+  profile: { status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'; noObservations?: boolean } | null;
+  steps: Record<'reading' | 'socratic' | 'submit' | 'ocr' | 'result', WorkflowStepState>;
+};
 export type ApiDraftPage = { id: string; pageIndex: number; mimeType: string; masks: Array<{ x: number; y: number; width: number; height: number }>; derivativeUrl: string };
 export type ApiSubmissionDraft = {
-  id: string; assignmentId: string; studentId: string; status: 'DRAFT' | 'AWAITING_PRIVACY_REVIEW' | 'PRIVACY_RETURNED' | 'PRIVACY_APPROVED' | 'OCR_PROCESSING' | 'OCR_FAILED' | 'OCR_REVIEW' | 'CONFIRMED'; revision: number; privacyReturnReason: string | null; ocrErrorCode: string | null;
+  id: string;
+  assignmentId: string;
+  studentId: string;
+  student?: { id: string; displayName: string; loginId: string };
+  status: 'DRAFT' | 'AWAITING_PRIVACY_REVIEW' | 'PRIVACY_RETURNED' | 'PRIVACY_APPROVED' | 'OCR_PROCESSING' | 'OCR_FAILED' | 'OCR_REVIEW' | 'CONFIRMED';
+  revision: number;
+  privacyReturnReason: string | null;
+  ocrErrorCode: string | null;
   pages: ApiDraftPage[];
   ocr: null | { id: string; revision: number; sourceRevision: number; rawPages: { pages: Array<{ pageId: string; segments: Array<{ id: string; text: string; needsReview: boolean; reason?: string }> }> }; correctedText: string; issues: Array<{ id: string; pageId: string | null; segmentId: string | null; reportedText: string; note: string | null; status: string }> };
+};
+export type ApiWritingObservation = {
+  id: string;
+  kind: string;
+  featureKey: string;
+  description: string;
+  genre: string;
+  status: string;
+  evidenceQuote: string;
+  evidenceStart: number;
+  evidenceEnd: number;
+  assessmentId: string;
+  observedAt: string;
+};
+export type ApiWritingProfile = {
+  profile: { id: string; version: number; summary: unknown; updatedAt: string } | null;
+  observations: ApiWritingObservation[];
+};
+export type ApiProfileExtractionJob = {
+  assessmentId: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  attempts: number;
+  errorCode: string | null;
+  noObservations: boolean;
+  updatedAt: string | null;
+  profileVersion: number;
+  observations: ApiWritingObservation[];
 };
 export type ApiTeacherSubmission = { id: string; studentId: string; student: { displayName: string; loginId: string }; source: 'LEGACY_TEXT' | 'IMAGE_OCR'; submittedAt: string; ocrStatus: string | null; assessment: ApiTeacherAssessment | null };
 export type ApiEvaluation = { criterionId: string; awardedScore: string; comment: string; strengths: string[]; weaknesses: string[]; evidence: Array<{ quote: string; start: number; end: number }>; missingElements: string[] };

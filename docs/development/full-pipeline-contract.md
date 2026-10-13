@@ -11,8 +11,9 @@ Tài liệu này là contract API mode cho từng feature của pipeline. Actor 
 | Teacher | `GET/PATCH /api/teacher/assignments/:id` | Xem, sửa DRAFT với `expectedUpdatedAt` để phát hiện stale save. |
 | Teacher | `POST /api/teacher/assignments/:id/publish` | DRAFT → PUBLISHED sau validate rubric. |
 | Teacher | `POST /api/teacher/assignments/:id/close` | PUBLISHED → CLOSED; không nhận bài mới. |
-| Student | `GET /api/assignments`, `GET /api/assignments/:id`, `GET /api/assignments/code/:code` | Chỉ đọc PUBLISHED. |
-| Student | `POST /api/assignments/:id/read` | Ghi mốc đã đọc đề/ngữ liệu. |
+| Student | `GET /api/assignments`, `GET /api/assignments/:id`, `GET /api/assignments/code/:code` | PUBLISHED; CLOSED chỉ khi học sinh đã tham gia. |
+| Student | `GET /api/assignments/:id/progress` | Năm bước `not_started\|in_progress\|waiting_teacher\|complete`. Học sinh không thấy điểm `AI_DRAFT`. |
+| Student | `POST /api/assignments/:id/read` | Ghi mốc đã đọc đề/ngữ liệu bằng thao tác rõ, không phải vì route được render. |
 
 `rubric.criteria[].weight` là điểm tối đa; tổng weight phải chính xác bằng `maxScore`, mỗi weight theo `scoreStep`. `maxScore`/`scoreStep` là decimal string. Date dùng ISO 8601. Assignment PUBLISHED được xem là immutable để Socratic/submission snapshot nhất quán.
 
@@ -42,7 +43,13 @@ Original và derivative không static/public. `GET /api/files/:fileId` luôn ki�
 | Teacher owner | `POST /api/teacher/assessments/:id/review` | CAS `expectedReviewRevision`, validate rubric/evidence; lưu final riêng nhưng bảo toàn `aiDetailedEvaluations`/`aiTotalScore`. |
 | Teacher owner | `POST /api/teacher/assessments/:id/publish` | Xác nhận cuối/idempotent, khóa kết quả. |
 | Student owner | `GET /api/submissions/:id` | Trước publish chỉ `{status:PENDING}`; sau publish trả final rubric/evidence. |
+| Student | `GET /api/profile` | Hồ sơ của chính mình: observations PROVISIONAL/SUPPORTED/RESOLVED kèm excerpt. |
+| Teacher owner | `GET /api/teacher/assessments/:id/profile-extraction` | Job PENDING/PROCESSING/COMPLETED/FAILED, `noObservations`, observations nguồn. |
+| Teacher owner | `POST /api/teacher/assessments/:id/profile-extraction/retry` | Retry FAILED hoặc lease hết hạn; COMPLETED/`[]` không gọi model lại. |
+| Teacher owner | `POST /api/teacher/observations/:id/review` | Đổi status với `expectedProfileVersion`; chỉ observation từ đề mình sở hữu. |
 
 Evidence dùng UTF-16 `[start,end)` trên đúng corrected final text đã hash. Chấm không nhận chat, profile, danh tính hoặc bài cũ. Giáo viên khác nhận 404; closed assignment vẫn cho phép chấm/công bố Submission đã confirmed từ trước.
+
+Publish điểm độc lập với extraction: job FAILED không làm mất điểm đã công bố. Stepper UI đọc `GET /progress`, không tô đủ bước theo index route. OCR mock khớp fixture bằng `sourceHash` của ảnh gốc; ảnh lạ trả `OCR_FIXTURE_MISSING`.
 
 Mọi mutation cần Origin hợp lệ, cookie HttpOnly và JSON/multipart content type phù hợp. Lỗi được trả envelope `{ error: { code, message } }`; ownership ẩn tài nguyên bằng 404, stale/revision là 409, payload quá lớn là 413, provider quota/timeout là 429/504.

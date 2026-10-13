@@ -14,17 +14,17 @@ Người dùng sở hữu database và pipeline AI/văn phong. Phạm vi ban đ�
 
 Mỗi hàng là một feature. Adapter/context/tests cùng thuộc `feat/socratic`; không tách chúng thành nhiều nhánh nhỏ. Với feature mới, tạo nhánh từ base đã chứa các feature phụ thuộc; không tự merge/push để đổi base.
 
-## Phạm vi tiếp theo: pipeline giao diện đầy đủ
+## Pipeline giao diện đầy đủ
 
-Các feature sau mới được đặc tả bằng prompt, chưa được triển khai bởi việc bổ sung tài liệu này:
+Đã triển khai trên chuỗi nhánh `feat/ai-foundation` → `feat/writing-profile-integration`. Live provider chưa kiểm chứng. Chi tiết [full-pipeline-handoff.md](full-pipeline-handoff.md).
 
-| Thứ tự | Nhánh | Phạm vi | Prompt |
+| Thứ tự | Nhánh | Phạm vi | Trạng thái |
 | --- | --- | --- | --- |
-| 6 | `feat/ai-foundation` | Sửa nền Grok/Socratic, config Gemini/OpenAI, provenance và concurrency | [Codex sửa nền AI](../../prompts/codex-ai-foundation.md) |
-| 7 | `feat/teacher-assignments` | Form đề/barem, draft/publish/close, chia sẻ mã, trang đọc và progress thật | [Codex full pipeline](../../prompts/codex-complete-pipeline.md) |
-| 8 | `feat/submission-ocr` | Private upload/masking, duyệt ảnh, OCR/revisions/báo lỗi, xác nhận bản chép | Cùng prompt full pipeline |
-| 9 | `feat/assessment-integration` | HTTP/UI chấm, duyệt/chỉnh kết quả giữ AI draft, publish và student result | Cùng prompt full pipeline |
-| 10 | `feat/writing-profile-integration` | Extraction bền vững sau publish, profile/review, Socratic đề sau, seed và E2E hoàn chỉnh | Cùng prompt full pipeline |
+| 6 | `feat/ai-foundation` | Config Gemini/OpenAI, provenance | Đã code; live báo riêng |
+| 7 | `feat/teacher-assignments` | Form đề/barem, draft/publish/close, đọc, progress | Đã code |
+| 8 | `feat/submission-ocr` | Upload private, mask, OCR, xác nhận bản chép | Đã code (mock fixture) |
+| 9 | `feat/assessment-integration` | HTTP/UI chấm, PENDING vs official | Đã code |
+| 10 | `feat/writing-profile-integration` | Job extraction, profile UI, seed:demo, e2e | Đã code; live báo riêng |
 
 Mỗi feature bao gồm migrations cần thiết, API, UI, tests và tài liệu. Dataset demo thêm dần, chốt ở feature cuối, dùng namespace riêng và không reset/overwrite dữ liệu đang có. Chia sẻ mã đề cho học sinh trong pilot; chưa có giao riêng theo lớp/người nhận. Barem nhập bằng form, ngữ liệu văn bản; tự đọc file PDF/DOCX thành rubric nằm ngoài yêu cầu này.
 

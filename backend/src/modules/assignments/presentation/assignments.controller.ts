@@ -4,6 +4,7 @@ import type { EduLitPrisma } from "../../../infrastructure/database/prisma.clien
 import { CurrentUser, StudentGuard, type AuthUser } from "../../../http/auth-user.js";
 import { SessionAuthGuard } from "../../../http/session.guard.js";
 import { ApiHttpException, ERROR_MESSAGES } from "../../../http/api-error.js";
+import { getStudentAssignmentProgress } from "../application/assignment-progress.js";
 import {
   getPublishedAssignmentForStudent,
   listPublishedAssignmentsForStudent,
@@ -23,10 +24,18 @@ export class AssignmentsController {
   @Get("code/:code")
   async byCode(@CurrentUser() user: AuthUser, @Param("code") code: string) {
     const assignment = await this.prisma.assignment.findUnique({ where: { code: code.trim().toUpperCase() } });
-    if (!assignment || assignment.status !== "PUBLISHED") {
+    if (!assignment) {
       throw new ApiHttpException(404, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
     }
     return getPublishedAssignmentForStudent(this.prisma, user.id, assignment.id);
+  }
+
+  @Get(":assignmentId/progress")
+  progress(
+    @CurrentUser() user: AuthUser,
+    @Param("assignmentId", new ParseUUIDPipe({ version: "4" })) assignmentId: string,
+  ) {
+    return getStudentAssignmentProgress(this.prisma, user.id, assignmentId);
   }
 
   @Get(":assignmentId")

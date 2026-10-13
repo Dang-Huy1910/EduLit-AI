@@ -6,6 +6,7 @@ import type { AssessmentActor } from "../../assessment/domain/actor.js";
 import { extractPublishedObservations } from "./extract-published-observations.js";
 import { getOwnWritingProfile } from "./get-own-writing-profile.js";
 import { reviewObservationStatus } from "./review-observation-status.js";
+import { processProfileExtraction } from "./process-profile-extraction.js";
 
 export function createWritingProfileServices(
   prisma: EduLitPrisma,
@@ -19,5 +20,6 @@ export function createWritingProfileServices(
       actor: AssessmentActor,
       input: { observationId: string; status: ObservationStatus; expectedProfileVersion: number },
     ) => reviewObservationStatus(prisma, actor, input),
+    processProfileExtraction: (actor: AssessmentActor, assessmentId: string) => processProfileExtraction(prisma, ai, actor, assessmentId),
   };
 }

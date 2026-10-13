@@ -10,7 +10,7 @@ import type { AuthUser } from "../../http/auth-user.js";
 import { LoginRateLimiter } from "./login-rate-limiter.js";
 
 const TOKEN_BYTES = 32;
-const DEMO_LOGIN_IDS = ["dang.loan", "bui.hamy", "nguyen.an"] as const;
+const DEMO_LOGIN_IDS = ["dang.loan", "bui.hamy", "nguyen.an", "tran.minhquan"] as const;
 
 @Injectable()
 export class AuthService {

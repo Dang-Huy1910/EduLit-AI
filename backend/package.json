@@ -30,6 +30,8 @@
     "assessment:live-smoke": "tsx scripts/assessment-live-smoke.ts",
     "writing-profile:demo": "tsx scripts/writing-profile-demo.ts",
     "writing-profile:live-smoke": "tsx scripts/writing-profile-live-smoke.ts",
+    "seed:demo": "tsx prisma/seed-demo.ts",
+    "ocr:fixtures": "tsx scripts/write-ocr-fixtures.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

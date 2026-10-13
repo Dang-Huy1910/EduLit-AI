@@ -97,6 +97,20 @@ test("private image OCR uses a masked derivative and only teacher confirmation c
     const result = await apiRequest(client.baseUrl, `/submissions/${submission.id}`, { cookie: studentCookie });
     assert.equal((result.json as { assessment: { status: string; totalScore: string } }).assessment.status, "PUBLISHED");
     assert.equal((result.json as { assessment: { totalScore: string } }).assessment.totalScore, "4.75");
+    type ProfilePayload = { profile: { version: number } | null; observations: Array<{ id: string }> };
+    let profile: ProfilePayload | null = null;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const response = await apiRequest(client.baseUrl, "/profile", { cookie: studentCookie });
+      profile = response.json as ProfilePayload;
+      if (profile?.observations.length) break;
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    assert.ok(profile?.observations.length, "published assessment should enqueue and complete profile extraction");
+    const profileJob = await apiRequest(client.baseUrl, `/teacher/assessments/${assessment.id}/profile-extraction`, { cookie: teacherCookie });
+    assert.equal((profileJob.json as { status: string }).status, "COMPLETED");
+    const resolvedProfile = profile as ProfilePayload;
+    const reviewedObservation = await apiRequest(client.baseUrl, `/teacher/observations/${resolvedProfile.observations[0]!.id}/review`, { method: "POST", body: { status: "SUPPORTED", expectedProfileVersion: resolvedProfile.profile!.version }, cookie: teacherCookie });
+    assert.equal(reviewedObservation.status, 201);
 
     const lockedPage = await client.prisma.submissionDraftPage.findUniqueOrThrow({ where: { id: page.id } });
     const forbiddenFile = await apiRequest(client.baseUrl, `/files/${lockedPage.originalFileId}`, { cookie: otherStudentCookie });

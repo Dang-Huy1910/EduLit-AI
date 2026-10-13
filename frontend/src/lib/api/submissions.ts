@@ -1,5 +1,5 @@
 import { apiRequest } from './http';
-import type { ApiSubmissionDraft, ApiStudentSubmission, ApiTeacherAssessment, ApiTeacherSubmission } from './types';
+import type { ApiProfileExtractionJob, ApiSubmissionDraft, ApiStudentSubmission, ApiTeacherAssessment, ApiTeacherSubmission, ApiWritingObservation, ApiWritingProfile } from './types';
 
 export const openSubmissionDraft = (assignmentId: string) => apiRequest<ApiSubmissionDraft>('/submission-drafts', { method: 'POST', body: { assignmentId } });
 export const getSubmissionDraft = (draftId: string) => apiRequest<ApiSubmissionDraft>(`/submission-drafts/${draftId}`);
@@ -19,3 +19,8 @@ export const gradeSubmission = (submissionId: string) => apiRequest<{ assessment
 export const reviewAssessment = (assessmentId: string, body: { expectedReviewRevision: number; detailedEvaluations: ApiTeacherAssessment['detailedEvaluations']; totalScore: string; reason?: string }) => apiRequest<ApiTeacherAssessment>(`/teacher/assessments/${assessmentId}/review`, { method: 'POST', body });
 export const publishAssessment = (assessmentId: string) => apiRequest<{ assessment: ApiTeacherAssessment }>(`/teacher/assessments/${assessmentId}/publish`, { method: 'POST', body: {} });
 export const getStudentSubmission = (submissionId: string) => apiRequest<ApiStudentSubmission>(`/submissions/${submissionId}`);
+export const getOwnWritingProfile = () => apiRequest<ApiWritingProfile>('/profile');
+export const getProfileExtraction = (assessmentId: string) => apiRequest<ApiProfileExtractionJob>(`/teacher/assessments/${assessmentId}/profile-extraction`);
+export const retryProfileExtraction = (assessmentId: string) => apiRequest<ApiProfileExtractionJob>(`/teacher/assessments/${assessmentId}/profile-extraction/retry`, { method: 'POST', body: {}, timeoutMs: 60_000 });
+export const reviewObservation = (observationId: string, body: { status: 'PROVISIONAL' | 'SUPPORTED' | 'RESOLVED' | 'INVALIDATED'; expectedProfileVersion: number }) =>
+  apiRequest<ApiWritingObservation>(`/teacher/observations/${observationId}/review`, { method: 'POST', body });

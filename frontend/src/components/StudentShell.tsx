@@ -40,6 +40,7 @@ export default function StudentShell({
   const studentNavItems = [
     { label: 'Bài tập của em', href: '/assignments', icon: 'edit_note' },
     { label: 'Bài đã nộp & Lịch sử chấm', href: '/assignments?tab=submitted', icon: 'task_alt' },
+    ...(apiMode ? [{ label: 'Hồ sơ văn phong', href: '/profile', icon: 'person_book' }] : []),
   ];
 
   const assistantNavItems = apiMode

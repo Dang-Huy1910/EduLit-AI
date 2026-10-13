@@ -55,15 +55,25 @@ export function defaultExtractOutput(text: string): WritingObservationModelOutpu
   if (!text.trim()) {
     return { observations: [] };
   }
+  const preferred = ["Ý chí giúp người", "không sao chép văn mẫu", "Sông Hương vừa trữ tình"];
+  for (const phrase of preferred) {
+    const start = text.indexOf(phrase);
+    if (start >= 0 && text.indexOf(phrase, start + 1) === -1) {
+      return observation(phrase, start, start + phrase.length);
+    }
+  }
   const end = Math.min(18, text.length);
-  const quote = text.slice(0, end);
+  return observation(text.slice(0, end), 0, end);
+}
+
+function observation(quote: string, start: number, end: number): WritingObservationModelOutput {
   return {
     observations: [
       {
         traitId: "WORD_CHOICE",
         kind: "STYLE",
         description: "Bài có cụm từ cụ thể có thể quan sát trong đoạn nguồn.",
-        evidence: { quote, start: 0, end },
+        evidence: { quote, start, end },
       },
     ],
   };

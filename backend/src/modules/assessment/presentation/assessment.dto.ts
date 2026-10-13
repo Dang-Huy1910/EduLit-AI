@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested } from "class-validator";
+import { IsArray, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested } from "class-validator";
 
 class EvidenceDto { @IsString() @MaxLength(2000) quote!: string; @Type(() => Number) @IsInt() @Min(0) start!: number; @Type(() => Number) @IsInt() @Min(0) end!: number; }
 class EvaluationDto {
@@ -18,3 +18,4 @@ export class ReviewAssessmentDto {
   @IsOptional() @IsString() @MaxLength(2000) reason?: string;
 }
 export class AssignmentIdDto { @IsUUID("4") assignmentId!: string; }
+export class ReviewObservationDto { @IsIn(["SUPPORTED", "RESOLVED", "INVALIDATED"]) status!: "SUPPORTED" | "RESOLVED" | "INVALIDATED"; @Type(() => Number) @IsInt() @Min(0) expectedProfileVersion!: number; }
