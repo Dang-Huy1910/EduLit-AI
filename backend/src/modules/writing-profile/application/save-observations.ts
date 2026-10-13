@@ -29,11 +29,16 @@ export async function saveObservationsAndRefreshProfile(
   prisma: EduLitPrisma,
   input: SaveObservationsInput,
 ) {
+  return prisma.$transaction((tx) => saveObservationsInTransaction(tx, input));
+}
+
+export async function saveObservationsInTransaction(
+  tx: Prisma.TransactionClient,
+  input: SaveObservationsInput,
+) {
   if (input.observations.length === 0) {
     throw new DomainError("OBSERVATION_EMPTY", "at least one observation is required");
   }
-
-  return prisma.$transaction(async (tx) => {
     await lockStudentRow(tx, input.studentId);
     const assessmentRows = await tx.$queryRaw<
       Array<{
@@ -137,24 +142,28 @@ export async function saveObservationsAndRefreshProfile(
     }
 
     return refreshProfileInTransaction(tx, input.studentId, input.expectedProfileVersion);
-  });
 }
 
 export async function setObservationStatus(prisma: EduLitPrisma, input: SetObservationStatusInput) {
-  return prisma.$transaction(async (tx) => {
-    await lockStudentRow(tx, input.studentId);
-    const observation = await tx.writingObservation.findUnique({
-      where: { id: input.observationId },
-    });
-    if (!observation || observation.studentId !== input.studentId) {
-      throw new DomainError("OBSERVATION_MISSING", "observation not found for student");
-    }
-    await tx.writingObservation.update({
-      where: { id: observation.id },
-      data: { status: input.status },
-    });
-    return refreshProfileInTransaction(tx, input.studentId, input.expectedProfileVersion);
+  return prisma.$transaction((tx) => setObservationStatusInTransaction(tx, input));
+}
+
+export async function setObservationStatusInTransaction(
+  tx: Prisma.TransactionClient,
+  input: SetObservationStatusInput,
+) {
+  await lockStudentRow(tx, input.studentId);
+  const observation = await tx.writingObservation.findUnique({
+    where: { id: input.observationId },
   });
+  if (!observation || observation.studentId !== input.studentId) {
+    throw new DomainError("OBSERVATION_MISSING", "observation not found for student");
+  }
+  await tx.writingObservation.update({
+    where: { id: observation.id },
+    data: { status: input.status },
+  });
+  return refreshProfileInTransaction(tx, input.studentId, input.expectedProfileVersion);
 }
 
 export async function refreshWritingProfile(
@@ -186,8 +195,14 @@ async function refreshProfileInTransaction(
     Prisma.sql`SELECT id, version FROM writing_profiles WHERE student_id = ${studentId}::uuid FOR UPDATE`,
   );
   const current = locked[0];
-  if (expectedProfileVersion !== undefined && current && current.version !== expectedProfileVersion) {
-    throw new VersionConflictError();
+  if (expectedProfileVersion !== undefined) {
+    if (!current) {
+      if (expectedProfileVersion !== 0) {
+        throw new VersionConflictError("writing profile did not exist at the expected version");
+      }
+    } else if (current.version !== expectedProfileVersion) {
+      throw new VersionConflictError();
+    }
   }
 
   const rows = await tx.writingObservation.findMany({

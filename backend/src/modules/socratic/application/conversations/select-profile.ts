@@ -9,6 +9,8 @@ export type CoachingObservation = {
   genre: string;
   status: string;
   cautious: boolean;
+  evidenceQuote: string;
+  assessmentId: string;
 };
 
 export type CoachingProfile = {
@@ -29,13 +31,9 @@ export function selectCoachingProfile(
   limit = SOCRATIC_MAX_OBSERVATIONS,
 ): CoachingProfile {
   const declaredGoals = context.profile?.declaredGoals.items ?? [];
-  const ranked = [...context.recentObservations].sort((a, b) => {
-    const genreDelta = Number(b.genre === genre) - Number(a.genre === genre);
-    if (genreDelta !== 0) {
-      return genreDelta;
-    }
-    return (KIND_RANK[a.kind] ?? 9) - (KIND_RANK[b.kind] ?? 9);
-  });
+  const ranked = [...context.recentObservations]
+    .filter((item) => item.genre === genre)
+    .sort((a, b) => (KIND_RANK[a.kind] ?? 9) - (KIND_RANK[b.kind] ?? 9));
   const observations = ranked.slice(0, limit).map((item) => ({
     id: item.id,
     kind: item.kind,
@@ -44,6 +42,8 @@ export function selectCoachingProfile(
     genre: item.genre,
     status: item.status,
     cautious: item.status === "PROVISIONAL",
+    evidenceQuote: item.evidenceQuote,
+    assessmentId: item.assessmentId,
   }));
   return {
     declaredGoals,

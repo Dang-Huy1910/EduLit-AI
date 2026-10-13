@@ -5,7 +5,7 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
-**Trạng thái triển khai:** Prototype mock vẫn chạy khi `NEXT_PUBLIC_DATA_MODE=mock`. Data layer MVP (PostgreSQL 17 + Prisma 7) và Socratic application đã có. **HTTP auth/session + API học sinh + giao diện Socratic** nằm trên `feat/socratic-integration` — xem [socratic-integration.md](docs/development/socratic-integration.md). Worker, OCR, chấm bài và teacher CRUD chưa có. Bắt đầu từ [lộ trình MVP theo feature](docs/development/minimal-mvp-roadmap.md).
+**Trạng thái triển khai:** Prototype mock vẫn chạy khi `NEXT_PUBLIC_DATA_MODE=mock`. Data layer MVP, Socratic (application + HTTP học sinh), pipeline chấm bài ([assessment-handoff.md](docs/development/assessment-handoff.md)) và pipeline hồ sơ văn phong ([writing-profile-handoff.md](docs/development/writing-profile-handoff.md)) đã có. Worker, OCR, HTTP nộp/chấm/profile và teacher CRUD chưa có. Bắt đầu từ [lộ trình MVP theo feature](docs/development/minimal-mvp-roadmap.md).
 
 ---
 

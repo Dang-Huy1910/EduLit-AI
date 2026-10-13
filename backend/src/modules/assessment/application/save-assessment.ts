@@ -8,6 +8,8 @@ import {
   validateAssessmentScores,
 } from "../domain/evaluation.js";
 
+type AssessmentDb = EduLitPrisma | Prisma.TransactionClient;
+
 export type SaveAssessmentInput = {
   submissionId: string;
   rubricSnapshot?: unknown;
@@ -19,7 +21,7 @@ export type SaveAssessmentInput = {
   assessedAt?: Date;
 };
 
-export async function saveAssessment(prisma: EduLitPrisma, input: SaveAssessmentInput) {
+export async function saveAssessment(prisma: AssessmentDb, input: SaveAssessmentInput) {
   const submission = await prisma.submission.findUnique({ where: { id: input.submissionId } });
   if (!submission) {
     throw new DomainError("ASSESSMENT_SUBMISSION", "submission not found");
@@ -39,6 +41,7 @@ export async function saveAssessment(prisma: EduLitPrisma, input: SaveAssessment
     scoreStep: snapshot.scoreStep,
     evaluations: input.detailedEvaluations,
     totalScore: input.totalScore,
+    submissionText: submission.text,
   });
 
   const status = input.status ?? "AI_DRAFT";

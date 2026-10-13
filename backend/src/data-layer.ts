@@ -1,5 +1,5 @@
 export { DomainError, VersionConflictError } from "./core/errors.js";
-export { assertEvidenceQuote, offsetsForQuote, sliceUtf16 } from "./core/utf16.js";
+export { assertEvidenceQuote, offsetsForQuote, uniqueOffsetsForQuote, sliceUtf16 } from "./core/utf16.js";
 export { validateRubric } from "./modules/assignments/domain/rubric.js";
 export { validateAssessmentScores, DEFAULT_MODEL_NAME } from "./modules/assessment/domain/evaluation.js";
 export { PRISMA, createDatabaseProviders, createPrismaClientFactory } from "./infrastructure/database/database.provider.js";
@@ -31,9 +31,45 @@ export {
 } from "./modules/socratic/domain/output.js";
 export { submitAssignment } from "./modules/assessment/application/submit-assignment.js";
 export { saveAssessment, publishAssessment } from "./modules/assessment/application/save-assessment.js";
+export { createAssessmentServices } from "./modules/assessment/application/create-assessment-services.js";
+export { submitStudentText } from "./modules/assessment/application/submit-student-text.js";
+export { assessSubmission } from "./modules/assessment/application/assess-submission.js";
+export { getSubmission } from "./modules/assessment/application/get-submission.js";
+export { getAssessment } from "./modules/assessment/application/get-assessment.js";
+export { publishReviewedAssessment } from "./modules/assessment/application/publish-reviewed-assessment.js";
+export { loadAssessmentPromptBundle } from "./modules/assessment/prompt-assets.js";
+export type { AssessmentActor } from "./modules/assessment/domain/actor.js";
+export type { AssessmentAiPort } from "./infrastructure/ai/assessment-ai.port.js";
+export { FakeAssessmentAi } from "./infrastructure/ai/fake-assessment.adapter.js";
+export { GeminiAssessmentAdapter } from "./infrastructure/ai/gemini-assessment.adapter.js";
+export { createAssessmentAiFromEnv } from "./infrastructure/ai/create-assessment-ai.js";
+export {
+  ASSESSMENT_PROMPT_VERSION,
+  ASSESSMENT_SCHEMA_VERSION,
+  ASSESSMENT_MODEL_NAME,
+} from "./modules/assessment/domain/output.js";
 export {
   saveObservationsAndRefreshProfile,
   setObservationStatus,
   refreshWritingProfile,
 } from "./modules/writing-profile/application/save-observations.js";
 export { getProfileContextForSession } from "./modules/writing-profile/application/query-profile-context.js";
+export { createWritingProfileServices } from "./modules/writing-profile/application/create-writing-profile-services.js";
+export { extractPublishedObservations } from "./modules/writing-profile/application/extract-published-observations.js";
+export { getOwnWritingProfile } from "./modules/writing-profile/application/get-own-writing-profile.js";
+export { reviewObservationStatus } from "./modules/writing-profile/application/review-observation-status.js";
+export { loadWritingProfilePromptBundle } from "./modules/writing-profile/prompt-assets.js";
+export type { WritingObservationAiPort } from "./infrastructure/ai/writing-observation-ai.port.js";
+export { FakeWritingObservationAi } from "./infrastructure/ai/fake-writing-observation.adapter.js";
+export { GeminiWritingObservationAdapter } from "./infrastructure/ai/gemini-writing-observation.adapter.js";
+export { createWritingObservationAiFromEnv } from "./infrastructure/ai/create-writing-observation-ai.js";
+export {
+  WRITING_PROFILE_PROMPT_VERSION,
+  WRITING_PROFILE_SCHEMA_VERSION,
+  WRITING_PROFILE_MODEL_NAME,
+} from "./modules/writing-profile/domain/output.js";
+export {
+  WRITING_TRAITS,
+  WRITING_PROFILE_TAXONOMY_VERSION,
+  buildFeatureKey,
+} from "./modules/writing-profile/domain/taxonomy.js";

@@ -239,4 +239,4 @@ Frontend: `src/lib/data-mode.ts`, `src/lib/api/*`, `src/lib/api-auth-store.ts`, 
 
 ## Phạm vi chưa có API
 
-Teacher CRUD/giao đề, nộp bài/chấm/công bố điểm, OCR/upload, dashboard/báo cáo lớp, membership nhiều trường/lớp, đăng ký/quên mật khẩu, streaming, queue/Redis, RAG, trích xuất văn phong từ chat. Feature tiếp theo: `feat/assessment`, rồi `feat/writing-profile`.
+Teacher CRUD/giao đề, nộp bài/chấm/công bố điểm, OCR/upload, dashboard/báo cáo lớp, membership nhiều trường/lớp, đăng ký/quên mật khẩu, streaming, queue/Redis, RAG, trích xuất văn phong từ chat. Pipeline chấm và hồ sơ văn phong đã có application/CLI; HTTP/UI quản lý do cộng sự nối.

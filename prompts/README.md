@@ -2,13 +2,13 @@
 
 Bốn thư mục `grounding`, `socratic`, `assessment`, `analytics` giữ các chỉ dẫn mô hình tương ứng với bốn phân hệ trong SRS.
 
-Thiết kế MVP dùng **Gemini 2.5 Flash** (`gemini-2.5-flash`) cho các task riêng; bổ sung `writing-profile` khi triển khai cá nhân hóa. [Gemini pipeline](../docs/architecture/gemini-pipeline.md) mô tả input/output, version, schema và guardrail. Prompt OCR chép nguyên văn; prompt chấm chỉ nhận bản chép đã xác nhận; profile không đưa vào scoring context.
+Thiết kế MVP dùng **Gemini 2.5 Flash** (`gemini-2.5-flash`) cho các task riêng, gồm Socratic, assessment và writing-profile. [Gemini pipeline](../docs/architecture/gemini-pipeline.md) mô tả input/output, version, schema và guardrail. Prompt OCR chép nguyên văn; prompt chấm chỉ nhận bản chép đã xác nhận; profile không đưa vào scoring context.
 
 Khi bổ sung prompt, dùng tên thể hiện vai trò và phiên bản, ví dụ `system.v1.md`, kèm mô tả đầu vào, đầu ra và bộ đánh giá liên quan. Ứng dụng nạp prompt bằng `import.meta.url` + copy vào `dist/` lúc build; không phụ thuộc cwd.
 
 Nội dung học liệu, rubric và bài làm được đưa vào lúc xử lý yêu cầu, không được ghi cố định vào prompt chung. Thay đổi prompt Socratic phải kiểm tra guardrail; thay đổi prompt đánh giá phải kiểm tra schema và chất lượng chấm.
 
-Socratic v1 đã có `prompts/socratic/system.v1.md` và `output.v1.schema.json` (sao vào `backend/src/modules/socratic/assets/`). Quy tắc BR-01–BR-04 tham chiếu mục 4.4 của [SRS](../SRS.md).
+Socratic v1 đã có `prompts/socratic/system.v1.md` và `output.v1.schema.json` (sao vào `backend/src/modules/socratic/assets/`). Quy tắc BR-01–BR-04 tham chiếu mục 4.4 của [SRS](../SRS.md). Assessment v1: `prompts/assessment/system.v1.md` + `output.v1.schema.json`. Writing-profile v1: `prompts/writing-profile/system.v1.md` + `output.v1.schema.json`.
 
 ## Prompt triển khai database
 
@@ -22,7 +22,7 @@ Socratic v1 đã có `prompts/socratic/system.v1.md` và `output.v1.schema.json`
 - [Grok — Lưu văn phong trên nhánh feat/writing-profile](grok-writing-profile.md): Trích xuất observations từ bài có điểm PUBLISHED, lưu evidence UTF-16, cập nhật profile và dùng ở lượt Socratic sau; kiểm tra retry/version và giữ profile ngoài scoring context.
 - [Lộ trình MVP theo feature](../docs/development/minimal-mvp-roadmap.md): Thứ tự database → Socratic → Socratic integration → assessment → writing profile và ranh giới công việc với cộng sự.
 
-Hai feature cuối triển khai lần lượt: hoàn thành và kiểm tra `feat/assessment` rồi tạo `feat/writing-profile` từ base đó. Mỗi file có một khối prompt để sao chép; không đưa cả hai cho Grok triển khai đồng thời trên một nhánh. Phạm vi này tập trung pipeline AI/database; HTTP/UI nộp/chấm, công bố điểm và quản lý profile được bàn giao cho cộng sự.
+Hai feature cuối đã triển khai lần lượt trên `feat/assessment` rồi `feat/writing-profile`. Phạm vi này tập trung pipeline AI/database; HTTP/UI nộp/chấm, công bố điểm và quản lý profile được bàn giao cho cộng sự.
 
 ## Prompt giao diện (UI)
 

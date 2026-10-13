@@ -172,7 +172,7 @@ function serializeProfile(profile: CoachingProfile): string {
       : profile.observations
           .map((item) => {
             const tone = item.cautious ? "quan sát tạm thời, diễn đạt thận trọng" : "còn hiệu lực";
-            return `- [${item.kind}/${item.genre}/${tone}] ${item.description}`;
+            return `- [${item.id}/${item.kind}/${item.genre}/${tone}] ${item.description} (dẫn: “${item.evidenceQuote}”)`;
           })
           .join("\n");
   return [`Mục tiêu tự khai:`, goals, `Observation còn hiệu lực:`, observations].join("\n");

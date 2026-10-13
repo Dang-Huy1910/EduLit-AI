@@ -1,0 +1,62 @@
+{
+  "$id": "https://edulit.local/schemas/writing-profile-output.v1.json",
+  "title": "WritingObservationModelOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["observations"],
+  "properties": {
+    "observations": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["traitId", "kind", "description", "evidence"],
+        "properties": {
+          "traitId": {
+            "type": "string",
+            "enum": [
+              "SENTENCE_STRUCTURE",
+              "TRANSITIONS",
+              "ARGUMENT_ORGANIZATION",
+              "EVIDENCE_LINKING",
+              "WORD_CHOICE",
+              "SENTENCE_RHYTHM",
+              "PARAGRAPH_UNITY",
+              "COHESION"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["STRENGTH", "WEAKNESS", "STYLE"]
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["quote", "start", "end"],
+            "properties": {
+              "quote": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 800
+              },
+              "start": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "end": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

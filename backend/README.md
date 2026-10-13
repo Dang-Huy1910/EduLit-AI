@@ -1,6 +1,6 @@
 # Backend — data layer, Socratic và HTTP học sinh
 
-Backend NestJS/TypeScript ESM. **Hiện có** data layer (PostgreSQL 17, Prisma ORM 7.10.0), application Socratic (adapter Gemini 2.5 Flash, guardrail, lưu lượt chat, CLI demo) **và HTTP tối thiểu** (session cookie, CSRF Origin, API đề/phiên học sinh). Chưa có worker, teacher CRUD hay chấm bài.
+Backend NestJS/TypeScript ESM. **Hiện có** data layer (PostgreSQL 17, Prisma ORM 7.10.0), application Socratic, HTTP tối thiểu học sinh, pipeline chấm bài (submit → grade → AI_DRAFT → publish), **và pipeline hồ sơ văn phong** (extract từ PUBLISHED, evidence, cập nhật profile, Socratic lượt sau). Chưa có worker, teacher CRUD hay HTTP nộp/chấm/profile.
 
 Đọc [ADR-0002](../docs/architecture/decisions/0002-minimal-mvp-database.md), [minimal-database.md](../docs/architecture/minimal-database.md) và [database-handoff.md](../docs/development/database-handoff.md).
 
@@ -41,7 +41,7 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run db:check` | kiểm tra kết nối; không in URL/password |
 | `npm run db:setup` | up + generate + deploy + seed |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run build` | compile `src/` + copy prompt assets |
+| `npm run build` | compile `src/` + copy prompt Socratic/assessment/writing-profile |
 | `npm run dev` / `npm start` | HTTP NestJS (`tsx src/main.ts`), mặc định `:4000/api` |
 | `npm run start:prod` | `node dist/main.js` sau `npm run build` |
 | `npm test` | unit tests (không cần DB) |
@@ -49,6 +49,10 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run test:dist` | build, prompt assets trong `dist/`, HTTP dist + SIGTERM |
 | `npm run socratic:demo` | CLI mở phiên / gửi lượt / lưu dàn ý (mặc định `AI_MODE=mock`) |
 | `npm run socratic:live-smoke` | opt-in gọi `gemini-2.5-flash`; nạp `.env` cwd; cần `SOCRATIC_LIVE=1` hoặc `--live` và `GEMINI_API_KEY` |
+| `npm run assessment:demo` | CLI nộp / chấm / xem / công bố (mặc định `AI_MODE=mock`) |
+| `npm run assessment:live-smoke` | opt-in chấm `gemini-2.5-flash`; nạp `.env` cwd; cần `ASSESSMENT_LIVE=1` hoặc `--live` |
+| `npm run writing-profile:demo` | CLI extract / show / review-status (mặc định `AI_MODE=mock`) |
+| `npm run writing-profile:live-smoke` | opt-in extract `gemini-2.5-flash`; nạp `.env` cwd; cần `WRITING_PROFILE_LIVE=1` hoặc `--live`; không ghi DB |
 
 Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Gemini lỗi không được đổi thành fake thành công. Key chỉ đọc `GEMINI_API_KEY`.
 
@@ -67,13 +71,13 @@ src/infrastructure/database/   # Prisma client, provider Nest-shaped, check kế
 src/modules/identity/          # login/logout/me
 src/modules/assignments/       # query đề học sinh + presentation
 src/modules/socratic/          # use cases, guardrail, prompt assets, presentation
-src/infrastructure/ai/         # SocraticAiPort, Gemini adapter, fake adapter
-src/modules/assessment/
-src/modules/writing-profile/
+src/modules/assessment/        # use cases chấm, prompt assets; chưa có HTTP
+src/infrastructure/ai/         # Socratic + Assessment + writing-profile ports, Gemini/fake
+src/modules/writing-profile/   # extract/review profile, taxonomy, prompt assets; chưa có HTTP
 src/data-layer.ts              # export helpers cho cộng sự
 ```
 
-Bàn giao Socratic: [socratic-handoff.md](../docs/development/socratic-handoff.md). HTTP/UI học sinh: [socratic-integration.md](../docs/development/socratic-integration.md).
+Bàn giao Socratic: [socratic-handoff.md](../docs/development/socratic-handoff.md). HTTP/UI học sinh: [socratic-integration.md](../docs/development/socratic-integration.md). Chấm bài: [assessment-handoff.md](../docs/development/assessment-handoff.md) (chưa có HTTP/UI). Hồ sơ văn phong: [writing-profile-handoff.md](../docs/development/writing-profile-handoff.md) (chưa có HTTP/UI).
 
 ## HTTP học sinh
 

@@ -41,3 +41,21 @@ export function offsetsForQuote(text: string, quote: string): { start: number; e
   }
   return { start, end: start + quote.length };
 }
+
+/** Locate a quote only when it occurs once. Repeated quotes need explicit offsets. */
+export function uniqueOffsetsForQuote(text: string, quote: string): { start: number; end: number } {
+  if (!quote) {
+    throw new DomainError("EVIDENCE_QUOTE_MISMATCH", "Quote must be nonempty");
+  }
+  const start = text.indexOf(quote);
+  if (start < 0) {
+    throw new DomainError("EVIDENCE_QUOTE_MISMATCH", "Quote not found in text");
+  }
+  if (text.indexOf(quote, start + 1) >= 0) {
+    throw new DomainError(
+      "EVIDENCE_QUOTE_AMBIGUOUS",
+      "Quote occurs more than once; evidence offsets must select the intended span",
+    );
+  }
+  return { start, end: start + quote.length };
+}
