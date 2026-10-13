@@ -1,12 +1,12 @@
+import "dotenv/config";
 import { sanitizeErrorMessage } from "../src/core/sanitize.js";
 import { DomainError } from "../src/core/errors.js";
 import { GeminiSocraticAdapter } from "../src/infrastructure/ai/gemini-socratic.adapter.js";
 import { resolveSocraticModel } from "../src/infrastructure/ai/ai-config.js";
 import { loadSocraticPromptBundle } from "../src/modules/socratic/prompt-assets.js";
 import { inspectSocraticOutput } from "../src/modules/socratic/application/guardrails/validate-socratic-output.js";
+import { buildSocraticUserPayload } from "../src/modules/socratic/application/conversations/build-socratic-context.js";
 import type { AssignmentSnapshot } from "../src/modules/assignments/domain/rubric.js";
-
-const LIVE_FLAG = process.argv.includes("--live") || process.env.SOCRATIC_LIVE === "1";
 
 const snapshot: AssignmentSnapshot = {
   assignmentId: "00000000-0000-4000-8000-000000000001",
@@ -18,8 +18,20 @@ const snapshot: AssignmentSnapshot = {
   learningMaterialText: "Ngữ liệu tổng hợp: thành tích cần đi cùng sự trung thực.",
   rubric: {
     criteria: [
-      { criterionId: "C1", name: "Bố cục", weight: "4.00" },
-      { criterionId: "C2", name: "Luận điểm", weight: "6.00" },
+      {
+        criterionId: "C1",
+        name: "Bố cục",
+        weight: "4.00",
+        descriptor: "Mở–thân–kết mạch lạc, phân biệt kiên định với bảo thủ.",
+        requiredElements: ["phân biệt kiên định với bảo thủ"],
+      },
+      {
+        criterionId: "C2",
+        name: "Luận điểm và dẫn chứng",
+        weight: "6.00",
+        descriptor: "Luận điểm rõ, có dẫn chứng từ tình huống lớp học.",
+        requiredElements: ["dẫn chứng từ tình huống lớp học"],
+      },
     ],
   },
   maxScore: "10.00",
@@ -30,8 +42,12 @@ const snapshot: AssignmentSnapshot = {
   snapshottedAt: "2026-10-13T00:00:00.000Z",
 };
 
+function isLiveEnabled(): boolean {
+  return process.argv.includes("--live") || process.env.SOCRATIC_LIVE === "1";
+}
+
 async function main(): Promise<void> {
-  if (!LIVE_FLAG) {
+  if (!isLiveEnabled()) {
     console.log("live smoke chưa chạy: cần SOCRATIC_LIVE=1 hoặc --live");
     process.exit(2);
   }
@@ -41,20 +57,24 @@ async function main(): Promise<void> {
   }
   const model = resolveSocraticModel();
   const bundle = loadSocraticPromptBundle();
+  const built = buildSocraticUserPayload({
+    snapshot,
+    outline: { sections: [] },
+    history: [],
+    profile: { hasProfile: false, declaredGoals: [], observations: [] },
+    studentMessage: "Em chưa biết nên mở bài bằng nhận định nào.",
+  });
   const adapter = new GeminiSocraticAdapter();
   const started = Date.now();
   const result = await adapter.generateTurn({
     systemInstruction: bundle.systemInstruction,
-    userPayload: [
-      "Dữ liệu tổng hợp, không phải bài học sinh thật.",
-      `Đề: ${snapshot.title}`,
-      `Ngữ liệu: ${snapshot.learningMaterialText}`,
-      "Câu hỏi học sinh: Em chưa biết nên mở bài bằng nhận định nào.",
-    ].join("\n"),
+    userPayload: built.userPayload,
     responseJsonSchema: bundle.providerSchema,
     promptVersion: bundle.promptVersion,
   });
-  const inspected = inspectSocraticOutput(result.output, snapshot);
+  const inspected = inspectSocraticOutput(result.output, snapshot, {
+    studentMessage: "Em chưa biết nên mở bài bằng nhận định nào.",
+  });
   console.log(
     JSON.stringify(
       {
@@ -66,6 +86,7 @@ async function main(): Promise<void> {
         usage: result.usage ?? null,
         guardrail: inspected.ok ? "pass" : inspected.failure,
         sentenceCount: inspected.ok ? inspected.output.replySentences.length : null,
+        contextHasRubricDetail: built.userPayload.includes("phân biệt kiên định với bảo thủ"),
       },
       null,
       2,

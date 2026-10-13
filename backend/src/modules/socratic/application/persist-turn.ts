@@ -2,7 +2,7 @@ import { Prisma } from "../../../generated/prisma/client.js";
 import { DomainError } from "../../../core/errors.js";
 import type { EduLitPrisma } from "../../../infrastructure/database/prisma.client.js";
 import { socraticMessageId } from "../domain/message-ids.js";
-import { lockAssignmentThenSession } from "./session-access.js";
+import { lockStudentThenAssignmentThenSession } from "./session-access.js";
 import type { SocraticChatMessageView } from "./get-socratic-session.js";
 
 export type PersistSocraticTurnInput = {
@@ -21,6 +21,7 @@ export type PersistSocraticTurnResult = {
   assistantMessage: SocraticChatMessageView;
   lastSequence: number;
   outlineRevision: number;
+  persisted: "created" | "replayed";
 };
 
 export async function persistSocraticTurn(
@@ -32,7 +33,7 @@ export async function persistSocraticTurn(
 
   try {
     return await prisma.$transaction(async (tx) => {
-      await lockAssignmentThenSession(tx, input.assignmentId, input.sessionId);
+      await lockStudentThenAssignmentThenSession(tx, input.studentId, input.assignmentId, input.sessionId);
       const session = await tx.socraticSession.findUniqueOrThrow({ where: { id: input.sessionId } });
       if (session.studentId !== input.studentId) {
         throw new DomainError("SESSION_OWNERSHIP", "session does not belong to the authenticated student");
@@ -71,6 +72,7 @@ export async function persistSocraticTurn(
           assistantMessage: toView(existing[1]),
           lastSequence: existing[1].sequence,
           outlineRevision: session.outlineRevision,
+          persisted: "replayed",
         };
       }
       if (existing.length !== 0) {
@@ -115,6 +117,7 @@ export async function persistSocraticTurn(
         assistantMessage: toView(assistantMessage),
         lastSequence: assistantSequence,
         outlineRevision: session.outlineRevision,
+        persisted: "created",
       };
     });
   } catch (error) {
@@ -156,6 +159,7 @@ export async function readCommittedTurn(
     assistantMessage: toView(rows[1]),
     lastSequence: rows[1].sequence,
     outlineRevision: session.outlineRevision,
+    persisted: "replayed",
   };
 }
 

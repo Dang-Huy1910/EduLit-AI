@@ -29,3 +29,14 @@ export function fallbackSocraticOutput(snapshot: AssignmentSnapshot): SocraticMo
   };
   return validateSocraticOutput(output, snapshot).output;
 }
+
+export function writeForStudentRefusalOutput(snapshot: AssignmentSnapshot): SocraticModelOutput {
+  const output: SocraticModelOutput = {
+    replySentences: [
+      "Thầy/Cô không cung cấp bài mẫu cho em.",
+      "Em muốn tự phát triển ý nào trước?",
+    ],
+    focusCriterionIds: [],
+  };
+  return validateSocraticOutput(output, snapshot).output;
+}

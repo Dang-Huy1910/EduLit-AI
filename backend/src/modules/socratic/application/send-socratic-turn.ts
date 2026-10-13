@@ -12,9 +12,10 @@ import { loadSocraticPromptBundle } from "../prompt-assets.js";
 import { assertActiveStudentActor } from "./assert-student-actor.js";
 import { buildSocraticUserPayload } from "./conversations/build-socratic-context.js";
 import { selectCoachingProfile } from "./conversations/select-profile.js";
-import { fallbackSocraticOutput } from "./guardrails/fallback.js";
+import { fallbackSocraticOutput, writeForStudentRefusalOutput } from "./guardrails/fallback.js";
 import { joinReplyText } from "./guardrails/sentences.js";
 import { inspectSocraticOutput } from "./guardrails/validate-socratic-output.js";
+import { looksLikeWriteForStudentRequest } from "./guardrails/write-for-student.js";
 import type { SocraticChatMessageView } from "./get-socratic-session.js";
 import { persistSocraticTurn, readCommittedTurn } from "./persist-turn.js";
 import { assertSessionAcceptsTurn, loadOwnedSession } from "./session-access.js";
@@ -105,28 +106,33 @@ export async function sendSocraticTurn(
   let assistantText: string;
   let usage: SocraticAiUsage | undefined;
   let latencyMs: number | undefined;
-  try {
-    const generated = await ai.generateTurn({
-      systemInstruction: bundle.systemInstruction,
-      userPayload: built.userPayload,
-      responseJsonSchema: bundle.providerSchema,
-      promptVersion: bundle.promptVersion,
-    });
-    usage = generated.usage;
-    latencyMs = generated.latencyMs;
-    const inspected = inspectSocraticOutput(generated.output, session.snapshot);
-    if (!inspected.ok) {
-      responseMode = "fallback";
-      assistantText = joinReplyText(fallbackSocraticOutput(session.snapshot).replySentences);
-    } else {
-      assistantText = joinReplyText(inspected.output.replySentences);
-    }
-  } catch (error) {
-    if (error instanceof DomainError && error.code === "AI_INVALID_OUTPUT") {
-      responseMode = "fallback";
-      assistantText = joinReplyText(fallbackSocraticOutput(session.snapshot).replySentences);
-    } else {
-      throw error;
+  if (looksLikeWriteForStudentRequest(message)) {
+    responseMode = "fallback";
+    assistantText = joinReplyText(writeForStudentRefusalOutput(session.snapshot).replySentences);
+  } else {
+    try {
+      const generated = await ai.generateTurn({
+        systemInstruction: bundle.systemInstruction,
+        userPayload: built.userPayload,
+        responseJsonSchema: bundle.providerSchema,
+        promptVersion: bundle.promptVersion,
+      });
+      usage = generated.usage;
+      latencyMs = generated.latencyMs;
+      const inspected = inspectSocraticOutput(generated.output, session.snapshot, { studentMessage: message });
+      if (!inspected.ok) {
+        responseMode = "fallback";
+        assistantText = joinReplyText(fallbackSocraticOutput(session.snapshot).replySentences);
+      } else {
+        assistantText = joinReplyText(inspected.output.replySentences);
+      }
+    } catch (error) {
+      if (error instanceof DomainError && error.code === "AI_INVALID_OUTPUT") {
+        responseMode = "fallback";
+        assistantText = joinReplyText(fallbackSocraticOutput(session.snapshot).replySentences);
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -146,11 +152,11 @@ export async function sendSocraticTurn(
     requestId,
     userMessage: persisted.userMessage,
     assistantMessage: persisted.assistantMessage,
-    responseMode,
+    responseMode: persisted.persisted === "replayed" ? "replay" : responseMode,
     promptVersion: bundle.promptVersion,
     model: SOCRATIC_MODEL_NAME,
-    usage,
-    latencyMs,
+    usage: persisted.persisted === "replayed" ? undefined : usage,
+    latencyMs: persisted.persisted === "replayed" ? undefined : latencyMs,
     lastSequence: persisted.lastSequence,
     outlineRevision: persisted.outlineRevision,
   };

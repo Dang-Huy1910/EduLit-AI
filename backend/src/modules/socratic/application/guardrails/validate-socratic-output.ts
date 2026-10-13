@@ -3,6 +3,7 @@ import type { AssignmentSnapshot } from "../../../assignments/domain/rubric.js";
 import { loadSocraticPromptBundle } from "../../prompt-assets.js";
 import type { SocraticModelOutput, SocraticSourceRef } from "../../domain/output.js";
 import { joinReplyText, lastSentenceIsQuestion, splitSentences } from "./sentences.js";
+import { isNegatedSampleMention, looksLikeWriteForStudentRequest } from "./write-for-student.js";
 
 const require = createRequire(import.meta.url);
 const AjvModule = require("ajv") as { default?: new (options?: object) => { compile: (schema: object) => (data: unknown) => boolean } } & (new (options?: object) => {
@@ -19,31 +20,53 @@ export type GuardrailResult =
   | { ok: true; output: SocraticModelOutput }
   | { ok: false; failure: GuardrailFailure };
 
-const WRITE_FOR_STUDENT = [
+const LABELED_SAMPLE = [
   /mở bài\s*[:：]/iu,
   /thân bài\s*[:：]/iu,
   /kết bài\s*[:：]/iu,
   /dưới đây là (một )?đoạn văn/iu,
-  /em có thể chép/iu,
-  /bài mẫu/iu,
   /đoạn văn hoàn chỉnh/iu,
+];
+
+const OFFER_AS_SAMPLE = [
+  /em có thể chép/iu,
+  /để em chép/iu,
+  /chép vào bài/iu,
+  /dùng .{0,80}làm (phần )?(mở|thân|kết) bài/iu,
+  /làm phần (mở|thân|kết) bài/iu,
+];
+
+const LITERARY_OPENERS = [
+  /^trong cuộc sống\b/iu,
+  /^trong xã hội(\s+hiện đại)?\b/iu,
+  /^ngày nay,?\s+/iu,
+  /^người trẻ (ngày nay|hiện nay)\b/iu,
 ];
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 const validator = ajv.compile(loadSocraticPromptBundle().outputSchema);
 
+export type SocraticGuardrailContext = {
+  studentMessage?: string;
+};
+
 export function validateSocraticOutput(
   raw: unknown,
   snapshot: AssignmentSnapshot,
+  context: SocraticGuardrailContext = {},
 ): { output: SocraticModelOutput } {
-  const result = inspectSocraticOutput(raw, snapshot);
+  const result = inspectSocraticOutput(raw, snapshot, context);
   if (!result.ok) {
     throw Object.assign(new Error(result.failure.reason), { guardrail: result.failure });
   }
   return { output: result.output };
 }
 
-export function inspectSocraticOutput(raw: unknown, snapshot: AssignmentSnapshot): GuardrailResult {
+export function inspectSocraticOutput(
+  raw: unknown,
+  snapshot: AssignmentSnapshot,
+  context: SocraticGuardrailContext = {},
+): GuardrailResult {
   if (!validator(raw)) {
     return fail("SCHEMA", "output failed local JSON schema validation");
   }
@@ -74,7 +97,7 @@ export function inspectSocraticOutput(raw: unknown, snapshot: AssignmentSnapshot
       return fail("SOURCE_REF", sourceError);
     }
   }
-  if (looksLikeSampleEssay(combined)) {
+  if (looksLikeSampleEssay(combined, context.studentMessage)) {
     return fail("WRITE_FOR_STUDENT", "output looks like a sample paragraph or complete essay");
   }
   return {
@@ -103,11 +126,25 @@ function inspectSourceRef(ref: SocraticSourceRef, criterionIds: string[]): strin
   return "sourceRef.kind is not in the loaded session snapshot";
 }
 
-function looksLikeSampleEssay(text: string): boolean {
-  if (WRITE_FOR_STUDENT.some((pattern) => pattern.test(text))) {
+function looksLikeSampleEssay(text: string, studentMessage?: string): boolean {
+  if (LABELED_SAMPLE.some((pattern) => pattern.test(text))) {
+    return true;
+  }
+  if (OFFER_AS_SAMPLE.some((pattern) => pattern.test(text))) {
+    return true;
+  }
+  if (/bài mẫu/iu.test(text) && !isNegatedSampleMention(text)) {
     return true;
   }
   const sentences = splitSentences(text);
+  const declaratives = sentences.filter((item) => item.length > 70 && !/[?？]\s*$/u.test(item));
+  const hasLiteraryOpener = declaratives.some((item) => LITERARY_OPENERS.some((pattern) => pattern.test(item)));
+  if (hasLiteraryOpener && declaratives.length >= 2) {
+    return true;
+  }
+  if (studentMessage && looksLikeWriteForStudentRequest(studentMessage) && declaratives.length >= 2) {
+    return true;
+  }
   const longDeclarative = sentences.filter((item) => item.length > 220 && !/[?？]\s*$/u.test(item));
   return longDeclarative.length >= 3;
 }

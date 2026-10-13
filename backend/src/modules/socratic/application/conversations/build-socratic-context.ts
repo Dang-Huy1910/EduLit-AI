@@ -4,7 +4,7 @@ import {
   SOCRATIC_MAX_REQUIRED_CHARS,
   SOCRATIC_MAX_INPUT_CHARS,
 } from "../../../../infrastructure/ai/ai-config.js";
-import type { AssignmentSnapshot } from "../../../assignments/domain/rubric.js";
+import type { AssignmentSnapshot, Rubric } from "../../../assignments/domain/rubric.js";
 import type { StudentOutline } from "../../domain/outline.js";
 import type { CoachingProfile } from "./select-profile.js";
 
@@ -101,9 +101,6 @@ function compose(
   profile: CoachingProfile,
   studentMessage: string,
 ): string {
-  const criterionList = snapshot.rubric.criteria
-    .map((item) => `${item.criterionId}: ${item.name} (tối đa ${item.weight})`)
-    .join("\n");
   const profileBlock = profile.hasProfile
     ? serializeProfile(profile)
     : "Không có hồ sơ văn phong. Hãy hỏi trung tính, không đoán yếu điểm.";
@@ -116,12 +113,13 @@ function compose(
     `Tiêu đề: ${snapshot.title}`,
     `Thể loại: ${snapshot.genre}`,
     `Khối: ${snapshot.gradeLevel}`,
+    `Điểm tối đa: ${snapshot.maxScore}; bước điểm: ${snapshot.scoreStep}`,
     "Hướng dẫn:",
     snapshot.instructions,
     "Ngữ liệu:",
     snapshot.learningMaterialText,
     "Rubric phiên (không thay bằng rubric mới hơn):",
-    criterionList,
+    serializeRubric(snapshot.rubric),
     "</UNTRUSTED>",
     "",
     "<UNTRUSTED kind=\"outline\">",
@@ -144,6 +142,21 @@ function compose(
     "",
     "Hãy trả JSON đúng schema. Câu cuối phải là câu hỏi. Không viết hộ đoạn văn.",
   ].join("\n");
+}
+
+function serializeRubric(rubric: Rubric): string {
+  return rubric.criteria
+    .map((item) => {
+      const lines = [`${item.criterionId}: ${item.name} (tối đa ${item.weight})`];
+      if (item.descriptor) {
+        lines.push(`Mô tả: ${item.descriptor}`);
+      }
+      if (item.requiredElements && item.requiredElements.length > 0) {
+        lines.push(`Yêu cầu: ${item.requiredElements.join("; ")}`);
+      }
+      return lines.join("\n");
+    })
+    .join("\n");
 }
 
 function serializeProfile(profile: CoachingProfile): string {

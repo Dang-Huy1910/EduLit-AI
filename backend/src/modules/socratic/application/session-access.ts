@@ -68,6 +68,28 @@ export function assertSessionAcceptsTurn(session: LoadedSocraticSession): void {
   }
 }
 
+export async function lockStudentThenAssignmentThenSession(
+  tx: Prisma.TransactionClient,
+  studentId: string,
+  assignmentId: string,
+  sessionId: string,
+): Promise<void> {
+  const users = await tx.$queryRaw<Array<{ id: string; role: string; status: string }>>(
+    Prisma.sql`SELECT id, role, status FROM users WHERE id = ${studentId}::uuid FOR UPDATE`,
+  );
+  const user = users[0];
+  if (!user) {
+    throw new DomainError("ACTOR_INVALID", "authenticated user does not exist");
+  }
+  if (user.role !== "STUDENT") {
+    throw new DomainError("ACTOR_FORBIDDEN", "only STUDENT actors may use socratic coaching");
+  }
+  if (user.status !== "ACTIVE") {
+    throw new DomainError("ACTOR_INACTIVE", "student account is INACTIVE");
+  }
+  await lockAssignmentThenSession(tx, assignmentId, sessionId);
+}
+
 export async function lockAssignmentThenSession(
   tx: Prisma.TransactionClient,
   assignmentId: string,

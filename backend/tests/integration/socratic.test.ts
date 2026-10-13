@@ -281,7 +281,7 @@ test("invalid model output uses fallback; provider errors do not persist message
       sessionId: session.sessionId,
       requestId: randomUUID(),
       expectedLastSequence: 0,
-      message: "Hãy viết hộ em mở bài hoàn chỉnh.",
+      message: "Em chưa biết nên mở bài bằng nhận định nào.",
     });
     assert.equal(fallbackTurn.responseMode, "fallback");
     assert.doesNotMatch(fallbackTurn.assistantMessage.content, /Câu năm/);
@@ -435,5 +435,205 @@ test("concurrent turns, duplicate request keys, and outline change during genera
     );
     const finalMessages = await prisma.chatMessage.count({ where: { sessionId: session.sessionId } });
     assert.equal(finalMessages, 4);
+  });
+});
+
+test("write-for-student requests skip the provider and persist the approved refusal", async () => {
+  await withTestPrisma(async (prisma) => {
+    const { assignment, actor } = await publishedFixture(prisma, "SOC-WRITE");
+    const session = await openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id });
+    const fake = new FakeSocraticAi();
+    fake.nextOutput = {
+      replySentences: [
+        "Trong cuộc sống, ý chí và lòng kiên định là ngọn lửa soi đường cho con người vượt qua nghịch cảnh.",
+        "Nhờ giữ vững niềm tin và bền bỉ theo đuổi mục tiêu, người trẻ có thể biến khó khăn thành cơ hội để trưởng thành.",
+        "Em có muốn dùng hai câu trên làm phần mở bài không?",
+      ],
+      focusCriterionIds: [],
+    };
+    const turn = await sendSocraticTurn(prisma, fake, {
+      actor,
+      sessionId: session.sessionId,
+      requestId: randomUUID(),
+      expectedLastSequence: 0,
+      message: "Viết giúp em một mở bài để em chép vào bài văn.",
+    });
+    assert.equal(fake.calls.length, 0);
+    assert.equal(turn.responseMode, "fallback");
+    assert.match(turn.assistantMessage.content, /không cung cấp bài mẫu/);
+    assert.doesNotMatch(turn.assistantMessage.content, /ngọn lửa soi đường/);
+  });
+});
+
+test("unlabeled sample output is replaced with fallback for an ordinary question", async () => {
+  await withTestPrisma(async (prisma) => {
+    const { assignment, actor } = await publishedFixture(prisma, "SOC-SAMPLE");
+    const session = await openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id });
+    const fake = new FakeSocraticAi();
+    fake.nextOutput = {
+      replySentences: [
+        "Trong cuộc sống, ý chí và lòng kiên định là ngọn lửa soi đường cho con người vượt qua nghịch cảnh.",
+        "Nhờ giữ vững niềm tin và bền bỉ theo đuổi mục tiêu, người trẻ có thể biến khó khăn thành cơ hội để trưởng thành.",
+        "Em có muốn dùng hai câu trên làm phần mở bài không?",
+      ],
+      focusCriterionIds: [],
+    };
+    const turn = await sendSocraticTurn(prisma, fake, {
+      actor,
+      sessionId: session.sessionId,
+      requestId: randomUUID(),
+      expectedLastSequence: 0,
+      message: "Em chưa biết nên mở bài bằng nhận định nào.",
+    });
+    assert.equal(fake.calls.length, 1);
+    assert.equal(turn.responseMode, "fallback");
+    assert.doesNotMatch(turn.assistantMessage.content, /ngọn lửa soi đường/);
+  });
+});
+
+test("deactivating the student during generation prevents persist", async () => {
+  await withTestPrisma(async (prisma) => {
+    const { assignment, actor, student } = await publishedFixture(prisma, "SOC-INACTIVE");
+    const session = await openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id });
+    const holdFake = new FakeSocraticAi();
+    let release!: () => void;
+    holdFake.hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const inflight = sendSocraticTurn(prisma, holdFake, {
+      actor,
+      sessionId: session.sessionId,
+      requestId: randomUUID(),
+      expectedLastSequence: 0,
+      message: "Em chưa biết mở bài.",
+    });
+    const waitStart = Date.now();
+    while (holdFake.calls.length === 0 && Date.now() - waitStart < 2000) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(holdFake.calls.length, 1);
+    await prisma.user.update({ where: { id: student.id }, data: { status: "INACTIVE" } });
+    release();
+    await assert.rejects(
+      () => inflight,
+      (error: unknown) => error instanceof DomainError && error.code === "ACTOR_INACTIVE",
+    );
+    const count = await prisma.chatMessage.count({ where: { sessionId: session.sessionId } });
+    assert.equal(count, 0);
+  });
+});
+
+test("duplicate in-flight requestId returns replay mode for the committed pair", async () => {
+  await withTestPrisma(async (prisma) => {
+    const { assignment, actor } = await publishedFixture(prisma, "SOC-DUP-MODE");
+    const session = await openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id });
+    const requestId = randomUUID();
+    const message = "Em chưa biết nên mở bài bằng nhận định nào.";
+
+    const fakeA = new FakeSocraticAi();
+    fakeA.nextOutput = {
+      replySentences: ["Câu một. Câu hai. Câu ba. Câu bốn. Câu năm vẫn dài."],
+      focusCriterionIds: [],
+    };
+    let releaseA!: () => void;
+    fakeA.hold = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+
+    const fakeB = new FakeSocraticAi();
+    fakeB.nextOutput = {
+      replySentences: [
+        "Em đang đi đúng hướng khi tự đặt vấn đề.",
+        "Em muốn làm rõ luận điểm nào trước?",
+      ],
+      focusCriterionIds: [],
+    };
+    fakeB.usage = { totalTokenCount: 88 };
+    let releaseB!: () => void;
+    fakeB.hold = new Promise<void>((resolve) => {
+      releaseB = resolve;
+    });
+
+    const pendingA = sendSocraticTurn(prisma, fakeA, {
+      actor,
+      sessionId: session.sessionId,
+      requestId,
+      expectedLastSequence: 0,
+      message,
+    });
+    const pendingB = sendSocraticTurn(prisma, fakeB, {
+      actor,
+      sessionId: session.sessionId,
+      requestId,
+      expectedLastSequence: 0,
+      message,
+    });
+    const waitStart = Date.now();
+    while ((fakeA.calls.length === 0 || fakeB.calls.length === 0) && Date.now() - waitStart < 2000) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(fakeA.calls.length, 1);
+    assert.equal(fakeB.calls.length, 1);
+    releaseA();
+    const first = await pendingA;
+    releaseB();
+    const second = await pendingB;
+    assert.equal(first.responseMode, "fallback");
+    assert.equal(second.responseMode, "replay");
+    assert.equal(second.assistantMessage.content, first.assistantMessage.content);
+    assert.equal(second.userMessage.id, first.userMessage.id);
+    assert.equal(second.usage, undefined);
+    assert.match(first.assistantMessage.content, /chưa dùng được câu trả lời/);
+    const count = await prisma.chatMessage.count({ where: { sessionId: session.sessionId } });
+    assert.equal(count, 2);
+  });
+});
+
+test("sends rubric descriptors through the fake adapter payload", async () => {
+  await withTestPrisma(async (prisma) => {
+    const teacher = await createTeacher(prisma);
+    const student = await createStudent(prisma, `hs-${randomUUID()}`, "Học sinh thử");
+    const assignment = await createAssignment(prisma, {
+      teacherId: teacher.id,
+      code: "SOC-RUBRIC",
+      title: "Bản lĩnh",
+      instructions: "Viết nghị luận về bản lĩnh người trẻ.",
+      genre: "NLXH",
+      gradeLevel: 12,
+      learningMaterialText: "Ngữ liệu: thành tích cần đi cùng sự trung thực.",
+      rubric: {
+        criteria: [
+          {
+            criterionId: "C1",
+            name: "Bố cục",
+            weight: "4.00",
+            descriptor: "Mở–thân–kết mạch lạc.",
+            requiredElements: ["phân biệt kiên định với bảo thủ"],
+          },
+          {
+            criterionId: "C2",
+            name: "Luận điểm",
+            weight: "6.00",
+            descriptor: "Luận điểm rõ.",
+            requiredElements: ["dẫn chứng từ tình huống lớp học"],
+          },
+        ],
+      },
+      maxScore: "10.00",
+      scoreStep: "0.25",
+      status: "PUBLISHED",
+    });
+    const actor: StudentActor = { userId: student.id, role: "STUDENT" };
+    const session = await openOrResumeSocraticSession(prisma, { actor, assignmentId: assignment.id });
+    const fake = new FakeSocraticAi();
+    await sendSocraticTurn(prisma, fake, {
+      actor,
+      sessionId: session.sessionId,
+      requestId: randomUUID(),
+      expectedLastSequence: 0,
+      message: "Em chưa biết mở bài.",
+    });
+    assert.match(fake.calls[0]?.userPayload ?? "", /phân biệt kiên định với bảo thủ/);
+    assert.match(fake.calls[0]?.userPayload ?? "", /dẫn chứng từ tình huống lớp học/);
   });
 });

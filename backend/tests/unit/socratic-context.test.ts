@@ -106,6 +106,41 @@ test("prefers matching genre and keeps declared goals as goals", () => {
   assert.doesNotMatch(built.userPayload, /Hình tượng sông Hương/);
 });
 
+test("keeps rubric descriptors and requiredElements in the model payload", () => {
+  const detailed = {
+    ...snapshot,
+    rubric: {
+      criteria: [
+        {
+          criterionId: "C1",
+          name: "Bố cục",
+          weight: "4.00",
+          descriptor: "Mở–thân–kết mạch lạc.",
+          requiredElements: ["phân biệt kiên định với bảo thủ"],
+        },
+        {
+          criterionId: "C2",
+          name: "Luận điểm",
+          weight: "6.00",
+          descriptor: "Luận điểm rõ, có dẫn chứng cụ thể.",
+          requiredElements: ["dẫn chứng từ tình huống lớp học"],
+        },
+      ],
+    },
+  };
+  const built = buildSocraticUserPayload({
+    snapshot: detailed,
+    outline: { sections: [] },
+    history: [],
+    profile: { hasProfile: false, declaredGoals: [], observations: [] },
+    studentMessage: "Em chưa biết mở bài.",
+  });
+  assert.match(built.userPayload, /phân biệt kiên định với bảo thủ/);
+  assert.match(built.userPayload, /dẫn chứng từ tình huống lớp học/);
+  assert.match(built.userPayload, /Mở–thân–kết mạch lạc/);
+  assert.match(built.userPayload, /bước điểm: 0\.25/);
+});
+
 test("throws CONTEXT_TOO_LARGE when required assignment text exceeds the budget", () => {
   const huge = {
     ...snapshot,

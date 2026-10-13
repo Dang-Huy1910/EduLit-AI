@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { inspectSocraticOutput } from "../../src/modules/socratic/application/guardrails/validate-socratic-output.js";
-import { fallbackSocraticOutput } from "../../src/modules/socratic/application/guardrails/fallback.js";
+import { fallbackSocraticOutput, writeForStudentRefusalOutput } from "../../src/modules/socratic/application/guardrails/fallback.js";
 import { splitSentences } from "../../src/modules/socratic/application/guardrails/sentences.js";
+import { looksLikeWriteForStudentRequest } from "../../src/modules/socratic/application/guardrails/write-for-student.js";
 import type { AssignmentSnapshot } from "../../src/modules/assignments/domain/rubric.js";
 
 const snapshot: AssignmentSnapshot = {
@@ -96,6 +97,58 @@ test("accepts a short socratic reply and provides a valid fallback", () => {
   const fallback = fallbackSocraticOutput(snapshot);
   const checked = inspectSocraticOutput(fallback, snapshot);
   assert.equal(checked.ok, true);
+});
+
+test("rejects unlabeled sample openings and accepts negated bài mẫu refusals", () => {
+  const unlabeled = inspectSocraticOutput(
+    {
+      replySentences: [
+        "Trong cuộc sống, ý chí và lòng kiên định là ngọn lửa soi đường cho con người vượt qua nghịch cảnh.",
+        "Nhờ giữ vững niềm tin và bền bỉ theo đuổi mục tiêu, người trẻ có thể biến khó khăn thành cơ hội để trưởng thành.",
+        "Em có muốn dùng hai câu trên làm phần mở bài không?",
+      ],
+      focusCriterionIds: [],
+    },
+    snapshot,
+    { studentMessage: "Viết giúp em một mở bài để em chép vào bài văn." },
+  );
+  assert.equal(unlabeled.ok, false);
+  if (!unlabeled.ok) {
+    assert.equal(unlabeled.failure.code, "WRITE_FOR_STUDENT");
+  }
+
+  const unlabeledWithoutRequest = inspectSocraticOutput(
+    {
+      replySentences: [
+        "Trong cuộc sống, ý chí và lòng kiên định là ngọn lửa soi đường cho con người vượt qua nghịch cảnh.",
+        "Nhờ giữ vững niềm tin và bền bỉ theo đuổi mục tiêu, người trẻ có thể biến khó khăn thành cơ hội để trưởng thành.",
+        "Em có muốn dùng hai câu trên làm phần mở bài không?",
+      ],
+      focusCriterionIds: [],
+    },
+    snapshot,
+  );
+  assert.equal(unlabeledWithoutRequest.ok, false);
+
+  const refusal = inspectSocraticOutput(
+    {
+      replySentences: [
+        "Thầy/Cô không cung cấp bài mẫu cho em.",
+        "Em muốn tự phát triển ý nào trước?",
+      ],
+      focusCriterionIds: [],
+    },
+    snapshot,
+    { studentMessage: "Viết giúp em một mở bài để em chép vào bài văn." },
+  );
+  assert.equal(refusal.ok, true);
+  const canned = writeForStudentRefusalOutput(snapshot);
+  assert.equal(inspectSocraticOutput(canned, snapshot).ok, true);
+  assert.equal(
+    looksLikeWriteForStudentRequest("Viết giúp em một mở bài để em chép vào bài văn."),
+    true,
+  );
+  assert.equal(looksLikeWriteForStudentRequest("Em chưa biết nên mở bài bằng nhận định nào."), false);
 });
 
 test("schema validation is more than JSON.parse", () => {

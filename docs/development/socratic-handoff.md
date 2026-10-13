@@ -22,7 +22,7 @@ Hoặc gọi từng hàm: `openOrResumeSocraticSession`, `getSocraticSession`, `
 
 ## 2. Actor
 
-Mọi use case nhận `actor: { userId, role: "STUDENT" }` đã được backend xác thực. Không lấy `studentId` từ body làm actor. Helper kiểm tra user tồn tại, `ACTIVE`, `STUDENT` trước khi đọc profile hoặc gọi Gemini.
+Mọi use case nhận `actor: { userId, role: "STUDENT" }` đã được backend xác thực. Không lấy `studentId` từ body làm actor. Helper kiểm tra user tồn tại, `ACTIVE`, `STUDENT` trước khi đọc profile hoặc gọi Gemini. `persistSocraticTurn` khóa user rồi assignment rồi session và kiểm tra lại role/status trước khi commit; tài khoản bị vô hiệu hóa lúc đang gọi model không lưu lượt mới.
 
 | Mã lỗi | Khi nào |
 | --- | --- |
@@ -57,17 +57,18 @@ sendSocraticTurn(prisma, ai, {
 
 Kết quả `sendSocraticTurn` có `userMessage`, `assistantMessage`, `responseMode` (`model` | `fallback` | `replay`), `lastSequence`, `outlineRevision`, `promptVersion`, `model`. `usage`/`latencyMs` chỉ khi provider trả.
 
-`responseMode=fallback` là câu hỏi viết sẵn khi output sai schema/guardrail/bị cắt; không phải chất lượng Gemini đạt.
+`responseMode=fallback` là câu hỏi viết sẵn khi output sai schema/guardrail/bị cắt, hoặc khi học sinh yêu cầu viết hộ rõ ràng (bỏ qua provider). Không phải chất lượng Gemini đạt. Yêu cầu viết hộ được nhận diện trước khi gọi model; output mẫu không nhãn (đoạn nghị luận + mời chép) cũng bị thay bằng fallback. Lời từ chối có cụm “bài mẫu” trong phủ định vẫn hợp lệ.
 
 ## 4. Phiên bản context và replay
 
 - Token phiên bản = `lastSequence` + `outlineRevision`.
 - Client gửi `expectedLastSequence` khi gọi lượt mới. Sửa outline lúc đang chờ model → `TURN_CONFLICT`, không commit response cũ.
 - `requestId` scoped theo session. Replay cùng key + cùng nội dung trả cặp đã commit, không gọi Gemini. Cùng key khác nội dung → `REQUEST_ID_CONFLICT`.
+- Persistence báo `created` hoặc `replayed`. Use case trả `responseMode=replay` khi commit đã có cặp; không gắn usage/latency của generation khác.
 - ID USER/ASSISTANT ổn định theo `(sessionId, requestId, role)` (UUID v5). Cột `chat_messages.request_id` nullable để tương thích seed.
 - Hai lượt khác `requestId` cùng `expectedLastSequence`: một commit, một `TURN_CONFLICT`. Hai request trùng key không tạo hai cặp. Provider vẫn có thể bị gọi hai lần; không exactly-once về chi phí.
 
-Gọi Gemini ngoài transaction. Transaction ngắn khóa assignment rồi session (cùng thứ tự `submitAssignment`).
+Gọi Gemini ngoài transaction. Transaction persist khóa user rồi assignment rồi session. Rubric trong payload gồm descriptor, requiredElements và cấu hình điểm của snapshot phiên.
 
 ## 5. Endpoint đề xuất (chưa triển khai)
 
@@ -93,13 +94,14 @@ npm run socratic:demo -- outline --login bui.hamy --session <id> --expected-revi
 
 `VAN12-NLXH-SOC` là đề seed chưa COMPLETED/nộp bài. Không dùng phiên `VAN12-NLXH-01` của Bùi Hà My (đã nộp). Resume: chạy lại `open` trên process khác.
 
-Live smoke opt-in:
+Live smoke opt-in; script nạp `backend/.env` (cwd) trước khi đọc `SOCRATIC_LIVE` và `GEMINI_API_KEY`. Payload dùng context builder và rubric có descriptor/requiredElements.
 
 ```bash
+cd backend
 SOCRATIC_LIVE=1 npm run socratic:live-smoke
 ```
 
-Thiếu key/quyền: báo chưa chạy/không đạt, giữ `gemini-2.5-flash`.
+Thiếu key/quyền: báo chưa chạy/không đạt, giữ `gemini-2.5-flash`. Không kết luận chất lượng model chỉ từ test phần mềm.
 
 ## 7. Việc để sau
 

@@ -1,6 +1,6 @@
 import { DomainError } from "../../core/errors.js";
 import { SOCRATIC_MODEL_NAME, SOCRATIC_PROMPT_VERSION, type SocraticModelOutput } from "../../modules/socratic/domain/output.js";
-import type { SocraticAiPort, SocraticAiRequest, SocraticAiSuccess } from "./socratic-ai.port.js";
+import type { SocraticAiPort, SocraticAiRequest, SocraticAiSuccess, SocraticAiUsage } from "./socratic-ai.port.js";
 
 export const DEFAULT_FAKE_OUTPUT: SocraticModelOutput = {
   replySentences: [
@@ -18,6 +18,7 @@ export class FakeSocraticAi implements SocraticAiPort {
   nextFinishReason = "STOP";
   nextError: unknown = null;
   latencyMs = 0;
+  usage: SocraticAiUsage | undefined;
   hold: Promise<void> | null = null;
 
   async generateTurn(request: SocraticAiRequest): Promise<SocraticAiSuccess> {
@@ -38,6 +39,7 @@ export class FakeSocraticAi implements SocraticAiPort {
       output,
       rawText: this.nextRawText ?? JSON.stringify(output),
       finishReason: this.nextFinishReason,
+      usage: this.usage,
       latencyMs: this.latencyMs,
       model: SOCRATIC_MODEL_NAME,
       promptVersion: request.promptVersion || SOCRATIC_PROMPT_VERSION,

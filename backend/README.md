@@ -46,7 +46,7 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run test:db` | migrate DB test rồi chạy integration; bắt buộc `DATABASE_URL_TEST` |
 | `npm run test:dist` | build rồi kiểm tra prompt assets trong `dist/` từ cwd khác |
 | `npm run socratic:demo` | CLI mở phiên / gửi lượt / lưu dàn ý (mặc định `AI_MODE=mock`) |
-| `npm run socratic:live-smoke` | opt-in gọi `gemini-2.5-flash`; cần `SOCRATIC_LIVE=1` và `GEMINI_API_KEY` |
+| `npm run socratic:live-smoke` | opt-in gọi `gemini-2.5-flash`; nạp `.env` cwd; cần `SOCRATIC_LIVE=1` hoặc `--live` và `GEMINI_API_KEY` |
 
 Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Gemini lỗi không được đổi thành fake thành công. Key chỉ đọc `GEMINI_API_KEY`.
 
