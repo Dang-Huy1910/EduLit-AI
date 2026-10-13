@@ -14,6 +14,10 @@ export type PersistSocraticTurnInput = {
   expectedOutlineRevision: number;
   userContent: string;
   assistantContent: string;
+  provider: string;
+  modelName: string;
+  promptVersion: string;
+  responseMode: string;
 };
 
 export type PersistSocraticTurnResult = {
@@ -110,6 +114,10 @@ export async function persistSocraticTurn(
           role: "ASSISTANT",
           content: input.assistantContent,
           requestId: input.requestId,
+          provider: input.provider,
+          modelName: input.modelName,
+          promptVersion: input.promptVersion,
+          responseMode: input.responseMode,
         },
       });
       return {
@@ -169,6 +177,10 @@ function toView(row: {
   role: "USER" | "ASSISTANT";
   content: string;
   requestId: string | null;
+  provider: string | null;
+  modelName: string | null;
+  promptVersion: string | null;
+  responseMode: string | null;
   createdAt: Date;
 }): SocraticChatMessageView {
   return {
@@ -177,6 +189,10 @@ function toView(row: {
     role: row.role,
     content: row.content,
     requestId: row.requestId,
+    provider: row.provider,
+    modelName: row.modelName,
+    promptVersion: row.promptVersion,
+    responseMode: row.responseMode,
     createdAt: row.createdAt,
   };
 }

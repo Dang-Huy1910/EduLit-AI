@@ -64,8 +64,13 @@ test("open/resume, save outline, send turn, and replay the same requestId", asyn
       snapshot: { title: string };
     };
     assert.equal(session.resumed, false);
-    assert.equal(session.lastSequence, 0);
+    assert.equal(session.lastSequence, 1);
     assert.equal(session.snapshot.title, "Bản lĩnh");
+    assert.equal(client.ai.outlineCalls.length, 1);
+    const openedOutline = opened.json as { outline: { sections: Array<{ points: string[] }> }; messages: Array<{ role: string }> };
+    assert.ok(openedOutline.outline.sections.length >= 3);
+    assert.ok(openedOutline.outline.sections[0]?.points.length);
+    assert.equal(openedOutline.messages[0]?.role, "ASSISTANT");
 
     const resumed = await apiRequest(
       client.baseUrl,
@@ -81,12 +86,12 @@ test("open/resume, save outline, send turn, and replay the same requestId", asyn
       cookie: setup.cookie,
     });
     assert.equal(saved.status, 200);
-    assert.equal((saved.json as { outlineRevision: number }).outlineRevision, 2);
+    assert.equal((saved.json as { outlineRevision: number }).outlineRevision, session.outlineRevision + 1);
 
     const requestId = randomUUID();
     const turn = await apiRequest(client.baseUrl, `/socratic-sessions/${session.sessionId}/turns`, {
       method: "POST",
-      body: { requestId, expectedLastSequence: 0, message: "Em chưa biết mở bài." },
+      body: { requestId, expectedLastSequence: session.lastSequence, message: "Em chưa biết mở bài." },
       cookie: setup.cookie,
     });
     assert.equal(turn.status, 200);
@@ -96,24 +101,24 @@ test("open/resume, save outline, send turn, and replay the same requestId", asyn
       userMessage: { content: string; requestId: string };
       assistantMessage: { content: string };
     };
-    assert.equal(turnBody.lastSequence, 2);
+    assert.equal(turnBody.lastSequence, 3);
     assert.equal(turnBody.userMessage.requestId, requestId);
     assert.equal(client.ai.calls.length, 1);
 
     const replay = await apiRequest(client.baseUrl, `/socratic-sessions/${session.sessionId}/turns`, {
       method: "POST",
-      body: { requestId, expectedLastSequence: 0, message: "Em chưa biết mở bài." },
+      body: { requestId, expectedLastSequence: session.lastSequence, message: "Em chưa biết mở bài." },
       cookie: setup.cookie,
     });
     assert.equal(replay.status, 200);
     assert.equal((replay.json as { responseMode: string }).responseMode, "replay");
     assert.equal(client.ai.calls.length, 1);
     const stored = await client.prisma.chatMessage.count({ where: { sessionId: session.sessionId } });
-    assert.equal(stored, 2);
+    assert.equal(stored, 3);
 
     const conflictKey = await apiRequest(client.baseUrl, `/socratic-sessions/${session.sessionId}/turns`, {
       method: "POST",
-      body: { requestId, expectedLastSequence: 2, message: "Nội dung khác." },
+      body: { requestId, expectedLastSequence: 3, message: "Nội dung khác." },
       cookie: setup.cookie,
     });
     assert.equal(conflictKey.status, 409);
@@ -137,6 +142,7 @@ test("revision/sequence conflict, foreign session, closed and submitted sessions
     );
     const sessionId = (opened.json as { sessionId: string }).sessionId;
     const revision = (opened.json as { outlineRevision: number }).outlineRevision;
+    const openedLast = (opened.json as { lastSequence: number }).lastSequence;
 
     const stale = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/outline`, {
       method: "PUT",
@@ -178,7 +184,7 @@ test("revision/sequence conflict, foreign session, closed and submitted sessions
     assert.equal(closedGet.status, 200);
     const closedTurn = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/turns`, {
       method: "POST",
-      body: { requestId: randomUUID(), expectedLastSequence: 0, message: "Em hỏi." },
+      body: { requestId: randomUUID(), expectedLastSequence: openedLast, message: "Em hỏi." },
       cookie: setup.cookie,
     });
     assert.equal(closedTurn.status, 409);
@@ -199,7 +205,11 @@ test("revision/sequence conflict, foreign session, closed and submitted sessions
     });
     const submittedTurn = await apiRequest(client.baseUrl, `/socratic-sessions/${session2}/turns`, {
       method: "POST",
-      body: { requestId: randomUUID(), expectedLastSequence: 0, message: "Em hỏi." },
+      body: {
+        requestId: randomUUID(),
+        expectedLastSequence: (opened2.json as { lastSequence: number }).lastSequence,
+        message: "Em hỏi.",
+      },
       cookie: setup2.cookie,
     });
     assert.equal(submittedTurn.status, 409);
@@ -216,20 +226,21 @@ test("invalid input does not persist and provider errors map to HTTP", async () 
       { method: "POST", body: {}, cookie: setup.cookie },
     );
     const sessionId = (opened.json as { sessionId: string }).sessionId;
+    const openedLast = (opened.json as { lastSequence: number }).lastSequence;
 
     const badOutline = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/outline`, {
       method: "PUT",
-      body: { outline: { sections: "nope" }, expectedOutlineRevision: 1 },
+      body: { outline: { sections: "nope" }, expectedOutlineRevision: (opened.json as { outlineRevision: number }).outlineRevision },
       cookie: setup.cookie,
     });
     assert.equal(badOutline.status, 400);
     const unchanged = await client.prisma.socraticSession.findUniqueOrThrow({ where: { id: sessionId } });
-    assert.equal(unchanged.outlineRevision, 1);
+    assert.equal(unchanged.outlineRevision, (opened.json as { outlineRevision: number }).outlineRevision);
 
     client.ai.nextError = fakeProviderError("RATE_LIMITED", "gemini rate limited");
     const rate = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/turns`, {
       method: "POST",
-      body: { requestId: randomUUID(), expectedLastSequence: 0, message: "Em hỏi." },
+      body: { requestId: randomUUID(), expectedLastSequence: openedLast, message: "Em hỏi." },
       cookie: setup.cookie,
     });
     assert.equal(rate.status, 429);
@@ -238,7 +249,7 @@ test("invalid input does not persist and provider errors map to HTTP", async () 
     client.ai.nextError = fakeProviderError("MODEL_UNAVAILABLE", "down");
     const unavailable = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/turns`, {
       method: "POST",
-      body: { requestId: randomUUID(), expectedLastSequence: 0, message: "Em hỏi." },
+      body: { requestId: randomUUID(), expectedLastSequence: openedLast, message: "Em hỏi." },
       cookie: setup.cookie,
     });
     assert.equal(unavailable.status, 503);
@@ -246,7 +257,7 @@ test("invalid input does not persist and provider errors map to HTTP", async () 
     client.ai.nextError = fakeProviderError("AI_TIMEOUT", "timeout");
     const timeout = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/turns`, {
       method: "POST",
-      body: { requestId: randomUUID(), expectedLastSequence: 0, message: "Em hỏi." },
+      body: { requestId: randomUUID(), expectedLastSequence: openedLast, message: "Em hỏi." },
       cookie: setup.cookie,
     });
     assert.equal(timeout.status, 504);
@@ -254,13 +265,13 @@ test("invalid input does not persist and provider errors map to HTTP", async () 
     client.ai.nextError = new DomainError("AI_NOT_CONFIGURED", "missing key");
     const missing = await apiRequest(client.baseUrl, `/socratic-sessions/${sessionId}/turns`, {
       method: "POST",
-      body: { requestId: randomUUID(), expectedLastSequence: 0, message: "Em hỏi." },
+      body: { requestId: randomUUID(), expectedLastSequence: openedLast, message: "Em hỏi." },
       cookie: setup.cookie,
     });
     assert.equal(missing.status, 503);
 
     const messages = await client.prisma.chatMessage.count({ where: { sessionId } });
-    assert.equal(messages, 0);
+    assert.equal(messages, 1);
   });
 });
 

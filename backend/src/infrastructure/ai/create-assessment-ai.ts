@@ -1,15 +1,16 @@
-import { DomainError } from "../../core/errors.js";
 import { FakeAssessmentAi } from "./fake-assessment.adapter.js";
 import { GeminiAssessmentAdapter } from "./gemini-assessment.adapter.js";
-import { resolveAiRuntimeMode } from "./ai-config.js";
+import { resolveAiConfig } from "./ai-config.js";
+import { OpenAiAssessmentAdapter } from "./openai-assessment.adapter.js";
 import type { AssessmentAiPort } from "./assessment-ai.port.js";
 
 export function createAssessmentAiFromEnv(env: NodeJS.ProcessEnv = process.env): AssessmentAiPort {
-  if (resolveAiRuntimeMode(env) === "mock") {
+  const config = resolveAiConfig("assessment", env);
+  if (config.mode === "mock") {
     return new FakeAssessmentAi();
   }
-  if (!env.GEMINI_API_KEY?.trim()) {
-    throw new DomainError("AI_NOT_CONFIGURED", "GEMINI_API_KEY is required unless AI_MODE=mock");
+  if (config.provider === "gemini") {
+    return new GeminiAssessmentAdapter({ apiKey: config.apiKey, model: config.model });
   }
-  return new GeminiAssessmentAdapter();
+  return new OpenAiAssessmentAdapter({ apiKey: config.apiKey, model: config.model });
 }

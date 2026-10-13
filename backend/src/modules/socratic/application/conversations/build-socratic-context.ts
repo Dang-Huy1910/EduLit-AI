@@ -80,7 +80,12 @@ function serializeRequired(snapshot: AssignmentSnapshot, studentMessage: string)
 function selectCompleteRecentHistory(history: HistoryMessage[], maxMessages: number): HistoryMessage[] {
   const ordered = [...history].sort((a, b) => a.sequence - b.sequence);
   const complete: HistoryMessage[] = [];
-  for (let i = 0; i + 1 < ordered.length; i += 1) {
+  let index = 0;
+  if (ordered[0]?.role === "ASSISTANT") {
+    complete.push(ordered[0]);
+    index = 1;
+  }
+  for (let i = index; i + 1 < ordered.length; i += 1) {
     const user = ordered[i];
     const assistant = ordered[i + 1];
     if (user?.role === "USER" && assistant?.role === "ASSISTANT") {
@@ -140,7 +145,7 @@ function compose(
     studentMessage,
     "</UNTRUSTED>",
     "",
-    "Hãy trả JSON đúng schema. Câu cuối phải là câu hỏi. Không viết hộ đoạn văn.",
+    "Hãy trả JSON đúng schema. Câu cuối phải là câu hỏi. Không viết hộ đoạn văn. Dàn ý trên canvas là bản gợi ý lúc mở đề; hỏi để em tự sửa ý ngắn.",
   ].join("\n");
 }
 

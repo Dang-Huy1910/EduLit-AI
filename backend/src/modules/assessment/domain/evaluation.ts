@@ -17,7 +17,8 @@ import {
   EVALUATION_QUOTE_MAX,
 } from "./limits.js";
 
-export const DEFAULT_MODEL_NAME = "gemini-2.5-flash";
+/** Only used by legacy callers that have no adapter provenance. */
+export const LEGACY_MODEL_NAME = "legacy/unknown";
 
 export type EvidenceSpan = {
   quote: string;

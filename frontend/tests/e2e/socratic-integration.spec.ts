@@ -33,6 +33,7 @@ test.describe('Socratic integration', () => {
     await page.getByTestId('assignment-code-open').click();
     await page.waitForURL(/\/assignments\/.+\/socratic/);
     await expect(page.getByTestId('socratic-messages')).toBeVisible();
+    await expect.poll(async () => (await outlineValues(page)).length).toBeGreaterThan(0);
 
     await page.getByTestId('socratic-input').fill(marker);
     await page.getByTestId('socratic-send').click();

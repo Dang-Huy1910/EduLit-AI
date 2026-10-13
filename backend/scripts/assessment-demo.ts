@@ -68,7 +68,7 @@ async function main(): Promise<void> {
     return;
   }
   const mode = resolveAiRuntimeMode();
-  console.log(`AI_MODE=${mode}; model=gemini-2.5-flash`);
+  console.log(`AI_MODE=${mode}; model=gemini-3.8-flash`);
   const login = requireArg("--login");
   const actor = await actorFromLogin(login);
 

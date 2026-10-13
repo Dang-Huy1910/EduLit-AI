@@ -1,17 +1,14 @@
-import { ApiError, FinishReason, GoogleGenAI } from "@google/genai";
+import { ApiError, FinishReason, GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { DomainError } from "../../core/errors.js";
 import { sanitizeErrorMessage } from "../../core/sanitize.js";
 import {
-  WRITING_PROFILE_MODEL_NAME,
   WRITING_PROFILE_PROMPT_VERSION,
   type WritingObservationModelOutput,
 } from "../../modules/writing-profile/domain/output.js";
 import {
-  requireGeminiApiKey,
-  resolveWritingProfileModel,
   WRITING_PROFILE_MAX_OUTPUT_TOKENS,
   WRITING_PROFILE_RETRY_BUDGET_MS,
-  WRITING_PROFILE_THINKING_BUDGET,
+
   WRITING_PROFILE_TIMEOUT_MS,
 } from "./ai-config.js";
 import type {
@@ -37,11 +34,9 @@ export class GeminiWritingObservationAdapter implements WritingObservationAiPort
     request: WritingObservationAiRequest,
     signal?: AbortSignal,
   ): Promise<WritingObservationAiSuccess> {
-    const apiKey = this.options.apiKey ?? requireGeminiApiKey();
-    const model = this.options.model ?? resolveWritingProfileModel();
-    if (model !== WRITING_PROFILE_MODEL_NAME) {
-      throw new DomainError("MODEL_UNAVAILABLE", `refusing to call model ${model}`);
-    }
+    const apiKey = this.options.apiKey;
+    const model = this.options.model;
+    if (!apiKey || !model) throw new DomainError("AI_NOT_CONFIGURED", "Gemini adapter requires a resolved API key and model");
     const timeoutMs = this.options.timeoutMs ?? WRITING_PROFILE_TIMEOUT_MS;
     const budgetMs = this.options.retryBudgetMs ?? WRITING_PROFILE_RETRY_BUDGET_MS;
     const started = Date.now();
@@ -99,7 +94,7 @@ export class GeminiWritingObservationAdapter implements WritingObservationAiPort
           responseJsonSchema: request.responseJsonSchema,
           maxOutputTokens: WRITING_PROFILE_MAX_OUTPUT_TOKENS,
           thinkingConfig: {
-            thinkingBudget: WRITING_PROFILE_THINKING_BUDGET,
+            thinkingLevel: ThinkingLevel.LOW,
             includeThoughts: false,
           },
         },
@@ -141,6 +136,7 @@ export class GeminiWritingObservationAdapter implements WritingObservationAiPort
         finishReason: finishReason || "STOP",
         usage: usageFrom(response.usageMetadata),
         latencyMs: 0,
+        provider: "gemini",
         model,
         promptVersion: request.promptVersion || WRITING_PROFILE_PROMPT_VERSION,
       };
@@ -204,12 +200,12 @@ function wrapGeminiError(error: unknown, exhausted: boolean): DomainError {
       return new DomainError("AI_NOT_CONFIGURED", "gemini rejected the API key or permission");
     }
     if (error.status === 404) {
-      return new DomainError("MODEL_UNAVAILABLE", "gemini-2.5-flash is unavailable for this project");
+      return new DomainError("MODEL_UNAVAILABLE", "configured Gemini model is unavailable for this project");
     }
     if (error.status === 429) {
       return new DomainError("RATE_LIMITED", exhausted ? "gemini rate limited after retry" : "gemini rate limited");
     }
-    if (error.status === 408) {
+    if (error.status === 408 || error.status === 504) {
       return new DomainError("AI_TIMEOUT", "gemini request timed out");
     }
     if (error.status >= 500) {

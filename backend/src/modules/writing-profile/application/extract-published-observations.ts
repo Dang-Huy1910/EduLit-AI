@@ -107,6 +107,9 @@ export async function extractPublishedObservations(
       assessmentId: assessment.id,
       observations: parsed,
       expectedProfileVersion,
+      provider: generated.provider,
+      modelName: generated.model,
+      promptVersion: generated.promptVersion,
     });
     const saved = await tx.writingObservation.findMany({
       where: { assessmentId: assessment.id, studentId: submission.studentId },

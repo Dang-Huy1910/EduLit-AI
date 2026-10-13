@@ -59,9 +59,10 @@ test("end-to-end data layer: assignment to profile context without calling Gemin
       detailedEvaluations: SAMPLE_EVALUATIONS,
       totalScore: "7.50",
       promptVersion: "fixture-v1",
+      modelName: "mock/assessment",
       status: "PUBLISHED",
     });
-    assert.equal(assessment.modelName, "gemini-2.5-flash");
+    assert.equal(assessment.modelName, "mock/assessment");
     const quote = "không dựa vào văn mẫu";
     const { start, end } = offsetsForQuote(text, quote);
     await saveObservationsAndRefreshProfile(prisma, {

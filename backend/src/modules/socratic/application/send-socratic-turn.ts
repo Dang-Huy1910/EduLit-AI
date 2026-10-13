@@ -4,10 +4,7 @@ import type { SocraticAiPort, SocraticAiUsage } from "../../../infrastructure/ai
 import type { EduLitPrisma } from "../../../infrastructure/database/prisma.client.js";
 import { getProfileContextForSession } from "../../writing-profile/application/query-profile-context.js";
 import type { StudentActor } from "../domain/actor.js";
-import {
-  SOCRATIC_MODEL_NAME,
-  type SocraticResponseMode,
-} from "../domain/output.js";
+import { type SocraticResponseMode } from "../domain/output.js";
 import { loadSocraticPromptBundle } from "../prompt-assets.js";
 import { assertActiveStudentActor } from "./assert-student-actor.js";
 import { buildSocraticUserPayload } from "./conversations/build-socratic-context.js";
@@ -36,6 +33,7 @@ export type SendSocraticTurnResult = {
   responseMode: SocraticResponseMode;
   promptVersion: string;
   model: string;
+  provider: string;
   usage?: SocraticAiUsage;
   latencyMs?: number;
   lastSequence: number;
@@ -68,8 +66,9 @@ export async function sendSocraticTurn(
       userMessage: replay.userMessage,
       assistantMessage: replay.assistantMessage,
       responseMode: "replay",
-      promptVersion: loadSocraticPromptBundle().promptVersion,
-      model: SOCRATIC_MODEL_NAME,
+      promptVersion: replay.assistantMessage.promptVersion ?? "legacy/unknown",
+      model: replay.assistantMessage.modelName ?? "legacy/unknown",
+      provider: replay.assistantMessage.provider ?? "legacy/unknown",
       lastSequence: replay.lastSequence,
       outlineRevision: replay.outlineRevision,
     };
@@ -105,6 +104,9 @@ export async function sendSocraticTurn(
   let responseMode: SocraticResponseMode = "model";
   let assistantText: string;
   let usage: SocraticAiUsage | undefined;
+  let model = "system/fallback";
+  let provider = "system";
+  let promptVersion = bundle.promptVersion;
   let latencyMs: number | undefined;
   if (looksLikeWriteForStudentRequest(message)) {
     responseMode = "fallback";
@@ -119,6 +121,9 @@ export async function sendSocraticTurn(
       });
       usage = generated.usage;
       latencyMs = generated.latencyMs;
+      model = generated.model;
+      provider = generated.provider;
+      promptVersion = generated.promptVersion;
       const inspected = inspectSocraticOutput(generated.output, session.snapshot, { studentMessage: message });
       if (!inspected.ok) {
         responseMode = "fallback";
@@ -145,6 +150,10 @@ export async function sendSocraticTurn(
     expectedOutlineRevision: session.outlineRevision,
     userContent: message,
     assistantContent: assistantText,
+    provider,
+    modelName: model,
+    promptVersion,
+    responseMode,
   });
 
   return {
@@ -153,8 +162,9 @@ export async function sendSocraticTurn(
     userMessage: persisted.userMessage,
     assistantMessage: persisted.assistantMessage,
     responseMode: persisted.persisted === "replayed" ? "replay" : responseMode,
-    promptVersion: bundle.promptVersion,
-    model: SOCRATIC_MODEL_NAME,
+    promptVersion: persisted.persisted === "replayed" ? persisted.assistantMessage.promptVersion ?? "legacy/unknown" : promptVersion,
+    model: persisted.persisted === "replayed" ? persisted.assistantMessage.modelName ?? "legacy/unknown" : model,
+    provider: persisted.persisted === "replayed" ? persisted.assistantMessage.provider ?? "legacy/unknown" : provider,
     usage: persisted.persisted === "replayed" ? undefined : usage,
     latencyMs: persisted.persisted === "replayed" ? undefined : latencyMs,
     lastSequence: persisted.lastSequence,

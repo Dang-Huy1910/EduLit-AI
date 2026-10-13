@@ -80,6 +80,50 @@ test("open/resume concurrently reuse one session and freeze snapshot", async () 
   });
 });
 
+test("open with AI writes a suggested outline and welcome once; resume does not regenerate", async () => {
+  await withTestPrisma(async (prisma) => {
+    const fake = new FakeSocraticAi();
+    const { assignment, actor } = await publishedFixture(prisma, "SOC-SCAFFOLD");
+    const opened = await openOrResumeSocraticSession(prisma, {
+      actor,
+      assignmentId: assignment.id,
+      ai: fake,
+    });
+    assert.equal(opened.resumed, false);
+    assert.equal(opened.lastSequence, 1);
+    assert.equal(opened.messages[0]?.role, "ASSISTANT");
+    assert.match(opened.messages[0]?.content ?? "", /dàn ý gợi ý/i);
+    assert.ok(opened.outline.sections.length >= 3);
+    assert.ok((opened.outline.sections[0]?.points.length ?? 0) > 0);
+    assert.equal(fake.outlineCalls.length, 1);
+
+    const resumed = await openOrResumeSocraticSession(prisma, {
+      actor,
+      assignmentId: assignment.id,
+      ai: fake,
+    });
+    assert.equal(resumed.resumed, true);
+    assert.equal(resumed.lastSequence, 1);
+    assert.equal(fake.outlineCalls.length, 1);
+
+    const legacy = await publishedFixture(prisma, "SOC-LEGACY");
+    const empty = await openOrResumeSocraticSession(prisma, {
+      actor: legacy.actor,
+      assignmentId: legacy.assignment.id,
+    });
+    assert.equal(empty.lastSequence, 0);
+    assert.equal(empty.outline.sections.length, 0);
+    const filled = await openOrResumeSocraticSession(prisma, {
+      actor: legacy.actor,
+      assignmentId: legacy.assignment.id,
+      ai: fake,
+    });
+    assert.equal(filled.resumed, true);
+    assert.equal(filled.lastSequence, 1);
+    assert.ok(filled.outline.sections.length >= 3);
+  });
+});
+
 test("wrong actor, foreign session, closed/completed/submitted are blocked without calling the provider", async () => {
   await withTestPrisma(async (prisma) => {
     const fake = new FakeSocraticAi();

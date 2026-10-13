@@ -5,7 +5,7 @@ import type { EduLitPrisma } from "../../../infrastructure/database/prisma.clien
 import type { AssignmentSnapshot } from "../../assignments/domain/rubric.js";
 import { assignmentSnapshotFromContext } from "../../assignments/domain/snapshot.js";
 import type { AssessmentActor } from "../domain/actor.js";
-import { ASSESSMENT_MODEL_NAME, ASSESSMENT_PROMPT_VERSION } from "../domain/output.js";
+import { ASSESSMENT_PROMPT_VERSION } from "../domain/output.js";
 import type { ScoringInput } from "../domain/scoring-input.js";
 import { loadAssessmentPromptBundle } from "../prompt-assets.js";
 import { assertActiveActor } from "./assert-actor.js";
@@ -81,7 +81,9 @@ export async function assessSubmission(
         detailedEvaluations: parsed.evaluations,
         totalScore: parsed.totalScore,
         status: "AI_DRAFT",
-        modelName: generated.model || ASSESSMENT_MODEL_NAME,
+        modelName: generated.model,
+        provider: generated.provider,
+        responseMode: generated.provider === "mock" ? "mock" : "model",
         promptVersion: generated.promptVersion || bundle.promptVersion || ASSESSMENT_PROMPT_VERSION,
         assessedAt: new Date(),
       });

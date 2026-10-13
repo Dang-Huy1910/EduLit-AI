@@ -21,6 +21,10 @@ export function emptyOutline(): StudentOutline {
   return { sections: [] };
 }
 
+export function isBlankOutline(outline: StudentOutline): boolean {
+  return outline.sections.every((section) => section.points.length === 0);
+}
+
 export function validateStudentOutline(input: unknown): StudentOutline {
   const encoded = JSON.stringify(input ?? {});
   if (encoded.length > MAX_JSON_CHARS) {

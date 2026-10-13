@@ -4,7 +4,7 @@ Ngày: 13/10/2026. **Trạng thái: đã triển khai trên `feat/socratic-integ
 
 Học sinh đăng nhập cookie session → danh sách đề `PUBLISHED` → mở/khôi phục phiên Socratic → chat → lưu dàn ý → refresh đọc lại từ PostgreSQL. Đổi tài khoản không lẫn lịch sử. Use case, guardrail và adapter Gemini giữ nguyên từ [bàn giao Socratic](socratic-handoff.md).
 
-Công nghệ: NestJS 11 ESM trên backend hiện có, Prisma 7 / PostgreSQL 17, Next.js 15, cookie HttpOnly. Zustand chỉ giữ UI/draft theo `userId` + `sessionId`. Gemini `gemini-2.5-flash` chỉ gọi từ backend.
+Công nghệ: NestJS 11 ESM trên backend hiện có, Prisma 7 / PostgreSQL 17, Next.js 15, cookie HttpOnly. Zustand chỉ giữ UI/draft theo `userId` + `sessionId`. Gemini `gemini-3.8-flash` chỉ gọi từ backend.
 
 ## Routes và DTO thực tế
 
@@ -149,7 +149,7 @@ Pilot chưa có membership: học sinh `ACTIVE` đọc mọi đề `PUBLISHED`. 
 | --- | --- | --- |
 | `mock` | Không dùng | Prototype Zustand; không chứng minh HTTP/DB |
 | `api` | `mock` | Auth/HTTP/DB thật, FakeSocraticAi; kiểm thử mặc định |
-| `api` | `live` | Gọi `gemini-2.5-flash` bằng `GEMINI_API_KEY` chỉ ở backend |
+| `api` | `live` | Gọi `gemini-3.8-flash` bằng `GEMINI_API_KEY` chỉ ở backend |
 
 ```bash
 # backend/.env
@@ -195,12 +195,12 @@ Production-like: `cd backend && npm run build && npm run start:prod`. SIGTERM đ
 1. `NEXT_PUBLIC_DATA_MODE=api`, backend `AI_MODE=mock`.
 2. Đăng nhập `bui.hamy`, mật khẩu = `DEV_SEED_PASSWORD` trong `backend/.env` (không điền sẵn trên form).
 3. Mở mã **VAN12-NLXH-SOC**. Không dùng **VAN12-NLXH-01** (Bùi Hà My đã nộp, phiên chỉ đọc).
-4. Gửi ý tưởng, nhận câu hỏi gợi mở, thêm ý vào dàn ý, bấm **Lưu dàn ý**.
+4. Phiên mới đã có dàn ý gợi ý (ý ngắn, không đoạn văn) và một câu chào. Sửa dàn ý bên phải hoặc chat khi muốn đổi hướng, rồi bấm **Lưu dàn ý**.
 5. Refresh: chat và dàn ý còn từ PostgreSQL.
 6. Hai tab: tab 1 lưu dàn ý, tab 2 lưu bản khác → banner conflict, draft tab 2 được giữ.
 7. Đăng xuất, đăng nhập `nguyen.an`, mở cùng mã đề → không thấy chat/dàn ý của Hà My.
 
-Tài khoản seed: `bui.hamy`, `nguyen.an` (học sinh), `dang.loan` (giáo viên — API học sinh trả 403). Live Gemini: `AI_MODE=live` + `GEMINI_API_KEY`; không chạy trong unit/HTTP/Playwright. Thiếu key/quota thì báo chưa kiểm chứng, giữ `gemini-2.5-flash`.
+Tài khoản seed: `bui.hamy`, `nguyen.an` (học sinh), `dang.loan` (giáo viên — API học sinh trả 403). Live Gemini: `AI_MODE=live` + `GEMINI_API_KEY`; không chạy trong unit/HTTP/Playwright. Thiếu key/quota thì báo chưa kiểm chứng, giữ `gemini-3.8-flash`.
 
 ## Kiểm tra tự động
 
@@ -227,7 +227,7 @@ Playwright nạp `backend/.env` (không in secret), bật `NEXT_PUBLIC_DATA_MODE
 
 - Login: nút 1-click seed (`dang.loan`, `bui.hamy`, `nguyen.an`) gọi `POST /api/auth/demo-login`; mật khẩu lấy `DEV_SEED_PASSWORD` ở backend, không đưa ra bundle. Tắt khi `NODE_ENV=production`. Form nhập tay vẫn dùng.
 - Assignments: UUID thật, mã `VAN12-NLXH-SOC`, rubric/học liệu từ API. Không bịa lớp/trường/điểm.
-- Socratic: POST open hoặc GET `?sessionId=`; retry cùng `requestId`; pending bubble không tăng `lastSequence`; conflict dàn ý giữ draft; chat khóa khi dirty/saving/COMPLETED/CLOSED/đã nộp.
+- Socratic: POST open hoặc GET `?sessionId=`; phiên mới gọi AI phác dàn ý gợi ý + câu chào (resume không gen lại); retry cùng `requestId`; pending bubble không tăng `lastSequence`; conflict dàn ý giữ draft; chat khóa khi dirty/saving/COMPLETED/CLOSED/đã nộp. AI không viết đoạn văn mẫu và không ghi đè bản học sinh đã lưu.
 - Logout gọi server, xóa draft `localStorage` theo user, về `/login`.
 - Teacher CRUD, nộp bài, OCR, kết quả, báo cáo, chatbot độc lập, FloatingChatWidget: panel “chưa triển khai” hoặc ẩn. Mock mode giữ prototype đầy đủ.
 

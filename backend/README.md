@@ -48,13 +48,15 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run test:db` | migrate DB test rồi chạy integration + HTTP; bắt buộc `DATABASE_URL_TEST` |
 | `npm run test:dist` | build, prompt assets trong `dist/`, HTTP dist + SIGTERM |
 | `npm run socratic:demo` | CLI mở phiên / gửi lượt / lưu dàn ý (mặc định `AI_MODE=mock`) |
-| `npm run socratic:live-smoke` | opt-in gọi `gemini-2.5-flash`; nạp `.env` cwd; cần `SOCRATIC_LIVE=1` hoặc `--live` và `GEMINI_API_KEY` |
+| `npm run socratic:live-smoke` | opt-in gọi provider/model đã cấu hình; nạp `.env` cwd; cần `SOCRATIC_LIVE=1` hoặc `--live` và API key tương ứng |
 | `npm run assessment:demo` | CLI nộp / chấm / xem / công bố (mặc định `AI_MODE=mock`) |
-| `npm run assessment:live-smoke` | opt-in chấm `gemini-2.5-flash`; nạp `.env` cwd; cần `ASSESSMENT_LIVE=1` hoặc `--live` |
+| `npm run assessment:live-smoke` | opt-in chấm bằng provider/model đã cấu hình; cần `ASSESSMENT_LIVE=1` hoặc `--live` |
 | `npm run writing-profile:demo` | CLI extract / show / review-status (mặc định `AI_MODE=mock`) |
-| `npm run writing-profile:live-smoke` | opt-in extract `gemini-2.5-flash`; nạp `.env` cwd; cần `WRITING_PROFILE_LIVE=1` hoặc `--live`; không ghi DB |
+| `npm run writing-profile:live-smoke` | opt-in extraction bằng provider/model đã cấu hình; cần `WRITING_PROFILE_LIVE=1` hoặc `--live`; không ghi DB |
 
-Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Gemini lỗi không được đổi thành fake thành công. Key chỉ đọc `GEMINI_API_KEY`.
+Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Lỗi live không được đổi thành fake thành công.
+
+AI runtime dùng `AI_MODE=mock|live`, `AI_PROVIDER=gemini|openai` và `AI_MODEL`. Model theo tác vụ ưu tiên `SOCRATIC_MODEL`, `ASSESSMENT_MODEL`, `WRITING_PROFILE_MODEL`, rồi `AI_MODEL`, `GEMINI_MODEL` legacy (Gemini), rồi `gemini-2.5-flash`. OpenAI không tự chọn model. Gemini dùng `GEMINI_API_KEY`, OpenAI dùng `OPENAI_API_KEY`. Đặt `AI_MODE=mock` cho test/browser; live smoke chỉ chạy khi bật cờ và cấu hình key/model.
 
 ## Seed
 

@@ -3,7 +3,7 @@ import { DomainError } from "../../../core/errors.js";
 import type { EduLitPrisma } from "../../../infrastructure/database/prisma.client.js";
 import type { AssignmentSnapshot } from "../../assignments/domain/rubric.js";
 import {
-  DEFAULT_MODEL_NAME,
+  LEGACY_MODEL_NAME,
   assertRubricSnapshotMatchesAssignment,
   validateAssessmentScores,
 } from "../domain/evaluation.js";
@@ -17,6 +17,8 @@ export type SaveAssessmentInput = {
   totalScore: string | number;
   status?: "AI_DRAFT" | "PUBLISHED";
   modelName?: string;
+  provider?: string;
+  responseMode?: string;
   promptVersion: string;
   assessedAt?: Date;
 };
@@ -57,7 +59,9 @@ export async function saveAssessment(prisma: AssessmentDb, input: SaveAssessment
         totalScore: scores.totalScore,
         maxScore: scores.maxScore,
         status,
-        modelName: input.modelName ?? DEFAULT_MODEL_NAME,
+        modelName: input.modelName ?? LEGACY_MODEL_NAME,
+        provider: input.provider,
+        responseMode: input.responseMode,
         promptVersion: input.promptVersion,
         assessedAt: now,
         publishedAt: status === "PUBLISHED" ? now : null,

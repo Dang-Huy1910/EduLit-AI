@@ -3,8 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { loadSocraticPromptBundle, resolveSocraticAssetsDir } from "../../src/modules/socratic/prompt-assets.js";
-import { SOCRATIC_PROMPT_VERSION } from "../../src/modules/socratic/domain/output.js";
+import {
+  loadSocraticOutlineInitBundle,
+  loadSocraticPromptBundle,
+  resolveSocraticAssetsDir,
+} from "../../src/modules/socratic/prompt-assets.js";
+import { SOCRATIC_OUTLINE_INIT_PROMPT_VERSION, SOCRATIC_PROMPT_VERSION } from "../../src/modules/socratic/domain/output.js";
 import { socraticMessageId } from "../../src/modules/socratic/domain/message-ids.js";
 
 test("prompt assets load independently of cwd and match prompts/socratic", () => {
@@ -21,6 +25,17 @@ test("prompt assets load independently of cwd and match prompts/socratic", () =>
       "../../../prompts/socratic/system.v1.md",
     );
     assert.equal(fs.readFileSync(path.join(assetsDir, "system.v1.md"), "utf8").trim(), fs.readFileSync(repoPrompt, "utf8").trim());
+    const init = loadSocraticOutlineInitBundle();
+    assert.equal(init.promptVersion, SOCRATIC_OUTLINE_INIT_PROMPT_VERSION);
+    assert.match(init.systemInstruction, /DÀN Ý GỢI Ý/);
+    const repoInit = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../../prompts/socratic/outline-init.v1.md",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(assetsDir, "outline-init.v1.md"), "utf8").trim(),
+      fs.readFileSync(repoInit, "utf8").trim(),
+    );
   } finally {
     process.chdir(previous);
   }

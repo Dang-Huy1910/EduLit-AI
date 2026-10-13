@@ -1,16 +1,21 @@
-import { ApiError, FinishReason, GoogleGenAI } from "@google/genai";
+import { ApiError, FinishReason, GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { DomainError } from "../../core/errors.js";
 import { sanitizeErrorMessage } from "../../core/sanitize.js";
-import { SOCRATIC_MODEL_NAME, SOCRATIC_PROMPT_VERSION, type SocraticModelOutput } from "../../modules/socratic/domain/output.js";
+import { SOCRATIC_PROMPT_VERSION, type SocraticModelOutput } from "../../modules/socratic/domain/output.js";
 import {
-  requireGeminiApiKey,
-  resolveSocraticModel,
   SOCRATIC_MAX_OUTPUT_TOKENS,
   SOCRATIC_RETRY_BUDGET_MS,
-  SOCRATIC_THINKING_BUDGET,
+
   SOCRATIC_TIMEOUT_MS,
 } from "./ai-config.js";
-import type { SocraticAiPort, SocraticAiRequest, SocraticAiSuccess, SocraticAiUsage } from "./socratic-ai.port.js";
+import type {
+  SocraticAiPort,
+  SocraticAiRequest,
+  SocraticAiSuccess,
+  SocraticAiUsage,
+  SocraticOutlineInitOutput,
+  SocraticOutlineInitSuccess,
+} from "./socratic-ai.port.js";
 
 const TRANSIENT_STATUS = new Set([429, 500, 502, 503, 504]);
 
@@ -25,11 +30,28 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
   ) {}
 
   async generateTurn(request: SocraticAiRequest, signal?: AbortSignal): Promise<SocraticAiSuccess> {
-    const apiKey = this.options.apiKey ?? requireGeminiApiKey();
-    const model = this.options.model ?? resolveSocraticModel();
-    if (model !== SOCRATIC_MODEL_NAME) {
-      throw new DomainError("MODEL_UNAVAILABLE", `refusing to call model ${model}`);
-    }
+    const { parsed, ...generated } = await this.generateJson(request, signal);
+    return {
+      ...generated,
+      output: parsed as SocraticModelOutput,
+    };
+  }
+
+  async generateOutline(request: SocraticAiRequest, signal?: AbortSignal): Promise<SocraticOutlineInitSuccess> {
+    const { parsed, ...generated } = await this.generateJson(request, signal);
+    return {
+      ...generated,
+      output: parsed as SocraticOutlineInitOutput,
+    };
+  }
+
+  private async generateJson(
+    request: SocraticAiRequest,
+    signal?: AbortSignal,
+  ): Promise<Omit<SocraticAiSuccess, "output"> & { parsed: unknown }> {
+    const apiKey = this.options.apiKey;
+    const model = this.options.model;
+    if (!apiKey || !model) throw new DomainError("AI_NOT_CONFIGURED", "Gemini adapter requires a resolved API key and model");
     const timeoutMs = this.options.timeoutMs ?? SOCRATIC_TIMEOUT_MS;
     const budgetMs = this.options.retryBudgetMs ?? SOCRATIC_RETRY_BUDGET_MS;
     const started = Date.now();
@@ -52,6 +74,7 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
           throw wrapGeminiError(error, Date.now() - started, false);
         }
         attempt += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1_500));
       }
     }
     throw wrapGeminiError(lastError, Date.now() - started, true);
@@ -63,7 +86,7 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
     request: SocraticAiRequest,
     timeoutMs: number,
     externalSignal?: AbortSignal,
-  ): Promise<SocraticAiSuccess> {
+  ): Promise<Omit<SocraticAiSuccess, "output"> & { parsed: unknown }> {
     const controller = new AbortController();
     const onAbort = () => controller.abort();
     if (externalSignal) {
@@ -87,7 +110,7 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
           responseJsonSchema: request.responseJsonSchema,
           maxOutputTokens: SOCRATIC_MAX_OUTPUT_TOKENS,
           thinkingConfig: {
-            thinkingBudget: SOCRATIC_THINKING_BUDGET,
+            thinkingLevel: ThinkingLevel.LOW,
             includeThoughts: false,
           },
         },
@@ -125,11 +148,12 @@ export class GeminiSocraticAdapter implements SocraticAiPort {
         throw new DomainError("AI_INVALID_OUTPUT", "provider returned non-JSON text");
       }
       return {
-        output: parsed as SocraticModelOutput,
+        parsed,
         rawText,
         finishReason: finishReason || "STOP",
         usage: usageFrom(response.usageMetadata),
         latencyMs: 0,
+        provider: "gemini",
         model,
         promptVersion: request.promptVersion || SOCRATIC_PROMPT_VERSION,
       };
@@ -193,12 +217,12 @@ function wrapGeminiError(error: unknown, _latencyMs: number, exhausted: boolean)
       return new DomainError("AI_NOT_CONFIGURED", "gemini rejected the API key or permission");
     }
     if (error.status === 404) {
-      return new DomainError("MODEL_UNAVAILABLE", "gemini-2.5-flash is unavailable for this project");
+      return new DomainError("MODEL_UNAVAILABLE", "configured Gemini model is unavailable for this project");
     }
     if (error.status === 429) {
       return new DomainError("RATE_LIMITED", exhausted ? "gemini rate limited after retry" : "gemini rate limited");
     }
-    if (error.status === 408) {
+    if (error.status === 408 || error.status === 504) {
       return new DomainError("AI_TIMEOUT", "gemini request timed out");
     }
     if (error.status >= 500) {

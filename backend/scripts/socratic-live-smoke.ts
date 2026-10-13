@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   if (!process.env.GEMINI_API_KEY?.trim()) {
-    console.log("live smoke không đạt: thiếu GEMINI_API_KEY; giữ model gemini-2.5-flash");
+    console.log("live smoke không đạt: thiếu GEMINI_API_KEY; giữ model gemini-3.8-flash");
     process.exit(2);
   }
   const model = resolveSocraticModel();

@@ -152,13 +152,17 @@ model SocraticSession {
 }
 
 model ChatMessage {
-  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  sessionId String          @map("session_id") @db.Uuid
-  sequence  Int
-  role      ChatMessageRole
-  content   String          @db.Text
-  requestId String?         @map("request_id")
-  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId      String          @map("session_id") @db.Uuid
+  sequence       Int
+  role           ChatMessageRole
+  content        String          @db.Text
+  requestId      String?         @map("request_id")
+  provider       String?         @map("provider")
+  modelName      String?         @map("model_name")
+  promptVersion  String?         @map("prompt_version")
+  responseMode   String?         @map("response_mode")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
   session SocraticSession @relation(fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
@@ -200,7 +204,9 @@ model Assessment {
   totalScore          Decimal          @map("total_score") @db.Decimal(8, 2)
   maxScore            Decimal          @map("max_score") @db.Decimal(8, 2)
   status              AssessmentStatus @default(AI_DRAFT)
-  modelName           String           @default("gemini-2.5-flash") @map("model_name")
+  modelName           String           @map("model_name")
+  provider            String?          @map("provider")
+  responseMode        String?          @map("response_mode")
   promptVersion       String           @map("prompt_version")
   assessedAt          DateTime         @map("assessed_at") @db.Timestamptz(6)
   publishedAt         DateTime?        @map("published_at") @db.Timestamptz(6)
@@ -228,6 +234,9 @@ model WritingObservation {
   evidenceEnd   Int               @map("evidence_end")
   status        ObservationStatus @default(PROVISIONAL)
   observedAt    DateTime          @map("observed_at") @db.Timestamptz(6)
+  provider      String?           @map("provider")
+  modelName     String?           @map("model_name")
+  promptVersion String?           @map("prompt_version")
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
   student    User       @relation(fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)

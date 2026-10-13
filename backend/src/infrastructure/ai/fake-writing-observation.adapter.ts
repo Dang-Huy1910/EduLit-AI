@@ -1,6 +1,5 @@
 import { DomainError } from "../../core/errors.js";
 import {
-  WRITING_PROFILE_MODEL_NAME,
   WRITING_PROFILE_PROMPT_VERSION,
   type WritingObservationModelOutput,
 } from "../../modules/writing-profile/domain/output.js";
@@ -41,7 +40,8 @@ export class FakeWritingObservationAi implements WritingObservationAiPort {
       finishReason: this.nextFinishReason,
       usage: this.usage,
       latencyMs: this.latencyMs,
-      model: WRITING_PROFILE_MODEL_NAME,
+      provider: "mock",
+      model: "mock/writing-profile",
       promptVersion: request.promptVersion || WRITING_PROFILE_PROMPT_VERSION,
     };
   }

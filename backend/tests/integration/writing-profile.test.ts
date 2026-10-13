@@ -494,19 +494,8 @@ test("e2e submit → draft → publish → extract → profile → later Socrati
     assert.match(laterPayload, /Em chưa biết mở bài/);
     assert.equal(secondTurn.lastSequence, firstTurn.lastSequence + 2);
 
-    const submittedSession = await openOrResumeSocraticSession(prisma, {
-      actor: studentSocratic,
-      assignmentId: setup.assignment.id,
-    });
     await assert.rejects(
-      () =>
-        sendSocraticTurn(prisma, socraticAi, {
-          actor: studentSocratic,
-          sessionId: submittedSession.sessionId,
-          requestId: randomUUID(),
-          expectedLastSequence: 0,
-          message: "Em hỏi thêm sau khi nộp.",
-        }),
+      () => openOrResumeSocraticSession(prisma, { actor: studentSocratic, assignmentId: setup.assignment.id }),
       (error: unknown) => error instanceof DomainError && error.code === "SESSION_SUBMITTED",
     );
   });

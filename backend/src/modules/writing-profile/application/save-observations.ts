@@ -14,6 +14,9 @@ export type SaveObservationsInput = {
   assessmentId: string;
   observations: ObservationInput[];
   expectedProfileVersion?: number;
+  provider?: string;
+  modelName?: string;
+  promptVersion?: string;
 };
 
 export type SetObservationStatusInput = {
@@ -137,6 +140,9 @@ export async function saveObservationsInTransaction(
           evidenceEnd: observation.evidenceEnd,
           status: observation.status ?? "PROVISIONAL",
           observedAt: now,
+          provider: input.provider,
+          modelName: input.modelName,
+          promptVersion: input.promptVersion,
         },
       });
     }

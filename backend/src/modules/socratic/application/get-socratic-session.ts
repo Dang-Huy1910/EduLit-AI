@@ -11,6 +11,10 @@ export type SocraticChatMessageView = {
   role: "USER" | "ASSISTANT";
   content: string;
   requestId: string | null;
+  provider: string | null;
+  modelName: string | null;
+  promptVersion: string | null;
+  responseMode: string | null;
   createdAt: Date;
 };
 
@@ -61,6 +65,10 @@ export async function getSocraticSession(
       role: item.role,
       content: item.content,
       requestId: item.requestId,
+      provider: item.provider,
+      modelName: item.modelName,
+      promptVersion: item.promptVersion,
+      responseMode: item.responseMode,
       createdAt: item.createdAt,
     })),
   };

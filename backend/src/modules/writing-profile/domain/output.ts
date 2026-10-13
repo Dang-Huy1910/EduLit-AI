@@ -1,6 +1,5 @@
 export const WRITING_PROFILE_PROMPT_VERSION = "writing-profile-system.v1";
 export const WRITING_PROFILE_SCHEMA_VERSION = "writing-profile-output.v1";
-export const WRITING_PROFILE_MODEL_NAME = "gemini-2.5-flash";
 
 export type WritingObservationModelItem = {
   traitId: string;

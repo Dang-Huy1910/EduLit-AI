@@ -1,6 +1,6 @@
 import { DomainError } from "../../core/errors.js";
 import { decimal, decimalString } from "../../core/decimal.js";
-import { ASSESSMENT_MODEL_NAME, ASSESSMENT_PROMPT_VERSION, type AssessmentModelOutput } from "../../modules/assessment/domain/output.js";
+import { ASSESSMENT_PROMPT_VERSION, type AssessmentModelOutput } from "../../modules/assessment/domain/output.js";
 import type { ScoringInput } from "../../modules/assessment/domain/scoring-input.js";
 import type {
   AssessmentAiPort,
@@ -39,7 +39,8 @@ export class FakeAssessmentAi implements AssessmentAiPort {
       finishReason: this.nextFinishReason,
       usage: this.usage,
       latencyMs: this.latencyMs,
-      model: ASSESSMENT_MODEL_NAME,
+      provider: "mock",
+      model: "mock/assessment",
       promptVersion: request.promptVersion || ASSESSMENT_PROMPT_VERSION,
     };
   }

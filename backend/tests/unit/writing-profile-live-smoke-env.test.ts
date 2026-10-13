@@ -62,7 +62,7 @@ test("writing-profile live smoke --live reads GEMINI_API_KEY from cwd .env", asy
   try {
     fs.writeFileSync(
       path.join(tmp, ".env"),
-      ["GEMINI_API_KEY=synthetic-review-key", "GEMINI_MODEL=not-gemini-2.5-flash", ""].join("\n"),
+      ["GEMINI_API_KEY=synthetic-review-key", "GEMINI_MODEL=not-gemini-3.8-flash", ""].join("\n"),
       "utf8",
     );
     const result = await spawnLiveSmoke(tmp, ["--live"]);

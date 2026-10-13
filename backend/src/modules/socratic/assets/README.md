@@ -1,1 +1,1 @@
-Prompt assets đóng gói cùng module. Nguồn canonical: `prompts/socratic/`. Build copy sang `dist/modules/socratic/assets/`. Không xóa các file `.md`/`.json` này; runtime nạp theo `import.meta.url`.
+Prompt assets đóng gói cùng module. Nguồn canonical: `prompts/socratic/`. Build copy sang `dist/modules/socratic/assets/`. Không xóa các file `.md`/`.json` này (`system.v1`, `output.v1`, `outline-init.v1`); runtime nạp theo `import.meta.url`.

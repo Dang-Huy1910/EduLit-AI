@@ -1,12 +1,9 @@
 import { DomainError } from "../../core/errors.js";
-import { ASSESSMENT_MODEL_NAME } from "../../modules/assessment/domain/output.js";
-import { SOCRATIC_MODEL_NAME } from "../../modules/socratic/domain/output.js";
-import { WRITING_PROFILE_MODEL_NAME } from "../../modules/writing-profile/domain/output.js";
 
-export const SOCRATIC_TIMEOUT_MS = 20_000;
-export const SOCRATIC_RETRY_BUDGET_MS = 35_000;
-export const SOCRATIC_MAX_OUTPUT_TOKENS = 1024;
-export const SOCRATIC_THINKING_BUDGET = 256;
+export const SOCRATIC_TIMEOUT_MS = 60_000;
+export const SOCRATIC_RETRY_BUDGET_MS = 80_000;
+export const SOCRATIC_MAX_OUTPUT_TOKENS = 2048;
+
 export const SOCRATIC_MAX_INPUT_CHARS = 80_000;
 export const SOCRATIC_MAX_REQUIRED_CHARS = 60_000;
 export const SOCRATIC_MAX_STUDENT_MESSAGE_CHARS = 4_000;
@@ -16,46 +13,88 @@ export const SOCRATIC_MAX_OBSERVATIONS = 5;
 export const ASSESSMENT_TIMEOUT_MS = 45_000;
 export const ASSESSMENT_RETRY_BUDGET_MS = 70_000;
 export const ASSESSMENT_MAX_OUTPUT_TOKENS = 4096;
-export const ASSESSMENT_THINKING_BUDGET = 512;
+
 
 export const WRITING_PROFILE_TIMEOUT_MS = 30_000;
 export const WRITING_PROFILE_RETRY_BUDGET_MS = 50_000;
 export const WRITING_PROFILE_MAX_OUTPUT_TOKENS = 2048;
-export const WRITING_PROFILE_THINKING_BUDGET = 256;
+
 
 export type AiRuntimeMode = "live" | "mock";
+export type AiProvider = "gemini" | "openai";
+export type AiTask = "socratic" | "assessment" | "writingProfile";
+
+export type ResolvedAiConfig = {
+  mode: AiRuntimeMode;
+  provider: AiProvider;
+  model: string;
+  apiKey?: string;
+};
+
+const TASK_MODEL_ENV: Record<AiTask, string> = {
+  socratic: "SOCRATIC_MODEL",
+  assessment: "ASSESSMENT_MODEL",
+  writingProfile: "WRITING_PROFILE_MODEL",
+};
 
 export function resolveAiRuntimeMode(env: NodeJS.ProcessEnv = process.env): AiRuntimeMode {
-  return env.AI_MODE === "mock" ? "mock" : "live";
+  const value = env.AI_MODE?.trim();
+  if (!value) return "live";
+  if (value === "live" || value === "mock") return value;
+  throw new DomainError("AI_NOT_CONFIGURED", "AI_MODE must be live or mock");
+}
+
+export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiProvider {
+  const value = env.AI_PROVIDER?.trim();
+  if (!value) return "gemini";
+  if (value === "gemini" || value === "openai") return value;
+  throw new DomainError("AI_NOT_CONFIGURED", "AI_PROVIDER must be gemini or openai");
+}
+
+/** Resolve at composition time; provider adapters must not reread process.env. */
+export function resolveAiConfig(task: AiTask, env: NodeJS.ProcessEnv = process.env): ResolvedAiConfig {
+  const mode = resolveAiRuntimeMode(env);
+  const provider = resolveAiProvider(env);
+  const model = firstNonBlank(
+    env[TASK_MODEL_ENV[task]],
+    env.AI_MODEL,
+    provider === "gemini" ? env.GEMINI_MODEL : undefined,
+    provider === "gemini" ? "gemini-2.5-flash" : undefined,
+  );
+  if (!model) {
+    throw new DomainError("AI_NOT_CONFIGURED", "AI_MODEL is required when AI_PROVIDER=openai");
+  }
+  if (mode === "mock") return { mode, provider, model: `mock/${task}` };
+  const apiKey = provider === "gemini" ? env.GEMINI_API_KEY?.trim() : env.OPENAI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new DomainError(
+      "AI_NOT_CONFIGURED",
+      `${provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY"} is required for live ${provider} calls`,
+    );
+  }
+  return { mode, provider, model, apiKey };
 }
 
 export function requireGeminiApiKey(env: NodeJS.ProcessEnv = process.env): string {
-  const key = env.GEMINI_API_KEY?.trim();
-  if (!key) {
+  const config = resolveAiConfig("socratic", env);
+  if (config.provider !== "gemini" || !config.apiKey) {
     throw new DomainError("AI_NOT_CONFIGURED", "GEMINI_API_KEY is required for live Gemini calls");
   }
-  return key;
+  return config.apiKey;
 }
 
 export function resolveSocraticModel(env: NodeJS.ProcessEnv = process.env): string {
-  return resolveFixedGeminiModel(SOCRATIC_MODEL_NAME, env);
+  return resolveAiConfig("socratic", env).model;
 }
 
 export function resolveAssessmentModel(env: NodeJS.ProcessEnv = process.env): string {
-  return resolveFixedGeminiModel(ASSESSMENT_MODEL_NAME, env);
+  return resolveAiConfig("assessment", env).model;
 }
 
 export function resolveWritingProfileModel(env: NodeJS.ProcessEnv = process.env): string {
-  return resolveFixedGeminiModel(WRITING_PROFILE_MODEL_NAME, env);
+  return resolveAiConfig("writingProfile", env).model;
 }
 
-function resolveFixedGeminiModel(expected: string, env: NodeJS.ProcessEnv): string {
-  const configured = env.GEMINI_MODEL?.trim();
-  if (configured && configured !== expected) {
-    throw new DomainError(
-      "AI_NOT_CONFIGURED",
-      `GEMINI_MODEL must be ${expected}; refusing to switch model`,
-    );
-  }
-  return expected;
+function firstNonBlank(...values: Array<string | undefined>): string | undefined {
+  return values.map((value) => value?.trim()).find((value): value is string => Boolean(value));
 }

@@ -110,6 +110,7 @@ test("CHECK constraints reject invalid grade, scores, offsets and version", asyn
         totalScore: "1.00",
         maxScore: "10.00",
         status: "PUBLISHED",
+        modelName: "legacy/unknown",
         promptVersion: "t",
         assessedAt: new Date(),
         publishedAt: new Date(),

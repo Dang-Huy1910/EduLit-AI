@@ -1,7 +1,7 @@
 export { DomainError, VersionConflictError } from "./core/errors.js";
 export { assertEvidenceQuote, offsetsForQuote, uniqueOffsetsForQuote, sliceUtf16 } from "./core/utf16.js";
 export { validateRubric } from "./modules/assignments/domain/rubric.js";
-export { validateAssessmentScores, DEFAULT_MODEL_NAME } from "./modules/assessment/domain/evaluation.js";
+export { validateAssessmentScores, LEGACY_MODEL_NAME } from "./modules/assessment/domain/evaluation.js";
 export { PRISMA, createDatabaseProviders, createPrismaClientFactory } from "./infrastructure/database/database.provider.js";
 export {
   createPrismaHandle,
@@ -27,7 +27,6 @@ export { loadSocraticPromptBundle } from "./modules/socratic/prompt-assets.js";
 export {
   SOCRATIC_PROMPT_VERSION,
   SOCRATIC_SCHEMA_VERSION,
-  SOCRATIC_MODEL_NAME,
 } from "./modules/socratic/domain/output.js";
 export { submitAssignment } from "./modules/assessment/application/submit-assignment.js";
 export { saveAssessment, publishAssessment } from "./modules/assessment/application/save-assessment.js";
@@ -46,7 +45,6 @@ export { createAssessmentAiFromEnv } from "./infrastructure/ai/create-assessment
 export {
   ASSESSMENT_PROMPT_VERSION,
   ASSESSMENT_SCHEMA_VERSION,
-  ASSESSMENT_MODEL_NAME,
 } from "./modules/assessment/domain/output.js";
 export {
   saveObservationsAndRefreshProfile,
@@ -66,7 +64,6 @@ export { createWritingObservationAiFromEnv } from "./infrastructure/ai/create-wr
 export {
   WRITING_PROFILE_PROMPT_VERSION,
   WRITING_PROFILE_SCHEMA_VERSION,
-  WRITING_PROFILE_MODEL_NAME,
 } from "./modules/writing-profile/domain/output.js";
 export {
   WRITING_TRAITS,

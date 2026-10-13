@@ -6,7 +6,7 @@ const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const srcAssets = path.join(backendRoot, "src/modules/socratic/assets");
 const distAssets = path.join(backendRoot, "dist/modules/socratic/assets");
 const promptDir = path.resolve(backendRoot, "../prompts/socratic");
-const files = ["system.v1.md", "output.v1.schema.json"];
+const files = ["system.v1.md", "output.v1.schema.json", "outline-init.v1.md", "outline-init.v1.schema.json"];
 
 function mustRead(filePath: string): string {
   if (!fs.existsSync(filePath)) {

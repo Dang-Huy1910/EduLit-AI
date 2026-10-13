@@ -22,6 +22,7 @@ export type AssessmentAiSuccess = {
   finishReason: string;
   usage?: AssessmentAiUsage;
   latencyMs: number;
+  provider: "gemini" | "openai" | "mock";
   model: string;
   promptVersion: string;
 };

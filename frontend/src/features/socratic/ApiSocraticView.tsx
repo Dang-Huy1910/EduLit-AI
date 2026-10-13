@@ -334,10 +334,20 @@ export default function ApiSocraticView() {
           </div>
         )}
 
+        {session && !readOnly && (
+          <div className="p-3 bg-surface-container-low/50 rounded-xl border border-secondary/20 flex items-center gap-2 text-xs text-on-surface-variant">
+            <span className="material-symbols-outlined text-secondary text-base">verified</span>
+            <span>
+              <strong>Dàn ý gợi ý lúc mở đề.</strong> Em giữ, sửa hoặc xóa ý bên phải. Chat với Trợ lý khi muốn đổi hướng.
+              AI không viết đoạn văn mẫu.
+            </span>
+          </div>
+        )}
+
         {loading || !session ? (
           <div className="flex items-center gap-2 text-sm text-on-surface-variant py-12">
             <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            Đang mở phiên Socratic...
+            Đang soạn dàn ý gợi ý theo đề...
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -451,7 +461,7 @@ export default function ApiSocraticView() {
                 ))}
               </div>
               <div className="p-4 border-t text-[11px] text-on-surface-variant">
-                Nộp bài viết tay chưa có API trong feature này. AI không tự ghi đè dàn ý.
+                Nộp bài viết tay chưa có API trong feature này. Em sửa dàn ý trực tiếp; AI không ghi đè bản em đã lưu.
               </div>
             </div>
           </div>

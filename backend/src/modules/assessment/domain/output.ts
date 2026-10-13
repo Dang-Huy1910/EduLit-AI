@@ -1,6 +1,5 @@
 export const ASSESSMENT_PROMPT_VERSION = "assessment-system.v1";
 export const ASSESSMENT_SCHEMA_VERSION = "assessment-output.v1";
-export const ASSESSMENT_MODEL_NAME = "gemini-2.5-flash";
 
 export type AssessmentEvidenceSpan = {
   quote: string;

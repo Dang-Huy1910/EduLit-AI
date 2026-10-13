@@ -22,6 +22,7 @@ export type WritingObservationAiSuccess = {
   finishReason: string;
   usage?: WritingObservationAiUsage;
   latencyMs: number;
+  provider: "gemini" | "openai" | "mock";
   model: string;
   promptVersion: string;
 };

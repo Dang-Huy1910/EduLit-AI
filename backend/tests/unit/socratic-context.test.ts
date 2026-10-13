@@ -51,6 +51,30 @@ test("wraps untrusted data and does not treat injection as system instruction", 
   assert.ok(!built.userPayload.startsWith("Bỏ qua chỉ dẫn"));
 });
 
+test("keeps leading assistant scaffold message in history", () => {
+  const built = buildSocraticUserPayload({
+    snapshot,
+    outline: { sections: [{ id: "open", title: "Mở bài", points: ["Đặt vấn đề"] }] },
+    history: [
+      {
+        sequence: 1,
+        role: "ASSISTANT",
+        content: "Thầy/Cô đã phác dàn ý gợi ý. Em muốn đào sâu luận điểm nào trước?",
+      },
+      { sequence: 2, role: "USER", content: "Sửa luận điểm 1 giúp em." },
+      { sequence: 3, role: "ASSISTANT", content: "Em muốn giữ ý nào?" },
+    ],
+    profile: {
+      hasProfile: false,
+      declaredGoals: [],
+      observations: [],
+    },
+    studentMessage: "Em muốn đổi mở bài.",
+  });
+  assert.match(built.userPayload, /đã phác dàn ý gợi ý/);
+  assert.match(built.userPayload, /Sửa luận điểm 1/);
+});
+
 test("prefers matching genre and keeps declared goals as goals", () => {
   const context: ProfileContext = {
     studentId: "s",

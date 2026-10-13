@@ -90,6 +90,25 @@ export async function lockStudentThenAssignmentThenSession(
   await lockAssignmentThenSession(tx, assignmentId, sessionId);
 }
 
+/** Lock order for opening a new session, before a session row exists. */
+export async function lockStudentThenAssignment(
+  tx: Prisma.TransactionClient,
+  studentId: string,
+  assignmentId: string,
+): Promise<void> {
+  const users = await tx.$queryRaw<Array<{ id: string; role: string; status: string }>>(
+    Prisma.sql`SELECT id, role, status FROM users WHERE id = ${studentId}::uuid FOR UPDATE`,
+  );
+  const user = users[0];
+  if (!user) throw new DomainError("ACTOR_INVALID", "authenticated user does not exist");
+  if (user.role !== "STUDENT") throw new DomainError("ACTOR_FORBIDDEN", "only STUDENT actors may use socratic coaching");
+  if (user.status !== "ACTIVE") throw new DomainError("ACTOR_INACTIVE", "student account is INACTIVE");
+  const assignments = await tx.$queryRaw<Array<{ id: string }>>(
+    Prisma.sql`SELECT id FROM assignments WHERE id = ${assignmentId}::uuid FOR UPDATE`,
+  );
+  if (assignments.length === 0) throw new DomainError("SESSION_ASSIGNMENT", "assignment not found");
+}
+
 export async function lockAssignmentThenSession(
   tx: Prisma.TransactionClient,
   assignmentId: string,

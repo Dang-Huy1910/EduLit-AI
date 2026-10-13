@@ -97,7 +97,7 @@ sequenceDiagram
 | Runtime/gói | Node.js 24 LTS, npm | Backend `engines` khóa Node 24 |
 | Dữ liệu | PostgreSQL 17 + Prisma 7 | Đã triển khai trên `feat/database` |
 | Tác vụ nền | pg-boss trên PostgreSQL; worker cùng codebase backend | Chưa triển khai |
-| Model | **Gemini 2.5 Flash**, `gemini-2.5-flash`, SDK `@google/genai` | Adapter + fake AI đã có; live opt-in `AI_MODE=live` |
+| Model | Gemini hoặc OpenAI qua adapter backend | Provider/model theo cấu hình; fake AI chỉ dùng khi `AI_MODE=mock` |
 | File/ảnh | Local private storage khi dev; GCS khi deploy; Canvas + Sharp | Thiết kế đích; chưa tích hợp thật |
 | Auth | Tài khoản cấp trước, Argon2id, session PostgreSQL và cookie HttpOnly | Đã triển khai; mock mode vẫn là demo 1-click |
 | Contract | OpenAPI, JSON Schema + Ajv | Đã thiết kế danh sách contract; chưa có schema thực thi |
@@ -106,7 +106,7 @@ Backend gồm `identity`, `classrooms`, `assignments`, `grounding`, `socratic`, 
 
 Luồng MVP thật bổ sung privacy review và giáo viên xác nhận bản chép/công bố điểm; demo hiện tại vẫn minh họa luồng tương tác. Xem [Gemini pipeline](docs/architecture/gemini-pipeline.md) và [API design](docs/api/api-design.md). Các mục tiêu độ trễ và chất lượng phải được đo, không suy từ prototype.
 
-Theo [tài liệu Google](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash), quyền truy cập Gemini 2.5 Flash hiện phụ thuộc lịch sử sử dụng tài khoản. Milestone đầu tiên kiểm tra model trên project thực tế; hệ thống không tự đổi model khi không truy cập được.
+Live provider/model được cấu hình ở backend. Hệ thống không tự đổi provider hoặc model khi không truy cập được.
 
 ---
 

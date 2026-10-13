@@ -10,7 +10,7 @@ import { sendSocraticTurn } from "./send-socratic-turn.js";
 export function createSocraticServices(prisma: EduLitPrisma, ai: SocraticAiPort = createSocraticAiFromEnv()) {
   return {
     openOrResumeSocraticSession: (actor: StudentActor, assignmentId: string) =>
-      openOrResumeSocraticSession(prisma, { actor, assignmentId }),
+      openOrResumeSocraticSession(prisma, { actor, assignmentId, ai }),
     getSocraticSession: (actor: StudentActor, sessionId: string) =>
       getSocraticSession(prisma, { actor, sessionId }),
     saveStudentOutline: (
