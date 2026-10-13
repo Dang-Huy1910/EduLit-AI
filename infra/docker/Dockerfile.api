@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# Build từ root repo:
+#   docker build -f infra/docker/Dockerfile.api -t edulit-api .
+
+ARG NODE_VERSION=24
+
+FROM node:${NODE_VERSION}-bookworm-slim AS deps
+WORKDIR /app
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+COPY backend/package.json backend/package-lock.json ./
+COPY backend/prisma ./prisma
+COPY backend/prisma.config.ts ./
+RUN npm ci
+
+FROM deps AS build
+COPY backend/tsconfig.json backend/tsconfig.build.json ./
+COPY backend/src ./src
+COPY backend/scripts ./scripts
+# copy-*-assets so sánh backend assets với prompts/ ở sibling của backend
+COPY prompts /prompts
+RUN npm run build \
+  && npm prune --omit=dev \
+  && npm install prisma@7.10.0 --no-save --omit=dev
+
+FROM node:${NODE_VERSION}-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && mkdir -p /app/var/uploads \
+  && chown -R node:node /app
+COPY --from=build --chown=node:node /app/package.json /app/package-lock.json ./
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/dist ./dist
+COPY --from=build --chown=node:node /app/prisma ./prisma
+COPY --from=build --chown=node:node /app/prisma.config.ts ./
+COPY --from=build --chown=node:node /app/src/generated ./src/generated
+COPY --chown=node:node infra/docker/api-entrypoint.sh /usr/local/bin/api-entrypoint.sh
+RUN chmod +x /usr/local/bin/api-entrypoint.sh
+USER node
+EXPOSE 4000
+HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=12 \
+  CMD node -e "fetch('http://127.0.0.1:4000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+ENTRYPOINT ["/usr/local/bin/api-entrypoint.sh"]

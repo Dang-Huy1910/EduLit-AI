@@ -24,6 +24,7 @@ import { TeacherOcrController } from "../modules/submissions/presentation/teache
 import { StudentProfileController, StudentSubmissionsController, TeacherAssessmentsController } from "../modules/assessment/presentation/assessment.controller.js";
 import { ApiExceptionFilter, ApiHttpException, ERROR_MESSAGES } from "./api-error.js";
 import { ASSESSMENT_AI, HTTP_CONFIG, PRIVATE_STORAGE, SOCRATIC_AI, VISION_AI, WRITING_PROFILE_AI, type HttpConfig } from "./config.js";
+import { HealthController } from "./health.controller.js";
 import { OriginGuard } from "./origin.guard.js";
 import { SessionAuthGuard } from "./session.guard.js";
 import { StudentGuard, TeacherGuard } from "./auth-user.js";
@@ -50,7 +51,7 @@ function resolveCookieParser(): RequestHandler {
 
 export async function createHttpApp(deps: HttpAppDeps): Promise<NestExpressApplication> {
   @Module({
-    controllers: [AuthController, AssignmentsController, TeacherAssignmentsController, SocraticController, SubmissionDraftsController, TeacherOcrController, PrivateFilesController, TeacherAssessmentsController, StudentSubmissionsController, StudentProfileController],
+    controllers: [HealthController, AuthController, AssignmentsController, TeacherAssignmentsController, SocraticController, SubmissionDraftsController, TeacherOcrController, PrivateFilesController, TeacherAssessmentsController, StudentSubmissionsController, StudentProfileController],
     providers: [
       { provide: PRISMA, useValue: deps.prisma },
       { provide: SOCRATIC_AI, useValue: deps.ai },

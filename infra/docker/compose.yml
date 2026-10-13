@@ -1,0 +1,105 @@
+# EduLit-AI Compose
+# - Mặc định / db:up: chỉ Postgres
+# - Full local containers: docker compose --profile app up -d --build
+#
+# Từ thư mục backend (có .env):
+#   docker compose --env-file .env -f ../infra/docker/compose.yml up -d --wait postgres
+#   docker compose --env-file .env -f ../infra/docker/compose.yml --profile app up -d --build
+
+name: edulit
+
+include:
+  - path: compose.postgres.yml
+
+services:
+  api:
+    profiles: ["app"]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-edulit}:${POSTGRES_PASSWORD:-edulit_dev}@postgres:5432/${POSTGRES_DB:-edulit}
+      SHADOW_DATABASE_URL: postgresql://${POSTGRES_USER:-edulit}:${POSTGRES_PASSWORD:-edulit_dev}@postgres:5432/edulit_shadow
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:3000}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-edulit_session}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-604800}
+      LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-8}
+      LOGIN_WINDOW_SECONDS: ${LOGIN_WINDOW_SECONDS:-900}
+      JSON_BODY_LIMIT: ${JSON_BODY_LIMIT:-64kb}
+      ALLOW_DEMO_LOGIN: ${ALLOW_DEMO_LOGIN:-true}
+      DEV_SEED_PASSWORD: ${DEV_SEED_PASSWORD:-}
+      AI_MODE: ${AI_MODE:-mock}
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      AI_MODEL: ${AI_MODEL:-}
+      SOCRATIC_MODEL: ${SOCRATIC_MODEL:-}
+      ASSESSMENT_MODEL: ${ASSESSMENT_MODEL:-}
+      WRITING_PROFILE_MODEL: ${WRITING_PROFILE_MODEL:-}
+      OCR_MODEL: ${OCR_MODEL:-}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      LOCAL_STORAGE_PATH: /app/var/uploads
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-10485760}
+      UPLOAD_MAX_TOTAL_BYTES: ${UPLOAD_MAX_TOTAL_BYTES:-41943040}
+      UPLOAD_MAX_PIXELS: ${UPLOAD_MAX_PIXELS:-25000000}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-1}
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - edulit_api_uploads:/app/var/uploads
+    networks:
+      - edulit
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_DATA_MODE: ${NEXT_PUBLIC_DATA_MODE:-api}
+        # Browser gọi API qua cổng publish trên host, không dùng hostname nội bộ "api".
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000/api}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - edulit
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  edulit_api_uploads:

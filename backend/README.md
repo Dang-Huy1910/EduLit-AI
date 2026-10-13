@@ -24,7 +24,7 @@ npm run prisma:seed
 npm run db:check
 ```
 
-Compose: `infra/docker/compose.database.yml`. Cổng host mặc định **5433** (tránh đụng PostgreSQL sẵn có trên 5432), đổi bằng `POSTGRES_PORT`. Volume `edulit_pg_data`. Không đặt `container_name` cố định.
+Compose: `infra/docker/compose.database.yml` (chỉ Postgres). Full stack: `infra/docker/compose.yml --profile app`. Chi tiết [docs/deployment/docker.md](../docs/deployment/docker.md). Cổng host mặc định **5433** (tránh đụng PostgreSQL sẵn có trên 5432), đổi bằng `POSTGRES_PORT`. Volume `edulit_pg_data`. Không đặt `container_name` cố định.
 
 Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_shadow`. Local bootstrap user có quyền tạo DB; môi trường thật dùng role ứng dụng không phải superuser.
 
@@ -58,7 +58,7 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 
 Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Lỗi live không được đổi thành fake thành công.
 
-AI runtime dùng `AI_MODE=mock|live`, `AI_PROVIDER=gemini|openai` và `AI_MODEL`. Model theo tác vụ ưu tiên `SOCRATIC_MODEL`, `ASSESSMENT_MODEL`, `WRITING_PROFILE_MODEL`, rồi `AI_MODEL`, `GEMINI_MODEL` legacy (Gemini), rồi `gemini-2.5-flash`. OpenAI không tự chọn model. Gemini dùng `GEMINI_API_KEY`, OpenAI dùng `OPENAI_API_KEY`. Đặt `AI_MODE=mock` cho test/browser; live smoke chỉ chạy khi bật cờ và cấu hình key/model.
+AI runtime dùng `AI_MODE=mock|live` và `AI_PROVIDER=gemini|openai`. Đổi provider là đủ nếu đã điền `GEMINI_API_KEY`/`GEMINI_MODEL` và `OPENAI_API_KEY`/`OPENAI_MODEL`. Model theo tác vụ ưu tiên `SOCRATIC_MODEL`, `ASSESSMENT_MODEL`, `WRITING_PROFILE_MODEL`, `OCR_MODEL`, rồi model theo provider, rồi `AI_MODEL` chung, rồi `gemini-3.8-flash` cho Gemini. OpenAI không tự chọn model. Đặt `AI_MODE=mock` cho test/browser; live smoke chỉ chạy khi bật cờ và cấu hình key/model.
 
 ## Seed
 

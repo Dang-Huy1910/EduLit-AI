@@ -4,14 +4,25 @@ Kiến trúc MVP chọn PostgreSQL 17, frontend Next.js và backend NestJS chạ
 
 | Môi trường | Hạ tầng đích |
 | --- | --- |
-| Development | Docker Compose cho PostgreSQL; frontend/API/worker local; file riêng tư ở `var/` |
+| Development | Docker Compose cho PostgreSQL; frontend/API local bằng npm; hoặc `--profile app` chạy cả Nest/Next trong Compose |
 | Staging | Container API/worker/frontend, database và GCS bucket riêng, credentials riêng |
 | Pilot production | VM container có HTTPS reverse proxy, PostgreSQL managed, GCS, secret manager, backup/cleanup |
 
 Worker phải thường trú để nhận job; không xử lý lâu bên trong Next.js route handler hoặc dựa vào lifecycle của serverless request. File production không lưu bền vững trong filesystem container. API và frontend cùng origin, `/api/v1` proxy tới NestJS; migration chạy một lần trước rollout.
 
-`docker/` dành cho Dockerfile và cấu hình container sau khi xác định ứng dụng cần chạy. `environments/development`, `staging`, `production` dành cho cấu hình khác biệt giữa các môi trường.
+## Docker (dev)
 
-Chỉ commit template và cấu hình không chứa secret. Credentials và giá trị cấu hình nhạy cảm được cấp qua môi trường triển khai. Tài liệu vận hành nằm trong `docs/deployment/`; lệnh hỗ trợ bảo trì nằm trong `scripts/maintenance/`.
+Chi tiết lệnh: [docs/deployment/docker.md](../docs/deployment/docker.md).
 
-Dev PostgreSQL 17: `docker/compose.database.yml` (volume `edulit_pg_data`, healthcheck, cổng host `POSTGRES_PORT` mặc định 5433). Xem lệnh trong [backend/README.md](../backend/README.md). Chưa có Dockerfile ứng dụng, GCS hay môi trường staging/production.
+| File | Việc |
+| --- | --- |
+| `docker/compose.database.yml` | Chỉ Postgres 17 — `npm run db:up` |
+| `docker/compose.yml` | Postgres + profile `app` (API + Web) |
+| `docker/Dockerfile.api` / `Dockerfile.web` | Multi-stage Node 24 |
+| `docker/.env.example` | Biến mẫu cho Compose |
+
+Cổng host Postgres mặc định **5433**. Volume `edulit_pg_data`. Không đặt `container_name` cố định.
+
+`environments/development`, `staging`, `production` dành cho cấu hình khác biệt giữa các môi trường (bổ sung sau).
+
+Chỉ commit template và cấu hình không chứa secret. Credentials cấp qua môi trường triển khai. Lệnh bảo trì: `scripts/maintenance/`.
