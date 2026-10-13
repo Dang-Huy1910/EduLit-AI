@@ -4,15 +4,20 @@ Bốn thư mục `grounding`, `socratic`, `assessment`, `analytics` giữ các c
 
 Thiết kế MVP dùng **Gemini 2.5 Flash** (`gemini-2.5-flash`) cho các task riêng; bổ sung `writing-profile` khi triển khai cá nhân hóa. [Gemini pipeline](../docs/architecture/gemini-pipeline.md) mô tả input/output, version, schema và guardrail. Prompt OCR chép nguyên văn; prompt chấm chỉ nhận bản chép đã xác nhận; profile không đưa vào scoring context.
 
-Khi bổ sung prompt, dùng tên thể hiện vai trò và phiên bản, ví dụ `system.v1.md`, kèm mô tả đầu vào, đầu ra và bộ đánh giá liên quan. Ứng dụng nạp prompt bằng cơ chế phù hợp với môi trường build/deploy đã chọn.
+Khi bổ sung prompt, dùng tên thể hiện vai trò và phiên bản, ví dụ `system.v1.md`, kèm mô tả đầu vào, đầu ra và bộ đánh giá liên quan. Ứng dụng nạp prompt bằng `import.meta.url` + copy vào `dist/` lúc build; không phụ thuộc cwd.
 
 Nội dung học liệu, rubric và bài làm được đưa vào lúc xử lý yêu cầu, không được ghi cố định vào prompt chung. Thay đổi prompt Socratic phải kiểm tra guardrail; thay đổi prompt đánh giá phải kiểm tra schema và chất lượng chấm.
 
-Prompt hiện chưa được triển khai; quy tắc Socratic tham chiếu mục 4.4 của [SRS](../SRS.md).
+Socratic v1 đã có `prompts/socratic/system.v1.md` và `output.v1.schema.json` (sao vào `backend/src/modules/socratic/assets/`). Quy tắc BR-01–BR-04 tham chiếu mục 4.4 của [SRS](../SRS.md).
 
 ## Prompt triển khai database
 
 - [Grok — Database MVP trên nhánh feat/database](grok-database.md): Prompt triển khai PostgreSQL/Prisma cho phạm vi MVP tối giản mới nhất. Toàn bộ schema, migrations, seed, kiểm tra và bàn giao nằm trong một nhánh `feat/database`; chuyển sang chức năng khác mới tạo nhánh mới. Chưa yêu cầu gọi AI hoặc xây CRUD HTTP.
+
+## Prompt triển khai AI
+
+- [Grok — Gemini và Socratic trên nhánh feat/socratic](grok-socratic.md): Feature kế tiếp sau database. Gồm adapter Gemini 2.5 Flash, context/profile, guardrail, lưu lượt chat atomic, retry/concurrency, CLI demo và kiểm tra. Chưa triển khai HTTP/auth, chấm bài hoặc AI trích xuất văn phong.
+- [Lộ trình MVP theo feature](../docs/development/minimal-mvp-roadmap.md): Thứ tự database → Socratic → assessment → writing profile và ranh giới công việc với cộng sự.
 
 ## Prompt giao diện (UI)
 

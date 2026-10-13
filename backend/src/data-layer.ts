@@ -12,6 +12,23 @@ export {
 export { createAssignment } from "./modules/assignments/application/create-assignment.js";
 export { startSocraticSession } from "./modules/socratic/application/start-session.js";
 export { appendChatMessage } from "./modules/socratic/application/append-message.js";
+export { openOrResumeSocraticSession } from "./modules/socratic/application/open-or-resume-session.js";
+export { getSocraticSession } from "./modules/socratic/application/get-socratic-session.js";
+export { saveStudentOutline } from "./modules/socratic/application/save-student-outline.js";
+export { sendSocraticTurn } from "./modules/socratic/application/send-socratic-turn.js";
+export { createSocraticServices } from "./modules/socratic/application/create-socratic-services.js";
+export type { StudentActor } from "./modules/socratic/domain/actor.js";
+export type { StudentOutline } from "./modules/socratic/domain/outline.js";
+export type { SocraticAiPort } from "./infrastructure/ai/socratic-ai.port.js";
+export { FakeSocraticAi } from "./infrastructure/ai/fake-socratic.adapter.js";
+export { GeminiSocraticAdapter } from "./infrastructure/ai/gemini-socratic.adapter.js";
+export { createSocraticAiFromEnv } from "./infrastructure/ai/create-socratic-ai.js";
+export { loadSocraticPromptBundle } from "./modules/socratic/prompt-assets.js";
+export {
+  SOCRATIC_PROMPT_VERSION,
+  SOCRATIC_SCHEMA_VERSION,
+  SOCRATIC_MODEL_NAME,
+} from "./modules/socratic/domain/output.js";
 export { submitAssignment } from "./modules/assessment/application/submit-assignment.js";
 export { saveAssessment, publishAssessment } from "./modules/assessment/application/save-assessment.js";
 export {

@@ -135,6 +135,25 @@ export async function seedDatabase(prisma: EduLitPrisma, passwordHash: string): 
     dueAt: new Date("2026-11-05T16:59:00.000Z"),
   });
 
+  await upsertAssignment(prisma, {
+    id: SEED_IDS.assignmentSocratic,
+    teacherId: SEED_IDS.teacher,
+    code: "VAN12-NLXH-SOC",
+    title: "Nghị luận xã hội: Bản lĩnh trước áp lực thành tích",
+    instructions:
+      "Viết bài nghị luận khoảng 600 chữ về bản lĩnh của người trẻ trước áp lực thành tích. Học sinh tự lập dàn ý; không yêu cầu phản đề nếu em chưa thấy cần.",
+    genre: "NLXH",
+    gradeLevel: 12,
+    learningMaterialText:
+      "Học liệu văn bản tổng hợp: một ý kiến cho rằng thành tích chỉ có ý nghĩa khi người trẻ giữ được sự trung thực. Đây là ngữ liệu nhập tay dành cho demo Socratic, không phải file OCR.",
+    rubric: NLXH_RUBRIC,
+    maxScore: "10.00",
+    scoreStep: "0.25",
+    status: "PUBLISHED",
+    publishedAt: new Date("2026-10-01T00:00:00.000Z"),
+    dueAt: new Date("2026-11-20T16:59:00.000Z"),
+  });
+
   await createIfMissing(prisma, "socraticSession", SEED_IDS.sessionMyNlxh, () =>
     prisma.socraticSession.create({
       data: {

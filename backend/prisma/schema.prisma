@@ -135,6 +135,7 @@ model SocraticSession {
   assignmentId    String                @map("assignment_id") @db.Uuid
   contextSnapshot Json                  @map("context_snapshot")
   outline         Json
+  outlineRevision Int                   @default(1) @map("outline_revision")
   status          SocraticSessionStatus @default(ACTIVE)
   createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -156,11 +157,13 @@ model ChatMessage {
   sequence  Int
   role      ChatMessageRole
   content   String          @db.Text
+  requestId String?         @map("request_id")
   createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
   session SocraticSession @relation(fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([sessionId, sequence])
+  @@unique([sessionId, requestId, role])
   @@index([sessionId])
   @@map("chat_messages")
 }

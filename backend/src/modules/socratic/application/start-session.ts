@@ -27,6 +27,7 @@ export async function startSocraticSession(prisma: EduLitPrisma, input: StartSoc
       assignmentId: input.assignmentId,
       contextSnapshot: contextSnapshot as Prisma.InputJsonValue,
       outline: (input.outline ?? { sections: [] }) as Prisma.InputJsonValue,
+      outlineRevision: 1,
       status: "ACTIVE",
     },
   });

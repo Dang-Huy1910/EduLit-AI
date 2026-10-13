@@ -1,0 +1,45 @@
+{
+  "$id": "https://edulit.local/schemas/socratic-output.v1.json",
+  "title": "SocraticTurnOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["replySentences", "focusCriterionIds"],
+  "properties": {
+    "replySentences": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Một đến bốn câu tiếng Việt. Mỗi phần tử nên là một câu; validator đếm câu thực tế trên toàn bộ mảng."
+    },
+    "focusCriterionIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Mã tiêu chí rubric của đúng phiên, có thể rỗng."
+    },
+    "sourceRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["learningMaterial", "instructions", "rubricCriterion"]
+          },
+          "criterionId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

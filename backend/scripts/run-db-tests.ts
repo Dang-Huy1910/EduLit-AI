@@ -39,6 +39,7 @@ async function main(): Promise<void> {
       "tests/integration/e2e-data-layer.test.ts",
       "tests/integration/seed.test.ts",
       "tests/integration/review-fixes.test.ts",
+      "tests/integration/socratic.test.ts",
     ],
     { DATABASE_URL: testUrl, DATABASE_URL_TEST: testUrl },
   );

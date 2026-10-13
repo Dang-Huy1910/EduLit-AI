@@ -12,6 +12,6 @@ Mỗi bộ đánh giá cần mô tả dữ liệu, phiên bản prompt/mô hình
 
 Kết quả chạy cục bộ có thể ghi vào `evaluations/results/`, được Git bỏ qua. Báo cáo được chọn để chia sẻ cần loại bỏ dữ liệu riêng tư và lưu trong tài liệu phù hợp.
 
-Thư mục này dành cho chất lượng mô hình; kiểm tra phần mềm đầu cuối, schema và thời gian xử lý nằm trong `tests/`. Hiện chưa có dataset, runner hoặc báo cáo đánh giá.
+Thư mục này dành cho chất lượng mô hình; kiểm tra phần mềm đầu cuối, schema và thời gian xử lý nằm trong `tests/`. Socratic có fixture tình huống tại `evaluations/socratic/cases.v1.json`; chưa có runner chấm điểm model tự động.
 
 Model lựa chọn là `gemini-2.5-flash`. [Gemini pipeline](../docs/architecture/gemini-pipeline.md#8-quota-retry-và-evaluation) quy định bộ đo OCR, chấm, Socratic và profile. Confidence do model tự khai chưa là accuracy đã đo; benchmark cần bản chép chuẩn và teacher judgments. Tách tuning/holdout; profile được dựng từ bài trước rồi kiểm tra trên bài tiếp theo.

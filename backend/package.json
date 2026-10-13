@@ -17,14 +17,19 @@
     "db:check": "tsx src/infrastructure/database/check-connection.ts",
     "db:setup": "npm run db:up && npm run prisma:generate && npm run prisma:migrate:deploy && npm run prisma:seed",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsx scripts/copy-socratic-assets.ts",
     "test": "tsx --test tests/unit/*.test.ts",
     "test:db": "tsx scripts/run-db-tests.ts",
+    "test:dist": "npm run build && tsx --test tests/socratic-dist-import.test.ts",
+    "socratic:demo": "tsx scripts/socratic-demo.ts",
+    "socratic:live-smoke": "tsx scripts/socratic-live-smoke.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@google/genai": "1.30.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "ajv": "8.17.1",
     "argon2": "0.44.0",
     "dotenv": "17.4.2",
     "pg": "8.23.1"

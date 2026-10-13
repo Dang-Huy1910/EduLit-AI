@@ -1,6 +1,6 @@
 # Backend — data layer MVP
 
-Backend đích vẫn là NestJS/TypeScript. **Đợt này chỉ có data layer:** PostgreSQL 17, Prisma ORM 7.10.0, persistence helpers và seed giả lập. Chưa có HTTP server, controller, auth endpoint, worker hay gọi Gemini.
+Backend đích vẫn là NestJS/TypeScript. **Hiện có data layer** (PostgreSQL 17, Prisma ORM 7.10.0) **và application Socratic** (adapter Gemini 2.5 Flash, guardrail, lưu lượt chat, CLI demo). Chưa có HTTP server, controller, auth endpoint hay worker.
 
 Đọc [ADR-0002](../docs/architecture/decisions/0002-minimal-mvp-database.md), [minimal-database.md](../docs/architecture/minimal-database.md) và [database-handoff.md](../docs/development/database-handoff.md).
 
@@ -44,8 +44,11 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run build` | compile `src/` |
 | `npm test` | unit tests (không cần DB) |
 | `npm run test:db` | migrate DB test rồi chạy integration; bắt buộc `DATABASE_URL_TEST` |
+| `npm run test:dist` | build rồi kiểm tra prompt assets trong `dist/` từ cwd khác |
+| `npm run socratic:demo` | CLI mở phiên / gửi lượt / lưu dàn ý (mặc định `AI_MODE=mock`) |
+| `npm run socratic:live-smoke` | opt-in gọi `gemini-2.5-flash`; cần `SOCRATIC_LIVE=1` và `GEMINI_API_KEY` |
 
-Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu.
+Không dùng `prisma db push` làm cách triển khai. Không `migrate reset` trên DB đang có dữ liệu. Gemini lỗi không được đổi thành fake thành công. Key chỉ đọc `GEMINI_API_KEY`.
 
 ## Seed
 
@@ -58,10 +61,11 @@ prisma/schema.prisma
 prisma/migrations/
 src/infrastructure/database/   # Prisma client, provider Nest-shaped, check kết nối
 src/modules/assignments/
-src/modules/socratic/
+src/modules/socratic/          # use cases, guardrail, prompt assets
+src/infrastructure/ai/         # SocraticAiPort, Gemini adapter, fake adapter
 src/modules/assessment/
 src/modules/writing-profile/
 src/data-layer.ts              # export helpers cho cộng sự
 ```
 
-Module vẫn theo domain/application/persistence. Chưa có `presentation/`.
+Module vẫn theo domain/application/persistence. Chưa có `presentation/`. Bàn giao Socratic: [socratic-handoff.md](../docs/development/socratic-handoff.md).
