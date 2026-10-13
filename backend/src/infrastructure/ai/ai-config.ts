@@ -22,7 +22,7 @@ export const WRITING_PROFILE_MAX_OUTPUT_TOKENS = 2048;
 
 export type AiRuntimeMode = "live" | "mock";
 export type AiProvider = "gemini" | "openai";
-export type AiTask = "socratic" | "assessment" | "writingProfile";
+export type AiTask = "socratic" | "assessment" | "writingProfile" | "ocr";
 
 export type ResolvedAiConfig = {
   mode: AiRuntimeMode;
@@ -35,6 +35,7 @@ const TASK_MODEL_ENV: Record<AiTask, string> = {
   socratic: "SOCRATIC_MODEL",
   assessment: "ASSESSMENT_MODEL",
   writingProfile: "WRITING_PROFILE_MODEL",
+  ocr: "OCR_MODEL",
 };
 
 export function resolveAiRuntimeMode(env: NodeJS.ProcessEnv = process.env): AiRuntimeMode {

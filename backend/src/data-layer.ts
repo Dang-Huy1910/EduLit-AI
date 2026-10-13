@@ -36,6 +36,7 @@ export { assessSubmission } from "./modules/assessment/application/assess-submis
 export { getSubmission } from "./modules/assessment/application/get-submission.js";
 export { getAssessment } from "./modules/assessment/application/get-assessment.js";
 export { publishReviewedAssessment } from "./modules/assessment/application/publish-reviewed-assessment.js";
+export { reviewAssessment } from "./modules/assessment/application/review-assessment.js";
 export { loadAssessmentPromptBundle } from "./modules/assessment/prompt-assets.js";
 export type { AssessmentActor } from "./modules/assessment/domain/actor.js";
 export type { AssessmentAiPort } from "./infrastructure/ai/assessment-ai.port.js";

@@ -50,6 +50,42 @@ enum AssessmentStatus {
   @@map("assessment_status")
 }
 
+enum SubmissionSource {
+  LEGACY_TEXT
+  IMAGE_OCR
+
+  @@map("submission_source")
+}
+
+enum SubmissionDraftStatus {
+  DRAFT
+  AWAITING_PRIVACY_REVIEW
+  PRIVACY_RETURNED
+  PRIVACY_APPROVED
+  OCR_PROCESSING
+  OCR_FAILED
+  OCR_REVIEW
+  CONFIRMED
+
+  @@map("submission_draft_status")
+}
+
+enum OcrRevisionStatus {
+  COMPLETED
+  CONFIRMED
+  SUPERSEDED
+
+  @@map("ocr_revision_status")
+}
+
+enum OcrIssueStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+
+  @@map("ocr_issue_status")
+}
+
 enum ObservationKind {
   STRENGTH
   WEAKNESS
@@ -82,6 +118,8 @@ model User {
   socraticSessions    SocraticSession[]
   submissions         Submission[]
   assignmentProgress  AssignmentProgress[]
+  submissionDrafts    SubmissionDraft[] @relation("DraftStudent")
+  privacyReviewedDrafts SubmissionDraft[] @relation("DraftPrivacyReviewer")
   writingObservations WritingObservation[]
   writingProfile      WritingProfile?
 
@@ -125,6 +163,7 @@ model Assignment {
   socraticSessions SocraticSession[]
   submissions      Submission[]
   progress         AssignmentProgress[]
+  submissionDrafts SubmissionDraft[]
 
   @@index([teacherId])
   @@index([status])
@@ -194,6 +233,8 @@ model Submission {
   studentId          String   @map("student_id") @db.Uuid
   assignmentId       String   @map("assignment_id") @db.Uuid
   socraticSessionId  String?  @map("socratic_session_id") @db.Uuid
+  source             SubmissionSource @default(LEGACY_TEXT)
+  sourceDraftId      String?  @unique @map("source_draft_id") @db.Uuid
   text               String   @db.Text
   contentHash        String   @map("content_hash")
   assignmentSnapshot Json     @map("assignment_snapshot")
@@ -204,12 +245,102 @@ model Submission {
   assignment      Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   socraticSession SocraticSession? @relation(fields: [socraticSessionId, studentId, assignmentId], references: [id, studentId, assignmentId], onDelete: Restrict, onUpdate: Restrict)
   assessment      Assessment?
+  sourceDraft     SubmissionDraft? @relation(fields: [sourceDraftId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([studentId, assignmentId])
   @@unique([id, studentId])
   @@index([assignmentId])
   @@index([socraticSessionId])
   @@map("submissions")
+}
+
+model SubmissionDraft {
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  studentId            String                @map("student_id") @db.Uuid
+  assignmentId         String                @map("assignment_id") @db.Uuid
+  assignmentSnapshot   Json                  @map("assignment_snapshot")
+  status               SubmissionDraftStatus @default(DRAFT)
+  revision             Int                   @default(1)
+  privacyReviewedById  String?               @map("privacy_reviewed_by_id") @db.Uuid
+  privacyReviewedAt    DateTime?             @map("privacy_reviewed_at") @db.Timestamptz(6)
+  privacyReturnReason  String?               @map("privacy_return_reason") @db.Text
+  ocrAttempts          Int                   @default(0) @map("ocr_attempts")
+  ocrLeaseUntil        DateTime?             @map("ocr_lease_until") @db.Timestamptz(6)
+  ocrLeaseToken        String?               @map("ocr_lease_token")
+  ocrErrorCode         String?               @map("ocr_error_code")
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student          User              @relation("DraftStudent", fields: [studentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  assignment       Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  privacyReviewer  User?             @relation("DraftPrivacyReviewer", fields: [privacyReviewedById], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pages            SubmissionDraftPage[]
+  ocrRevisions     OcrRevision[]
+  submission       Submission?
+
+  @@unique([studentId, assignmentId])
+  @@index([assignmentId, status])
+  @@map("submission_drafts")
+}
+
+model SubmissionDraftPage {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  draftId          String          @map("draft_id") @db.Uuid
+  pageIndex        Int             @map("page_index")
+  originalFileId   String          @map("original_file_id")
+  derivativeFileId String          @map("derivative_file_id")
+  mimeType         String          @map("mime_type")
+  contentHash      String          @map("content_hash")
+  masks            Json            @default("[]")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  draft SubmissionDraft @relation(fields: [draftId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([draftId, pageIndex])
+  @@index([draftId])
+  @@map("submission_draft_pages")
+}
+
+model OcrRevision {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  draftId         String            @map("draft_id") @db.Uuid
+  sourceRevision  Int               @map("source_revision")
+  revision        Int               @map("revision")
+  status          OcrRevisionStatus @default(COMPLETED)
+  rawPages        Json              @map("raw_pages")
+  correctedText   String            @map("corrected_text") @db.Text
+  provider        String?           @map("provider")
+  modelName       String?           @map("model_name")
+  promptVersion   String?           @map("prompt_version")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  draft  SubmissionDraft @relation(fields: [draftId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  issues OcrIssue[]
+
+  @@unique([draftId, revision])
+  @@index([draftId, sourceRevision])
+  @@map("ocr_revisions")
+}
+
+model OcrIssue {
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ocrRevisionId String         @map("ocr_revision_id") @db.Uuid
+  reporterId    String         @map("reporter_id") @db.Uuid
+  pageId        String?        @map("page_id") @db.Uuid
+  segmentId     String?        @map("segment_id")
+  reportedText  String         @map("reported_text") @db.Text
+  note          String?        @db.Text
+  status        OcrIssueStatus @default(OPEN)
+  resolvedById  String?        @map("resolved_by_id") @db.Uuid
+  resolvedAt    DateTime?      @map("resolved_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ocrRevision OcrRevision @relation(fields: [ocrRevisionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([ocrRevisionId, status])
+  @@map("ocr_issues")
 }
 
 model Assessment {
@@ -219,6 +350,12 @@ model Assessment {
   rubricSnapshot      Json             @map("rubric_snapshot")
   detailedEvaluations Json             @map("detailed_evaluations")
   totalScore          Decimal          @map("total_score") @db.Decimal(8, 2)
+  aiDetailedEvaluations Json?          @map("ai_detailed_evaluations")
+  aiTotalScore        Decimal?         @map("ai_total_score") @db.Decimal(8, 2)
+  reviewedById        String?          @map("reviewed_by_id") @db.Uuid
+  reviewedAt          DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  reviewReason        String?          @map("review_reason") @db.Text
+  reviewRevision      Int              @default(0) @map("review_revision")
   maxScore            Decimal          @map("max_score") @db.Decimal(8, 2)
   status              AssessmentStatus @default(AI_DRAFT)
   modelName           String           @map("model_name")

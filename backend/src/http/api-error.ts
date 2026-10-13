@@ -61,6 +61,13 @@ export function mapDomainError(error: DomainError): ApiHttpException {
       return new ApiHttpException(HttpStatus.CONFLICT, "SESSION_ASSIGNMENT", ERROR_MESSAGES.CONFLICT);
     case "ASSIGNMENT_NOT_FOUND":
     case "ASSIGNMENT_OWNERSHIP":
+    case "DRAFT_NOT_FOUND":
+    case "PAGE_NOT_FOUND":
+    case "OCR_NOT_FOUND":
+    case "FILE_NOT_FOUND":
+    case "ASSESSMENT_MISSING":
+    case "SUBMISSION_NOT_FOUND":
+    case "ASSESSMENT_OWNERSHIP":
       return new ApiHttpException(HttpStatus.NOT_FOUND, "NOT_FOUND", ERROR_MESSAGES.NOT_FOUND);
     case "SESSION_COMPLETED":
       return new ApiHttpException(HttpStatus.CONFLICT, "SESSION_COMPLETED", ERROR_MESSAGES.SESSION_COMPLETED);
@@ -72,6 +79,11 @@ export function mapDomainError(error: DomainError): ApiHttpException {
       return new ApiHttpException(HttpStatus.CONFLICT, "TURN_CONFLICT", ERROR_MESSAGES.TURN_CONFLICT);
     case "REQUEST_ID_CONFLICT":
       return new ApiHttpException(HttpStatus.CONFLICT, "REQUEST_ID_CONFLICT", ERROR_MESSAGES.REQUEST_ID_CONFLICT);
+    case "DRAFT_CONFLICT":
+    case "OCR_CONFLICT":
+    case "ASSESSMENT_UNIQUE":
+    case "SUBMISSION_CONFLICT":
+      return new ApiHttpException(HttpStatus.CONFLICT, error.code, ERROR_MESSAGES.CONFLICT);
     case "OUTLINE_VERSION":
       return new ApiHttpException(HttpStatus.CONFLICT, "OUTLINE_VERSION", ERROR_MESSAGES.OUTLINE_VERSION);
     case "OUTLINE_INVALID":
@@ -84,13 +96,33 @@ export function mapDomainError(error: DomainError): ApiHttpException {
     case "RUBRIC_CRITERION":
     case "RUBRIC_WEIGHT":
     case "RUBRIC_WEIGHT_SUM":
+    case "DRAFT_STATUS":
+    case "PAGE_ORDER":
+    case "MASK_INVALID":
+    case "PRIVACY_REASON":
+    case "OCR_ISSUE":
+    case "OCR_TEXT":
+    case "SUBMISSION_ASSIGNMENT":
+    case "SUBMISSION_UNCONFIRMED":
+    case "ASSESSMENT_STATUS":
+    case "ASSESSMENT_REVIEW_REASON":
+    case "EVALUATION_SHAPE":
+    case "EVALUATION_CRITERION":
+    case "EVALUATION_SCORE_RANGE":
+    case "EVALUATION_SCORE_STEP":
+    case "EVALUATION_TOTAL":
       return new ApiHttpException(HttpStatus.BAD_REQUEST, error.code, ERROR_MESSAGES.VALIDATION);
+    case "UPLOAD_MEDIA":
+      return new ApiHttpException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UPLOAD_MEDIA", ERROR_MESSAGES.VALIDATION);
+    case "UPLOAD_LIMIT":
+      return new ApiHttpException(HttpStatus.PAYLOAD_TOO_LARGE, "UPLOAD_LIMIT", ERROR_MESSAGES.VALIDATION);
     case "CONTEXT_TOO_LARGE":
       return new ApiHttpException(HttpStatus.PAYLOAD_TOO_LARGE, "CONTEXT_TOO_LARGE", ERROR_MESSAGES.CONTEXT_TOO_LARGE);
     case "RATE_LIMITED":
       return new ApiHttpException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", ERROR_MESSAGES.RATE_LIMITED);
     case "AI_NOT_CONFIGURED":
     case "MODEL_UNAVAILABLE":
+    case "OCR_FIXTURE_MISSING":
       return new ApiHttpException(HttpStatus.SERVICE_UNAVAILABLE, "PROVIDER_UNAVAILABLE", ERROR_MESSAGES.PROVIDER_UNAVAILABLE);
     case "AI_TIMEOUT":
       return new ApiHttpException(HttpStatus.GATEWAY_TIMEOUT, "PROVIDER_TIMEOUT", ERROR_MESSAGES.PROVIDER_TIMEOUT);

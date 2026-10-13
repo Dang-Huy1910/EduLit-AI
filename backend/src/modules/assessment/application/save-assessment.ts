@@ -57,6 +57,8 @@ export async function saveAssessment(prisma: AssessmentDb, input: SaveAssessment
         rubricSnapshot: scores.rubric as Prisma.InputJsonValue,
         detailedEvaluations: scores.evaluations as Prisma.InputJsonValue,
         totalScore: scores.totalScore,
+        aiDetailedEvaluations: scores.evaluations as Prisma.InputJsonValue,
+        aiTotalScore: scores.totalScore,
         maxScore: scores.maxScore,
         status,
         modelName: input.modelName ?? LEGACY_MODEL_NAME,

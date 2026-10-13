@@ -25,7 +25,8 @@ export class OriginGuard implements CanActivate {
 
     const contentTypeHeader = request.headers["content-type"];
     const contentType = Array.isArray(contentTypeHeader) ? contentTypeHeader[0] : contentTypeHeader;
-    if (!contentType || !contentType.toLowerCase().startsWith("application/json")) {
+    const multipartUpload = request.path.includes("/submission-drafts/") && request.path.endsWith("/pages") && contentType?.toLowerCase().startsWith("multipart/form-data");
+    if (!multipartUpload && (!contentType || !contentType.toLowerCase().startsWith("application/json"))) {
       throw new ApiHttpException(400, "JSON_REQUIRED", ERROR_MESSAGES.JSON_REQUIRED);
     }
     return true;

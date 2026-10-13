@@ -31,6 +31,10 @@ export async function assessSubmission(
 ): Promise<AssessSubmissionResult> {
   const teacher = await assertActiveActor(prisma, actor, "TEACHER");
   const loaded = await loadOwnedSubmissionForTeacher(prisma, teacher.id, input.submissionId);
+  if (loaded.submission.source === "IMAGE_OCR") {
+    const draft = loaded.submission.sourceDraftId ? await prisma.submissionDraft.findUnique({ where: { id: loaded.submission.sourceDraftId } }) : null;
+    if (!draft || draft.status !== "CONFIRMED") throw new DomainError("SUBMISSION_UNCONFIRMED", "image OCR submissions require teacher confirmation");
+  }
   const snapshot = snapshotFromSubmission(loaded.submission.assignmentSnapshot);
   const built = buildScoringPayload(snapshot, loaded.submission.text);
   assertScoringInputIsolated(built.scoringInput);

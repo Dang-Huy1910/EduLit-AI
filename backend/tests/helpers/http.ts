@@ -1,9 +1,16 @@
 import { randomBytes } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import argon2 from "argon2";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { sha256Bytes } from "../../src/core/hash.js";
 import { FakeSocraticAi } from "../../src/infrastructure/ai/fake-socratic.adapter.js";
+import { FakeAssessmentAi } from "../../src/infrastructure/ai/fake-assessment.adapter.js";
+import { FakeWritingObservationAi } from "../../src/infrastructure/ai/fake-writing-observation.adapter.js";
+import { LocalPrivateStorage } from "../../src/infrastructure/storage/local-private-storage.js";
+import { FakeVisionAdapter } from "../../src/infrastructure/vision/fake-vision.adapter.js";
 import { loadHttpConfig, type HttpConfig } from "../../src/http/config.js";
 import { createHttpApp } from "../../src/http/create-http-app.js";
 import type { EduLitPrisma } from "../../src/infrastructure/database/prisma.client.js";
@@ -16,16 +23,23 @@ export type HttpClient = {
   app: NestExpressApplication;
   prisma: EduLitPrisma;
   ai: FakeSocraticAi;
+  assessmentAi: FakeAssessmentAi;
+  writingProfileAi: FakeWritingObservationAi;
+  vision: FakeVisionAdapter;
   baseUrl: string;
   config: HttpConfig;
 };
 
 export async function withHttpApp(
   fn: (client: HttpClient) => Promise<void>,
-  options: { ai?: FakeSocraticAi; extraEnv?: NodeJS.ProcessEnv } = {},
+  options: { ai?: FakeSocraticAi; assessmentAi?: FakeAssessmentAi; writingProfileAi?: FakeWritingObservationAi; vision?: FakeVisionAdapter; extraEnv?: NodeJS.ProcessEnv } = {},
 ): Promise<void> {
   await withTestPrisma(async (prisma) => {
     const ai = options.ai ?? new FakeSocraticAi();
+    const assessmentAi = options.assessmentAi ?? new FakeAssessmentAi();
+    const writingProfileAi = options.writingProfileAi ?? new FakeWritingObservationAi();
+    const vision = options.vision ?? new FakeVisionAdapter();
+    const storageRoot = await mkdtemp(path.join(tmpdir(), "edulit-http-storage-"));
     const config = loadHttpConfig({
       NODE_ENV: "test",
       APP_ORIGIN: TEST_ORIGIN,
@@ -40,6 +54,10 @@ export async function withHttpApp(
     const app = await createHttpApp({
       prisma,
       ai,
+      assessmentAi,
+      writingProfileAi,
+      vision,
+      storage: new LocalPrivateStorage(storageRoot),
       config,
       shutdown: async () => {},
       logger: false,
@@ -49,9 +67,10 @@ export async function withHttpApp(
     const address = app.getHttpServer().address() as AddressInfo;
     const baseUrl = `http://127.0.0.1:${address.port}/api`;
     try {
-      await fn({ app, prisma, ai, baseUrl, config });
+      await fn({ app, prisma, ai, assessmentAi, writingProfileAi, vision, baseUrl, config });
     } finally {
       await app.close();
+      await rm(storageRoot, { recursive: true, force: true });
     }
   });
 }
@@ -80,9 +99,11 @@ export async function apiRequest(
   if (options.origin !== null) {
     headers.origin = options.origin ?? TEST_ORIGIN;
   }
-  let body: string | undefined;
+  let body: string | FormData | undefined;
   if (options.body !== undefined) {
-    if (options.json === false) {
+    if (options.body instanceof FormData) {
+      body = options.body;
+    } else if (options.json === false) {
       body = String(options.body);
     } else {
       headers["content-type"] = headers["content-type"] ?? "application/json";

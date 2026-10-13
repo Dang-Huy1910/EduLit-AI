@@ -35,6 +35,12 @@ export type TeacherAssessmentView = {
   totalScore: string;
   maxScore: string;
   detailedEvaluations: CriterionEvaluation[];
+  aiDetailedEvaluations: CriterionEvaluation[] | null;
+  aiTotalScore: string | null;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  reviewReason: string | null;
+  reviewRevision: number;
   rubricSnapshot: unknown;
   modelName: string;
   promptVersion: string;
@@ -82,6 +88,12 @@ export function toTeacherAssessmentView(row: Assessment): TeacherAssessmentView 
     totalScore: decimalString(row.totalScore),
     maxScore: decimalString(row.maxScore),
     detailedEvaluations: row.detailedEvaluations as CriterionEvaluation[],
+    aiDetailedEvaluations: row.aiDetailedEvaluations as CriterionEvaluation[] | null,
+    aiTotalScore: row.aiTotalScore ? decimalString(row.aiTotalScore) : null,
+    reviewedById: row.reviewedById,
+    reviewedAt: row.reviewedAt?.toISOString() ?? null,
+    reviewReason: row.reviewReason,
+    reviewRevision: row.reviewRevision,
     rubricSnapshot: row.rubricSnapshot,
     modelName: row.modelName,
     promptVersion: row.promptVersion,

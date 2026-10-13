@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FakeSocraticAi } from "../../src/infrastructure/ai/fake-socratic.adapter.js";
+import { FakeAssessmentAi } from "../../src/infrastructure/ai/fake-assessment.adapter.js";
+import { FakeWritingObservationAi } from "../../src/infrastructure/ai/fake-writing-observation.adapter.js";
+import { LocalPrivateStorage } from "../../src/infrastructure/storage/local-private-storage.js";
+import { FakeVisionAdapter } from "../../src/infrastructure/vision/fake-vision.adapter.js";
 import { loadHttpConfig } from "../../src/http/config.js";
 import { createHttpApp } from "../../src/http/create-http-app.js";
 import {
@@ -15,6 +19,10 @@ test("Nest shutdown hook disconnects the Prisma handle and pool", async () => {
   const app = await createHttpApp({
     prisma: handle.prisma,
     ai: new FakeSocraticAi(),
+    assessmentAi: new FakeAssessmentAi(),
+    writingProfileAi: new FakeWritingObservationAi(),
+    vision: new FakeVisionAdapter(),
+    storage: new LocalPrivateStorage("/tmp/edulit-http-shutdown"),
     config: loadHttpConfig({
       NODE_ENV: "test",
       APP_ORIGIN: TEST_ORIGIN,

@@ -1,5 +1,9 @@
 export const HTTP_CONFIG = Symbol("HttpConfig");
 export const SOCRATIC_AI = Symbol("SocraticAi");
+export const ASSESSMENT_AI = Symbol("AssessmentAi");
+export const WRITING_PROFILE_AI = Symbol("WritingProfileAi");
+export const VISION_AI = Symbol("VisionAi");
+export const PRIVATE_STORAGE = Symbol("PrivateStorage");
 
 export type HttpConfig = {
   port: number;
@@ -13,6 +17,10 @@ export type HttpConfig = {
   nodeEnv: string;
   allowDemoLogin: boolean;
   demoSeedPassword: string;
+  localStoragePath: string;
+  uploadMaxBytes: number;
+  uploadMaxTotalBytes: number;
+  uploadMaxPixels: number;
 };
 
 const DEFAULT_ORIGIN = "http://localhost:3000";
@@ -57,6 +65,10 @@ export function loadHttpConfig(env: NodeJS.ProcessEnv = process.env): HttpConfig
     nodeEnv,
     allowDemoLogin,
     demoSeedPassword: env.DEV_SEED_PASSWORD ?? "",
+    localStoragePath: (env.LOCAL_STORAGE_PATH ?? "var/uploads").trim() || "var/uploads",
+    uploadMaxBytes: parsePositiveInt(env.UPLOAD_MAX_BYTES, 10 * 1024 * 1024, "UPLOAD_MAX_BYTES"),
+    uploadMaxTotalBytes: parsePositiveInt(env.UPLOAD_MAX_TOTAL_BYTES, 40 * 1024 * 1024, "UPLOAD_MAX_TOTAL_BYTES"),
+    uploadMaxPixels: parsePositiveInt(env.UPLOAD_MAX_PIXELS, 25_000_000, "UPLOAD_MAX_PIXELS"),
   };
 }
 
