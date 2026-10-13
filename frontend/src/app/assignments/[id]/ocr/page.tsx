@@ -7,8 +7,22 @@ import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { MOCK_TRANSCRIPTION_LINES } from '@/lib/mock/data';
+import { isApiMode } from '@/lib/data-mode';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
 
 export default function OcrVerificationPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        title="Đối chiếu OCR chưa có API"
+        description="Bước OCR chưa được triển khai trên HTTP. Feature hiện tại dừng ở lập dàn ý Socratic."
+      />
+    );
+  }
+  return <MockOcrVerificationPage />;
+}
+
+function MockOcrVerificationPage() {
   const router = useRouter();
   const params = useParams();
   const assignmentId = (params?.id as string) || 'assign-nlxh-01';

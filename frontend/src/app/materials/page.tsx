@@ -6,8 +6,22 @@ import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
 import { Material } from '@/lib/types';
+import { isApiMode } from '@/lib/data-mode';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
 
 export default function MaterialsPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        title="Kho học liệu chưa có API"
+        description="Học liệu của phiên Socratic nằm trong snapshot đề. Kho học liệu độc lập chưa triển khai."
+      />
+    );
+  }
+  return <MockMaterialsPage />;
+}
+
+function MockMaterialsPage() {
   const { currentUser, materials, addMaterial, addToast } = useAppStore();
 
   const isTeacher = currentUser.role === 'teacher';

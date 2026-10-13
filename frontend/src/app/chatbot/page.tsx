@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
+import { isApiMode } from '@/lib/data-mode';
 
 interface Message {
   id: string;
@@ -27,6 +29,18 @@ interface ChatSession {
 }
 
 export default function ChatbotPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        title="Chatbot độc lập chưa có API"
+        description="Hãy mở một đề đã công bố và dùng Trợ lý Socratic của đề đó. Chatbot tổng quát chưa được triển khai."
+      />
+    );
+  }
+  return <MockChatbotPage />;
+}
+
+function MockChatbotPage() {
   const router = useRouter();
   const { currentUser, addToast } = useAppStore();
 

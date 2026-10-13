@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { isApiMode } from '@/lib/data-mode';
 
 export type WorkflowStepId = 'reading' | 'socratic' | 'submit' | 'ocr' | 'result';
 
@@ -74,14 +75,18 @@ export default function AssignmentWorkflowStepper({
           const targetHref =
             step.id === 'reading'
               ? '/materials'
-              : `/assignments/${assignmentId}/${step.id}`;
+              : step.id === 'socratic'
+                ? `/assignments/${assignmentId}/socratic`
+                : `/assignments/${assignmentId}/${step.id}`;
+          const unimplemented = isApiMode() && step.id !== 'socratic';
 
           return (
             <React.Fragment key={step.id}>
               {/* Step Item */}
               <Link
                 href={targetHref}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all shrink-0 select-none ${
+                title={unimplemented ? 'Chưa có API' : undefined}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all shrink-0 select-none ${unimplemented ? 'opacity-60' : ''} ${
                   isCurrent
                     ? 'bg-primary-container text-on-primary-container font-bold shadow-sm ring-2 ring-primary-container/40'
                     : isDone

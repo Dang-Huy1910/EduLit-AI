@@ -13,6 +13,9 @@
     "exactOptionalPropertyTypes": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
     "noEmit": true,
     "rootDir": ".",
     "types": ["node"]

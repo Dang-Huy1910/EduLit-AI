@@ -4,8 +4,23 @@ import React from 'react';
 import Link from 'next/link';
 import TeacherShell from '@/components/TeacherShell';
 import EvaluationResultView from '@/features/assessment/EvaluationResultView';
+import { isApiMode } from '@/lib/data-mode';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
 
 export default function TeacherStudentResultPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        shell="teacher"
+        title="Báo cáo học sinh chưa có API"
+        description="Xem điểm chi tiết thuộc feature assessment."
+      />
+    );
+  }
+  return <MockTeacherStudentResultPage />;
+}
+
+function MockTeacherStudentResultPage() {
   return (
     <TeacherShell
       breadcrumb={

@@ -6,8 +6,17 @@ import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
+import { isApiMode } from '@/lib/data-mode';
+import ApiSocraticView from '@/features/socratic/ApiSocraticView';
 
 export default function SocraticChatPage() {
+  if (isApiMode()) {
+    return <ApiSocraticView />;
+  }
+  return <MockSocraticChatPage />;
+}
+
+function MockSocraticChatPage() {
   const router = useRouter();
   const params = useParams();
   const assignmentId = (params?.id as string) || 'assign-nlxh-01';

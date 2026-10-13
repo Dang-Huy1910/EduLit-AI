@@ -1,6 +1,6 @@
-# Backend — data layer MVP
+# Backend — data layer, Socratic và HTTP học sinh
 
-Backend đích vẫn là NestJS/TypeScript. **Hiện có data layer** (PostgreSQL 17, Prisma ORM 7.10.0) **và application Socratic** (adapter Gemini 2.5 Flash, guardrail, lưu lượt chat, CLI demo). Chưa có HTTP server, controller, auth endpoint hay worker.
+Backend NestJS/TypeScript ESM. **Hiện có** data layer (PostgreSQL 17, Prisma ORM 7.10.0), application Socratic (adapter Gemini 2.5 Flash, guardrail, lưu lượt chat, CLI demo) **và HTTP tối thiểu** (session cookie, CSRF Origin, API đề/phiên học sinh). Chưa có worker, teacher CRUD hay chấm bài.
 
 Đọc [ADR-0002](../docs/architecture/decisions/0002-minimal-mvp-database.md), [minimal-database.md](../docs/architecture/minimal-database.md) và [database-handoff.md](../docs/development/database-handoff.md).
 
@@ -41,10 +41,12 @@ Lần đầu volume trống, init script tạo thêm `edulit_test` và `edulit_s
 | `npm run db:check` | kiểm tra kết nối; không in URL/password |
 | `npm run db:setup` | up + generate + deploy + seed |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run build` | compile `src/` |
+| `npm run build` | compile `src/` + copy prompt assets |
+| `npm run dev` / `npm start` | HTTP NestJS (`tsx src/main.ts`), mặc định `:4000/api` |
+| `npm run start:prod` | `node dist/main.js` sau `npm run build` |
 | `npm test` | unit tests (không cần DB) |
-| `npm run test:db` | migrate DB test rồi chạy integration; bắt buộc `DATABASE_URL_TEST` |
-| `npm run test:dist` | build rồi kiểm tra prompt assets trong `dist/` từ cwd khác |
+| `npm run test:db` | migrate DB test rồi chạy integration + HTTP; bắt buộc `DATABASE_URL_TEST` |
+| `npm run test:dist` | build, prompt assets trong `dist/`, HTTP dist + SIGTERM |
 | `npm run socratic:demo` | CLI mở phiên / gửi lượt / lưu dàn ý (mặc định `AI_MODE=mock`) |
 | `npm run socratic:live-smoke` | opt-in gọi `gemini-2.5-flash`; nạp `.env` cwd; cần `SOCRATIC_LIVE=1` hoặc `--live` và `GEMINI_API_KEY` |
 
@@ -59,13 +61,25 @@ Một giáo viên (`dang.loan`), hai học sinh (`bui.hamy`, `nguyen.an`), hai �
 ```text
 prisma/schema.prisma
 prisma/migrations/
+src/main.ts                    # HTTP bootstrap, SIGTERM đóng Prisma/pool
+src/http/                      # config, cookie/CORS/CSRF, session guard, lỗi
 src/infrastructure/database/   # Prisma client, provider Nest-shaped, check kết nối
-src/modules/assignments/
-src/modules/socratic/          # use cases, guardrail, prompt assets
+src/modules/identity/          # login/logout/me
+src/modules/assignments/       # query đề học sinh + presentation
+src/modules/socratic/          # use cases, guardrail, prompt assets, presentation
 src/infrastructure/ai/         # SocraticAiPort, Gemini adapter, fake adapter
 src/modules/assessment/
 src/modules/writing-profile/
 src/data-layer.ts              # export helpers cho cộng sự
 ```
 
-Module vẫn theo domain/application/persistence. Chưa có `presentation/`. Bàn giao Socratic: [socratic-handoff.md](../docs/development/socratic-handoff.md).
+Bàn giao Socratic: [socratic-handoff.md](../docs/development/socratic-handoff.md). HTTP/UI học sinh: [socratic-integration.md](../docs/development/socratic-integration.md).
+
+## HTTP học sinh
+
+```bash
+cd backend
+AI_MODE=mock npm run dev
+```
+
+`APP_ORIGIN=http://localhost:3000`, cookie `edulit_session` HttpOnly SameSite=Lax. Routes: `/api/auth/*`, `/api/assignments`, `/api/socratic-sessions/:id`. Chi tiết DTO/lỗi và test tay: tài liệu integration. `AI_MODE=live` mới gọi Gemini; key chỉ ở backend.

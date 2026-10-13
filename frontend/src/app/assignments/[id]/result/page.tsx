@@ -5,8 +5,22 @@ import { useParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import EvaluationResultView from '@/features/assessment/EvaluationResultView';
 import { useAppStore } from '@/lib/store';
+import { isApiMode } from '@/lib/data-mode';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
 
 export default function StudentResultPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        title="Kết quả chấm chưa có API"
+        description="Công bố điểm và nhận xét rubric thuộc feature assessment, chưa có trong socratic-integration."
+      />
+    );
+  }
+  return <MockStudentResultPage />;
+}
+
+function MockStudentResultPage() {
   const params = useParams();
   const assignmentId = (params?.id as string) || 'assign-nlxh-01';
   const { assignments } = useAppStore();

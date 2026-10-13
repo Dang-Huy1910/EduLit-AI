@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
+import { isApiMode } from '@/lib/data-mode';
+import { initialsFromName, useApiAuthStore } from '@/lib/api-auth-store';
 
 interface StudentShellProps {
   children: React.ReactNode;
@@ -28,6 +30,11 @@ export default function StudentShell({
     sidebarCollapsed,
     toggleSidebar,
   } = useAppStore();
+  const apiUser = useApiAuthStore((state) => state.user);
+  const apiLogout = useApiAuthStore((state) => state.logout);
+  const apiMode = isApiMode();
+  const displayName = apiMode ? apiUser?.displayName || currentUser.name : currentUser.name;
+  const avatarInitials = apiMode ? initialsFromName(displayName) : currentUser.avatarInitials;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const studentNavItems = [
@@ -35,34 +42,46 @@ export default function StudentShell({
     { label: 'Bài đã nộp & Lịch sử chấm', href: '/assignments?tab=submitted', icon: 'task_alt' },
   ];
 
-  const assistantNavItems = [
-    {
-      label: 'Chatbot Trợ lý Socratic',
-      href: '/chatbot',
-      icon: 'smart_toy',
-      badge: 'GPT',
-    },
-    {
-      label: 'Phòng Lập dàn ý Socratic',
-      href: '/assignments/assign-nlxh-01/socratic',
-      icon: 'psychology',
-    },
-    {
-      label: 'Tra cứu ngữ liệu đọc hiểu',
-      href: '/materials',
-      icon: 'menu_book',
-    },
-  ];
+  const assistantNavItems = apiMode
+    ? [
+        {
+          label: 'Lập dàn ý Socratic',
+          href: '/assignments',
+          icon: 'psychology',
+        },
+      ]
+    : [
+        {
+          label: 'Chatbot Trợ lý Socratic',
+          href: '/chatbot',
+          icon: 'smart_toy',
+          badge: 'GPT',
+        },
+        {
+          label: 'Phòng Lập dàn ý Socratic',
+          href: '/assignments/assign-nlxh-01/socratic',
+          icon: 'psychology',
+        },
+        {
+          label: 'Tra cứu ngữ liệu đọc hiểu',
+          href: '/materials',
+          icon: 'menu_book',
+        },
+      ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    if (apiMode) {
+      await apiLogout();
+    } else {
+      logout();
+    }
     router.push('/login');
   };
 
   return (
     <div className="bg-surface font-body-md text-on-surface antialiased min-h-screen">
       <ToastContainer />
-      <FloatingChatWidget />
+      {!apiMode && <FloatingChatWidget />}
 
       {/* Mobile Top Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest border-b border-outline-variant/30 z-50 flex items-center justify-between px-4">
@@ -81,6 +100,7 @@ export default function StudentShell({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {!apiMode && (
           <button
             onClick={() => {
               resetDemoState();
@@ -91,8 +111,9 @@ export default function StudentShell({
           >
             <span className="material-symbols-outlined text-lg">restart_alt</span>
           </button>
+          )}
           <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs font-semibold">
-            {currentUser.name || 'Bùi Hà My'}
+            {displayName || 'Học sinh'}
           </span>
         </div>
       </div>
@@ -259,9 +280,12 @@ export default function StudentShell({
               <span className="text-outline-variant">/</span>
               <span className="text-on-surface font-semibold">{headerSubtitle}</span>
             </div>
+            {!apiMode && (
             <span className="font-caption text-xs text-secondary bg-secondary-fixed/50 px-space-sm py-0.5 rounded-full font-semibold">
               Chế độ xem thử: Học sinh
             </span>
+            )}
+            {!apiMode && (
             <button
               onClick={() => {
                 resetDemoState();
@@ -273,9 +297,11 @@ export default function StudentShell({
               <span className="material-symbols-outlined text-sm text-amber-600">restart_alt</span>
               <span>Khôi phục Demo</span>
             </button>
+            )}
           </div>
 
           <div className="flex items-center gap-space-lg">
+            {!apiMode && (
             <Link
               href="/chatbot"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-secondary via-secondary-container to-primary text-white font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm"
@@ -284,6 +310,7 @@ export default function StudentShell({
               <span>EduLit Chatbot AI</span>
               <span className="text-[10px] bg-white/20 px-1 py-0.2 rounded-full uppercase font-mono">GPT</span>
             </Link>
+            )}
 
             <div className="flex items-center gap-space-xs bg-surface-container px-space-sm py-1 rounded-lg text-on-surface-variant font-caption text-xs">
               <span className="material-symbols-outlined text-[16px] text-tertiary">lock</span>
@@ -293,17 +320,20 @@ export default function StudentShell({
             <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
               <div className="text-right">
                 <div className="font-label-md text-sm text-on-surface font-semibold">
-                  {currentUser.name || 'Bùi Hà My'}
+                  {displayName || 'Học sinh'}
                 </div>
+                {!apiMode && (
                 <div className="font-caption text-xs text-on-surface-variant">
                   Lớp 12A1 • THPT Đan Phượng
                 </div>
+                )}
               </div>
               <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs ring-2 ring-secondary-container/40">
-                {currentUser.avatarInitials || 'HM'}
+                {avatarInitials || 'HS'}
               </div>
               <button
-                onClick={handleLogout}
+                data-testid="logout-button"
+                onClick={() => void handleLogout()}
                 title="Đăng xuất"
                 className="ml-2 p-1 text-on-surface-variant hover:text-error transition-colors"
               >

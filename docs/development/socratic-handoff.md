@@ -105,4 +105,4 @@ Thiếu key/quyền: báo chưa chạy/không đạt, giữ `gemini-2.5-flash`. 
 
 ## 7. Việc để sau
 
-HTTP/auth/CRUD đề, giao diện, chấm điểm, trích xuất observation, cập nhật profile bằng AI, OCR, queue, embeddings, FSM bốn bước, streaming token ra client.
+HTTP/auth học sinh và giao diện Socratic: [socratic-integration.md](socratic-integration.md). Chưa có teacher CRUD, chấm điểm, trích xuất observation, OCR, queue, embeddings, FSM bốn bước, streaming token ra client.

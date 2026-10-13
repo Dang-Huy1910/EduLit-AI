@@ -6,8 +6,23 @@ import { useParams, useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { RubricCriterion } from '@/lib/types';
+import { isApiMode } from '@/lib/data-mode';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
 
 export default function AssignmentEditorPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        shell="teacher"
+        title="Soạn đề chưa có API"
+        description="Teacher CRUD đề và rubric chưa nằm trong feature socratic-integration."
+      />
+    );
+  }
+  return <MockAssignmentEditorPage />;
+}
+
+function MockAssignmentEditorPage() {
   const params = useParams();
   const router = useRouter();
   const { assignments, activeRubric, updateRubricCriterion, publishAssignment, addToast } = useAppStore();

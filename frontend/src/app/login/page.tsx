@@ -5,8 +5,17 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { MOCK_TEACHER, MOCK_STUDENT } from '@/lib/mock/data';
 import ToastContainer from '@/components/ToastContainer';
+import { isApiMode } from '@/lib/data-mode';
+import ApiLoginPage from '@/features/identity/ApiLoginPage';
 
 export default function LoginPage() {
+  if (isApiMode()) {
+    return <ApiLoginPage />;
+  }
+  return <MockLoginPage />;
+}
+
+function MockLoginPage() {
   const router = useRouter();
   const { setUser, setRole, addToast, resetDemoState } = useAppStore();
 

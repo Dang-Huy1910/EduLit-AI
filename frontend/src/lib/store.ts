@@ -413,6 +413,12 @@ export const useAppStore = create<AppState>()(
     {
       name: 'edulit-ai-storage',
       storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => {
+        if (process.env.NEXT_PUBLIC_DATA_MODE === 'api') {
+          return { sidebarCollapsed: state.sidebarCollapsed };
+        }
+        return state;
+      },
     }
   )
 );

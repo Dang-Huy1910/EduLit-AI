@@ -5,8 +5,23 @@ import Link from 'next/link';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { MOCK_REPORT_METRICS } from '@/lib/mock/data';
+import { isApiMode } from '@/lib/data-mode';
+import UnimplementedPanel from '@/components/UnimplementedPanel';
 
 export default function ReportsPage() {
+  if (isApiMode()) {
+    return (
+      <UnimplementedPanel
+        shell="teacher"
+        title="Báo cáo lớp chưa có API"
+        description="Dashboard và thống kê lớp chưa được triển khai trên HTTP."
+      />
+    );
+  }
+  return <MockReportsPage />;
+}
+
+function MockReportsPage() {
   const { addToast } = useAppStore();
 
   const [studentSearch, setStudentSearch] = useState('');

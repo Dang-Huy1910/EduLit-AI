@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Merriweather } from 'next/font/google';
 import '@/styles/globals.css';
+import AppProviders from '@/components/AppProviders';
 
 const inter = Inter({
   subsets: ['latin', 'vietnamese'],
@@ -29,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${inter.variable} ${merriweather.variable}`}>
       <body className="bg-surface text-on-surface font-body-md antialiased min-h-screen">
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

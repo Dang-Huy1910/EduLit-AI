@@ -2,6 +2,8 @@
 
 Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.md), [data model](../architecture/data-model.md), [API design](../api/api-design.md), [Gemini pipeline](../architecture/gemini-pipeline.md).
 
+**Cập nhật 13/10/2026:** triển khai hiện tại dùng [lộ trình MVP tối giản theo feature](minimal-mvp-roadmap.md): database → Socratic → Socratic integration → assessment → writing profile. [Socratic integration](socratic-integration.md) đã có auth/HTTP tối thiểu và giao diện học sinh. Các milestone dưới đây mô tả nền tảng đầy đủ; OCR, queue/outbox, nhiều trường/lớp và dashboard không phải yêu cầu của feature hiện tại.
+
 Đợt hiện tại hoàn thành tài liệu kiến trúc và lựa chọn công nghệ. Các milestone dưới đây là công việc triển khai tiếp theo, chưa phải chức năng đã chạy. Không ấn định số tuần khi chưa biết nhân lực, quyền API, dataset và phản hồi giáo viên.
 
 ## M0 — Kiểm tra điều kiện và chốt chính sách

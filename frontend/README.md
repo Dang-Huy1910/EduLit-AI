@@ -2,7 +2,7 @@
 
 Ứng dụng web Next.js 15 dành cho Giáo viên (**Cô Đặng Loan**) và Học sinh (**Bùi Hà My**) trường **THPT Đan Phượng**, hỗ trợ chu trình Dạy – Học và Đánh giá môn Ngữ văn theo chương trình GDPT 2018.
 
-Hiện đây là prototype với mock data và Zustand/sessionStorage. [Kiến trúc MVP](../docs/architecture/system-design.md) giữ frontend, bổ sung API NestJS và TanStack Query cho dữ liệu máy chủ. [Lộ trình chuyển đổi](../docs/development/implementation-roadmap.md#chuyển-frontend-từng-phần) tách API/mock mode, scope chat/outline theo phiên và thay OCR/điểm giả lập bằng trạng thái thật. Gemini 2.5 Flash chỉ được gọi từ backend; không đưa API key vào bundle trình duyệt.
+Hai chế độ: **mock** (prototype Zustand/sessionStorage) và **api** (login/HTTP/PostgreSQL thật). [Bàn giao Socratic integration](../docs/development/socratic-integration.md). Gemini 2.5 Flash chỉ gọi từ backend; không đưa API key vào bundle trình duyệt.
 
 ---
 
@@ -27,11 +27,26 @@ Hiện đây là prototype với mock data và Zustand/sessionStorage. [Kiến t
 
 ```bash
 cd frontend
+cp .env.example .env.local
 npm install
 npm run dev
 ```
 
 Truy cập trình duyệt: **[http://localhost:3000](http://localhost:3000)** (tự động chuyển hướng về `/login`).
+
+| `NEXT_PUBLIC_DATA_MODE` | Việc |
+| --- | --- |
+| `mock` (mặc định) | Prototype 1-click, dữ liệu Zustand |
+| `api` | Cookie session tới `NEXT_PUBLIC_API_BASE_URL` (`http://localhost:4000/api`) |
+
+API mode cần backend `AI_MODE=mock npm run dev` trên cổng 4000, cùng hostname `localhost`. Đăng nhập `bui.hamy` / `DEV_SEED_PASSWORD`, mở đề `VAN12-NLXH-SOC`. Không dùng `VAN12-NLXH-01` để thử chat mới.
+
+```bash
+npm run typecheck
+npm run build
+# Backend đang chạy, DATA_MODE=api:
+npm run test:e2e
+```
 
 ---
 

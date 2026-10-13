@@ -5,7 +5,7 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
-**Trạng thái triển khai:** Giao diện hiện chạy bằng dữ liệu giả lập. Data layer MVP (PostgreSQL 17 + Prisma 7, chín bảng) nằm trên nhánh `feat/database` — xem [minimal-database.md](docs/architecture/minimal-database.md). HTTP API, worker và AI thật chưa được triển khai. Bắt đầu từ [kiến trúc và công nghệ](docs/architecture/system-design.md), [mô hình dữ liệu](docs/architecture/data-model.md) và [lộ trình triển khai](docs/development/implementation-roadmap.md).
+**Trạng thái triển khai:** Prototype mock vẫn chạy khi `NEXT_PUBLIC_DATA_MODE=mock`. Data layer MVP (PostgreSQL 17 + Prisma 7) và Socratic application đã có. **HTTP auth/session + API học sinh + giao diện Socratic** nằm trên `feat/socratic-integration` — xem [socratic-integration.md](docs/development/socratic-integration.md). Worker, OCR, chấm bài và teacher CRUD chưa có. Bắt đầu từ [lộ trình MVP theo feature](docs/development/minimal-mvp-roadmap.md).
 
 ---
 
@@ -93,13 +93,13 @@ sequenceDiagram
 | --- | --- | --- |
 | Giao diện | Next.js 15 App Router, React 19, TypeScript, Tailwind CSS 3, Recharts | Đã có prototype |
 | Trạng thái | Zustand cho UI; TanStack Query cho dữ liệu API | Zustand hiện có; Query sẽ bổ sung |
-| API | NestJS/TypeScript, modular monolith | Đã chọn cho thiết kế MVP, chưa scaffold |
-| Runtime/gói | Node.js 24 LTS, npm | Khóa patch khi scaffold MVP |
-| Dữ liệu | PostgreSQL 17 + Prisma | Chưa triển khai |
+| API | NestJS 11 / TypeScript ESM, prefix `/api` | HTTP học sinh đã có trên `feat/socratic-integration` |
+| Runtime/gói | Node.js 24 LTS, npm | Backend `engines` khóa Node 24 |
+| Dữ liệu | PostgreSQL 17 + Prisma 7 | Đã triển khai trên `feat/database` |
 | Tác vụ nền | pg-boss trên PostgreSQL; worker cùng codebase backend | Chưa triển khai |
-| Model | **Gemini 2.5 Flash**, `gemini-2.5-flash`, SDK `@google/genai` | Người dùng đã chọn; chưa gọi API thật |
+| Model | **Gemini 2.5 Flash**, `gemini-2.5-flash`, SDK `@google/genai` | Adapter + fake AI đã có; live opt-in `AI_MODE=live` |
 | File/ảnh | Local private storage khi dev; GCS khi deploy; Canvas + Sharp | Thiết kế đích; chưa tích hợp thật |
-| Auth | Tài khoản cấp trước, Argon2id, session PostgreSQL và cookie HttpOnly | Chưa triển khai; đăng nhập hiện là demo |
+| Auth | Tài khoản cấp trước, Argon2id, session PostgreSQL và cookie HttpOnly | Đã triển khai; mock mode vẫn là demo 1-click |
 | Contract | OpenAPI, JSON Schema + Ajv | Đã thiết kế danh sách contract; chưa có schema thực thi |
 
 Backend gồm `identity`, `classrooms`, `assignments`, `grounding`, `socratic`, `assessment`, `writing-profile`, `analytics`. API và worker dùng chung database; OCR/chấm chạy nền, chatbot trả nội dung sau kiểm tra guardrail. Học liệu và rubric được chốt phiên bản theo đề; hồ sơ viết lưu nhận xét có bằng chứng.

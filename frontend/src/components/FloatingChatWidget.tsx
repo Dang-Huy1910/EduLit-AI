@@ -16,6 +16,9 @@ export default function FloatingChatWidget() {
   const pathname = usePathname();
   const { currentUser, addToast } = useAppStore();
   const isTeacher = currentUser.role === 'teacher';
+  if (process.env.NEXT_PUBLIC_DATA_MODE === 'api') {
+    return null;
+  }
 
   // Do not render floating widget on full chatbot page
   if (pathname === '/chatbot') {

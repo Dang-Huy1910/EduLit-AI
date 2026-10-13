@@ -17,7 +17,12 @@ Socratic v1 đã có `prompts/socratic/system.v1.md` và `output.v1.schema.json`
 ## Prompt triển khai AI
 
 - [Grok — Gemini và Socratic trên nhánh feat/socratic](grok-socratic.md): Feature kế tiếp sau database. Gồm adapter Gemini 2.5 Flash, context/profile, guardrail, lưu lượt chat atomic, retry/concurrency, CLI demo và kiểm tra. Chưa triển khai HTTP/auth, chấm bài hoặc AI trích xuất văn phong.
-- [Lộ trình MVP theo feature](../docs/development/minimal-mvp-roadmap.md): Thứ tự database → Socratic → assessment → writing profile và ranh giới công việc với cộng sự.
+- [Grok — Kết nối Socratic trên nhánh feat/socratic-integration](grok-socratic-integration.md): Sau backend Socratic, bổ sung auth/HTTP tối thiểu và nối giao diện học sinh với database; kiểm tra đăng nhập, chat, lưu dàn ý, resume, retry và đổi tài khoản. Chưa làm chấm bài hoặc trích xuất văn phong.
+- [Grok — Chấm bài trên nhánh feat/assessment](grok-assessment.md): Chấm bài văn bản theo snapshot rubric, kiểm tra điểm/evidence, lưu AI_DRAFT, giáo viên xác nhận công bố; application services, CLI/tests và contract để cộng sự nối HTTP/UI.
+- [Grok — Lưu văn phong trên nhánh feat/writing-profile](grok-writing-profile.md): Trích xuất observations từ bài có điểm PUBLISHED, lưu evidence UTF-16, cập nhật profile và dùng ở lượt Socratic sau; kiểm tra retry/version và giữ profile ngoài scoring context.
+- [Lộ trình MVP theo feature](../docs/development/minimal-mvp-roadmap.md): Thứ tự database → Socratic → Socratic integration → assessment → writing profile và ranh giới công việc với cộng sự.
+
+Hai feature cuối triển khai lần lượt: hoàn thành và kiểm tra `feat/assessment` rồi tạo `feat/writing-profile` từ base đó. Mỗi file có một khối prompt để sao chép; không đưa cả hai cho Grok triển khai đồng thời trên một nhánh. Phạm vi này tập trung pipeline AI/database; HTTP/UI nộp/chấm, công bố điểm và quản lý profile được bàn giao cho cộng sự.
 
 ## Prompt giao diện (UI)
 

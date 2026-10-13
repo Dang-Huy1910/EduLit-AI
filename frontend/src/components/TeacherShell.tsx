@@ -6,6 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
+import { isApiMode } from '@/lib/data-mode';
+import { useApiAuthStore } from '@/lib/api-auth-store';
 
 interface TeacherShellProps {
   children: React.ReactNode;
@@ -33,15 +35,21 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
     { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot', icon: 'smart_toy', badge: 'GPT' },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const apiMode = isApiMode();
+  const apiLogout = useApiAuthStore((state) => state.logout);
+  const handleLogout = async () => {
+    if (apiMode) {
+      await apiLogout();
+    } else {
+      logout();
+    }
     router.push('/login');
   };
 
   return (
     <div className="bg-surface font-body-md text-on-surface antialiased min-h-screen">
       <ToastContainer />
-      <FloatingChatWidget />
+      {!isApiMode() && <FloatingChatWidget />}
 
       {/* Mobile Top Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest border-b border-outline-variant/30 z-50 flex items-center justify-between px-4">
