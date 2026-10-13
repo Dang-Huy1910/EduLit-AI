@@ -4,7 +4,7 @@ Branch: `feat/ai-foundation`.
 
 ## Đã hoàn thành
 
-- `AI_MODE`, `AI_PROVIDER`, model shared/task override và legacy `GEMINI_MODEL` được resolve một lần ở factory. Gemini mặc định `gemini-2.5-flash`; OpenAI yêu cầu model rõ ràng.
+- `AI_MODE`, `AI_PROVIDER`, model theo provider (`GEMINI_MODEL` / `OPENAI_MODEL`), task override và `AI_MODEL` chung được resolve một lần ở factory. Đổi `AI_PROVIDER` là đủ khi cả hai cặp key/model đã điền. Gemini mặc định `gemini-3.8-flash`; OpenAI yêu cầu `OPENAI_MODEL` hoặc `AI_MODEL`.
 - Gemini và OpenAI đều triển khai Socratic, assessment và writing-profile port. OpenAI dùng Responses API structured JSON; kết quả vẫn qua validation nghiệp vụ tại backend.
 - Fake adapter ghi model `mock/*`; không còn báo kết quả mock là Gemini/OpenAI. Live adapter không fallback âm thầm sang mock.
 - Migration `20261013193000_ai_provenance` bỏ default model ở assessment và thêm provenance nullable cho historical chat/assessment/observations. Row cũ giữ unknown/null, không bị suy diễn từ cấu hình mới.

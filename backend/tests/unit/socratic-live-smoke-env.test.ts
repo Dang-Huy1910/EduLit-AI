@@ -20,6 +20,7 @@ function spawnLiveSmoke(cwd: string, args: string[] = []): Promise<{ code: numbe
       "GEMINI_API_KEY",
       "GEMINI_MODEL",
       "OPENAI_API_KEY",
+      "OPENAI_MODEL",
       "SOCRATIC_LIVE",
     ]) {
       delete env[key];

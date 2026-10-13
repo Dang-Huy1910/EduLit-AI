@@ -59,14 +59,15 @@ export function resolveAiProvider(env: NodeJS.ProcessEnv = process.env): AiProvi
 export function resolveAiConfig(task: AiTask, env: NodeJS.ProcessEnv = process.env): ResolvedAiConfig {
   const mode = resolveAiRuntimeMode(env);
   const provider = resolveAiProvider(env);
+  const providerModel = provider === "gemini" ? env.GEMINI_MODEL : env.OPENAI_MODEL;
   const model = firstNonBlank(
     env[TASK_MODEL_ENV[task]],
+    providerModel,
     env.AI_MODEL,
-    provider === "gemini" ? env.GEMINI_MODEL : undefined,
-    provider === "gemini" ? "gemini-2.5-flash" : undefined,
+    provider === "gemini" ? "gemini-3.8-flash" : undefined,
   );
   if (!model) {
-    throw new DomainError("AI_NOT_CONFIGURED", "AI_MODEL is required when AI_PROVIDER=openai");
+    throw new DomainError("AI_NOT_CONFIGURED", "OPENAI_MODEL or AI_MODEL is required when AI_PROVIDER=openai");
   }
   if (mode === "mock") return { mode, provider, model: `mock/${task}` };
   const apiKey = provider === "gemini" ? env.GEMINI_API_KEY?.trim() : env.OPENAI_API_KEY?.trim();

@@ -16,6 +16,10 @@ function spawnLiveSmoke(cwd: string, args: string[] = []): Promise<{ code: numbe
     delete env.GEMINI_API_KEY;
     delete env.ASSESSMENT_LIVE;
     delete env.GEMINI_MODEL;
+    delete env.OPENAI_API_KEY;
+    delete env.OPENAI_MODEL;
+    delete env.AI_PROVIDER;
+    delete env.AI_MODEL;
     const child = spawn(process.execPath, [tsxCli, script, ...args], {
       cwd,
       env,
