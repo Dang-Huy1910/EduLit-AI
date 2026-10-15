@@ -301,6 +301,37 @@ export default function EvaluationResultView({
         )}
       </div>
 
+      {/* Writing Profile AI Synthesis Callout (Student only) */}
+      {viewMode === 'student' && submission.isPublishedToStudent && (
+        <div className="p-3.5 bg-gradient-to-r from-secondary-container/30 via-surface-container-lowest to-purple-500/10 rounded-2xl border border-secondary/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-secondary-fixed text-secondary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-lg">fingerprint</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-on-surface">
+                  Dấu ấn văn phong: Đã trích xuất vào Hồ sơ Cây bút
+                </span>
+                <span className="text-[10px] bg-secondary-fixed/50 text-secondary font-bold px-1.5 py-0.2 rounded-full">
+                  AI Synthesis
+                </span>
+              </div>
+              <p className="text-[11px] text-on-surface-variant">
+                Gemini 2.5 Flash đã trích xuất các dẫn chứng về lựa chọn từ ngữ và cấu trúc câu từ bài viết này để cập nhật vào Hồ sơ văn phong của {submission.studentName}.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/profile"
+            className="px-3 py-1.5 bg-secondary text-white rounded-xl text-xs font-semibold hover:bg-secondary/90 transition-all flex items-center gap-1 shadow-sm shrink-0 self-end sm:self-auto"
+          >
+            <span>Xem Hồ sơ văn phong</span>
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </Link>
+        </div>
+      )}
+
       {/* 3 Main Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-1">
         <button

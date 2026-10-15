@@ -473,7 +473,7 @@ Yêu cầu thực hiện:
   assessedSubmissions: 2,
   flaggedSubmissions: 0,
   rubricId: CENTRAL_RUBRIC_ID,
-  linkedMaterialIds: ['mat-nlvh-mau-tu-do-dat', 'mat-barem-docx-4d'],
+  linkedMaterialIds: ['mat-nlvh-mau-tu-do-dat', 'mat-barem-docx-4d', 'mat-barem-nang-luc-sang-tao-5t'],
   learningGoals: [
     {
       id: 'LG1',
@@ -527,6 +527,27 @@ export const MATERIALS_MAU_TU_DO_DAT: Material[] = [
     excerpt: 'Thang điểm 4,0 điểm. Yêu cầu phân tích cách cảm nhận tự do qua hình ảnh làng quê trong bài thơ "Màu tự do của đất", đánh giá nội dung, nghệ thuật và liên hệ một tác phẩm khác.',
     fullContent: DOCX_ORIGINAL_GUIDE,
     uploadedAt: 'Hôm nay 08:35',
+  },
+  {
+    id: 'mat-barem-nang-luc-sang-tao-5t',
+    title: 'Barem Đánh giá Năng lực & Sáng tạo (5 Tiêu chí — Thang điểm 4,0đ)',
+    purpose: 'Barem',
+    classId: '12A1',
+    version: 'v2.2-NLC-2024',
+    status: 'READY',
+    excerpt: 'Thang 5 tiêu chí tách biệt phần Sáng tạo (0.50đ) và Nghệ thuật - Liên hệ (1.00đ), chuẩn hóa theo định dạng Sở GD&ĐT Hà Nội cho đề thi khảo sát chất lượng và đề thi thử tốt nghiệp THPT.',
+    fullContent: `Barem Đánh giá Năng lực & Sáng tạo 5 Tiêu chí (Sở GD&ĐT Hà Nội - Thang 4.0đ):
+1. C1_TOPIC_IDENTIFICATION: Xác định vấn đề nghị luận & Mở - Kết quy chuẩn (0.50đ)
+   - Mở bài đặt trúng vấn đề cảm nhận tự do gắn với làng quê; kết bài đúc kết tư tưởng sâu sắc; dung lượng ~600 chữ.
+2. C2_CONTENT_DEPTH: Phân tích chiều sâu nội dung & Cảm nhận tự do (1.50đ)
+   - Phân tích chi tiết cảm nhận tự do qua các thi ảnh làng quê, làm bật nghịch lí "không thoát ly bùn đất".
+3. C3_ART_COMPARISON: Nghệ thuật, liên hệ so sánh và nét riêng của tác giả (1.00đ)
+   - Khai thác chuỗi động từ buộc – neo – cởi; liên hệ Bếp lửa (Bằng Việt) hoặc Quê hương (Tế Hanh) để làm rõ cách nhìn riêng.
+4. C4_CREATIVE_INSIGHT: Sáng tạo, phát hiện thẩm mỹ & Suy tưởng cá nhân (0.50đ)
+   - Phát hiện thẩm mỹ mới mẻ, giọng điệu có suy ngẫm độc lập, liên hệ ý nghĩa với thế hệ trẻ hôm nay.
+5. C5_LANGUAGE_GRAMMAR: Chính tả, dùng từ và ngữ pháp tiếng Việt (0.50đ)
+   - Ngôn ngữ nghị luận trong sáng, không quá 01 lỗi chính tả hoặc diễn đạt nhỏ.`,
+    uploadedAt: 'Hôm nay 08:40',
   },
 ];
 

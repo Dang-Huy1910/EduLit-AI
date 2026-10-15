@@ -33,6 +33,7 @@ export default function StudentShell({
   const studentNavItems = [
     { label: 'Bài tập của em', href: '/assignments', icon: 'edit_note' },
     { label: 'Bài đã nộp & Lịch sử chấm', href: '/assignments?tab=submitted', icon: 'task_alt' },
+    { label: 'Hồ sơ văn phong của em', href: '/profile', icon: 'fingerprint' },
   ];
 
   const assistantNavItems = [

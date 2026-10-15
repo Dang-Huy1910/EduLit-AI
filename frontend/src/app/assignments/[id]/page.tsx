@@ -6,7 +6,12 @@ import { useParams, useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { RubricCriterion, Rubric } from '@/lib/types';
-import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT, CENTRAL_RUBRIC_ID } from '@/lib/mock/assignmentData';
+import {
+  CENTRAL_ASSIGNMENT_ID,
+  CENTRAL_ASSIGNMENT,
+  CENTRAL_RUBRIC_ID,
+  RUBRIC_CAPACITY_CREATIVE_ID,
+} from '@/lib/mock/assignmentData';
 
 export default function AssignmentEditorPage() {
   const params = useParams();
@@ -492,7 +497,7 @@ export default function AssignmentEditorPage() {
               <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                 <span className="text-xs font-bold uppercase tracking-wider text-on-surface flex items-center gap-1">
                   <span className="material-symbols-outlined text-base text-secondary">menu_book</span>
-                  Học liệu liên kết (2)
+                  Học liệu liên kết (3)
                 </span>
                 <span className="text-[10px] text-tertiary font-bold bg-tertiary-container/30 px-2 py-0.2 rounded">
                   Sẵn sàng
@@ -500,20 +505,72 @@ export default function AssignmentEditorPage() {
               </div>
 
               <div className="space-y-2 text-xs">
+                {/* 1. Ngữ liệu chính */}
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
                   <span className="material-symbols-outlined text-secondary text-base mt-0.5">description</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Ngữ liệu chính: Bài thơ &quot;Màu tự do của đất&quot;</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-on-surface">Ngữ liệu chính: Bài thơ &quot;Màu tự do của đất&quot;</p>
+                      <span className="text-[9px] font-bold text-secondary bg-secondary-fixed/50 px-1.5 py-0.2 rounded">
+                        Ngữ liệu
+                      </span>
+                    </div>
                     <p className="text-[11px] text-on-surface-variant">Tác giả: Trần Quang Quý • Báo Văn nghệ số Tết 2019</p>
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
+                {/* 2. Barem 1: Chuẩn 4 Tiêu chí */}
+                <div
+                  onClick={() => handleSelectRubric(CENTRAL_RUBRIC_ID)}
+                  className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-start gap-2 ${
+                    currentRubric.id === CENTRAL_RUBRIC_ID
+                      ? 'bg-secondary-fixed/20 border-secondary ring-1 ring-secondary/50 shadow-xs'
+                      : 'bg-surface-container-low/50 border-outline-variant/20 hover:border-outline-variant/60'
+                  }`}
+                >
                   <span className="material-symbols-outlined text-primary text-base mt-0.5">gavel</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Hướng dẫn chấm &amp; Ma trận đề bài</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-on-surface">Barem 1: Hướng dẫn chấm gốc DOCX (4 Tiêu chí)</p>
+                      {currentRubric.id === CENTRAL_RUBRIC_ID ? (
+                        <span className="text-[9px] font-bold text-tertiary bg-tertiary-container/40 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[11px]">check</span>
+                          Đang áp dụng
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-outline hover:text-primary font-medium">Bấm để chọn</span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-on-surface-variant">
-                      Thang 4.0 điểm • {currentRubric.shortTitle || currentRubric.name}
+                      Thang 4.0 điểm • Chuẩn Bộ GD&amp;ĐT (v2.0-GDPT2018)
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Barem 2: Năng lực & Sáng tạo 5 Tiêu chí */}
+                <div
+                  onClick={() => handleSelectRubric(RUBRIC_CAPACITY_CREATIVE_ID)}
+                  className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-start gap-2 ${
+                    currentRubric.id === RUBRIC_CAPACITY_CREATIVE_ID
+                      ? 'bg-secondary-fixed/20 border-secondary ring-1 ring-secondary/50 shadow-xs'
+                      : 'bg-surface-container-low/50 border-outline-variant/20 hover:border-outline-variant/60'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-purple-600 text-base mt-0.5">auto_awesome</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-on-surface">Barem 2: Barem Năng lực &amp; Sáng tạo (5 Tiêu chí)</p>
+                      {currentRubric.id === RUBRIC_CAPACITY_CREATIVE_ID ? (
+                        <span className="text-[9px] font-bold text-tertiary bg-tertiary-container/40 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[11px]">check</span>
+                          Đang áp dụng
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-outline hover:text-primary font-medium">Bấm để chọn</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-on-surface-variant">
+                      Thang 4.0 điểm • Chuẩn Sở GD&amp;ĐT Hà Nội (v2.2-NLC-2024)
                     </p>
                   </div>
                 </div>
