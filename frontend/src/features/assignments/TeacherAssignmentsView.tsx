@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
+import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 
 export default function TeacherAssignmentsView() {
   const router = useRouter();
-  const { assignments, addToast } = useAppStore();
+  const { assignments, rubrics, addToast } = useAppStore();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'draft' | 'blocked'>('all');
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -17,6 +18,9 @@ export default function TeacherAssignmentsView() {
   const publishedCount = assignments.filter((a) => a.status === 'published').length;
   const draftCount = assignments.filter((a) => a.status === 'draft').length;
   const blockedCount = assignments.filter((a) => a.status === 'blocked').length;
+
+  const hasCentralAssignment = assignments.some((a) => a.id === CENTRAL_ASSIGNMENT_ID);
+  const totalAssessedCount = assignments.reduce((sum, a) => sum + (a.assessedSubmissions || 0), 0);
 
   const filteredAssignments = showEmptyState
     ? []
@@ -65,7 +69,7 @@ export default function TeacherAssignmentsView() {
               <div className="text-base font-bold text-on-surface mt-0.5">
                 Lớp 12A1 • THPT Đan Phượng (40 HS)
               </div>
-              <span className="text-[11px] text-secondary font-semibold">Học kỳ I • Năm học 2024-2025</span>
+              <span className="text-[11px] text-secondary font-semibold">Học kỳ I • Năm học 2026-2027</span>
             </div>
             <div className="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary">
               <span className="material-symbols-outlined">school</span>
@@ -74,20 +78,28 @@ export default function TeacherAssignmentsView() {
 
           <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex items-center justify-between">
             <div>
-              <span className="text-xs text-on-surface-variant font-medium">Tỷ lệ nộp bài tập</span>
-              <div className="text-base font-bold text-on-surface mt-0.5">38/40 học sinh đã nộp</div>
-              <span className="text-[11px] text-tertiary font-semibold">95% đúng hạn quy định</span>
+              <span className="text-xs text-on-surface-variant font-medium">Trạng thái bài tập</span>
+              <div className="text-base font-bold text-on-surface mt-0.5">
+                {hasCentralAssignment ? '01 bài đang mở nộp' : '02 bài đã hoàn thành'}
+              </div>
+              <span className="text-[11px] text-tertiary font-semibold">
+                {hasCentralAssignment ? 'Lớp 12A1 đang làm bài' : '40/40 học sinh đã nộp'}
+              </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-tertiary-container/30 text-tertiary flex items-center justify-center font-bold text-xs">
-              95%
+              {hasCentralAssignment ? 'Đang mở' : '100%'}
             </div>
           </div>
 
           <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex items-center justify-between">
             <div>
               <span className="text-xs text-on-surface-variant font-medium">Tiến độ chấm Rubric AI</span>
-              <div className="text-base font-bold text-on-surface mt-0.5">35/38 bài đã đối chiếu</div>
-              <span className="text-[11px] text-[#CA8A04] font-semibold">3 bài cần kiểm tra OCR</span>
+              <div className="text-base font-bold text-on-surface mt-0.5">
+                {totalAssessedCount} bài đã chấm
+              </div>
+              <span className="text-[11px] text-[#CA8A04] font-semibold">
+                Đạt chuẩn thang điểm 4,0đ
+              </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-secondary-fixed/50 text-secondary flex items-center justify-center">
               <span className="material-symbols-outlined">auto_awesome</span>
@@ -173,16 +185,6 @@ export default function TeacherAssignmentsView() {
               Chưa đủ học liệu ({blockedCount})
             </button>
           </div>
-
-          {/* Prototype Demo Toggle */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowEmptyState(!showEmptyState)}
-              className="text-xs px-2.5 py-1 rounded border border-outline-variant/50 text-secondary hover:bg-surface-container-low transition-all font-medium"
-            >
-              {showEmptyState ? '↩ Khôi phục danh sách' : '⚡ Thử nghiệm Xem Trống (Empty State)'}
-            </button>
-          </div>
         </div>
 
         {/* Empty State */}
@@ -206,40 +208,54 @@ export default function TeacherAssignmentsView() {
         ) : (
           /* Assignment Cards Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {filteredAssignments.map((assignment) => (
-              <div
-                key={assignment.id}
-                className="bg-surface-container-lowest rounded-xl p-5 border border-outline-variant/30 shadow-sm hover:border-outline-variant/80 transition-all flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
-                        assignment.status === 'published'
-                          ? 'bg-tertiary-container/30 text-tertiary'
-                          : assignment.status === 'draft'
-                          ? 'bg-surface-container-high text-on-surface-variant'
-                          : 'bg-[#FEF9C3] text-[#CA8A04]'
-                      }`}
-                    >
-                      {assignment.statusLabel}
-                    </span>
-                    <span className="text-[11px] text-on-surface-variant font-medium">
-                      Hạn: {assignment.deadline}
-                    </span>
-                  </div>
+            {filteredAssignments.map((assignment) => {
+              const isCentral = assignment.id === CENTRAL_ASSIGNMENT_ID;
+              return (
+                <div
+                  key={assignment.id}
+                  className={`bg-surface-container-lowest rounded-xl p-5 border shadow-sm transition-all flex flex-col justify-between ${
+                    isCentral
+                      ? 'border-2 border-primary/50 shadow-md ring-1 ring-primary/20'
+                      : 'border-outline-variant/30 hover:border-outline-variant/80'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <span
+                        className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                          isCentral
+                            ? 'bg-primary-container text-on-primary-container font-bold'
+                            : assignment.status === 'published'
+                            ? 'bg-tertiary-container/30 text-tertiary'
+                            : assignment.status === 'draft'
+                            ? 'bg-surface-container-high text-on-surface-variant'
+                            : 'bg-[#FEF9C3] text-[#CA8A04]'
+                        }`}
+                      >
+                        {isCentral ? 'Đang mở nộp bài (Trọng tâm)' : assignment.statusLabel}
+                      </span>
+                      <span className="text-[11px] text-on-surface-variant font-medium">
+                        Hạn: {assignment.deadline}
+                      </span>
+                    </div>
 
-                  <h3 className="font-headline-sm text-base font-bold text-on-surface font-merriweather mb-1 leading-snug">
-                    {assignment.title}
-                  </h3>
+                    <h3 className="font-headline-sm text-base font-bold text-on-surface font-merriweather mb-1 leading-snug">
+                      {assignment.title}
+                    </h3>
                   <p className="text-xs text-on-surface-variant line-clamp-2 mb-4 leading-relaxed">
                     {assignment.instructions}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs text-on-surface-variant mb-4 p-2.5 bg-surface-container-low/40 rounded-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-on-surface-variant mb-4 p-2.5 bg-surface-container-low/40 rounded-lg">
                     <div>
                       <span className="text-[10px] text-outline block">Mã truy cập:</span>
                       <span className="font-mono font-semibold text-secondary">{assignment.code}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-outline block">Barem áp dụng:</span>
+                      <span className="font-semibold text-primary truncate block" title={rubrics?.find((r) => r.id === assignment.rubricId)?.name}>
+                        {rubrics?.find((r) => r.id === assignment.rubricId)?.shortTitle || 'Barem GDPT 2018'}
+                      </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-outline block">Bài đã chấm:</span>
@@ -302,8 +318,9 @@ export default function TeacherAssignmentsView() {
                   )}
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
+        </div>
         )}
       </div>
     </TeacherShell>

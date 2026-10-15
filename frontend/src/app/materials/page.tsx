@@ -8,11 +8,18 @@ import { useAppStore } from '@/lib/store';
 import { Material } from '@/lib/types';
 
 export default function MaterialsPage() {
-  const { currentUser, materials, addMaterial, addToast } = useAppStore();
+  const {
+    currentUser,
+    materials,
+    addMaterial,
+    addToast,
+    selectAssignmentRubric,
+    setActiveRubricById,
+  } = useAppStore();
 
   const isTeacher = currentUser.role === 'teacher';
 
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'mat-ngulieu-04');
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'mat-ngulieu-mau-tu-do-dat');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPurpose, setFilterPurpose] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -222,10 +229,23 @@ export default function MaterialsPage() {
 
               {selectedMaterial.status === 'READY' && isTeacher && (
                 <Link
-                  href="/assignments/assign-nlxh-01"
+                  href="/assignments/assign-nlvh-mau-tu-do-dat"
+                  onClick={() => {
+                    if (selectedMaterial.id === 'mat-barem-nang-luc-sang-tao-5t') {
+                      selectAssignmentRubric('assign-nlvh-mau-tu-do-dat', 'rubric-nang-luc-sang-tao-5t');
+                      setActiveRubricById('rubric-nang-luc-sang-tao-5t');
+                      addToast('Đã áp dụng Barem Năng lực & Sáng tạo (5 Tiêu chí) cho đề bài!', 'success');
+                    } else if (selectedMaterial.id === 'mat-barem-docx-4d') {
+                      selectAssignmentRubric('assign-nlvh-mau-tu-do-dat', 'rubric-mau-tu-do-dat-4d');
+                      setActiveRubricById('rubric-mau-tu-do-dat-4d');
+                      addToast('Đã áp dụng Barem Chuẩn 4 Tiêu chí cho đề bài!', 'success');
+                    }
+                  }}
                   className="px-3 py-1.5 bg-primary-container text-on-primary-container text-xs font-semibold rounded-lg hover:brightness-95 shrink-0 transition-all flex items-center gap-1 shadow-sm"
                 >
-                  <span>Áp dụng Barem này</span>
+                  <span>
+                    {selectedMaterial.purpose === 'Barem' ? 'Áp dụng Barem này cho đề bài' : 'Xem đề bài đang liên kết'}
+                  </span>
                   <span className="material-symbols-outlined text-sm">arrow_forward</span>
                 </Link>
               )}
@@ -270,33 +290,93 @@ export default function MaterialsPage() {
                 {/* Excerpt Section */}
                 <div className="space-y-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-outline block">
-                    Đoạn trích dẫn ngữ liệu chuẩn hóa:
+                    {selectedMaterial.purpose === 'Barem'
+                      ? 'Tóm tắt ma trận Barem & Định hướng đánh giá:'
+                      : 'Đoạn trích dẫn ngữ liệu chuẩn hóa:'}
                   </span>
                   <div className="p-4 bg-surface-container-low/40 rounded-xl border-l-4 border-primary text-xs sm:text-sm font-merriweather italic text-on-surface leading-relaxed">
                     {selectedMaterial.excerpt}
                   </div>
                 </div>
 
-                {/* Socratic Starter Questions preview */}
-                <div className="space-y-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-outline block">
-                    Gợi ý câu hỏi Socratic bóc tách được:
-                  </span>
-                  <ul className="space-y-1.5 text-xs text-on-surface-variant">
-                    <li className="flex items-start gap-2">
-                      <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
-                      <span>Khái niệm tinh thần tự chủ được tác giả giải thích theo những chiều kích nào?</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
-                      <span>Trong thời đại bùng nổ AI, người trẻ dễ gặp nguy cơ đánh mất quyền tự chủ ra sao?</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
-                      <span>Phản đề: Tự chủ có đồng nghĩa với việc cô lập bản thân và từ chối hợp tác không?</span>
-                    </li>
-                  </ul>
-                </div>
+                {/* Socratic / Criteria breakdown */}
+                {selectedMaterial.id === 'mat-barem-nang-luc-sang-tao-5t' ? (
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-outline block">
+                      Ma trận 5 tiêu chí năng lực (Chuẩn Sở GD&amp;ĐT Hà Nội):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">1. Xác định vấn đề &amp; Mở - Kết (0.50đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Trúng vấn đề cảm nhận tự do, dung lượng ~600 chữ</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">2. Chiều sâu nội dung &amp; Cảm nhận tự do (1.50đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Làm bật nghịch lí không thoát ly bùn đất</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">3. Nghệ thuật &amp; So sánh liên hệ (1.00đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Chuỗi động từ buộc – neo – cởi; liên hệ tác phẩm khác</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-purple-700 block">4. Sáng tạo &amp; Suy tưởng cá nhân (0.50đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Phát hiện thẩm mỹ độc đáo, giàu cá tính cảm thụ</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 sm:col-span-2">
+                        <span className="font-bold text-primary block">5. Chính tả, dùng từ và ngữ pháp tiếng Việt (0.50đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Ngôn ngữ nghị luận truyền cảm, trong sáng, chuẩn ngữ pháp</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : selectedMaterial.id === 'mat-barem-docx-4d' ? (
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-outline block">
+                      Khung 4 tiêu chí chuẩn hóa Bộ GD&amp;ĐT (Thang 4,0đ):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">1. C1: Nội dung, nghệ thuật &amp; Liên hệ (2.50đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Phân tích hình tượng làng quê và liên hệ mở rộng</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">2. C2: Phân tích &amp; Lập luận dẫn chứng (0.75đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Dẫn chứng xác đáng, lập luận sắc bén</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">3. C3: Diễn đạt, ngôn ngữ &amp; Chính tả (0.50đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Văn phong nghị luận trong sáng, đúng ngữ pháp</span>
+                      </div>
+                      <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20">
+                        <span className="font-bold text-primary block">4. C4: Bố cục &amp; Hình thức bài viết (0.25đ)</span>
+                        <span className="text-[11px] text-on-surface-variant">Đủ 3 phần Mở - Thân - Kết, dung lượng ~600 chữ</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-outline block">
+                      Gợi ý câu hỏi Socratic bóc tách được:
+                    </span>
+                    <ul className="space-y-1.5 text-xs text-on-surface-variant">
+                      <li className="flex items-start gap-2">
+                        <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
+                        <span>Hình ảnh khói rơm rạ và sự chuyển đổi cảm giác trong &quot;hít thở mầu tự do&quot; gợi tả điều gì?</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
+                        <span>Nghịch lí &quot;không thoát ly bùn đất&quot; làm sáng tỏ điều gì về khát vọng và cội nguồn gắn bó?</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
+                        <span>Chuỗi động từ &quot;buộc – neo – cởi&quot; kết nối không gian làng quê và ngọn khói ra sao?</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
+                        <span>Liên hệ với &quot;Bếp lửa&quot; (Bằng Việt) hoặc &quot;Quê hương&quot; (Tế Hanh) để làm rõ nét riêng của Trần Quang Quý.</span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
 
                 {/* Metadata & Rules */}
                 <div className="p-3 bg-surface-container-low/60 rounded-xl border border-outline-variant/20 text-xs text-on-surface-variant flex items-center justify-between">
@@ -410,19 +490,7 @@ export default function MaterialsPage() {
                 </div>
               )}
 
-              {/* Demo switch for failure */}
-              <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between text-[11px]">
-                <span className="text-on-surface-variant font-medium">Mô phỏng trường hợp file scan mờ / lỗi:</span>
-                <label className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={forceFail}
-                    onChange={(e) => setForceFail(e.target.checked)}
-                    className="rounded text-error focus:ring-error"
-                  />
-                  <span className="text-error font-semibold">Bật lỗi xử lý</span>
-                </label>
-              </div>
+
 
               <div className="pt-3 border-t border-outline-variant/20 flex items-center justify-end gap-2">
                 <button

@@ -5,45 +5,68 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
-import { RubricCriterion } from '@/lib/types';
+import { RubricCriterion, Rubric } from '@/lib/types';
+import {
+  CENTRAL_ASSIGNMENT_ID,
+  CENTRAL_ASSIGNMENT,
+  CENTRAL_RUBRIC_ID,
+  RUBRIC_CAPACITY_CREATIVE_ID,
+} from '@/lib/mock/assignmentData';
 
 export default function AssignmentEditorPage() {
   const params = useParams();
   const router = useRouter();
-  const { assignments, activeRubric, updateRubricCriterion, publishAssignment, addToast } = useAppStore();
+  const {
+    assignments,
+    activeRubric,
+    rubrics,
+    selectAssignmentRubric,
+    setActiveRubricById,
+    updateRubricCriterion,
+    publishAssignment,
+    addToast,
+  } = useAppStore();
 
-  const assignmentId = (params?.id as string) || 'assign-nlxh-01';
+  const assignmentId = (params?.id as string) || CENTRAL_ASSIGNMENT_ID;
   const isNew = assignmentId === 'new';
-  const assignment = assignments.find((a) => a.id === assignmentId);
+  const assignment = assignments.find((a) => a.id === assignmentId) || CENTRAL_ASSIGNMENT;
 
-  const [title, setTitle] = useState(
-    assignment?.title ||
-      (isNew
-        ? 'Nghị luận xã hội: Ý thức trách nhiệm của thanh niên đối với cộng đồng'
-        : 'Nghị luận xã hội: Ý nghĩa của tinh thần tự chủ trong kỷ nguyên chuyển đổi số')
-  );
-  const [instructions, setInstructions] = useState(
-    assignment?.instructions ||
-      (isNew
-        ? `Anh/chị hãy viết một bài văn nghị luận (khoảng 600 chữ) bàn về tinh thần trách nhiệm của người trẻ trước những vấn đề thời sự của quê hương, đất nước.
-Yêu cầu:
-1. Giải thích ý niệm về trách nhiệm công dân của người trẻ trong kỷ nguyên mới.
-2. Nêu dẫn chứng người thật việc thật trong đời sống thực tế năm 2024.
-3. Phản biện thói vô cảm, bàng quan trước khó khăn của cộng đồng.
-4. Rút ra bài học hành động cụ thể cho bản thân trong học tập và rèn luyện.`
-        : '')
-  );
-  const [deadline, setDeadline] = useState(assignment?.deadline || '30/11/2024 23:59');
+  const [title, setTitle] = useState(assignment.title);
+  const [instructions, setInstructions] = useState(assignment.instructions);
+  const [deadline, setDeadline] = useState(assignment.deadline || '20/10/2026 23:59');
+
+  // Selected rubric state for this assignment
+  const initialRubric =
+    rubrics.find((r) => r.id === assignment.rubricId) ||
+    rubrics.find((r) => r.id === activeRubric.id) ||
+    rubrics[0] ||
+    activeRubric;
+  const [selectedRubricId, setSelectedRubricId] = useState<string>(initialRubric.id);
+  const currentRubric = rubrics.find((r) => r.id === selectedRubricId) || initialRubric;
 
   // Criteria state
-  const [criteria, setCriteria] = useState<RubricCriterion[]>(activeRubric.criteria);
+  const [criteria, setCriteria] = useState<RubricCriterion[]>(currentRubric.criteria);
+
+  // Switch rubric handler
+  const handleSelectRubric = (newRubricId: string) => {
+    setSelectedRubricId(newRubricId);
+    const chosen = rubrics.find((r) => r.id === newRubricId);
+    if (chosen) {
+      setCriteria(chosen.criteria);
+      setActiveRubricById(newRubricId);
+      addToast(
+        `Đã chuyển sang ${chosen.shortTitle || chosen.name} (${chosen.criteria.length} tiêu chí) cho đề bài này!`,
+        'success'
+      );
+    }
+  };
 
   // Publish checklist
   const [checkPublicReport, setCheckPublicReport] = useState(false);
 
-  // Calculate live total
+  // Calculate live total (Thang điểm 4.0)
   const totalWeight = criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
-  const isValidTotal = Math.abs(totalWeight - 10.0) < 0.01;
+  const isValidTotal = Math.abs(totalWeight - 4.0) < 0.01;
 
   const handleWeightChange = (id: string, newWeight: number) => {
     const updated = criteria.map((c) => (c.id === id ? { ...c, weight: newWeight } : c));
@@ -52,13 +75,14 @@ Yêu cầu:
   };
 
   const handleSaveDraft = () => {
-    const targetId = isNew ? `assign-draft-${Date.now()}` : assignmentId;
+    const targetId = isNew ? CENTRAL_ASSIGNMENT_ID : assignmentId;
     publishAssignment(targetId, {
       title,
       studentTitle: title,
       topic: title,
       instructions,
       deadline,
+      rubricId: selectedRubricId,
       status: 'draft',
       statusLabel: 'Bản nháp',
     });
@@ -68,22 +92,36 @@ Yêu cầu:
 
   const handlePublish = () => {
     if (!isValidTotal) {
-      addToast(`Tổng điểm Rubric hiện tại là ${totalWeight.toFixed(1)}đ. Tổng điểm bắt buộc phải bằng 10.0đ.`, 'error');
+      addToast(`Tổng điểm Rubric hiện tại là ${totalWeight.toFixed(2)}đ. Tổng điểm bắt buộc phải bằng 4.0đ.`, 'error');
       return;
     }
 
-    const targetId = isNew ? `assign-new-${Date.now()}` : assignmentId;
+    const targetId = isNew ? CENTRAL_ASSIGNMENT_ID : assignmentId;
     publishAssignment(targetId, {
       title,
       studentTitle: title,
       topic: title,
       instructions,
       deadline,
+      rubricId: selectedRubricId,
       status: 'published',
-      statusLabel: 'Đã giao',
+      statusLabel: 'Đang mở nộp bài',
     });
-    addToast(`Đã áp dụng Barem Rubric v1.4 và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
+    addToast(`Đã áp dụng ${currentRubric.shortTitle || currentRubric.name} và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
     router.push('/assignments');
+  };
+
+  const handleLoadDemoTemplate = () => {
+    setTitle(CENTRAL_ASSIGNMENT.title);
+    setInstructions(CENTRAL_ASSIGNMENT.instructions);
+    setDeadline(CENTRAL_ASSIGNMENT.deadline || '28/10/2026 23:59');
+    setSelectedRubricId(CENTRAL_RUBRIC_ID);
+    const chosen = rubrics.find((r) => r.id === CENTRAL_RUBRIC_ID) || rubrics[0];
+    if (chosen) {
+      setCriteria(chosen.criteria);
+      setActiveRubricById(chosen.id);
+    }
+    addToast('Đã nạp lại mẫu đề bài: "Màu tự do của đất" (Trần Quang Quý)', 'info');
   };
 
   return (
@@ -94,7 +132,9 @@ Yêu cầu:
             Quản lý bài tập
           </Link>
           <span className="text-outline-variant">/</span>
-          <span className="text-on-surface font-semibold">Soạn đề &amp; Cấu hình Rubric GDPT 2018</span>
+          <span className="text-on-surface font-semibold">
+            {isNew ? 'Tạo bài tập mới cho lớp' : 'Soạn đề & Cấu hình Rubric GDPT 2018'}
+          </span>
         </div>
       }
     >
@@ -103,17 +143,29 @@ Yêu cầu:
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-outline-variant/20">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs bg-primary-fixed text-primary font-bold px-2 py-0.5 rounded-full">
-                Barem Rubric v1.4
+              <span className="text-xs bg-primary-fixed text-primary font-bold px-2 py-0.5 rounded-full font-mono">
+                {currentRubric.version}
               </span>
-              <span className="text-xs text-on-surface-variant font-medium">Bản chuẩn sư phạm 2024</span>
+              <span className="text-xs text-on-surface-variant font-medium">
+                {currentRubric.shortTitle || currentRubric.name}
+              </span>
             </div>
             <h1 className="font-headline-lg text-2xl font-bold text-on-surface font-merriweather">
-              Cấu hình Đề bài &amp; Thang tiêu chí Rubric
+              {isNew ? 'Tạo đề bài mới & Thiết lập Rubric GDPT 2018' : 'Cấu hình Đề bài & Thang tiêu chí Rubric'}
             </h1>
           </div>
 
           <div className="flex items-center gap-3">
+            {isNew && (
+              <button
+                type="button"
+                onClick={handleLoadDemoTemplate}
+                className="px-3 py-2 rounded-lg border border-secondary/40 text-secondary bg-surface-container-lowest text-xs font-semibold hover:bg-secondary/10 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                <span>Nạp mẫu demo</span>
+              </button>
+            )}
             <button
               onClick={handleSaveDraft}
               className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm"
@@ -125,10 +177,25 @@ Yêu cầu:
               className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>Xác nhận Rubric &amp; Giao bài</span>
+              <span>Xác nhận Rubric &amp; Giao bài cho Lớp 12A1</span>
             </button>
           </div>
         </div>
+
+        {/* Banner for New Assignment Demo */}
+        {isNew && (
+          <div className="p-4 bg-primary-container/20 border border-primary/30 rounded-xl flex items-start gap-3 text-xs text-on-surface">
+            <span className="material-symbols-outlined text-primary text-xl mt-0.5">auto_awesome</span>
+            <div className="space-y-1">
+              <p className="font-semibold text-primary">
+                Quy trình demo: Giáo viên khởi tạo và giao đề bài mới
+              </p>
+              <p className="text-on-surface-variant leading-relaxed">
+                Hệ thống đã nạp sẵn ngữ liệu bài thơ <strong>&quot;Màu tự do của đất&quot; (Trần Quang Quý)</strong> và hướng dẫn chấm từ file DOCX gốc. Cô giáo chỉ cần chọn Barem phù hợp (Chuẩn 4 tiêu chí hoặc Năng lực sáng tạo 5 tiêu chí), tinh chỉnh trọng số nếu muốn, rồi bấm <strong>&quot;Xác nhận Rubric &amp; Giao bài cho Lớp 12A1&quot;</strong>.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Version preservation warning banner */}
         <div className="p-3.5 bg-surface-container-low/70 border border-outline-variant/30 rounded-xl flex items-center gap-3 text-xs text-on-surface-variant">
@@ -202,16 +269,16 @@ Yêu cầu:
               </div>
             </div>
 
-            {/* 2. Barem Rubric (4 criteria totaling 10.0) */}
+            {/* 2. Barem Rubric (4 criteria totaling 4.0) */}
             <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">format_list_numbered</span>
-                    2. Barem Rubric Đánh giá chi tiết (Tổng 10.0đ)
+                    2. Barem Rubric Đánh giá chi tiết (Tổng 4.0đ)
                   </span>
                   <span className="text-[11px] text-on-surface-variant">
-                    Chuẩn hóa theo định dạng JSON Schema SRS §7.1
+                    Chuẩn hóa theo định dạng JSON Schema GDPT 2018 (Thang 4.0đ)
                   </span>
                 </div>
 
@@ -224,7 +291,7 @@ Yêu cầu:
                         : 'bg-error-container text-error animate-pulse'
                     }`}
                   >
-                    {totalWeight.toFixed(1)} / 10.0đ
+                    {totalWeight.toFixed(2)} / 4.0đ
                   </span>
                   {isValidTotal && (
                     <span className="text-xs text-tertiary font-semibold flex items-center gap-0.5">
@@ -235,11 +302,86 @@ Yêu cầu:
                 </div>
               </div>
 
+              {/* Barem Template Selector Cards */}
+              <div className="p-4 bg-surface-container-low/60 rounded-xl border border-outline-variant/40 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-base">rule_folder</span>
+                    <label className="text-xs font-bold text-on-surface">
+                      Chọn Barem đánh giá áp dụng cho đề này:
+                    </label>
+                  </div>
+                  <span className="text-[11px] text-on-surface-variant font-medium">
+                    (Hệ thống hỗ trợ nhiều barem GDPT 2018 theo từng mục tiêu kiểm tra)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {rubrics.map((r) => {
+                    const isSelected = r.id === selectedRubricId;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => handleSelectRubric(r.id)}
+                        className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-surface-container-lowest border-secondary ring-2 ring-secondary/25 shadow-xs'
+                            : 'bg-surface-container-lowest/70 border-outline-variant/50 hover:border-outline hover:bg-surface-container-lowest'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-on-surface flex items-center gap-2">
+                              <span
+                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                  isSelected
+                                    ? 'border-secondary bg-secondary'
+                                    : 'border-outline-variant bg-transparent'
+                                }`}
+                              >
+                                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                              </span>
+                              <span>{r.shortTitle || r.name}</span>
+                            </span>
+                            <span className="text-[10px] font-mono font-bold bg-primary-fixed text-primary px-1.5 py-0.2 rounded-full shrink-0">
+                              {r.version}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-on-surface-variant leading-relaxed pl-6">
+                            {r.description || `Thang điểm ${r.maxScore}đ gồm ${r.criteria.length} tiêu chí đánh giá GDPT 2018.`}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 pt-2.5 border-t border-outline-variant/20 pl-6 flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-secondary flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm">checklist</span>
+                            <span>{r.criteria.length} tiêu chí • Tổng {r.maxScore.toFixed(1)}đ</span>
+                          </span>
+                          {isSelected ? (
+                            <span className="text-tertiary font-bold flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-sm">check_circle</span>
+                              Đang áp dụng cho đề này
+                            </span>
+                          ) : (
+                            <span className="text-primary font-medium hover:underline flex items-center gap-0.5">
+                              <span>Chọn barem này</span>
+                              <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {!isValidTotal && (
                 <div className="p-3 bg-error-container/50 border border-error/30 rounded-lg text-xs text-error flex items-center gap-2">
                   <span className="material-symbols-outlined text-base">error</span>
                   <span>
-                    Tổng điểm các tiêu chí phải bằng đúng 10.0đ (Hiện tại: {totalWeight.toFixed(1)}đ). Hãy điều chỉnh lại điểm của các tiêu chí dưới đây.
+                    Tổng điểm các tiêu chí phải bằng đúng 4.0đ (Hiện tại: {totalWeight.toFixed(2)}đ). Hãy điều chỉnh lại điểm của các tiêu chí dưới đây.
                   </span>
                 </div>
               )}
@@ -355,7 +497,7 @@ Yêu cầu:
               <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                 <span className="text-xs font-bold uppercase tracking-wider text-on-surface flex items-center gap-1">
                   <span className="material-symbols-outlined text-base text-secondary">menu_book</span>
-                  Học liệu liên kết (2)
+                  Học liệu liên kết (3)
                 </span>
                 <span className="text-[10px] text-tertiary font-bold bg-tertiary-container/30 px-2 py-0.2 rounded">
                   Sẵn sàng
@@ -363,19 +505,73 @@ Yêu cầu:
               </div>
 
               <div className="space-y-2 text-xs">
+                {/* 1. Ngữ liệu chính */}
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
                   <span className="material-symbols-outlined text-secondary text-base mt-0.5">description</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Văn bản đọc hiểu số 04</p>
-                    <p className="text-[11px] text-on-surface-variant">Ý nghĩa của tinh thần tự chủ trong thời đại số</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-on-surface">Ngữ liệu chính: Bài thơ &quot;Màu tự do của đất&quot;</p>
+                      <span className="text-[9px] font-bold text-secondary bg-secondary-fixed/50 px-1.5 py-0.2 rounded">
+                        Ngữ liệu
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-on-surface-variant">Tác giả: Trần Quang Quý • Báo Văn nghệ số Tết 2019</p>
                   </div>
                 </div>
 
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
+                {/* 2. Barem 1: Chuẩn 4 Tiêu chí */}
+                <div
+                  onClick={() => handleSelectRubric(CENTRAL_RUBRIC_ID)}
+                  className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-start gap-2 ${
+                    currentRubric.id === CENTRAL_RUBRIC_ID
+                      ? 'bg-secondary-fixed/20 border-secondary ring-1 ring-secondary/50 shadow-xs'
+                      : 'bg-surface-container-low/50 border-outline-variant/20 hover:border-outline-variant/60'
+                  }`}
+                >
                   <span className="material-symbols-outlined text-primary text-base mt-0.5">gavel</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Barem thang điểm 2024</p>
-                    <p className="text-[11px] text-on-surface-variant">Barem 4 tiêu chí chuẩn GDPT 2018</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-on-surface">Barem 1: Hướng dẫn chấm gốc DOCX (4 Tiêu chí)</p>
+                      {currentRubric.id === CENTRAL_RUBRIC_ID ? (
+                        <span className="text-[9px] font-bold text-tertiary bg-tertiary-container/40 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[11px]">check</span>
+                          Đang áp dụng
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-outline hover:text-primary font-medium">Bấm để chọn</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-on-surface-variant">
+                      Thang 4.0 điểm • Chuẩn Bộ GD&amp;ĐT (v2.0-GDPT2018)
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Barem 2: Năng lực & Sáng tạo 5 Tiêu chí */}
+                <div
+                  onClick={() => handleSelectRubric(RUBRIC_CAPACITY_CREATIVE_ID)}
+                  className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-start gap-2 ${
+                    currentRubric.id === RUBRIC_CAPACITY_CREATIVE_ID
+                      ? 'bg-secondary-fixed/20 border-secondary ring-1 ring-secondary/50 shadow-xs'
+                      : 'bg-surface-container-low/50 border-outline-variant/20 hover:border-outline-variant/60'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-purple-600 text-base mt-0.5">auto_awesome</span>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-on-surface">Barem 2: Barem Năng lực &amp; Sáng tạo (5 Tiêu chí)</p>
+                      {currentRubric.id === RUBRIC_CAPACITY_CREATIVE_ID ? (
+                        <span className="text-[9px] font-bold text-tertiary bg-tertiary-container/40 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[11px]">check</span>
+                          Đang áp dụng
+                        </span>
+                      ) : (
+                        <span className="text-[9px] text-outline hover:text-primary font-medium">Bấm để chọn</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-on-surface-variant">
+                      Thang 4.0 điểm • Chuẩn Sở GD&amp;ĐT Hà Nội (v2.2-NLC-2024)
+                    </p>
                   </div>
                 </div>
               </div>
@@ -384,30 +580,34 @@ Yêu cầu:
                 href="/materials"
                 className="w-full py-1.5 rounded border border-outline-variant/50 text-[11px] text-secondary font-semibold hover:bg-surface-container transition-all flex items-center justify-center gap-1"
               >
-                <span className="material-symbols-outlined text-sm">add</span>
-                <span>Thêm học liệu từ Kho lưu trữ</span>
+                <span className="material-symbols-outlined text-sm">menu_book</span>
+                <span>Xem toàn văn ngữ liệu &amp; Ghi chú rà soát</span>
               </Link>
             </div>
 
             {/* Mục tiêu học tập gắn với tiêu chí */}
             <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-on-surface block pb-2 border-b border-outline-variant/20">
-                Mục tiêu dạy học (Sư phạm)
-              </span>
+              <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+                <span className="text-xs font-bold uppercase tracking-wider text-on-surface">
+                  Mục tiêu dạy học (Sư phạm)
+                </span>
+                <span className="text-[10px] text-primary font-bold font-mono">
+                  {currentRubric.criteria.length} tiêu chí
+                </span>
+              </div>
 
               <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">1. Bố cục mạch lạc 3 phần</p>
-                  <span className="text-[10px] text-outline">Gắn với C1 Bố cục</span>
-                </div>
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">2. Đưa phản đề và dẫn chứng xác thực</p>
-                  <span className="text-[10px] text-outline">Gắn với C2 Luận điểm</span>
-                </div>
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">3. Tinh gọn câu phức, sạch lỗi chính tả</p>
-                  <span className="text-[10px] text-outline">Gắn với C3 Diễn đạt</span>
-                </div>
+                {currentRubric.criteria.map((c, idx) => (
+                  <div key={c.id} className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary space-y-0.5">
+                    <p className="font-medium text-on-surface">
+                      {idx + 1}. {c.name}
+                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-outline">
+                      <span>Mã tiêu chí: {c.id}</span>
+                      <span className="font-bold text-secondary">Tối đa {c.weight.toFixed(2)}đ</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -420,17 +620,17 @@ Yêu cầu:
               <div className="space-y-2 text-xs text-on-surface">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked disabled className="rounded text-tertiary" />
-                  <span className="text-tertiary font-medium">Đã liên kết học liệu sẵn sàng</span>
+                  <span className="text-tertiary font-medium">Đã liên kết ngữ liệu &quot;Màu tự do của đất&quot;</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={isValidTotal} disabled className="rounded text-tertiary" />
                   <span className={isValidTotal ? 'text-tertiary font-medium' : 'text-error'}>
-                    Tổng điểm Rubric đúng 10.0 điểm
+                    Tổng điểm Rubric đúng 4.0 điểm
                   </span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked disabled className="rounded text-tertiary" />
-                  <span className="text-tertiary font-medium">Có đầy đủ phản đề và dẫn chứng</span>
+                  <span className="text-tertiary font-medium">Có yêu cầu liên hệ tác phẩm ngoài</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -439,7 +639,7 @@ Yêu cầu:
                     onChange={(e) => setCheckPublicReport(e.target.checked)}
                     className="rounded text-secondary focus:ring-secondary"
                   />
-                  <span>Công khai báo cáo kết quả cho học sinh</span>
+                  <span>Công khai kết quả đánh giá cho học sinh</span>
                 </label>
               </div>
 

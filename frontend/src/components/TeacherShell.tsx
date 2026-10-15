@@ -29,7 +29,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
     { label: 'Bài tập & Đề kiểm tra', href: '/assignments', icon: 'assignment' },
     { label: 'Kho ngữ liệu & Chuyên đề', href: '/materials', icon: 'menu_book' },
     { label: 'Báo cáo năng lực lớp', href: '/reports', icon: 'analytics' },
-    { label: 'Trợ lý chấm & Rubric', href: '/assignments/assign-nlxh-01', icon: 'auto_awesome' },
+    { label: 'Trợ lý chấm & Rubric', href: '/assignments/assign-nlvh-mau-tu-do-dat', icon: 'auto_awesome' },
     { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot', icon: 'smart_toy', badge: 'GPT' },
   ];
 
@@ -58,17 +58,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              resetDemoState();
-              addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
-            }}
-            title="Khôi phục trạng thái Demo"
-            className="p-1 rounded text-amber-700 hover:bg-amber-100 flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined text-lg">restart_alt</span>
-          </button>
-          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs">
+          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2.5 py-0.5 rounded-full text-xs font-semibold">
             Giáo viên
           </span>
         </div>
@@ -156,8 +146,8 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
         </div>
 
         {/* Footer Card */}
-        {!sidebarCollapsed && (
-          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20">
+        {!sidebarCollapsed ? (
+          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center justify-between">
             <div className="flex items-center gap-space-sm">
               <span className="material-symbols-outlined text-primary text-[22px]">psychology</span>
               <div>
@@ -165,6 +155,31 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 <p className="font-caption text-xs text-on-surface-variant">Chuẩn ma trận GDPT 2018</p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
+            >
+              <span className="material-symbols-outlined text-lg">restart_alt</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-2 flex justify-center mb-3">
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-all flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">restart_alt</span>
+            </button>
           </div>
         )}
       </aside>
@@ -196,20 +211,10 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 <span className="text-on-surface font-semibold">Nghị luận xã hội GDPT 2018</span>
               </div>
             )}
-            <span className="font-caption text-xs text-primary bg-primary-fixed px-space-sm py-0.5 rounded-full font-semibold">
-              Chế độ xem thử
+            <span className="font-caption text-xs bg-primary-container/20 text-primary px-2.5 py-0.5 rounded-full font-semibold border border-primary/20 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+              <span>Học kỳ II • 2025 - 2026</span>
             </span>
-            <button
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
-              }}
-              title="Khôi phục trạng thái ban đầu của hệ thống demo"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs transition-all shadow-xs"
-            >
-              <span className="material-symbols-outlined text-sm text-amber-600">restart_alt</span>
-              <span>Khôi phục Demo</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-space-lg">

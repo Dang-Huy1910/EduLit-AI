@@ -8,7 +8,7 @@ import StudentAssignmentsView from '@/features/assignments/StudentAssignmentsVie
 function AssignmentsContent() {
   const { currentUser } = useAppStore();
 
-  if (currentUser.role === 'student') {
+  if (currentUser?.role === 'student') {
     return <StudentAssignmentsView />;
   }
 

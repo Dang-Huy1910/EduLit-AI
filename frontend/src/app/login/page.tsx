@@ -148,53 +148,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            {/* Prototype Demo State Switcher */}
-            <div className="bg-surface-container-low p-2.5 rounded-lg mb-4 text-xs border border-outline-variant/30">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-semibold text-on-surface-variant flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs text-secondary">tune</span>
-                  Chế độ Demo:
-                </span>
-                <span className="text-[10px] text-secondary font-bold">
-                  {simState === 'normal' ? 'Bình thường' : simState === 'error' ? 'Lỗi' : 'Bảo trì'}
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-1 text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setSimState('normal')}
-                  className={`py-1 rounded font-medium ${
-                    simState === 'normal'
-                      ? 'bg-white text-secondary shadow-sm font-bold'
-                      : 'text-slate-600 hover:bg-white/60'
-                  }`}
-                >
-                  Chuẩn
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSimState('error')}
-                  className={`py-1 rounded font-medium ${
-                    simState === 'error'
-                      ? 'bg-white text-error shadow-sm font-bold'
-                      : 'text-slate-600 hover:bg-white/60'
-                  }`}
-                >
-                  Sai pass
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSimState('maintenance')}
-                  className={`py-1 rounded font-medium ${
-                    simState === 'maintenance'
-                      ? 'bg-white text-[#CA8A04] shadow-sm font-bold'
-                      : 'text-slate-600 hover:bg-white/60'
-                  }`}
-                >
-                  Bảo trì
-                </button>
-              </div>
-            </div>
+
 
             {/* Alerts */}
             {simState === 'error' && (
@@ -290,23 +244,12 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Quick 1-Click Demo Accounts */}
+            {/* Quick Login Accounts */}
             <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Đăng nhập nhanh 1-Click:
+                  Tài khoản đăng nhập khả dụng:
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetDemoState();
-                    addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
-                  }}
-                  className="text-[10px] text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-0.5 hover:underline"
-                >
-                  <span className="material-symbols-outlined text-[13px]">restart_alt</span>
-                  <span>Khôi phục Demo</span>
-                </button>
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px]">
                 <button

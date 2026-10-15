@@ -33,6 +33,7 @@ export default function StudentShell({
   const studentNavItems = [
     { label: 'Bài tập của em', href: '/assignments', icon: 'edit_note' },
     { label: 'Bài đã nộp & Lịch sử chấm', href: '/assignments?tab=submitted', icon: 'task_alt' },
+    { label: 'Hồ sơ văn phong của em', href: '/profile', icon: 'fingerprint' },
   ];
 
   const assistantNavItems = [
@@ -44,7 +45,7 @@ export default function StudentShell({
     },
     {
       label: 'Phòng Lập dàn ý Socratic',
-      href: '/assignments/assign-nlxh-01/socratic',
+      href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
       icon: 'psychology',
     },
     {
@@ -81,17 +82,7 @@ export default function StudentShell({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              resetDemoState();
-              addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
-            }}
-            title="Khôi phục trạng thái Demo"
-            className="p-1 rounded text-amber-700 hover:bg-amber-100 flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined text-lg">restart_alt</span>
-          </button>
-          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2 py-0.5 rounded-full text-xs font-semibold">
+          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2.5 py-0.5 rounded-full text-xs font-semibold">
             {currentUser.name || 'Bùi Hà My'}
           </span>
         </div>
@@ -219,8 +210,8 @@ export default function StudentShell({
         </div>
 
         {/* Footer Card */}
-        {!sidebarCollapsed && (
-          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20">
+        {!sidebarCollapsed ? (
+          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center justify-between">
             <div className="flex items-center gap-space-sm">
               <span className="material-symbols-outlined text-secondary text-[22px]">verified_user</span>
               <div>
@@ -230,6 +221,31 @@ export default function StudentShell({
                 </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-1.5 rounded-lg text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
+            >
+              <span className="material-symbols-outlined text-lg">restart_alt</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-2 flex justify-center mb-3">
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">restart_alt</span>
+            </button>
           </div>
         )}
       </aside>
@@ -259,20 +275,10 @@ export default function StudentShell({
               <span className="text-outline-variant">/</span>
               <span className="text-on-surface font-semibold">{headerSubtitle}</span>
             </div>
-            <span className="font-caption text-xs text-secondary bg-secondary-fixed/50 px-space-sm py-0.5 rounded-full font-semibold">
-              Chế độ xem thử: Học sinh
+            <span className="font-caption text-xs bg-secondary-fixed/50 text-secondary px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+              <span>Học sinh: {currentUser.name || 'Bùi Hà My'}</span>
             </span>
-            <button
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã khôi phục dữ liệu Demo về trạng thái ban đầu!', 'success');
-              }}
-              title="Khôi phục trạng thái ban đầu của hệ thống demo"
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-semibold text-xs transition-all shadow-xs"
-            >
-              <span className="material-symbols-outlined text-sm text-amber-600">restart_alt</span>
-              <span>Khôi phục Demo</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-space-lg">

@@ -19,20 +19,25 @@ export interface RubricLevel {
 export interface RubricCriterion {
   id: string;
   name: string;
-  weight: number; // max score
+  weight: number; // max score in 4.0 scale
   levels?: RubricLevel[];
   requiredElements?: string[];
   penaltyPerError?: number;
   antiPatterns?: string[];
+  guideNote?: string;
 }
 
 export interface Rubric {
   id: string;
+  name?: string;
+  shortTitle?: string;
   version: string;
   topicTitle: string;
   gradeLevel: number;
-  maxScore: number;
+  maxScore: number; // 4.0
   criteria: RubricCriterion[];
+  originalDocxGuide?: string;
+  description?: string;
 }
 
 export interface Material {
@@ -44,6 +49,8 @@ export interface Material {
   status: 'READY' | 'PROCESSING' | 'FAILED';
   errorMessage?: string;
   excerpt?: string;
+  fullContent?: string;
+  sourceNotes?: string[];
   uploadedAt: string;
 }
 
@@ -70,10 +77,16 @@ export interface Assignment {
     goal: string;
     criterionId: string;
   }[];
+  poemSource?: {
+    title: string;
+    author: string;
+    lines: string[];
+    sourceDocxNotes?: string[];
+  };
 }
 
 export interface OutlineSection {
-  id: string;
+  id: 'intro' | 'body' | 'conclusion' | string;
   title: string;
   points: string[];
 }
@@ -85,6 +98,9 @@ export interface SocraticMessage {
   timestamp: string;
   canAddToOutline?: boolean;
   outlinePoint?: string;
+  suggestedSectionId?: 'intro' | 'body' | 'conclusion';
+  requirementTag?: string;
+  branchId?: string;
 }
 
 export interface GradingEvaluation {
@@ -105,20 +121,38 @@ export interface GradingEvaluation {
   comment?: string;
 }
 
-export interface SubmissionResult {
-  id: string;
+export interface SubmissionPageImage {
+  pageIndex: number;
+  imageUrl: string;
+  size: string;
+  caption: string;
+  isCustomUpload?: boolean;
+}
+
+export interface SubmissionTranscriptionPage {
+  pageIndex: number;
+  lines: string[];
+}
+
+export interface StudentSubmission {
+  id: string; // submissionId
   assignmentId: string;
   studentId: string;
   studentName: string;
   studentCode: string;
-  totalScore: number;
-  maxScore: number;
-  gradeLevel: string;
-  ocrConfidence: number;
-  flaggedSegmentsCount: number;
   submissionDate: string;
+  status: 'submitted' | 'graded';
+  pages: SubmissionPageImage[];
+  transcriptionByPage: SubmissionTranscriptionPage[];
   evaluations: GradingEvaluation[];
-  transcription: string[];
+  totalScore: number; // 4.0 scale
+  maxScore: number; // 4.0
+  scoreScale10: number; // (totalScore / 4.0) * 10
+  gradeLevel: string;
+  ocrConfidenceLabel: string; // e.g. "Mô phỏng rà soát OCR"
+  flaggedSegmentsCount: number;
+  isPublishedToStudent: boolean;
+  teacherNotes?: string;
   pedagogicalTasks: {
     id: string;
     title: string;
@@ -127,3 +161,5 @@ export interface SubmissionResult {
   }[];
 }
 
+// Backwards compatibility alias for components expecting SubmissionResult
+export type SubmissionResult = StudentSubmission;

@@ -52,47 +52,47 @@ export default function ChatbotPage() {
         },
         {
           id: 'session-2',
-          title: '📊 Phân tích lỗi lập luận Lớp 12A1',
+          title: '📊 Đánh giá 3 bài nộp Lớp 12A1',
           timeLabel: 'Hôm nay',
-          preview: 'Tóm tắt các lỗi sai thiếu phản đề của 35 bài chấm Rubric...',
+          preview: 'So sánh bài làm của Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh...',
         },
         {
           id: 'session-3',
-          title: '⚖️ Soạn khung Barem 4 mức GDPT 2018',
+          title: '🌱 Gợi mở nghịch lí bùn đất',
           timeLabel: '7 ngày trước',
-          preview: 'Xây dựng tiêu chí phân hóa Nhận biết, Thông hiểu, Vận dụng...',
+          preview: 'Xây dựng câu hỏi Socratic giúp học sinh chạm vào chiều sâu tư tưởng...',
         },
         {
           id: 'session-4',
-          title: '📖 Ngữ liệu bổ trợ bài thơ Tây Tiến',
+          title: '📖 Ngữ liệu Màu tự do của đất',
           timeLabel: '7 ngày trước',
-          preview: 'Khai thác bối cảnh lịch sử và tinh thần bi tráng đoàn quân...',
+          preview: 'Rà soát bài thơ Trần Quang Quý trên báo Văn nghệ số Tết 2019...',
         },
       ]
     : [
         {
           id: 'session-1',
-          title: '💡 Mở bài NLXH về lòng kiên định',
+          title: '💡 Phân tích hình ảnh khói rơm rạ',
           timeLabel: 'Hôm nay',
-          preview: 'Công thức đi từ bối cảnh chuyển đổi số vào vấn đề tư tưởng...',
+          preview: 'Sự chuyển đổi cảm giác trong "hít thở mầu tự do của đất"...',
         },
         {
           id: 'session-2',
-          title: '🎯 Tiêu chí Sáng tạo (C4) trong Barem',
+          title: '🌾 Nghịch lí "không thoát ly bùn đất"',
           timeLabel: 'Hôm nay',
-          preview: 'Cách tạo dấu ấn cá nhân và hình ảnh ẩn dụ độc đáo...',
+          preview: 'Phân biệt thoát nhọc nhằn cơ bắp với việc gắn bó cội rễ...',
         },
         {
           id: 'session-3',
-          title: '📰 Dẫn chứng thời sự người trẻ 2024',
+          title: '🔗 Chuỗi liên kết buộc – neo – cởi',
           timeLabel: '7 ngày trước',
-          preview: 'Tấm gương kỹ sư công nghệ nông nghiệp bền bỉ vượt khó...',
+          preview: 'Đường dây tâm thức làng và kết cấu vòng tròn ngọn khói...',
         },
         {
           id: 'session-4',
-          title: '✍️ Dàn ý bài viết số 1 (Đan Phượng)',
+          title: '🔥 Liên hệ mở rộng bài thơ Bếp lửa',
           timeLabel: '7 ngày trước',
-          preview: 'Phân tách 3 luận điểm thân bài kèm phản đề sâu sắc...',
+          preview: 'Làm nổi bật nét riêng độc đáo của nhà thơ Trần Quang Quý...',
         },
       ];
 
@@ -104,7 +104,7 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Gợi ý đề bài Nghị luận xã hội & Nghị luận văn học gắn với thực tiễn 2024.\n• Soạn thảo và chuẩn hóa thang điểm Rubric 4 mức (Nhận biết, Thông hiểu, Vận dụng, Vận dụng cao).\n• Phân tích điểm nghẽn học lực của Lớp 12A1 để điều chỉnh giáo án kịp thời.\n\nCô muốn bắt đầu với nội dung nào ạ?`,
+          text: `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".\n• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.\n• Phân tích kết quả và lỗi phổ biến của 3 học sinh (Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh).\n\nCô muốn bắt đầu với nội dung nào ạ?`,
           timestamp: '08:00',
           modelBadge: 'EduLit Co-Pilot v2.4',
         },
@@ -113,12 +113,12 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 12 tại THPT Đan Phượng.\n\nTheo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:\n• Tìm kiếm góc nhìn độc lập, sâu sắc cho đề bài.\n• Xây dựng luận điểm phản đề chặt chẽ.\n• Lựa chọn dẫn chứng thực tế giàu sức thuyết phục.\n\nBạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
+          text: `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 12 tại THPT Đan Phượng.\n\nTheo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:\n• Phân tích hình ảnh làng quê và cảm nhận tự do của Trần Quang Quý.\n• Khai thác nghịch lí "không thoát ly bùn đất" và chuỗi buộc – neo – cởi.\n• Liên hệ mở rộng bài thơ ngoài để làm nổi bật nét riêng của tác giả.\n\nBạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
           timestamp: '08:00',
           modelBadge: 'Socratic AI Engine',
           suggestedAction: {
             label: 'Xem đề bài & Lập dàn ý bài tập đang làm →',
-            href: '/assignments/assign-nlxh-01/socratic',
+            href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
           },
         },
       ];
@@ -155,54 +155,54 @@ export default function ChatbotPage() {
   const quickCardsStudent = [
     {
       icon: 'lightbulb',
-      title: 'Mở bài ấn tượng',
-      desc: 'Cách dẫn dắt từ hiện thực chuyển đổi số vào tư tưởng',
-      prompt: 'Hướng dẫn em cách viết một đoạn mở bài nghị luận xã hội về ý chí kiên định thật tự nhiên và tránh lối mòn.',
+      title: 'Xác định yêu cầu đề',
+      desc: 'Trọng tâm cảm nhận tự do qua hình ảnh làng quê',
+      prompt: 'Đề này yêu cầu em tập trung phân tích điều gì?',
     },
     {
-      icon: 'verified',
-      title: 'Tiêu chí Sáng tạo C4',
-      desc: 'Bí quyết đạt điểm tối đa phần Sáng tạo GDPT 2018',
-      prompt: 'Tiêu chí Sáng tạo (2.0 điểm) trong Barem chấm bài thi đòi hỏi những yếu tố gì cụ thể?',
-    },
-    {
-      icon: 'history_edu',
-      title: 'Dẫn chứng mới 2024',
-      desc: 'Tấm gương người thật việc thật thời đại số',
-      prompt: 'Gợi ý cho em 2 dẫn chứng thời sự năm 2024 về người trẻ Việt Nam kiên định theo đuổi mục tiêu.',
+      icon: 'air',
+      title: 'Khói, mùi & cảm giác',
+      desc: 'Chi tiết khói rơm rạ và hít thở mầu tự do của đất',
+      prompt: 'Em thấy hình ảnh khói rơm rạ và câu "tôi hít thở mầu tự do của đất" rất đặc biệt.',
     },
     {
       icon: 'psychology',
-      title: 'Xây dựng phản đề',
-      desc: 'Phân biệt kiên định với bảo thủ mù quáng',
-      prompt: 'Làm thế nào để viết đoạn phản đề sắc sảo, phân biệt giữa lòng kiên định và sự bảo thủ thiếu linh hoạt?',
+      title: 'Nghịch lí của tự do',
+      desc: 'Vì sao tự do lại là không thoát ly bùn đất?',
+      prompt: 'Vì sao tự do lại là không thoát ly bùn đất?',
+    },
+    {
+      icon: 'compare_arrows',
+      title: 'Liên hệ Bếp lửa',
+      desc: 'Làm rõ nét riêng của Trần Quang Quý so với Bằng Việt',
+      prompt: 'Em muốn liên hệ với Bếp lửa của Bằng Việt.',
     },
   ];
 
   const quickCardsTeacher = [
     {
       icon: 'assignment_add',
-      title: 'Gợi ý 3 đề bài tuần này',
-      desc: 'Đề bài thời sự gắn liền trách nhiệm số và thấu cảm',
-      prompt: 'Gợi ý 3 đề bài Nghị luận xã hội thời sự bám sát chương trình GDPT 2018 cho khối 12 tuần này.',
+      title: 'Thang điểm 4.0 chuẩn',
+      desc: 'Cấu trúc Barem 4 tiêu chí chuẩn GDPT 2018',
+      prompt: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học 600 chữ bài Màu tự do của đất.',
     },
     {
       icon: 'analytics',
-      title: 'Phân tích lỗi Lớp 12A1',
-      desc: 'Tổng hợp điểm nghẽn phổ biến qua 35 bài chấm',
-      prompt: 'Tóm tắt các lỗi sai phổ biến nhất về lập luận và ngữ pháp của học sinh Lớp 12A1 trong bài vừa qua.',
+      title: 'Phân tích 3 bài nộp 12A1',
+      desc: 'Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh',
+      prompt: 'Phân tích điểm mạnh và lỗi phổ biến của 3 học sinh trong bài Màu tự do của đất.',
     },
     {
-      icon: 'balance',
-      title: 'Khung Barem 4 mức chuẩn',
-      desc: 'Thang điểm phân hóa Nhận biết - Vận dụng cao',
-      prompt: 'Hướng dẫn cấu trúc Barem chấm 4 mức cho bài viết nghị luận 600 chữ đạt chuẩn Bộ GD&ĐT.',
+      icon: 'psychology',
+      title: 'Gợi mở nghịch lí bùn đất',
+      desc: 'Phương pháp Socratic không viết hộ bài',
+      prompt: 'Làm thế nào để hướng dẫn học sinh hiểu nghịch lí "không thoát ly bùn đất" mà không nói hộ lời giải?',
     },
     {
       icon: 'groups',
       title: 'Hoạt động nhóm 15 phút',
-      desc: 'Kế hoạch sư phạm khắc phục lỗi thiếu phản đề',
-      prompt: 'Gợi ý 1 hoạt động dạy học 15 phút đầu tiết tới giúp học sinh rèn luyện kỹ năng viết phản đề đa chiều.',
+      desc: 'Rèn luyện kỹ năng liên hệ tác phẩm ngoài',
+      prompt: 'Gợi ý 1 hoạt động dạy học 15 phút giúp học sinh rèn kỹ năng liên hệ tác phẩm ngoài làm nổi bật nét riêng của tác giả.',
     },
   ];
 
@@ -228,39 +228,35 @@ export default function ChatbotPage() {
       const lower = text.toLowerCase();
 
       if (isTeacher) {
-        if (lower.includes('đề bài') || lower.includes('gợi ý') || lower.includes('tuần')) {
-          replyText = `Dạ thưa Cô Đặng Loan, em xin gợi ý 3 đề bài Nghị luận xã hội chất lượng cao bám sát thực tiễn 2024:\n\n1. **Đề số 1 (Về bản sắc & trí tuệ số):**\n"Anh/chị hãy viết bài văn nghị luận (khoảng 600 chữ) bàn về trách nhiệm giữ gìn sự thấu cảm và tính nhân văn của người trẻ trong kỷ nguyên bùng nổ trí tuệ nhân tạo (AI)."\n\n2. **Đề số 2 (Về tinh thần kiên định):**\n"Bàn về sự khác biệt giữa lòng kiên định theo đuổi lý tưởng với sự bảo thủ mù quáng trước những biến đổi nhanh chóng của thời đại."\n\n3. **Đề số 3 (Về ý thức công dân địa phương):**\n"Từ truyền thống quê hương Đan Phượng anh hùng đến khát vọng cống hiến xây dựng quê hương số của thế hệ trẻ ngày nay."\n\nCô có thể bấm áp dụng đề bài này trực tiếp vào hệ thống ngay bên dưới!`;
+        if (lower.includes('barem') || lower.includes('rubric') || lower.includes('4.0') || lower.includes('tiêu chí')) {
+          replyText = `Thưa Cô Đặng Loan, thang điểm 4.0 chuẩn của đề bài được phân bổ như sau:\n\n1. **C1. Nội dung, nghệ thuật & Liên hệ (2.50 điểm):** Phân tích cảm nhận về tự do qua hình ảnh làng quê (1.50đ); liên hệ tác phẩm ngoài và làm rõ nét riêng của tác giả (1.00đ - thiếu phần này trừ điểm nặng).\n2. **C2. Phân tích & Lập luận (0.75 điểm):** Lập luận chặt chẽ, khai thác nghịch lí "không thoát ly bùn đất" và chuỗi "buộc – neo – cởi".\n3. **C3. Diễn đạt & Ngôn ngữ (0.50 điểm):** Đúng chính tả, dùng từ chính xác, câu văn truyền cảm (-0.25đ/lỗi).\n4. **C4. Cấu trúc & Quy cách (0.25 điểm):** Đảm bảo bố cục 3 phần Mở - Thân - Kết của bài nghị luận văn học ~600 chữ.`;
+        } else if (lower.includes('học sinh') || lower.includes('12a1') || lower.includes('bài nộp') || lower.includes('phân tích')) {
+          replyText = `Thưa cô Đặng Loan, kết quả đối chiếu 3 bài nộp tiêu biểu của Lớp 12A1:\n\n• **Bùi Hà My (3.60/4.00đ - Giỏi):** Phân tích sâu nghịch lí tự do và chuỗi buộc – neo – cởi; liên hệ sắc sảo với *Bếp lửa* của Bằng Việt.\n• **Trần Minh Khôi (2.65/4.00đ - TB Khá):** Cảm nhận hình ảnh thơ tốt nhưng hoàn toàn thiếu phần liên hệ tác phẩm ngoài; bị trừ điểm theo đúng hướng dẫn chấm tiêu chí C1.\n• **Nguyễn Lan Anh (3.35/4.00đ - Khá):** Có liên hệ với *Quê hương* của Tế Hanh nhưng cần làm rõ hơn nét riêng trong cách nhìn của Trần Quang Quý.`;
           actionLink = {
-            label: 'Khởi tạo bài tập mới từ đề này →',
-            href: '/assignments/new',
-          };
-        } else if (lower.includes('lỗi') || lower.includes('12a1') || lower.includes('học sinh')) {
-          replyText = `Thưa cô Đặng Loan, dữ liệu đối chiếu Rubric của 35 bài làm Lớp 12A1 cho thấy:\n\n• **54.3% (19 bài)**: Thiếu luận điểm phản đề đa chiều. Học sinh lập luận một chiều, chưa làm rõ ranh giới giữa kiên trì và bảo thủ.\n• **37.1% (13 bài)**: Mắc lỗi ngữ pháp câu phức (thiếu chủ vị vế chính, lặp từ nối khẩu ngữ).\n• **28.6% (10 bài)**: Dẫn chứng lối mòn (sử dụng lại các ví dụ quen thuộc thay vì người thật việc thật thời đại số 2024).\n\n💡 **Hành động sư phạm khuyến nghị:** Dành 15 phút đầu tiết tới tổ chức hoạt động *"Đối thoại phản biện"* để học sinh tìm ít nhất 2 góc nhìn phản đề cho bài viết.`;
-          actionLink = {
-            label: 'Xem chi tiết bảng phân tích năng lực Lớp 12A1 →',
+            label: 'Xem chi tiết bảng tổng hợp báo cáo lớp →',
             href: '/reports',
           };
-        } else if (lower.includes('barem') || lower.includes('rubric') || lower.includes('4 mức')) {
-          replyText = `Thưa cô, khung Barem 4 mức chuẩn GDPT 2018 cho bài nghị luận 600 chữ:\n\n1. **Nhận biết (10–20%):** Xác định đúng vấn đề nghị luận; bảo đảm cấu trúc 3 phần Mở - Thân - Kết.\n2. **Thông hiểu (30–40%):** Giải thích rõ ràng các khái niệm; lập luận mạch lạc, liên kết câu chặt chẽ.\n3. **Vận dụng (20–30%):** Dẫn chứng xác thực, thời sự; có góc nhìn phản đề đối thoại sâu sắc.\n4. **Vận dụng cao (10–20%):** Tính sáng tạo, diễn đạt giàu hình ảnh và cảm xúc, thể hiện bản lĩnh tư duy độc lập của người viết.`;
+        } else if (lower.includes('hoạt động') || lower.includes('15 phút') || lower.includes('nhóm')) {
+          replyText = `💡 **Kế hoạch hoạt động 15 phút đầu tiết:** *"Đối thoại hai ngọn khói quê hương"*\n\n1. **Khởi động (3 phút):** Chiếu 2 đoạn thơ: ngọn khói rơm rạ trong *Màu tự do của đất* (Trần Quang Quý) và mùi khói bếp trong *Bếp lửa* (Bằng Việt).\n2. **Thảo luận cặp đôi (7 phút):** Tìm 1 điểm gặp gỡ (nỗi nhớ quê hương, cội nguồn) và 1 nét riêng (Trần Quang Quý gắn khói với suy tưởng tự do và lao động; Bằng Việt gắn với ký ức tình bà cháu).\n3. **Đúc kết (5 phút):** Giáo viên chốt bí quyết liên hệ: không chỉ chỉ ra điểm giống mà bắt buộc phải làm bật nét độc đáo của tác giả chính.`;
         } else {
-          replyText = `Thưa cô Đặng Loan, em đã ghi nhận câu hỏi: "${text}".\n\nVới vai trò Trợ lý Sư phạm EduLit Co-Pilot, em luôn đồng hành cùng cô trong việc tối ưu hóa thời gian soạn bài, tra cứu ngữ liệu chuẩn mực và xây dựng tiêu chí đánh giá công bằng, khách quan cho học sinh THPT Đan Phượng!`;
+          replyText = `Thưa cô Đặng Loan, em đã ghi nhận yêu cầu: "${text}".\n\nEduLit Co-Pilot luôn sẵn sàng hỗ trợ cô đối chiếu rubric, rà soát văn bản thơ và xây dựng các câu hỏi gợi mở cho học sinh!`;
         }
       } else {
         // Student
-        if (lower.includes('mở bài') || lower.includes('mở')) {
-          replyText = `Để mở bài nghị luận xã hội hấp dẫn và tránh lối mòn, em hãy áp dụng công thức **"Khởi từ hiện thực – Điểm vào tư tưởng"**:\n\n1. **Gợi mở (1–2 câu):** Bắt đầu bằng một hiện tượng thực tế quen thuộc trong đời sống người trẻ (như áp lực thành công sớm, hội chứng sợ bỏ lỡ FOMO, hay sự chuyển động chóng mặt của công nghệ).\n2. **Dẫn dắt (1 câu):** Đặt ra câu hỏi: Giữa những biến đổi ấy, điều gì giữ cho người trẻ không bị chao đảo?\n3. **Khẳng định vấn đề (1 câu):** Đó chính là ý chí kiên định – chiếc la bàn định hình bản lĩnh và phẩm giá con người.\n\n*Tránh tuyệt đối các câu mở đầu sáo rỗng như: "Từ xưa đến nay...", "Xã hội ngày càng phát triển..."*!`;
-        } else if (lower.includes('sáng tạo') || lower.includes('c4')) {
-          replyText = `Tiêu chí Sáng tạo (C4 - 2.0 điểm) trong Barem GDPT 2018 không đòi hỏi em phải dùng từ ngữ đao to búa lớn!\n\nĐiều giám khảo và cô giáo đánh giá cao nhất là:\n• **Góc nhìn cá nhân độc lập:** Em dám nêu suy nghĩ chân thực của mình, không sao chép văn mẫu.\n• **Hình ảnh ẩn dụ giàu sức gợi:** Ví dụ ví lòng kiên định như "bộ rễ bám sâu trong giông bão" thay vì chỉ nói "cần phải kiên trì".\n• **Liên hệ bản thân thực chất:** Nêu bài học hành động gắn liền với thói quen học tập nhỏ mỗi ngày, tránh khẩu hiệu hô hào sáo rỗng.`;
-        } else if (lower.includes('dẫn chứng') || lower.includes('2024') || lower.includes('kiên định')) {
-          replyText = `Gợi ý 2 dẫn chứng thời sự năm 2024 rất đắt giá cho em:\n\n1. **Kỹ sư trẻ nông nghiệp thông minh tại Đan Phượng:** Hình ảnh các bạn trẻ khởi nghiệp ứng dụng AI và IoT vào nhà màng nông nghiệp địa phương; dù trải qua nhiều mùa vụ thử nghiệm thất bại và khó khăn nguồn vốn nhưng vẫn bền bỉ hoàn thiện công nghệ để giúp bà con nông dân nâng cao năng suất.\n2. **Vận động viên thể thao người khuyết tật Việt Nam tại Paralympic 2024:** Tấm gương kiên trì tập luyện hàng chục năm trong lặng lẽ để mang lại niềm tự hào cho Tổ quốc.\n\n💡 *Bí quyết phân tích:* Không chỉ kể tên người, mà hãy phân tích **động lực ý chí** giúp họ vượt qua nghịch cảnh!`;
+        if (lower.includes('yêu cầu') || lower.includes('trọng tâm') || lower.includes('phân tích điều gì')) {
+          replyText = `Trọng tâm là cách Trần Quang Quý cảm nhận 'tự do' qua những hình ảnh làng quê. Em cần đi từ hình ảnh và ngôn ngữ cụ thể để giải thích cách hiểu ấy, sau đó liên hệ một bài thơ khác nhằm làm rõ nét riêng của tác giả. Em muốn bắt đầu từ ngọn khói quê hay nghịch lí 'không thoát ly bùn đất'?`;
           actionLink = {
-            label: 'Đưa dẫn chứng này vào Dàn ý bài viết của em →',
-            href: '/assignments/assign-nlxh-01/socratic',
+            label: 'Mở không gian đối thoại Socratic hoàn chỉnh →',
+            href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
           };
-        } else if (lower.includes('phản đề') || lower.includes('bảo thủ')) {
-          replyText = `Em đặt câu hỏi rất thông minh! Luận điểm phản đề chính là chìa khóa để bài viết đạt điểm 8.0+.\n\nEm hãy phân biệt rõ:\n• **Kiên định:** Bền bỉ giữ vững mục tiêu và giá trị cốt lõi, nhưng biết linh hoạt điều chỉnh phương pháp khi hoàn cảnh thay đổi.\n• **Bảo thủ:** Khăng khăng giữ lấy ý kiến cũ dù đã sai lệch, từ chối lắng nghe phản biện và đóng cửa trước cái mới.\n\n*Em có thể viết:* "Kiên định không đồng nghĩa với cố chấp ngoan cố. Người có bản lĩnh kiên định thực sự là người biết cúi mình học hỏi, kiên trì với lý tưởng nhưng luôn sáng suốt cập nhật tri thức mới."`;
+        } else if (lower.includes('khói') || lower.includes('mùi') || lower.includes('hít thở')) {
+          replyText = `Em đã chọn được một chi tiết quan trọng. Khói rơm rạ gợi cảm giác cay và mùi hương, còn 'hít thở mầu tự do' khiến một khái niệm trừu tượng trở nên gần với cơ thể. Theo em, cách diễn đạt ấy cho thấy quê hương hiện diện trong con người như thế nào?`;
+        } else if (lower.includes('nghịch lí') || lower.includes('bùn đất') || lower.includes('thoát ly')) {
+          replyText = `Em hãy đặt câu này cạnh mong muốn 'được giải phóng mình khỏi nhọc nhằn cơ bắp'. Nhà thơ thừa nhận khát vọng bớt vất vả, đồng thời nhìn thấy giá trị của sự gắn bó với đất và lao động. Em có thể phân biệt mong muốn thoát nhọc nhằn với việc từ bỏ cội rễ ra sao?`;
+        } else if (lower.includes('bếp lửa') || lower.includes('liên hệ') || lower.includes('quê hương')) {
+          replyText = `Em có thể đặt hai tác phẩm cạnh nhau qua hình ảnh khói và sự gắn bó với cội nguồn. Với 'Bếp lửa', em cần chọn chi tiết phù hợp về kí ức và tình bà cháu; với 'Màu tự do của đất', cần trở lại suy tưởng về đất, lao động và tự do. Em sẽ nêu điểm khác biệt ấy bằng dẫn chứng nào?`;
         } else {
-          replyText = `Em đã đặt một câu hỏi rất thú vị! Theo góc nhìn gợi mở Socratic:\n\nNếu người đọc bài viết của em đặt câu hỏi ngược lại: *"Tại sao trong một số trường hợp, người ta lại khuyên nên biết từ bỏ đúng lúc thay vì kiên định đến cùng?"*, em sẽ trả lời và phân định ranh giới giữa hai điều này như thế nào để thuyết phục họ?`;
+          replyText = `Câu hỏi của em gợi mở nhiều suy ngẫm! Trong bài thơ "Màu tự do của đất", em có thể tập trung vào các trục chính: hình ảnh làng quê (khói rơm, ngõ xóm), nghịch lí "không thoát ly bùn đất", chuỗi liên kết "buộc – neo – cởi", hoặc liên hệ với "Bếp lửa" / "Quê hương". Em muốn đi sâu vào ý nào trước?`;
         }
       }
 
@@ -400,8 +396,8 @@ export default function ChatbotPage() {
                     </h3>
                     <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
                       {isTeacher
-                        ? 'Hỗ trợ Cô Đặng Loan soạn giảng, lập barem 4 mức và phân tích bài viết học sinh Lớp 12A1.'
-                        : 'Đồng hành cùng Bùi Hà My mài giũa tư duy phản biện, tìm dẫn chứng thời sự và hoàn thiện dàn ý đạt điểm cao.'}
+                        ? 'Hỗ trợ Cô Đặng Loan soạn giảng, cấu hình thang điểm 4.0 và phân tích bài viết học sinh Lớp 12A1.'
+                        : 'Đồng hành cùng Bùi Hà My mài giũa tư duy phân tích, khai thác nghịch lí tự do và lập dàn ý đạt điểm cao.'}
                     </p>
                   </div>
 
@@ -527,8 +523,8 @@ export default function ChatbotPage() {
                   rows={2}
                   placeholder={
                     isTeacher
-                      ? 'Hỏi Cô Đặng Loan: Gợi ý đề bài thời sự, soạn Barem 4 mức, phân tích lỗi Lớp 12A1...'
-                      : 'Hỏi Socratic AI: Cách viết mở bài, dẫn chứng thời sự 2024, tiêu chí Sáng tạo C4...'
+                      ? 'Hỏi Cô Đặng Loan: Cấu hình Barem 4.0, phân tích bài nộp 12A1, hoạt động nhóm 15 phút...'
+                      : 'Hỏi Socratic AI: Trọng tâm đề, khói rơm rạ, nghịch lí bùn đất, liên hệ Bếp lửa...'
                   }
                   className="w-full px-3 py-1.5 text-xs sm:text-sm bg-transparent text-on-surface placeholder:text-outline focus:outline-none resize-none leading-relaxed"
                 />
@@ -537,7 +533,7 @@ export default function ChatbotPage() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => addToast('Đính kèm ngữ liệu chuẩn GDPT 2018 (Tính năng prototype)', 'info')}
+                      onClick={() => addToast('Đã đính kèm ngữ liệu chuẩn GDPT 2018.', 'success')}
                       className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all"
                       title="Đính kèm tài liệu học liệu"
                     >
@@ -545,7 +541,7 @@ export default function ChatbotPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => addToast('Nhập liệu giọng nói tiếng Việt (Tính năng prototype)', 'info')}
+                      onClick={() => addToast('Đang kích hoạt micro nhận diện giọng nói tiếng Việt...', 'info')}
                       className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all"
                       title="Nhập bằng giọng nói"
                     >

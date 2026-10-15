@@ -14,6 +14,7 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+backend/src/generated/
 
 # Python dependencies and caches
 .venv/
@@ -36,6 +37,7 @@ test-results/
 
 # Runtime files, private uploads and local databases
 /var/
+backend/var/
 /data/
 *.log
 *.sqlite

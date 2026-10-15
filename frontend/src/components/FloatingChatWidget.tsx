@@ -32,8 +32,8 @@ export default function FloatingChatWidget() {
     id: 'msg-init',
     sender: 'ai',
     text: isTeacher
-      ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần gợi ý đề bài, chuẩn hóa Barem 4 mức hay kiểm tra lỗi làm văn của Lớp 12A1 ạ?`
-      : `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI. Bạn cần gợi ý cách mở bài, tìm dẫn chứng thời sự 2024 hay xây dựng phản đề cho bài viết hôm nay?`,
+      ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích 3 bài nộp đã chấm hay phương pháp gợi mở Socratic ạ?`
+      : `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ Bếp lửa hôm nay?`,
     timestamp: 'Vừa xong',
   };
 
@@ -46,8 +46,8 @@ export default function FloatingChatWidget() {
         id: `msg-${Date.now()}`,
         sender: 'ai',
         text: isTeacher
-          ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học tuần này ạ?`
-          : `Chào bạn Bùi Hà My! Socratic AI sẵn sàng gợi mở ý tưởng làm văn giúp bạn!`,
+          ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
+          : `Chào bạn Bùi Hà My! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
         timestamp: 'Vừa xong',
       },
     ]);
@@ -69,14 +69,14 @@ export default function FloatingChatWidget() {
 
   const quickPrompts = isTeacher
     ? [
-        { label: '📝 Gợi ý 3 đề bài tuần này', text: 'Gợi ý 3 đề bài Nghị luận xã hội thời sự bám sát GDPT 2018 cho khối 12 tuần này.' },
-        { label: '📊 Lỗi làm văn Lớp 12A1', text: 'Tóm tắt các lỗi sai phổ biến nhất về lập luận và phản đề của học sinh Lớp 12A1.' },
-        { label: '⚖️ Barem 4 mức chuẩn', text: 'Hướng dẫn cấu trúc Barem chấm 4 mức cho bài viết nghị luận 600 chữ đạt chuẩn Bộ GD&ĐT.' },
+        { label: '⚖️ Barem 4.0 điểm', text: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học Màu tự do của đất.' },
+        { label: '📊 Tiến độ 3 bài nộp', text: 'Tóm tắt kết quả chấm và lỗi cần lưu ý của 3 học sinh Lớp 12A1.' },
+        { label: '🌱 Gợi mở nghịch lí', text: 'Gợi ý câu hỏi Socratic giúp học sinh hiểu nghịch lí "không thoát ly bùn đất".' },
       ]
     : [
-        { label: '💡 Cách viết mở bài', text: 'Hướng dẫn em cách viết một đoạn mở bài nghị luận xã hội về ý chí kiên định thật tự nhiên và tránh lối mòn.' },
-        { label: '📰 Dẫn chứng mới 2024', text: 'Gợi ý cho em 2 dẫn chứng thời sự năm 2024 về người trẻ Việt Nam kiên định theo đuổi mục tiêu.' },
-        { label: '🎯 Tiêu chí Sáng tạo C4', text: 'Tiêu chí Sáng tạo (2.0 điểm) trong Barem chấm bài thi đòi hỏi những yếu tố gì cụ thể?' },
+        { label: '🎯 Trọng tâm đề bài', text: 'Đề này yêu cầu em tập trung phân tích điều gì?' },
+        { label: '💨 Khói rơm & cảm giác', text: 'Em thấy hình ảnh khói rơm rạ và câu "tôi hít thở mầu tự do của đất" rất đặc biệt.' },
+        { label: '🔥 Liên hệ Bếp lửa', text: 'Em muốn liên hệ với Bếp lửa của Bằng Việt để làm rõ nét riêng của tác giả.' },
       ];
 
   const handleSend = (textToSend?: string) => {
@@ -99,20 +99,22 @@ export default function FloatingChatWidget() {
       const lower = text.toLowerCase();
 
       if (isTeacher) {
-        if (lower.includes('đề bài') || lower.includes('gợi ý')) {
-          reply = `Dạ thưa Cô Đặng Loan, em gợi ý 2 đề NLXH nổi bật:\n1. Trách nhiệm giữ gìn sự thấu cảm của người trẻ trong kỷ nguyên AI.\n2. Phân biệt ý chí kiên định với sự bảo thủ mù quáng.\nCô có thể bấm vào nút toàn màn hình (⛶) để xem trọn bộ 3 đề chi tiết ạ!`;
-        } else if (lower.includes('lỗi') || lower.includes('12a1')) {
-          reply = `Dạ dữ liệu 35 bài chấm của 12A1 cho thấy 54.3% bài thiếu luận điểm phản đề đa chiều và 37.1% lỗi liên kết câu phức. Cô có thể mở tab Báo cáo để xem biểu đồ chi tiết!`;
+        if (lower.includes('barem') || lower.includes('4.0')) {
+          reply = `Dạ thưa Cô Đặng Loan, thang 4.0 chuẩn gồm:\n• C1 (2.50đ): Phân tích tự do qua làng quê & Liên hệ tác phẩm ngoài\n• C2 (0.75đ): Nghịch lí bùn đất & chuỗi buộc-neo-cởi\n• C3 (0.50đ): Diễn đạt & ngữ pháp\n• C4 (0.25đ): Bố cục bài 600 chữ.`;
+        } else if (lower.includes('bài nộp') || lower.includes('12a1') || lower.includes('tiến độ')) {
+          reply = `Dạ 3 bài nộp tiêu biểu Lớp 12A1: Bùi Hà My (3.60/4.00đ - Giỏi), Trần Minh Khôi (2.65/4.00đ - thiếu liên hệ ngoài bị trừ C1), Nguyễn Lan Anh (3.35/4.00đ - Khá).`;
         } else {
-          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Loan: "${text}". Cô có thể bấm nút mở rộng toàn màn hình để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
+          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Loan: "${text}". Cô có thể bấm nút phóng to (⛶) để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
         }
       } else {
-        if (lower.includes('mở bài')) {
-          reply = `Công thức mở bài hay: "Khởi từ hiện thực – Điểm vào tư tưởng". Hãy bắt đầu bằng áp lực thành công sớm của Gen Z rồi dẫn vào giá trị của lòng kiên định như một chiếc la bàn nội tâm!`;
-        } else if (lower.includes('dẫn chứng')) {
-          reply = `Gợi ý cho bạn 2 dẫn chứng 2024: Kỹ sư trẻ khởi nghiệp nông nghiệp công nghệ cao tại Đan Phượng, và các VĐV kiên trì tại Paralympic 2024!`;
+        if (lower.includes('yêu cầu') || lower.includes('trọng tâm')) {
+          reply = `Trọng tâm là cảm nhận về 'tự do' qua hình ảnh làng quê trong bài thơ của Trần Quang Quý, sau đó liên hệ một bài thơ khác để làm nổi bật nét riêng của tác giả.`;
+        } else if (lower.includes('khói') || lower.includes('rơm') || lower.includes('hít thở')) {
+          reply = `Chi tiết rất đắt giá! Khói rơm rạ gợi mùi hương thân thuộc, còn 'hít thở mầu tự do' giúp cụ thể hóa tự do thành hơi thở của làng quê và sự sống.`;
+        } else if (lower.includes('bếp lửa') || lower.includes('liên hệ')) {
+          reply = `Rất phù hợp! Cả hai đều có hình ảnh ngọn khói và sự gắn bó cội rễ, nhưng Trần Quang Quý nhấn mạnh tự do trong lao động còn Bằng Việt gắn với ký ức tình bà cháu.`;
         } else {
-          reply = `Ý kiến rất thú vị! Theo hướng gợi mở Socratic: Nếu người đọc cho rằng kiên định đôi khi là cố chấp, bạn sẽ đưa ra phản đề gì để bảo vệ luận điểm của mình?`;
+          reply = `Ý kiến rất thú vị! Trong bài thơ "Màu tự do của đất", bạn có thể bám sát: hình ảnh làng quê, nghịch lí "không thoát ly bùn đất", chuỗi buộc – neo – cởi, hoặc liên hệ tác phẩm ngoài!`;
         }
       }
 

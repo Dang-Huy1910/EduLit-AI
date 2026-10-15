@@ -5,20 +5,24 @@ import { useParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import EvaluationResultView from '@/features/assessment/EvaluationResultView';
 import { useAppStore } from '@/lib/store';
+import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 
 export default function StudentResultPage() {
   const params = useParams();
-  const assignmentId = (params?.id as string) || 'assign-nlxh-01';
-  const { assignments } = useAppStore();
-  const assignment = assignments.find((a) => a.id === assignmentId);
+  const assignmentId = (params?.id as string) || CENTRAL_ASSIGNMENT_ID;
+  const { assignments, currentUser } = useAppStore();
+  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
 
   return (
     <StudentShell
-      headerTitle="Kết quả đánh giá Rubric"
-      headerSubtitle={assignment?.title || 'Bài viết số 1: Ý chí và lòng kiên định'}
+      headerTitle="Kết quả đánh giá Rubric (GDPT 2018)"
+      headerSubtitle={`${assignment?.code}: ${assignment?.title}`}
     >
-      <EvaluationResultView viewMode="student" assignmentId={assignmentId} />
+      <EvaluationResultView
+        viewMode="student"
+        assignmentId={assignmentId}
+        studentId={currentUser.id}
+      />
     </StudentShell>
   );
 }
-
