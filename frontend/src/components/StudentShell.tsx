@@ -23,6 +23,7 @@ export default function StudentShell({
   const {
     currentUser,
     logout,
+    resetDemoState,
     addToast,
     sidebarCollapsed,
     toggleSidebar,
@@ -208,8 +209,8 @@ export default function StudentShell({
         </div>
 
         {/* Footer Card */}
-        {!sidebarCollapsed && (
-          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20">
+        {!sidebarCollapsed ? (
+          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center justify-between">
             <div className="flex items-center gap-space-sm">
               <span className="material-symbols-outlined text-secondary text-[22px]">verified_user</span>
               <div>
@@ -219,6 +220,31 @@ export default function StudentShell({
                 </p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-1.5 rounded-lg text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
+            >
+              <span className="material-symbols-outlined text-lg">restart_alt</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-2 flex justify-center mb-3">
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">restart_alt</span>
+            </button>
           </div>
         )}
       </aside>

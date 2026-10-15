@@ -7,7 +7,6 @@ import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import {
-  SOCRATIC_BRANCHES,
   evaluateOutlineCoverage,
 } from '@/lib/mock/socraticScript';
 import {
@@ -79,11 +78,6 @@ export default function SocraticChatPage() {
     sendSocraticMessage(textToSend);
   };
 
-  const handleSendChip = (question: string) => {
-    if (isAiResponding) return;
-    setInputMessage('');
-    sendSocraticMessage(question);
-  };
 
   const handleAddOutlinePointSubmit = (sectionId: string) => {
     if (!newPointText.trim()) return;
@@ -260,32 +254,6 @@ export default function SocraticChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Chips of Pre-scripted Socratic Scenarios */}
-            <div className="p-2 bg-surface-container-low/50 border-t border-outline-variant/20 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
-                <span className="text-outline font-semibold">Gợi ý câu hỏi kịch bản (Bấm để gửi nhanh hoặc điền vào ô chat):</span>
-                <span className="text-secondary font-medium">7 nhánh hội thoại</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                {SOCRATIC_BRANCHES.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => handleSendChip(b.sampleQuestion)}
-                    disabled={isAiResponding}
-                    title={b.sampleQuestion}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all truncate max-w-xs ${
-                      b.isRefusal
-                        ? 'bg-error-container/40 text-error border-error/30 hover:bg-error-container/60'
-                        : 'bg-surface-container-lowest text-on-surface border-outline-variant/40 hover:bg-surface-container hover:border-secondary'
-                    }`}
-                  >
-                    {b.title}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Chat Composer Form */}
             <form onSubmit={handleSendMessage} className="p-3 border-t border-outline-variant/30 flex gap-2 bg-surface-container-lowest rounded-b-xl">
               <input
@@ -293,7 +261,7 @@ export default function SocraticChatPage() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 disabled={isAiResponding}
-                placeholder="Nhập câu hỏi hoặc chọn gợi ý bên trên (VD: Vì sao tự do lại không thoát ly bùn đất?)..."
+                placeholder="Nhập câu hỏi hoặc chia sẻ ý tưởng để cùng Trợ lý Socratic phát triển dàn ý..."
                 maxLength={400}
                 className="flex-1 px-3 py-2 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary disabled:opacity-60"
               />
@@ -625,7 +593,7 @@ export default function SocraticChatPage() {
               {/* 4 Criteria Grid */}
               <div className="space-y-3">
                 <span className="font-bold text-primary text-xs uppercase tracking-wider block">
-                  Cấu trúc 4 tiêu chí Barem Rubric (Tổng: 4,00 điểm):
+                  Cấu trúc {activeRubric.criteria.length} tiêu chí Barem Rubric (Tổng: {activeRubric.maxScore.toFixed(2)} điểm):
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {activeRubric.criteria.map((c) => (

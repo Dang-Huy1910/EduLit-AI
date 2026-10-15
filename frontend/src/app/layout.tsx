@@ -27,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="vi" className={`${inter.variable} ${merriweather.variable}`}>
-      <body className="bg-surface text-on-surface font-body-md antialiased min-h-screen">
+    <html lang="vi" className={`${inter.variable} ${merriweather.variable}`} suppressHydrationWarning>
+      <body className="bg-surface text-on-surface font-body-md antialiased min-h-screen" suppressHydrationWarning>
         {children}
       </body>
     </html>

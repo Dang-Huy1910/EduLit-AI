@@ -5,13 +5,22 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
-import { RubricCriterion } from '@/lib/types';
+import { RubricCriterion, Rubric } from '@/lib/types';
 import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 
 export default function AssignmentEditorPage() {
   const params = useParams();
   const router = useRouter();
-  const { assignments, activeRubric, updateRubricCriterion, publishAssignment, addToast } = useAppStore();
+  const {
+    assignments,
+    activeRubric,
+    rubrics,
+    selectAssignmentRubric,
+    setActiveRubricById,
+    updateRubricCriterion,
+    publishAssignment,
+    addToast,
+  } = useAppStore();
 
   const assignmentId = (params?.id as string) || CENTRAL_ASSIGNMENT_ID;
   const isNew = assignmentId === 'new';
@@ -21,8 +30,31 @@ export default function AssignmentEditorPage() {
   const [instructions, setInstructions] = useState(assignment.instructions);
   const [deadline, setDeadline] = useState(assignment.deadline || '20/10/2026 23:59');
 
+  // Selected rubric state for this assignment
+  const initialRubric =
+    rubrics.find((r) => r.id === assignment.rubricId) ||
+    rubrics.find((r) => r.id === activeRubric.id) ||
+    rubrics[0] ||
+    activeRubric;
+  const [selectedRubricId, setSelectedRubricId] = useState<string>(initialRubric.id);
+  const currentRubric = rubrics.find((r) => r.id === selectedRubricId) || initialRubric;
+
   // Criteria state
-  const [criteria, setCriteria] = useState<RubricCriterion[]>(activeRubric.criteria);
+  const [criteria, setCriteria] = useState<RubricCriterion[]>(currentRubric.criteria);
+
+  // Switch rubric handler
+  const handleSelectRubric = (newRubricId: string) => {
+    setSelectedRubricId(newRubricId);
+    const chosen = rubrics.find((r) => r.id === newRubricId);
+    if (chosen) {
+      setCriteria(chosen.criteria);
+      setActiveRubricById(newRubricId);
+      addToast(
+        `Đã chuyển sang ${chosen.shortTitle || chosen.name} (${chosen.criteria.length} tiêu chí) cho đề bài này!`,
+        'success'
+      );
+    }
+  };
 
   // Publish checklist
   const [checkPublicReport, setCheckPublicReport] = useState(false);
@@ -45,6 +77,7 @@ export default function AssignmentEditorPage() {
       topic: title,
       instructions,
       deadline,
+      rubricId: selectedRubricId,
       status: 'draft',
       statusLabel: 'Bản nháp',
     });
@@ -65,10 +98,11 @@ export default function AssignmentEditorPage() {
       topic: title,
       instructions,
       deadline,
+      rubricId: selectedRubricId,
       status: 'published',
       statusLabel: 'Đã giao',
     });
-    addToast(`Đã áp dụng Barem Rubric v1.4 và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
+    addToast(`Đã áp dụng ${currentRubric.shortTitle || currentRubric.name} và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
     router.push('/assignments');
   };
 
@@ -89,10 +123,12 @@ export default function AssignmentEditorPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-outline-variant/20">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs bg-primary-fixed text-primary font-bold px-2 py-0.5 rounded-full">
-                Barem Rubric v1.4
+              <span className="text-xs bg-primary-fixed text-primary font-bold px-2 py-0.5 rounded-full font-mono">
+                {currentRubric.version}
               </span>
-              <span className="text-xs text-on-surface-variant font-medium">Bản chuẩn sư phạm 2024</span>
+              <span className="text-xs text-on-surface-variant font-medium">
+                {currentRubric.shortTitle || currentRubric.name}
+              </span>
             </div>
             <h1 className="font-headline-lg text-2xl font-bold text-on-surface font-merriweather">
               Cấu hình Đề bài &amp; Thang tiêu chí Rubric
@@ -218,6 +254,81 @@ export default function AssignmentEditorPage() {
                       Hợp lệ 100%
                     </span>
                   )}
+                </div>
+              </div>
+
+              {/* Barem Template Selector Cards */}
+              <div className="p-4 bg-surface-container-low/60 rounded-xl border border-outline-variant/40 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-secondary text-base">rule_folder</span>
+                    <label className="text-xs font-bold text-on-surface">
+                      Chọn Barem đánh giá áp dụng cho đề này:
+                    </label>
+                  </div>
+                  <span className="text-[11px] text-on-surface-variant font-medium">
+                    (Hệ thống hỗ trợ nhiều barem GDPT 2018 theo từng mục tiêu kiểm tra)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {rubrics.map((r) => {
+                    const isSelected = r.id === selectedRubricId;
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => handleSelectRubric(r.id)}
+                        className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-surface-container-lowest border-secondary ring-2 ring-secondary/25 shadow-xs'
+                            : 'bg-surface-container-lowest/70 border-outline-variant/50 hover:border-outline hover:bg-surface-container-lowest'
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-on-surface flex items-center gap-2">
+                              <span
+                                className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                  isSelected
+                                    ? 'border-secondary bg-secondary'
+                                    : 'border-outline-variant bg-transparent'
+                                }`}
+                              >
+                                {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white"></span>}
+                              </span>
+                              <span>{r.shortTitle || r.name}</span>
+                            </span>
+                            <span className="text-[10px] font-mono font-bold bg-primary-fixed text-primary px-1.5 py-0.2 rounded-full shrink-0">
+                              {r.version}
+                            </span>
+                          </div>
+
+                          <p className="text-[11px] text-on-surface-variant leading-relaxed pl-6">
+                            {r.description || `Thang điểm ${r.maxScore}đ gồm ${r.criteria.length} tiêu chí đánh giá GDPT 2018.`}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 pt-2.5 border-t border-outline-variant/20 pl-6 flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-secondary flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm">checklist</span>
+                            <span>{r.criteria.length} tiêu chí • Tổng {r.maxScore.toFixed(1)}đ</span>
+                          </span>
+                          {isSelected ? (
+                            <span className="text-tertiary font-bold flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-sm">check_circle</span>
+                              Đang áp dụng cho đề này
+                            </span>
+                          ) : (
+                            <span className="text-primary font-medium hover:underline flex items-center gap-0.5">
+                              <span>Chọn barem này</span>
+                              <span className="material-symbols-outlined text-xs">arrow_forward</span>
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -361,7 +472,9 @@ export default function AssignmentEditorPage() {
                   <span className="material-symbols-outlined text-primary text-base mt-0.5">gavel</span>
                   <div className="flex-1">
                     <p className="font-semibold text-on-surface">Hướng dẫn chấm &amp; Ma trận đề bài</p>
-                    <p className="text-[11px] text-on-surface-variant">Thang 4.0 điểm • Barem 4 tiêu chí GDPT 2018</p>
+                    <p className="text-[11px] text-on-surface-variant">
+                      Thang 4.0 điểm • {currentRubric.shortTitle || currentRubric.name}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -377,23 +490,27 @@ export default function AssignmentEditorPage() {
 
             {/* Mục tiêu học tập gắn với tiêu chí */}
             <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-on-surface block pb-2 border-b border-outline-variant/20">
-                Mục tiêu dạy học (Sư phạm)
-              </span>
+              <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+                <span className="text-xs font-bold uppercase tracking-wider text-on-surface">
+                  Mục tiêu dạy học (Sư phạm)
+                </span>
+                <span className="text-[10px] text-primary font-bold font-mono">
+                  {currentRubric.criteria.length} tiêu chí
+                </span>
+              </div>
 
               <div className="space-y-2 text-xs">
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">1. Phân tích hình ảnh làng quê &amp; cảm nhận &quot;tự do&quot;</p>
-                  <span className="text-[10px] text-outline">Gắn với C1 Nội dung &amp; Nghệ thuật (2.50đ)</span>
-                </div>
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">2. Nghịch lí &quot;không thoát ly bùn đất&quot; &amp; chuỗi &quot;buộc - neo - cởi&quot;</p>
-                  <span className="text-[10px] text-outline">Gắn với C2 Phân tích &amp; Lập luận (0.75đ)</span>
-                </div>
-                <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">3. Liên hệ làm nổi bật nét riêng của Trần Quang Quý</p>
-                  <span className="text-[10px] text-outline">Yêu cầu bắt buộc theo barem chấm (C1)</span>
-                </div>
+                {currentRubric.criteria.map((c, idx) => (
+                  <div key={c.id} className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary space-y-0.5">
+                    <p className="font-medium text-on-surface">
+                      {idx + 1}. {c.name}
+                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-outline">
+                      <span>Mã tiêu chí: {c.id}</span>
+                      <span className="font-bold text-secondary">Tối đa {c.weight.toFixed(2)}đ</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

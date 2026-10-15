@@ -18,6 +18,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
   const {
     currentUser,
     logout,
+    resetDemoState,
     addToast,
     sidebarCollapsed,
     toggleSidebar,
@@ -145,8 +146,8 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
         </div>
 
         {/* Footer Card */}
-        {!sidebarCollapsed && (
-          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20">
+        {!sidebarCollapsed ? (
+          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center justify-between">
             <div className="flex items-center gap-space-sm">
               <span className="material-symbols-outlined text-primary text-[22px]">psychology</span>
               <div>
@@ -154,6 +155,31 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 <p className="font-caption text-xs text-on-surface-variant">Chuẩn ma trận GDPT 2018</p>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
+            >
+              <span className="material-symbols-outlined text-lg">restart_alt</span>
+            </button>
+          </div>
+        ) : (
+          <div className="p-2 flex justify-center mb-3">
+            <button
+              type="button"
+              onClick={() => {
+                resetDemoState();
+                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
+              }}
+              title="Khôi phục trạng thái ban đầu"
+              className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-all flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">restart_alt</span>
+            </button>
           </div>
         )}
       </aside>

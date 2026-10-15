@@ -17,6 +17,8 @@ import {
   CENTRAL_ASSIGNMENT_ID,
   CENTRAL_ASSIGNMENT,
   RUBRIC_MAU_TU_DO_DAT,
+  RUBRIC_CAPACITY_CREATIVE_5T,
+  AVAILABLE_RUBRICS,
   MATERIALS_MAU_TU_DO_DAT,
   DEMO_TEACHER,
   DEMO_STUDENTS,
@@ -64,8 +66,11 @@ interface AppState {
   assignments: Assignment[];
   activeAssignmentId: string;
   activeRubric: Rubric;
+  rubrics: Rubric[];
   materials: Material[];
   updateRubricCriterion: (criterionId: string, updates: Partial<Rubric['criteria'][0]>) => void;
+  selectAssignmentRubric: (assignmentId: string, rubricId: string) => void;
+  setActiveRubricById: (rubricId: string) => void;
   publishAssignment: (id: string, updates?: Partial<Assignment>) => void;
   addMaterial: (material: Omit<Material, 'id' | 'uploadedAt' | 'version'>) => void;
 
@@ -264,8 +269,9 @@ export const useAppStore = create<AppState>()(
           'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
         };
 
+        const currentRole = get().currentUser?.role || 'teacher';
         set({
-          currentUser: DEMO_TEACHER,
+          currentUser: currentRole === 'student' ? DEMO_STUDENTS[0] : DEMO_TEACHER,
           demoMilestone: 'start',
           isAiResponding: false,
           assignments: [
@@ -277,6 +283,7 @@ export const useAppStore = create<AppState>()(
           ],
           activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
           activeRubric: RUBRIC_MAU_TU_DO_DAT,
+          rubrics: AVAILABLE_RUBRICS,
           materials: MATERIALS_MAU_TU_DO_DAT,
           submissions: startSubmissions,
           submittedAssignmentIds: [],
@@ -305,17 +312,39 @@ export const useAppStore = create<AppState>()(
       ],
       activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
       activeRubric: RUBRIC_MAU_TU_DO_DAT,
+      rubrics: AVAILABLE_RUBRICS,
       materials: MATERIALS_MAU_TU_DO_DAT,
 
       updateRubricCriterion: (criterionId, updates) => {
-        set((state) => ({
-          activeRubric: {
+        set((state) => {
+          const updatedActive = {
             ...state.activeRubric,
             criteria: state.activeRubric.criteria.map((c) =>
               c.id === criterionId ? { ...c, ...updates } : c
             ),
-          },
+          };
+          return {
+            activeRubric: updatedActive,
+            rubrics: state.rubrics.map((r) =>
+              r.id === updatedActive.id ? updatedActive : r
+            ),
+          };
+        });
+      },
+
+      selectAssignmentRubric: (assignmentId, rubricId) => {
+        const targetRubric = get().rubrics.find((r) => r.id === rubricId) || RUBRIC_MAU_TU_DO_DAT;
+        set((state) => ({
+          activeRubric: targetRubric,
+          assignments: state.assignments.map((a) =>
+            a.id === assignmentId ? { ...a, rubricId } : a
+          ),
         }));
+      },
+
+      setActiveRubricById: (rubricId) => {
+        const targetRubric = get().rubrics.find((r) => r.id === rubricId) || RUBRIC_MAU_TU_DO_DAT;
+        set({ activeRubric: targetRubric });
       },
 
       publishAssignment: (id, updates) => {
@@ -724,7 +753,10 @@ export const useAppStore = create<AppState>()(
 );
 
 if (typeof window !== 'undefined') {
-  (window as unknown as { resetEduLit?: () => void }).resetEduLit = () => {
+  (window as unknown as { resetEduLit?: (role?: 'teacher' | 'student') => void }).resetEduLit = (role) => {
+    if (role) {
+      useAppStore.getState().setRole(role);
+    }
     useAppStore.getState().resetDemoState();
     window.location.reload();
   };

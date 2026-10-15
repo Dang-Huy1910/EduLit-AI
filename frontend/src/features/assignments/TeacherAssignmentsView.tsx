@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/store';
 
 export default function TeacherAssignmentsView() {
   const router = useRouter();
-  const { assignments, addToast } = useAppStore();
+  const { assignments, rubrics, addToast } = useAppStore();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'draft' | 'blocked'>('all');
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -226,10 +226,16 @@ export default function TeacherAssignmentsView() {
                     {assignment.instructions}
                   </p>
 
-                  <div className="grid grid-cols-2 gap-2 text-xs text-on-surface-variant mb-4 p-2.5 bg-surface-container-low/40 rounded-lg">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-on-surface-variant mb-4 p-2.5 bg-surface-container-low/40 rounded-lg">
                     <div>
                       <span className="text-[10px] text-outline block">Mã truy cập:</span>
                       <span className="font-mono font-semibold text-secondary">{assignment.code}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-outline block">Barem áp dụng:</span>
+                      <span className="font-semibold text-primary truncate block" title={rubrics.find((r) => r.id === assignment.rubricId)?.name}>
+                        {rubrics.find((r) => r.id === assignment.rubricId)?.shortTitle || 'Barem GDPT 2018'}
+                      </span>
                     </div>
                     <div>
                       <span className="text-[10px] text-outline block">Bài đã chấm:</span>

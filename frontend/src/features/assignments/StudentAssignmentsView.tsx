@@ -10,7 +10,7 @@ import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 export default function StudentAssignmentsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { assignments, submittedAssignmentIds, submissions, addToast } = useAppStore();
+  const { assignments, rubrics, submittedAssignmentIds, submissions, addToast } = useAppStore();
 
   const initialTab = searchParams.get('tab') === 'submitted' ? 'submitted' : 'todo';
   const [activeTab, setActiveTab] = useState<'todo' | 'submitted'>(initialTab);
@@ -298,36 +298,39 @@ export default function StudentAssignmentsView() {
 
                     {/* Rubric Summary Collapsible */}
                     <div>
-                      <button
-                        type="button"
-                        onClick={() => toggleRubric(assignment.id)}
-                        className="text-xs font-semibold text-on-surface-variant flex items-center gap-1 hover:underline"
-                      >
-                        <span className="material-symbols-outlined text-base">
-                          {isRubricOpen ? 'expand_less' : 'expand_more'}
-                        </span>
-                        Thang điểm Rubric chuẩn GDPT 2018 (Tổng 4.0đ)
-                      </button>
-                      {isRubricOpen && (
-                        <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                          <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C1. Nội dung &amp; Liên hệ</span>
-                            <span className="text-on-surface-variant text-[11px]">2.50 điểm tối đa</span>
-                          </div>
-                          <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C2. Phân tích &amp; Lập luận</span>
-                            <span className="text-on-surface-variant text-[11px]">0.75 điểm tối đa</span>
-                          </div>
-                          <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C3. Diễn đạt &amp; Ngôn ngữ</span>
-                            <span className="text-on-surface-variant text-[11px]">0.50 điểm (-0.25đ/lỗi)</span>
-                          </div>
-                          <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C4. Cấu trúc &amp; Quy cách</span>
-                            <span className="text-on-surface-variant text-[11px]">0.25 điểm tối đa</span>
-                          </div>
-                        </div>
-                      )}
+                      {(() => {
+                        const assignmentRubric = rubrics.find((r) => r.id === assignment.rubricId) || rubrics[0];
+                        return (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => toggleRubric(assignment.id)}
+                              className="text-xs font-semibold text-on-surface-variant flex items-center gap-1 hover:underline"
+                            >
+                              <span className="material-symbols-outlined text-base">
+                                {isRubricOpen ? 'expand_less' : 'expand_more'}
+                              </span>
+                              <span>
+                                {assignmentRubric?.shortTitle || 'Thang điểm Rubric chuẩn GDPT 2018'} (Tổng {assignmentRubric?.maxScore.toFixed(1)}đ • {assignmentRubric?.criteria.length} tiêu chí)
+                              </span>
+                            </button>
+                            {isRubricOpen && (
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                {assignmentRubric?.criteria.map((c) => (
+                                  <div key={c.id} className="p-2 bg-surface-container-low rounded border border-outline-variant/30 space-y-0.5">
+                                    <span className="font-semibold block text-primary truncate" title={c.name}>
+                                      {c.id}: {c.name}
+                                    </span>
+                                    <span className="text-on-surface-variant text-[11px]">
+                                      {c.weight.toFixed(2)} điểm tối đa
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="pt-3 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-3">

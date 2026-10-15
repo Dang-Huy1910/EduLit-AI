@@ -29,12 +29,15 @@ export interface RubricCriterion {
 
 export interface Rubric {
   id: string;
+  name?: string;
+  shortTitle?: string;
   version: string;
   topicTitle: string;
   gradeLevel: number;
   maxScore: number; // 4.0
   criteria: RubricCriterion[];
   originalDocxGuide?: string;
+  description?: string;
 }
 
 export interface Material {

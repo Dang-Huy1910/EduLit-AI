@@ -79,7 +79,10 @@ Câu 2 không bắt buộc đi theo thứ tự khổ thơ. Bài làm tổ chức
 
 export const RUBRIC_MAU_TU_DO_DAT: Rubric = {
   id: CENTRAL_RUBRIC_ID,
+  name: 'Barem Rubric GDPT 2018 — Chuẩn 4 Tiêu chí (Bộ GD&ĐT)',
+  shortTitle: 'Barem Chuẩn 4 Tiêu chí (Bộ GD&ĐT)',
   version: 'v2.0-GDPT2018',
+  description: 'Khung ma trận 4 tiêu chí chuẩn của Bộ GD&ĐT: C1 Nội dung & Liên hệ (2.5đ), C2 Lập luận (0.75đ), C3 Diễn đạt (0.5đ), C4 Bố cục (0.25đ).',
   topicTitle: 'Nghị luận văn học: Cảm nhận tự do trong "Màu tự do của đất" (Trần Quang Quý)',
   gradeLevel: 12,
   maxScore: 4.0,
@@ -185,6 +188,173 @@ export const RUBRIC_MAU_TU_DO_DAT: Rubric = {
     },
   ],
 };
+
+export const RUBRIC_CAPACITY_CREATIVE_ID = 'rubric-nang-luc-sang-tao-5t';
+
+export const RUBRIC_CAPACITY_CREATIVE_5T: Rubric = {
+  id: RUBRIC_CAPACITY_CREATIVE_ID,
+  name: 'Barem Đánh giá Năng lực & Sáng tạo 5 Tiêu chí (Sở GD&ĐT Hà Nội)',
+  shortTitle: 'Barem Năng lực & Sáng tạo (5 Tiêu chí)',
+  version: 'v2.2-NLC-2024',
+  description: 'Thang 5 tiêu chí tách biệt phần Sáng tạo (0.50đ) và Nghệ thuật - Liên hệ (1.00đ), phù hợp cho khảo sát chất lượng và đề thi thử tốt nghiệp THPT.',
+  topicTitle: 'Nghị luận văn học: Đánh giá Năng lực Phân tích & Sáng tạo (Thang 4.0đ)',
+  gradeLevel: 12,
+  maxScore: 4.0,
+  originalDocxGuide: DOCX_ORIGINAL_GUIDE,
+  criteria: [
+    {
+      id: 'C1_TOPIC_IDENTIFICATION',
+      name: 'Xác định vấn đề nghị luận & Mở - Kết quy chuẩn',
+      weight: 0.5,
+      guideNote: 'Xác định trúng vấn đề cảm nhận tự do qua hình ảnh làng quê; giới thiệu tác giả Trần Quang Quý và bài thơ "Màu tự do của đất"; đảm bảo bố cục 3 phần rõ ràng, dung lượng khoảng 600 chữ.',
+      levels: [
+        {
+          score: 0.5,
+          descriptor: 'Mở bài đặt đúng và sắc nét vấn đề cảm nhận tự do gắn với làng quê; kết bài đúc kết tư tưởng sâu sắc; bố cục 3 phần hoàn chỉnh, chuẩn dung lượng ~600 chữ.',
+        },
+        {
+          score: 0.35,
+          descriptor: 'Mở bài và kết bài nêu được yêu cầu nhưng còn chung chung hoặc diễn đạt khô khan; bố cục rõ ràng.',
+        },
+        {
+          score: 0.2,
+          descriptor: 'Xác định chưa trúng trọng tâm đề bài, mở bài lan man hoặc thiếu kết luận rõ ràng.',
+        },
+      ],
+      requiredElements: [
+        'Giới thiệu chính xác tác giả Trần Quang Quý và bài thơ Màu tự do của đất',
+        'Nêu đúng vấn đề: Cảm nhận tự do qua hình ảnh làng quê',
+        'Đảm bảo quy chuẩn bài viết khoảng 600 chữ (tương đương 2 trang viết tay)',
+      ],
+      antiPatterns: [
+        'Mở bài sai tác giả, tác phẩm hoặc lạc sang phân tích đề tài chiến tranh',
+        'Không phân đoạn rõ ràng giữa Mở - Thân - Kết',
+      ],
+    },
+    {
+      id: 'C2_CONTENT_DEPTH',
+      name: 'Phân tích chiều sâu nội dung & Cảm nhận tự do',
+      weight: 1.5,
+      guideNote: 'Phân tích chi tiết cảm nhận tự do qua các hình ảnh làng quê (khói rơm rạ, hít thở mầu tự do, cột tâm thức làng, giần sàng nhân sinh); làm bật nghịch lí tự do không thoát ly bùn đất.',
+      levels: [
+        {
+          score: 1.5,
+          descriptor: 'Phân tích toàn diện và sâu sắc cảm nhận tự do qua thế giới hình ảnh làng quê; làm bật nghịch lí tự do không thoát ly bùn đất, tự do của mồ hôi và cội rễ bền chặt.',
+        },
+        {
+          score: 1.0,
+          descriptor: 'Phân tích được các hình ảnh làng quê chính nhưng cách cảm nhận tự do còn an toàn; nhận ra nghịch lí nhưng chưa đào sâu triết lý đất đai.',
+        },
+        {
+          score: 0.5,
+          descriptor: 'Chỉ dừng lại ở mức kể lại hoặc diễn xuôi ý thơ, chưa chạm đến chiều sâu tư tưởng về tự do của tác giả.',
+        },
+        {
+          score: 0.25,
+          descriptor: 'Phân tích sơ sài, bỏ sót các hình ảnh trọng tâm của bài thơ.',
+        },
+      ],
+      requiredElements: [
+        'Hình ảnh ngọn khói cay mùi rơm rạ và cảm giác hít thở mầu tự do của đất',
+        'Điểm tựa tinh thần cội rễ: cây cột tâm thức làng, mái đình cong câu ngược tầm nhìn',
+        'Ký ức nhọc nhằn, nhân nghĩa: củ khoai lùi, giần sàng gạn lấy nhân sinh',
+        'Nghịch lí tự do: thèm giải phóng cơ bắp nhưng tự do đầu tiên lại là không thoát ly bùn đất',
+      ],
+      antiPatterns: [
+        'Diễn xuôi nội dung từng câu thơ mà không rút ra ý nghĩa thẩm mỹ',
+        'Hiểu tự do là trốn chạy làng quê, đi ngược lại cảm hứng bài thơ',
+      ],
+    },
+    {
+      id: 'C3_ART_COMPARATIVE',
+      name: 'Nghệ thuật thi pháp & Liên hệ so sánh văn bản',
+      weight: 1.0,
+      guideNote: 'Phân tích đặc sắc thi pháp (thể thơ tự do suy tưởng, ẩn dụ chuyển đổi cảm giác, chuỗi buộc – neo – cởi); liên hệ với tác phẩm khác (Bếp lửa / Quê hương) làm rõ nét riêng của tác giả.',
+      levels: [
+        {
+          score: 1.0,
+          descriptor: 'Chỉ ra và phân tích sâu sắc các thủ pháp nghệ thuật độc đáo; liên hệ so sánh tinh tế với một tác phẩm khác (Bếp lửa / Quê hương), làm bật đậm nét riêng của Trần Quang Quý.',
+        },
+        {
+          score: 0.75,
+          descriptor: 'Phân tích được một số nét nghệ thuật nổi bật; có liên hệ tác phẩm ngoài nhưng phân tích so sánh còn sơ lược.',
+        },
+        {
+          score: 0.5,
+          descriptor: 'Có đề cập nghệ thuật hoặc chỉ trích dẫn tên tác phẩm liên hệ nhưng chưa so sánh làm rõ nét riêng.',
+        },
+        {
+          score: 0.25,
+          descriptor: 'Không phân tích nghệ thuật và thiếu hoàn toàn phần liên hệ tác phẩm ngoài.',
+        },
+      ],
+      requiredElements: [
+        'Đặc sắc thể thơ tự do co duỗi, câu thơ dài giàu chất suy tưởng triết lý',
+        'Ẩn dụ chuyển đổi cảm giác độc đáo: hít thở mầu tự do, cởi mùi khói',
+        'Chuỗi động từ cấu trúc: buộc – neo – cởi',
+        'Liên hệ tác phẩm ngoài (Bếp lửa / Quê hương / Chiều xuân) để chỉ ra nét riêng của tác giả',
+      ],
+      antiPatterns: [
+        'Thiếu hoàn toàn phần so sánh liên hệ (bị trừ điểm tiêu chí C3)',
+        'So sánh gượng ép không chỉ ra được điểm tương đồng và nét riêng',
+      ],
+    },
+    {
+      id: 'C4_CREATIVE_INSIGHT',
+      name: 'Sáng tạo, phát hiện thẩm mỹ & Suy tưởng cá nhân',
+      weight: 0.5,
+      guideNote: 'Có phát hiện mới mẻ, tinh tế về hình tượng thơ; suy ngẫm sâu sắc về mối quan hệ giữa tự do của người trẻ với cội nguồn văn hóa; diễn đạt có giọng điệu riêng.',
+      levels: [
+        {
+          score: 0.5,
+          descriptor: 'Có phát hiện mới mẻ, sâu sắc về thi ảnh; đưa ra được góc nhìn cá nhân thuyết phục về giá trị của tự do gắn với nguồn cội; hành văn giàu cảm xúc và cá tính.',
+        },
+        {
+          score: 0.35,
+          descriptor: 'Có ý thức tìm tòi suy nghĩ riêng nhưng diễn đạt chưa thực sự nổi bật hoặc liên hệ bản thân còn hơi khuôn mẫu.',
+        },
+        {
+          score: 0.2,
+          descriptor: 'Bài viết rập khuôn máy móc, không thể hiện được suy nghĩ hay cảm nhận độc lập.',
+        },
+      ],
+      requiredElements: [
+        'Phát hiện thẩm mỹ riêng về từ ngữ hoặc hình ảnh độc đáo trong văn bản',
+        'Suy tưởng độc lập, liên hệ ý nghĩa đối với thế hệ trẻ hôm nay',
+        'Giọng văn nghị luận có nét cá tính, giàu suy ngẫm',
+      ],
+      antiPatterns: [
+        'Học thuộc lòng văn mẫu, lặp lại các công thức sáo rỗng',
+      ],
+    },
+    {
+      id: 'C5_LANGUAGE_GRAMMAR',
+      name: 'Chính tả, dùng từ và ngữ pháp tiếng Việt',
+      weight: 0.5,
+      penaltyPerError: 0.1,
+      guideNote: 'Đảm bảo chuẩn chính tả, dùng từ chính xác, câu văn truyền cảm, không mắc lỗi câu què câu cụt.',
+      levels: [
+        {
+          score: 0.5,
+          descriptor: 'Ngôn ngữ nghị luận trong sáng, truyền cảm, dùng từ chuẩn xác; không quá 01 lỗi chính tả hoặc diễn đạt nhỏ.',
+        },
+        {
+          score: 0.35,
+          descriptor: 'Diễn đạt trôi chảy, còn 2–3 lỗi diễn đạt lặp từ hoặc câu ghép hơi dài dòng.',
+        },
+        {
+          score: 0.2,
+          descriptor: 'Mắc nhiều lỗi ngữ pháp, dùng từ sai nghĩa hoặc sai chính tả phụ âm đầu.',
+        },
+      ],
+    },
+  ],
+};
+
+export const AVAILABLE_RUBRICS: Rubric[] = [
+  RUBRIC_MAU_TU_DO_DAT,
+  RUBRIC_CAPACITY_CREATIVE_5T,
+];
 
 export const CENTRAL_ASSIGNMENT: Assignment = {
   id: CENTRAL_ASSIGNMENT_ID,
