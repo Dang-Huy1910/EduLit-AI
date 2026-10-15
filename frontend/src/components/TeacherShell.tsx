@@ -30,7 +30,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
     { label: 'Bài tập & Đề kiểm tra', href: '/assignments', icon: 'assignment' },
     { label: 'Kho ngữ liệu & Chuyên đề', href: '/materials', icon: 'menu_book' },
     { label: 'Báo cáo năng lực lớp', href: '/reports', icon: 'analytics' },
-    { label: 'Trợ lý chấm & Rubric', href: '/assignments/assign-nlxh-01', icon: 'auto_awesome' },
+    { label: 'Trợ lý chấm & Rubric', href: '/assignments/assign-nlvh-mau-tu-do-dat', icon: 'auto_awesome' },
     { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot', icon: 'smart_toy', badge: 'GPT' },
   ];
 

@@ -12,7 +12,7 @@ export default function MaterialsPage() {
 
   const isTeacher = currentUser.role === 'teacher';
 
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'mat-ngulieu-04');
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'mat-ngulieu-mau-tu-do-dat');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPurpose, setFilterPurpose] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -222,7 +222,7 @@ export default function MaterialsPage() {
 
               {selectedMaterial.status === 'READY' && isTeacher && (
                 <Link
-                  href="/assignments/assign-nlxh-01"
+                  href="/assignments/assign-nlvh-mau-tu-do-dat"
                   className="px-3 py-1.5 bg-primary-container text-on-primary-container text-xs font-semibold rounded-lg hover:brightness-95 shrink-0 transition-all flex items-center gap-1 shadow-sm"
                 >
                   <span>Áp dụng Barem này</span>
@@ -285,15 +285,19 @@ export default function MaterialsPage() {
                   <ul className="space-y-1.5 text-xs text-on-surface-variant">
                     <li className="flex items-start gap-2">
                       <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
-                      <span>Khái niệm tinh thần tự chủ được tác giả giải thích theo những chiều kích nào?</span>
+                      <span>Hình ảnh khói rơm rạ và sự chuyển đổi cảm giác trong &quot;hít thở mầu tự do&quot; gợi tả điều gì?</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
-                      <span>Trong thời đại bùng nổ AI, người trẻ dễ gặp nguy cơ đánh mất quyền tự chủ ra sao?</span>
+                      <span>Nghịch lí &quot;không thoát ly bùn đất&quot; làm sáng tỏ điều gì về khát vọng và cội nguồn gắn bó?</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
-                      <span>Phản đề: Tự chủ có đồng nghĩa với việc cô lập bản thân và từ chối hợp tác không?</span>
+                      <span>Chuỗi động từ &quot;buộc – neo – cởi&quot; kết nối không gian làng quê và ngọn khói ra sao?</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-secondary text-sm mt-0.5">help</span>
+                      <span>Liên hệ với &quot;Bếp lửa&quot; (Bằng Việt) hoặc &quot;Quê hương&quot; (Tế Hanh) để làm rõ nét riêng của Trần Quang Quý.</span>
                     </li>
                   </ul>
                 </div>

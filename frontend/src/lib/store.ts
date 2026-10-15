@@ -10,16 +10,25 @@ import {
   Rubric,
   SocraticMessage,
   OutlineSection,
-  SubmissionResult,
+  StudentSubmission,
+  SubmissionPageImage,
 } from './types';
 import {
-  MOCK_TEACHER,
-  MOCK_STUDENT,
-  MOCK_ASSIGNMENTS,
-  MOCK_MATERIALS,
-  MOCK_RUBRIC,
-  MOCK_STUDENT_RESULT,
-} from './mock/data';
+  CENTRAL_ASSIGNMENT_ID,
+  CENTRAL_ASSIGNMENT,
+  RUBRIC_MAU_TU_DO_DAT,
+  MATERIALS_MAU_TU_DO_DAT,
+  DEMO_TEACHER,
+  DEMO_STUDENTS,
+} from './mock/assignmentData';
+import {
+  INITIAL_SUBMISSIONS,
+  SUBMISSION_MANIFEST,
+} from './mock/submissionsManifest';
+import {
+  matchSocraticBranch,
+  FALLBACK_RESPONSE,
+} from './mock/socraticScript';
 
 export interface ToastMessage {
   id: string;
@@ -27,14 +36,17 @@ export interface ToastMessage {
   message: string;
 }
 
+export type DemoMilestone = 'start' | 'complete';
+
 interface AppState {
   // Session
   currentUser: User;
   setRole: (role: Role) => void;
   setUser: (user: User) => void;
+  switchDemoUser: (userId: string) => void;
   logout: () => void;
 
-  // Sidebar Layout Collapse
+  // Sidebar Layout
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
 
@@ -43,136 +55,138 @@ interface AppState {
   addToast: (message: string, type?: ToastMessage['type']) => void;
   removeToast: (id: string) => void;
 
-  // Assignments & Rubric
-  assignments: Assignment[];
-  activeRubric: Rubric;
-  updateRubricCriterion: (criterionId: string, updates: Partial<Rubric['criteria'][0]>) => void;
-  addAssignment: (assignment: Assignment) => void;
-  updateAssignment: (id: string, updates: Partial<Assignment>) => void;
-  publishAssignment: (id: string, updates?: Partial<Assignment>) => void;
-
-  // Student Submissions tracking
-  submittedAssignmentIds: string[];
-  submitAssignment: (id: string) => void;
-
-  // Reset Demo
+  // Milestone & Reset
+  demoMilestone: DemoMilestone;
+  setDemoMilestone: (milestone: DemoMilestone) => void;
   resetDemoState: () => void;
 
-  // Materials
+  // Assignments & Rubric
+  assignments: Assignment[];
+  activeAssignmentId: string;
+  activeRubric: Rubric;
   materials: Material[];
+  updateRubricCriterion: (criterionId: string, updates: Partial<Rubric['criteria'][0]>) => void;
+  publishAssignment: (id: string, updates?: Partial<Assignment>) => void;
   addMaterial: (material: Omit<Material, 'id' | 'uploadedAt' | 'version'>) => void;
 
-  // Outline
+  // Submissions Map (keyed by submissionId)
+  submissions: Record<string, StudentSubmission>;
+  submittedAssignmentIds: string[]; // for currently logged-in student
+  getStudentSubmission: (assignmentId: string, studentId: string) => StudentSubmission | undefined;
+  updateStudentGrading: (
+    submissionId: string,
+    updates: {
+      evaluations?: StudentSubmission['evaluations'];
+      teacherNotes?: string;
+    }
+  ) => void;
+  publishStudentResult: (submissionId: string) => void;
+
+  // Outline (keyed by `${assignmentId}_${studentId}`)
   outline: OutlineSection[];
-  addOutlinePoint: (sectionId: string, point: string) => void;
+  addOutlinePoint: (sectionId: string, point: string) => boolean;
   updateOutlinePoint: (sectionId: string, index: number, point: string) => void;
   removeOutlinePoint: (sectionId: string, index: number) => void;
+  reorderOutlinePoints: (sectionId: string, fromIndex: number, toIndex: number) => void;
 
-  // Socratic Chat
+  // Socratic Chat (keyed by student)
   socraticMessages: SocraticMessage[];
-  addSocraticMessage: (text: string) => void;
+  isAiResponding: boolean;
+  sendSocraticMessage: (userText: string) => void;
 
-  // Submission & OCR
-  uploadedPages: { id: string; url: string; size: string; piiMasked: boolean }[];
-  addUploadedPage: (page: { id: string; url: string; size: string; piiMasked: boolean }) => void;
-  removeUploadedPage: (id: string) => void;
-  movePage: (fromIndex: number, toIndex: number) => void;
-  piiStatus: 'success' | 'processing' | 'failed';
-  setPiiStatus: (status: 'success' | 'processing' | 'failed') => void;
+  // Submission Photos & Upload
+  uploadedPages: SubmissionPageImage[];
+  loadDemoBuiHaMyPages: () => void;
+  addCustomUploadedPage: (page: SubmissionPageImage) => void;
+  removeUploadedPage: (pageIndex: number) => void;
+  reorderUploadedPages: (fromIndex: number, toIndex: number) => void;
+  submitHandwrittenEssay: (assignmentId: string) => void;
 
-  // OCR Review
-  flaggedSegments: { lineRef: number; text: string; confidence: number; isCorrected?: boolean }[];
+  // OCR Verification
+  ocrStatus: 'needs_review' | 'confirmed';
+  setOcrStatus: (status: 'needs_review' | 'confirmed') => void;
+  flaggedSegments: { lineRef: number; text: string; note: string; isCorrected?: boolean }[];
   correctFlaggedSegment: (lineRef: number, newText: string) => void;
-  ocrStatus: 'needs_review' | 'ready' | 'confirmed';
-  setOcrStatus: (status: 'needs_review' | 'ready' | 'confirmed') => void;
-
-  // Grading result
-  studentResult: SubmissionResult;
+  updateTranscriptionLine: (
+    submissionId: string,
+    pageIndex: number,
+    lineIndex: number,
+    newText: string
+  ) => void;
 }
 
+// Initial Outline for Bùi Hà My
 const INITIAL_OUTLINE: OutlineSection[] = [
   {
     id: 'intro',
     title: 'I. Mở bài — Đặt vấn đề',
     points: [
-      'Dẫn dắt từ bối cảnh chuyển đổi số và những áp lực thách thức của giới trẻ.',
-      'Nêu vấn đề trọng tâm: Ý chí và lòng kiên định là kim chỉ nam định hình bản lĩnh người trẻ.',
+      'Giới thiệu tác giả Trần Quang Quý và bài thơ "Màu tự do của đất".',
     ],
   },
   {
     id: 'body',
     title: 'II. Thân bài — Triển khai luận điểm',
     points: [
-      'Luận điểm 1: Giải thích bản chất của lòng kiên định (sự bền bỉ, dũng cảm đối diện nghịch cảnh, không dễ dàng bỏ cuộc).',
-      'Luận điểm 2: Dẫn chứng thực tế — Tinh thần kiên trì của người trẻ khởi nghiệp và các tấm gương vượt khó học tập (Cần chi tiết hóa dẫn chứng).',
-      'Luận điểm 3: Phản đề & Mở rộng — Phân biệt kiên định với bảo thủ mù quáng; kiên định phải đi liền với sự sáng suốt và biết lắng nghe.',
+      'Hình ảnh ngọn khói cay mùi rơm rạ dắt về cánh đồng và cội nguồn làng quê.',
     ],
   },
   {
     id: 'conclusion',
-    title: 'III. Kết bài — Đánh giá & Bài học',
+    title: 'III. Kết bài — Đánh giá & Thông điệp',
     points: [
-      'Khẳng định lại giá trị bền vững của lòng kiên định đối với tương lai mỗi cá nhân.',
-      'Bài học hành động: Bắt đầu rèn luyện ý chí từ những thói quen học tập nhỏ mỗi ngày.',
+      'Khái quát chiều sâu suy tưởng của bài thơ về đất đai và tự do.',
     ],
   },
 ];
 
+// Initial Socratic Welcome Message
 const INITIAL_SOCRATIC_MESSAGES: SocraticMessage[] = [
   {
-    id: 'm1',
-    sender: 'user',
-    text: 'Em muốn nêu luận điểm: Người trẻ cần có lòng kiên định theo đuổi đam mê đến cùng dù gặp khó khăn.',
-    timestamp: '09:15',
-  },
-  {
-    id: 'm2',
+    id: 'msg-welcome',
     sender: 'ai',
-    text: 'Em đã nêu được ý nghĩa cốt lõi của lòng kiên định trong việc theo đuổi mục tiêu cá nhân. Để bài viết có chiều sâu và đa chiều hơn, em hãy thử xem xét ranh giới khi nào sự kiên định có nguy cơ biến thành bảo thủ hoặc mù quáng. Theo em, người trẻ nên phân biệt hai điều này bằng dấu hiệu cụ thể nào trong thực tế?',
-    timestamp: '09:16',
-    canAddToOutline: true,
-    outlinePoint: 'Phân biệt kiên định với bảo thủ mù quáng; cần có tư duy sáng suốt và biết lắng nghe phản biện.',
-  },
-  {
-    id: 'm3',
-    sender: 'user',
-    text: 'AI viết giúp em 1 đoạn mở bài mẫu thật hay với.',
-    timestamp: '09:18',
-  },
-  {
-    id: 'm4',
-    sender: 'ai',
-    text: 'Trợ lý EduLit-AI không viết đoạn văn thay học sinh để bảo đảm quyền tự chủ sáng tạo của em. Thay vào đó, em hãy thử liên hệ trực tiếp từ một hiện tượng mạng hoặc một câu chuyện thực tế về sự nỗ lực mà em tâm đắc nhất. Em dự định dẫn dắt người đọc từ hình ảnh thực tế nào trước khi đi vào vấn đề lòng kiên định?',
-    timestamp: '09:18',
+    text:
+      'Chào em! Cô là Trợ lý gợi mở Socratic đồng hành cùng em trong đề bài: Phân tích bài thơ "Màu tự do của đất" (Trần Quang Quý). Em có thể bấm các gợi ý nhanh bên dưới hoặc tự gõ câu hỏi để cùng tìm hiểu cách cảm nhận tự do qua hình ảnh làng quê, nghịch lí "không thoát ly bùn đất" và liên hệ với các thi phẩm khác nhé!',
+    timestamp: '08:00',
+    canAddToOutline: false,
   },
 ];
 
-const GUIDING_QUESTION_BANK = [
-  'Để luận điểm thêm thuyết phục, em có thể liên hệ với một tấm gương người trẻ thời đại số vượt qua thất bại như thế nào?',
-  'Phần phản đề của em rất quan trọng: Em sẽ đối thoại như thế nào với những bạn trẻ cho rằng kiên định là thiếu linh hoạt?',
-  'Trong bài học hành động, em dự định cụ thể hóa việc rèn luyện tính kiên định vào những việc thực tế nào mỗi ngày?',
-  'Em có thể làm rõ hơn sự khác biệt giữa đam mê nhất thời với sự kiên định bền bỉ qua năm tháng bằng hình ảnh ẩn dụ nào?',
-];
+// Storage for active timeout to cancel on reset
+let activeAiResponseTimeout: NodeJS.Timeout | null = null;
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      currentUser: MOCK_TEACHER,
+      // Session
+      currentUser: DEMO_TEACHER,
       setRole: (role: Role) => {
         if (role === 'teacher') {
-          set({ currentUser: MOCK_TEACHER });
+          set({ currentUser: DEMO_TEACHER });
         } else {
-          set({ currentUser: MOCK_STUDENT });
+          set({ currentUser: DEMO_STUDENTS[0] }); // Bùi Hà My
         }
       },
       setUser: (user: User) => set({ currentUser: user }),
+      switchDemoUser: (userId: string) => {
+        if (userId === DEMO_TEACHER.id) {
+          set({ currentUser: DEMO_TEACHER });
+        } else {
+          const matched = DEMO_STUDENTS.find((s) => s.id === userId);
+          if (matched) {
+            set({ currentUser: matched });
+          }
+        }
+      },
       logout: () => {
-        set({ currentUser: MOCK_TEACHER });
+        set({ currentUser: DEMO_TEACHER });
       },
 
+      // Sidebar Layout
       sidebarCollapsed: false,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
+      // Toasts
       toasts: [],
       addToast: (message: string, type: ToastMessage['type'] = 'info') => {
         const id = Math.random().toString(36).substring(2, 9);
@@ -185,8 +199,113 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
       },
 
-      assignments: MOCK_ASSIGNMENTS,
-      activeRubric: MOCK_RUBRIC,
+      // Milestone
+      demoMilestone: 'start',
+      setDemoMilestone: (milestone: DemoMilestone) => {
+        if (activeAiResponseTimeout) {
+          clearTimeout(activeAiResponseTimeout);
+          activeAiResponseTimeout = null;
+        }
+
+        if (milestone === 'start') {
+          // Milestone 1: Trần Minh Khôi & Nguyễn Lan Anh already submitted; Bùi Hà My has NOT submitted yet
+          const startSubmissions: Record<string, StudentSubmission> = {
+            'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
+            'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
+          };
+          set({
+            demoMilestone: 'start',
+            isAiResponding: false,
+            submittedAssignmentIds: [],
+            submissions: startSubmissions,
+            assignments: [
+              {
+                ...CENTRAL_ASSIGNMENT,
+                totalSubmissions: 2,
+                assessedSubmissions: 2,
+              },
+            ],
+            uploadedPages: [],
+            outline: INITIAL_OUTLINE,
+            socraticMessages: INITIAL_SOCRATIC_MESSAGES,
+          });
+        } else {
+          // Milestone 2: Complete view with all 3 students submitted & graded
+          set({
+            demoMilestone: 'complete',
+            isAiResponding: false,
+            submittedAssignmentIds: [CENTRAL_ASSIGNMENT_ID],
+            submissions: { ...INITIAL_SUBMISSIONS },
+            assignments: [
+              {
+                ...CENTRAL_ASSIGNMENT,
+                totalSubmissions: 3,
+                assessedSubmissions: 3,
+              },
+            ],
+            uploadedPages: INITIAL_SUBMISSIONS['sub-bui-ha-my'].pages,
+          });
+        }
+      },
+
+      resetDemoState: () => {
+        if (activeAiResponseTimeout) {
+          clearTimeout(activeAiResponseTimeout);
+          activeAiResponseTimeout = null;
+        }
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('edulit-demo-v2');
+        }
+
+        // Return to milestone 'start'
+        const startSubmissions: Record<string, StudentSubmission> = {
+          'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
+          'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
+        };
+
+        set({
+          currentUser: DEMO_TEACHER,
+          demoMilestone: 'start',
+          isAiResponding: false,
+          assignments: [
+            {
+              ...CENTRAL_ASSIGNMENT,
+              totalSubmissions: 2,
+              assessedSubmissions: 2,
+            },
+          ],
+          activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
+          activeRubric: RUBRIC_MAU_TU_DO_DAT,
+          materials: MATERIALS_MAU_TU_DO_DAT,
+          submissions: startSubmissions,
+          submittedAssignmentIds: [],
+          outline: INITIAL_OUTLINE,
+          socraticMessages: INITIAL_SOCRATIC_MESSAGES,
+          uploadedPages: [],
+          ocrStatus: 'needs_review',
+          flaggedSegments: [
+            {
+              lineRef: 8,
+              text: 'tôi hít thở mầu tự do của đất',
+              note: 'Từ "mầu": rà soát đối chiếu bản in gốc (màu vs mầu)',
+              isCorrected: false,
+            },
+          ],
+        });
+      },
+
+      // Assignments & Materials
+      assignments: [
+        {
+          ...CENTRAL_ASSIGNMENT,
+          totalSubmissions: 2,
+          assessedSubmissions: 2,
+        },
+      ],
+      activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
+      activeRubric: RUBRIC_MAU_TU_DO_DAT,
+      materials: MATERIALS_MAU_TU_DO_DAT,
+
       updateRubricCriterion: (criterionId, updates) => {
         set((state) => ({
           activeRubric: {
@@ -197,92 +316,132 @@ export const useAppStore = create<AppState>()(
           },
         }));
       },
-      addAssignment: (assignment) => {
-        set((state) => ({ assignments: [assignment, ...state.assignments] }));
-      },
-      updateAssignment: (id, updates) => {
+
+      publishAssignment: (id, updates) => {
         set((state) => ({
           assignments: state.assignments.map((a) =>
-            a.id === id ? { ...a, ...updates } : a
+            a.id === id ? { ...a, status: 'published', statusLabel: 'Đã giao', ...updates } : a
           ),
         }));
       },
-      publishAssignment: (id, updates) => {
-        set((state) => {
-          const exists = state.assignments.some((a) => a.id === id);
-          if (exists) {
-            return {
-              assignments: state.assignments.map((a) =>
-                a.id === id
-                  ? {
-                      ...a,
-                      status: 'published',
-                      statusLabel: 'Đã giao',
-                      ...updates,
-                    }
-                  : a
-              ),
-            };
-          } else if (updates) {
-            const newAssignment: Assignment = {
-              id,
-              code: `VAN12-NL-${Math.floor(10 + Math.random() * 90)}`,
-              title: updates.title || 'Bài tập mới',
-              studentTitle: updates.title || 'Bài tập mới',
-              topic: updates.title || 'Bài tập mới',
-              instructions: updates.instructions || '',
-              gradeLevel: 12,
-              classId: '12A1',
-              className: 'Lớp 12A1 • THPT Đan Phượng (40 HS)',
-              status: 'published',
-              statusLabel: 'Đã giao',
-              deadline: updates.deadline || '30/11/2024 23:59',
-              totalSubmissions: 0,
-              assessedSubmissions: 0,
-              flaggedSubmissions: 0,
-              rubricId: 'RUBRIC_V12_NLXH_2026',
-              linkedMaterialIds: ['mat-ngulieu-04', 'mat-barem-2024'],
-              learningGoals: [],
-              ...updates,
-            };
-            return {
-              assignments: [newAssignment, ...state.assignments],
-            };
-          }
-          return state;
-        });
-      },
 
-      materials: MOCK_MATERIALS,
       addMaterial: (materialData) => {
         const newId = `mat-${Date.now()}`;
         const newMat: Material = {
           ...materialData,
           id: newId,
           version: 'v1.0',
-          uploadedAt: 'Hôm nay ' + new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          uploadedAt:
+            'Hôm nay ' +
+            new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         };
         set((state) => ({ materials: [newMat, ...state.materials] }));
       },
 
-      outline: INITIAL_OUTLINE,
-      addOutlinePoint: (sectionId, point) => {
-        set((state) => ({
-          outline: state.outline.map((sec) =>
-            sec.id === sectionId ? { ...sec, points: [...sec.points, point] } : sec
-          ),
-        }));
+      // Submissions
+      submissions: {
+        'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
+        'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
       },
+      submittedAssignmentIds: [],
+
+      getStudentSubmission: (assignmentId: string, studentId: string) => {
+        const list = Object.values(get().submissions);
+        return list.find(
+          (sub) => sub.assignmentId === assignmentId && sub.studentId === studentId
+        );
+      },
+
+      updateStudentGrading: (submissionId, updates) => {
+        set((state) => {
+          const current = state.submissions[submissionId];
+          if (!current) return state;
+
+          let newEvals = current.evaluations;
+          let newTotal = current.totalScore;
+
+          if (updates.evaluations) {
+            newEvals = updates.evaluations;
+            newTotal = Number(
+              newEvals.reduce((sum, item) => sum + (Number(item.awardedScore) || 0), 0).toFixed(2)
+            );
+          }
+
+          const newScale10 = Number(((newTotal / 4.0) * 10).toFixed(2));
+
+          return {
+            submissions: {
+              ...state.submissions,
+              [submissionId]: {
+                ...current,
+                evaluations: newEvals,
+                totalScore: newTotal,
+                scoreScale10: newScale10,
+                teacherNotes: updates.teacherNotes ?? current.teacherNotes,
+              },
+            },
+          };
+        });
+      },
+
+      publishStudentResult: (submissionId) => {
+        set((state) => {
+          const current = state.submissions[submissionId];
+          if (!current) return state;
+          return {
+            submissions: {
+              ...state.submissions,
+              [submissionId]: {
+                ...current,
+                isPublishedToStudent: true,
+              },
+            },
+          };
+        });
+      },
+
+      // Outline
+      outline: INITIAL_OUTLINE,
+
+      addOutlinePoint: (sectionId, point) => {
+        const cleanPoint = point.trim();
+        if (!cleanPoint) return false;
+
+        let added = false;
+        set((state) => {
+          const section = state.outline.find((s) => s.id === sectionId);
+          if (!section) return state;
+
+          // Duplicate check
+          const alreadyExists = section.points.some(
+            (p) => p.toLowerCase().trim() === cleanPoint.toLowerCase()
+          );
+          if (alreadyExists) {
+            return state;
+          }
+
+          added = true;
+          return {
+            outline: state.outline.map((sec) =>
+              sec.id === sectionId ? { ...sec, points: [...sec.points, cleanPoint] } : sec
+            ),
+          };
+        });
+
+        return added;
+      },
+
       updateOutlinePoint: (sectionId, index, point) => {
         set((state) => ({
           outline: state.outline.map((sec) => {
             if (sec.id !== sectionId) return sec;
             const newPoints = [...sec.points];
-            newPoints[index] = point;
+            newPoints[index] = point.trim();
             return { ...sec, points: newPoints };
           }),
         }));
       },
+
       removeOutlinePoint: (sectionId, index) => {
         set((state) => ({
           outline: state.outline.map((sec) => {
@@ -292,29 +451,62 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
+      reorderOutlinePoints: (sectionId, fromIndex, toIndex) => {
+        set((state) => ({
+          outline: state.outline.map((sec) => {
+            if (sec.id !== sectionId) return sec;
+            const newPoints = [...sec.points];
+            const [moved] = newPoints.splice(fromIndex, 1);
+            newPoints.splice(toIndex, 0, moved);
+            return { ...sec, points: newPoints };
+          }),
+        }));
+      },
+
+      // Socratic Chat
       socraticMessages: INITIAL_SOCRATIC_MESSAGES,
-      addSocraticMessage: (userText: string) => {
+      isAiResponding: false,
+
+      sendSocraticMessage: (userText: string) => {
+        const trimmed = userText.trim();
+        if (!trimmed || get().isAiResponding) return;
+
         const userMsg: SocraticMessage = {
           id: `msg-${Date.now()}`,
           sender: 'user',
-          text: userText,
+          text: trimmed,
           timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         };
 
-        set((state) => ({ socraticMessages: [...state.socraticMessages, userMsg] }));
+        set((state) => ({
+          socraticMessages: [...state.socraticMessages, userMsg],
+          isAiResponding: true,
+        }));
 
-        // Simulate AI response
-        setTimeout(() => {
+        const matchedBranch = matchSocraticBranch(trimmed);
+
+        if (activeAiResponseTimeout) {
+          clearTimeout(activeAiResponseTimeout);
+        }
+
+        activeAiResponseTimeout = setTimeout(() => {
           let aiText = '';
-          const isRefusal = /viết hộ|viết giúp|đoạn mẫu|bài mẫu/i.test(userText);
+          let canAdd = false;
+          let outlinePoint: string | undefined = undefined;
+          let suggestedSectionId: 'intro' | 'body' | 'conclusion' | undefined = undefined;
+          let requirementTag: string | undefined = undefined;
+          let branchId: string | undefined = undefined;
 
-          if (isRefusal) {
-            aiText =
-              'Trợ lý EduLit-AI không viết thay hoặc cung cấp đoạn văn mẫu cho học sinh. Em hãy tự phác thảo ý tưởng của mình, bắt đầu từ hình ảnh hoặc thông điệp em muốn gửi gắm. Em dự định mở bài bằng câu trích dẫn hay một dẫn chứng đời sống?';
+          if (matchedBranch) {
+            aiText = matchedBranch.aiResponse;
+            canAdd = !matchedBranch.isRefusal && Boolean(matchedBranch.outlinePoint);
+            outlinePoint = matchedBranch.outlinePoint;
+            suggestedSectionId = matchedBranch.defaultSectionId;
+            requirementTag = matchedBranch.requirementTag;
+            branchId = matchedBranch.id;
           } else {
-            const randomQuestion =
-              GUIDING_QUESTION_BANK[Math.floor(Math.random() * GUIDING_QUESTION_BANK.length)];
-            aiText = `Ý kiến của em rất đáng ghi nhận và có tính khám phá. ${randomQuestion}`;
+            aiText = FALLBACK_RESPONSE.aiResponse;
+            canAdd = false;
           }
 
           const aiMsg: SocraticMessage = {
@@ -322,37 +514,122 @@ export const useAppStore = create<AppState>()(
             sender: 'ai',
             text: aiText,
             timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-            canAddToOutline: !isRefusal,
-            outlinePoint: !isRefusal ? userText : undefined,
+            canAddToOutline: canAdd,
+            outlinePoint,
+            suggestedSectionId,
+            requirementTag,
+            branchId,
           };
 
-          set((state) => ({ socraticMessages: [...state.socraticMessages, aiMsg] }));
+          set((state) => ({
+            socraticMessages: [...state.socraticMessages, aiMsg],
+            isAiResponding: false,
+          }));
+          activeAiResponseTimeout = null;
         }, 750);
       },
 
-      uploadedPages: [
-        { id: 'p1', url: '/mock-paper-1.jpg', size: '2.4 MB', piiMasked: true },
-        { id: 'p2', url: '/mock-paper-2.jpg', size: '1.9 MB', piiMasked: true },
-      ],
-      addUploadedPage: (page) => {
-        set((state) => ({ uploadedPages: [...state.uploadedPages, page] }));
+      // Uploaded Pages
+      uploadedPages: [],
+
+      loadDemoBuiHaMyPages: () => {
+        const manifest = SUBMISSION_MANIFEST['user-student-48'];
+        if (manifest) {
+          const pages: SubmissionPageImage[] = manifest.pages.map((p) => ({
+            pageIndex: p.pageIndex,
+            imageUrl: p.localPath,
+            size: p.size,
+            caption: p.caption,
+            isCustomUpload: false,
+          }));
+          set({ uploadedPages: pages });
+        }
       },
-      removeUploadedPage: (id) => {
-        set((state) => ({ uploadedPages: state.uploadedPages.filter((p) => p.id !== id) }));
+
+      addCustomUploadedPage: (page) => {
+        set((state) => {
+          const nextIndex = state.uploadedPages.length + 1;
+          const newPage = { ...page, pageIndex: nextIndex, isCustomUpload: true };
+          return { uploadedPages: [...state.uploadedPages, newPage] };
+        });
       },
-      movePage: (fromIndex, toIndex) => {
+
+      removeUploadedPage: (pageIndex) => {
+        set((state) => {
+          const filtered = state.uploadedPages.filter((p) => p.pageIndex !== pageIndex);
+          const reindexed = filtered.map((p, idx) => ({ ...p, pageIndex: idx + 1 }));
+          return { uploadedPages: reindexed };
+        });
+      },
+
+      reorderUploadedPages: (fromIndex, toIndex) => {
         set((state) => {
           const list = [...state.uploadedPages];
           const [moved] = list.splice(fromIndex, 1);
           list.splice(toIndex, 0, moved);
-          return { uploadedPages: list };
+          const reindexed = list.map((p, idx) => ({ ...p, pageIndex: idx + 1 }));
+          return { uploadedPages: reindexed };
         });
       },
-      piiStatus: 'success',
-      setPiiStatus: (status) => set({ piiStatus: status }),
 
+      submitHandwrittenEssay: (assignmentId) => {
+        const { uploadedPages, submissions, currentUser } = get();
+        const studentId = currentUser.id;
+        const studentName = currentUser.name;
+        const studentCode = currentUser.code || 'VN-12A1-048';
+        const submissionId = `sub-${studentId === 'user-student-48' ? 'bui-ha-my' : studentId}`;
+
+        const defaultManifest =
+          SUBMISSION_MANIFEST[studentId] || SUBMISSION_MANIFEST['user-student-48'];
+        const baseSub =
+          INITIAL_SUBMISSIONS[submissionId] || INITIAL_SUBMISSIONS['sub-bui-ha-my'];
+
+        const newSub: StudentSubmission = {
+          ...baseSub,
+          id: submissionId,
+          assignmentId,
+          studentId,
+          studentName,
+          studentCode,
+          submissionDate:
+            'Hôm nay ' +
+            new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          status: 'submitted',
+          pages: uploadedPages,
+          transcriptionByPage: defaultManifest.transcriptionByPage,
+          isPublishedToStudent: false, // Wait for teacher to publish in demo flow
+        };
+
+        set((state) => ({
+          submissions: {
+            ...state.submissions,
+            [submissionId]: newSub,
+          },
+          submittedAssignmentIds: state.submittedAssignmentIds.includes(assignmentId)
+            ? state.submittedAssignmentIds
+            : [...state.submittedAssignmentIds, assignmentId],
+          assignments: state.assignments.map((a) =>
+            a.id === assignmentId
+              ? {
+                  ...a,
+                  totalSubmissions: Object.keys({ ...state.submissions, [submissionId]: newSub }).length,
+                  assessedSubmissions: Object.keys({ ...state.submissions, [submissionId]: newSub }).length,
+                }
+              : a
+          ),
+        }));
+      },
+
+      // OCR Verification
+      ocrStatus: 'needs_review',
+      setOcrStatus: (status) => set({ ocrStatus: status }),
       flaggedSegments: [
-        { lineRef: 14, text: 'sáng suốt', confidence: 0.71, isCorrected: false },
+        {
+          lineRef: 8,
+          text: 'tôi hít thở mầu tự do của đất',
+          note: 'Từ "mầu": rà soát đối chiếu bản in gốc (màu vs mầu)',
+          isCorrected: false,
+        },
       ],
       correctFlaggedSegment: (lineRef, newText) => {
         set((state) => ({
@@ -361,59 +638,86 @@ export const useAppStore = create<AppState>()(
           ),
         }));
       },
-      ocrStatus: 'needs_review',
-      setOcrStatus: (status) => set({ ocrStatus: status }),
 
-      studentResult: MOCK_STUDENT_RESULT,
+      updateTranscriptionLine: (submissionId, pageIndex, lineIndex, newText) => {
+        set((state) => {
+          const current = state.submissions[submissionId];
+          if (!current) return state;
 
-      submittedAssignmentIds: [],
-      submitAssignment: (id) => {
-        set((state) => ({
-          submittedAssignmentIds: state.submittedAssignmentIds.includes(id)
-            ? state.submittedAssignmentIds
-            : [...state.submittedAssignmentIds, id],
-          assignments: state.assignments.map((a) =>
-            a.id === id
-              ? {
-                  ...a,
-                  totalSubmissions: (a.totalSubmissions || 0) + 1,
-                  assessedSubmissions: (a.assessedSubmissions || 0) + 1,
-                }
-              : a
-          ),
-        }));
-      },
+          const updatedTranscription = current.transcriptionByPage.map((p) => {
+            if (p.pageIndex !== pageIndex) return p;
+            const updatedLines = [...p.lines];
+            updatedLines[lineIndex] = newText;
+            return { ...p, lines: updatedLines };
+          });
 
-      resetDemoState: () => {
-        set({
-          currentUser: MOCK_TEACHER,
-          assignments: MOCK_ASSIGNMENTS,
-          activeRubric: MOCK_RUBRIC,
-          materials: MOCK_MATERIALS,
-          outline: INITIAL_OUTLINE,
-          socraticMessages: INITIAL_SOCRATIC_MESSAGES,
-          uploadedPages: [
-            { id: 'p1', url: '/mock-paper-1.jpg', size: '2.4 MB', piiMasked: true },
-            { id: 'p2', url: '/mock-paper-2.jpg', size: '1.9 MB', piiMasked: true },
-          ],
-          piiStatus: 'success',
-          flaggedSegments: [
-            { lineRef: 14, text: 'sáng suốt', confidence: 0.71, isCorrected: false },
-          ],
-          ocrStatus: 'needs_review',
-          studentResult: MOCK_STUDENT_RESULT,
-          sidebarCollapsed: false,
-          submittedAssignmentIds: [],
+          return {
+            submissions: {
+              ...state.submissions,
+              [submissionId]: {
+                ...current,
+                transcriptionByPage: updatedTranscription,
+              },
+            },
+          };
         });
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('edulit-ai-storage');
-        }
       },
     }),
     {
-      name: 'edulit-ai-storage',
-      storage: createJSONStorage(() => sessionStorage),
+      name: 'edulit-demo-v3',
+      storage: createJSONStorage(() => ({
+        getItem: (key: string) => {
+          if (typeof window === 'undefined') return null;
+          try {
+            return sessionStorage.getItem(key);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (key: string, value: string) => {
+          if (typeof window === 'undefined') return;
+          try {
+            sessionStorage.setItem(key, value);
+          } catch (err) {
+            console.warn('[EduLit] sessionStorage quota exceeded, keeping state in RAM:', err);
+          }
+        },
+        removeItem: (key: string) => {
+          if (typeof window === 'undefined') return;
+          try {
+            sessionStorage.removeItem(key);
+          } catch {}
+        },
+      })),
+      partialize: (state) => ({
+        currentUser: state.currentUser,
+        sidebarCollapsed: state.sidebarCollapsed,
+        demoMilestone: state.demoMilestone,
+        assignments: state.assignments,
+        activeAssignmentId: state.activeAssignmentId,
+        submittedAssignmentIds: state.submittedAssignmentIds,
+        outline: state.outline,
+        socraticMessages: state.socraticMessages,
+        ocrStatus: state.ocrStatus,
+        flaggedSegments: state.flaggedSegments,
+        // Strip out gigantic raw base64 data URLs from storage to guarantee 0 quota overflow
+        uploadedPages: state.uploadedPages.map((p) => ({
+          ...p,
+          imageUrl: p.imageUrl.startsWith('data:') ? '' : p.imageUrl,
+        })),
+        submissions: Object.fromEntries(
+          Object.entries(state.submissions).map(([id, sub]) => [
+            id,
+            {
+              ...sub,
+              pages: sub.pages.map((p) => ({
+                ...p,
+                imageUrl: p.imageUrl.startsWith('data:') ? '' : p.imageUrl,
+              })),
+            },
+          ])
+        ),
+      }),
     }
   )
 );
-

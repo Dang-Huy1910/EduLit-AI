@@ -45,7 +45,7 @@ export default function StudentShell({
     },
     {
       label: 'Phòng Lập dàn ý Socratic',
-      href: '/assignments/assign-nlxh-01/socratic',
+      href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
       icon: 'psychology',
     },
     {

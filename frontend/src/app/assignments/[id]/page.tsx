@@ -6,34 +6,20 @@ import { useParams, useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { RubricCriterion } from '@/lib/types';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 
 export default function AssignmentEditorPage() {
   const params = useParams();
   const router = useRouter();
   const { assignments, activeRubric, updateRubricCriterion, publishAssignment, addToast } = useAppStore();
 
-  const assignmentId = (params?.id as string) || 'assign-nlxh-01';
+  const assignmentId = (params?.id as string) || CENTRAL_ASSIGNMENT_ID;
   const isNew = assignmentId === 'new';
-  const assignment = assignments.find((a) => a.id === assignmentId);
+  const assignment = assignments.find((a) => a.id === assignmentId) || CENTRAL_ASSIGNMENT;
 
-  const [title, setTitle] = useState(
-    assignment?.title ||
-      (isNew
-        ? 'Nghị luận xã hội: Ý thức trách nhiệm của thanh niên đối với cộng đồng'
-        : 'Nghị luận xã hội: Ý nghĩa của tinh thần tự chủ trong kỷ nguyên chuyển đổi số')
-  );
-  const [instructions, setInstructions] = useState(
-    assignment?.instructions ||
-      (isNew
-        ? `Anh/chị hãy viết một bài văn nghị luận (khoảng 600 chữ) bàn về tinh thần trách nhiệm của người trẻ trước những vấn đề thời sự của quê hương, đất nước.
-Yêu cầu:
-1. Giải thích ý niệm về trách nhiệm công dân của người trẻ trong kỷ nguyên mới.
-2. Nêu dẫn chứng người thật việc thật trong đời sống thực tế năm 2024.
-3. Phản biện thói vô cảm, bàng quan trước khó khăn của cộng đồng.
-4. Rút ra bài học hành động cụ thể cho bản thân trong học tập và rèn luyện.`
-        : '')
-  );
-  const [deadline, setDeadline] = useState(assignment?.deadline || '30/11/2024 23:59');
+  const [title, setTitle] = useState(assignment.title);
+  const [instructions, setInstructions] = useState(assignment.instructions);
+  const [deadline, setDeadline] = useState(assignment.deadline || '20/10/2026 23:59');
 
   // Criteria state
   const [criteria, setCriteria] = useState<RubricCriterion[]>(activeRubric.criteria);
@@ -41,9 +27,9 @@ Yêu cầu:
   // Publish checklist
   const [checkPublicReport, setCheckPublicReport] = useState(false);
 
-  // Calculate live total
+  // Calculate live total (Thang điểm 4.0)
   const totalWeight = criteria.reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
-  const isValidTotal = Math.abs(totalWeight - 10.0) < 0.01;
+  const isValidTotal = Math.abs(totalWeight - 4.0) < 0.01;
 
   const handleWeightChange = (id: string, newWeight: number) => {
     const updated = criteria.map((c) => (c.id === id ? { ...c, weight: newWeight } : c));
@@ -68,7 +54,7 @@ Yêu cầu:
 
   const handlePublish = () => {
     if (!isValidTotal) {
-      addToast(`Tổng điểm Rubric hiện tại là ${totalWeight.toFixed(1)}đ. Tổng điểm bắt buộc phải bằng 10.0đ.`, 'error');
+      addToast(`Tổng điểm Rubric hiện tại là ${totalWeight.toFixed(2)}đ. Tổng điểm bắt buộc phải bằng 4.0đ.`, 'error');
       return;
     }
 
@@ -202,16 +188,16 @@ Yêu cầu:
               </div>
             </div>
 
-            {/* 2. Barem Rubric (4 criteria totaling 10.0) */}
+            {/* 2. Barem Rubric (4 criteria totaling 4.0) */}
             <div className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">format_list_numbered</span>
-                    2. Barem Rubric Đánh giá chi tiết (Tổng 10.0đ)
+                    2. Barem Rubric Đánh giá chi tiết (Tổng 4.0đ)
                   </span>
                   <span className="text-[11px] text-on-surface-variant">
-                    Chuẩn hóa theo định dạng JSON Schema SRS §7.1
+                    Chuẩn hóa theo định dạng JSON Schema GDPT 2018 (Thang 4.0đ)
                   </span>
                 </div>
 
@@ -224,7 +210,7 @@ Yêu cầu:
                         : 'bg-error-container text-error animate-pulse'
                     }`}
                   >
-                    {totalWeight.toFixed(1)} / 10.0đ
+                    {totalWeight.toFixed(2)} / 4.0đ
                   </span>
                   {isValidTotal && (
                     <span className="text-xs text-tertiary font-semibold flex items-center gap-0.5">
@@ -239,7 +225,7 @@ Yêu cầu:
                 <div className="p-3 bg-error-container/50 border border-error/30 rounded-lg text-xs text-error flex items-center gap-2">
                   <span className="material-symbols-outlined text-base">error</span>
                   <span>
-                    Tổng điểm các tiêu chí phải bằng đúng 10.0đ (Hiện tại: {totalWeight.toFixed(1)}đ). Hãy điều chỉnh lại điểm của các tiêu chí dưới đây.
+                    Tổng điểm các tiêu chí phải bằng đúng 4.0đ (Hiện tại: {totalWeight.toFixed(2)}đ). Hãy điều chỉnh lại điểm của các tiêu chí dưới đây.
                   </span>
                 </div>
               )}
@@ -366,16 +352,16 @@ Yêu cầu:
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
                   <span className="material-symbols-outlined text-secondary text-base mt-0.5">description</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Văn bản đọc hiểu số 04</p>
-                    <p className="text-[11px] text-on-surface-variant">Ý nghĩa của tinh thần tự chủ trong thời đại số</p>
+                    <p className="font-semibold text-on-surface">Ngữ liệu chính: Bài thơ &quot;Màu tự do của đất&quot;</p>
+                    <p className="text-[11px] text-on-surface-variant">Tác giả: Trần Quang Quý • Báo Văn nghệ số Tết 2019</p>
                   </div>
                 </div>
 
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
                   <span className="material-symbols-outlined text-primary text-base mt-0.5">gavel</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Barem thang điểm 2024</p>
-                    <p className="text-[11px] text-on-surface-variant">Barem 4 tiêu chí chuẩn GDPT 2018</p>
+                    <p className="font-semibold text-on-surface">Hướng dẫn chấm Đề chạy thử</p>
+                    <p className="text-[11px] text-on-surface-variant">Thang 4.0 điểm • Barem 4 tiêu chí GDPT 2018</p>
                   </div>
                 </div>
               </div>
@@ -384,8 +370,8 @@ Yêu cầu:
                 href="/materials"
                 className="w-full py-1.5 rounded border border-outline-variant/50 text-[11px] text-secondary font-semibold hover:bg-surface-container transition-all flex items-center justify-center gap-1"
               >
-                <span className="material-symbols-outlined text-sm">add</span>
-                <span>Thêm học liệu từ Kho lưu trữ</span>
+                <span className="material-symbols-outlined text-sm">menu_book</span>
+                <span>Xem toàn văn ngữ liệu &amp; Ghi chú rà soát</span>
               </Link>
             </div>
 
@@ -397,16 +383,16 @@ Yêu cầu:
 
               <div className="space-y-2 text-xs">
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">1. Bố cục mạch lạc 3 phần</p>
-                  <span className="text-[10px] text-outline">Gắn với C1 Bố cục</span>
+                  <p className="font-medium text-on-surface">1. Phân tích hình ảnh làng quê &amp; cảm nhận &quot;tự do&quot;</p>
+                  <span className="text-[10px] text-outline">Gắn với C1 Nội dung &amp; Nghệ thuật (2.50đ)</span>
                 </div>
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">2. Đưa phản đề và dẫn chứng xác thực</p>
-                  <span className="text-[10px] text-outline">Gắn với C2 Luận điểm</span>
+                  <p className="font-medium text-on-surface">2. Nghịch lí &quot;không thoát ly bùn đất&quot; &amp; chuỗi &quot;buộc - neo - cởi&quot;</p>
+                  <span className="text-[10px] text-outline">Gắn với C2 Phân tích &amp; Lập luận (0.75đ)</span>
                 </div>
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border-l-2 border-primary">
-                  <p className="font-medium text-on-surface">3. Tinh gọn câu phức, sạch lỗi chính tả</p>
-                  <span className="text-[10px] text-outline">Gắn với C3 Diễn đạt</span>
+                  <p className="font-medium text-on-surface">3. Liên hệ làm nổi bật nét riêng của Trần Quang Quý</p>
+                  <span className="text-[10px] text-outline">Yêu cầu bắt buộc theo barem chấm (C1)</span>
                 </div>
               </div>
             </div>
@@ -420,17 +406,17 @@ Yêu cầu:
               <div className="space-y-2 text-xs text-on-surface">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked disabled className="rounded text-tertiary" />
-                  <span className="text-tertiary font-medium">Đã liên kết học liệu sẵn sàng</span>
+                  <span className="text-tertiary font-medium">Đã liên kết ngữ liệu &quot;Màu tự do của đất&quot;</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={isValidTotal} disabled className="rounded text-tertiary" />
                   <span className={isValidTotal ? 'text-tertiary font-medium' : 'text-error'}>
-                    Tổng điểm Rubric đúng 10.0 điểm
+                    Tổng điểm Rubric đúng 4.0 điểm
                   </span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked disabled className="rounded text-tertiary" />
-                  <span className="text-tertiary font-medium">Có đầy đủ phản đề và dẫn chứng</span>
+                  <span className="text-tertiary font-medium">Có yêu cầu liên hệ tác phẩm ngoài</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -439,7 +425,7 @@ Yêu cầu:
                     onChange={(e) => setCheckPublicReport(e.target.checked)}
                     className="rounded text-secondary focus:ring-secondary"
                   />
-                  <span>Công khai báo cáo kết quả cho học sinh</span>
+                  <span>Công khai kết quả đánh giá cho học sinh</span>
                 </label>
               </div>
 

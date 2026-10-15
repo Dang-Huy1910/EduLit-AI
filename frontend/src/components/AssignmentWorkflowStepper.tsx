@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 
 export type WorkflowStepId = 'reading' | 'socratic' | 'submit' | 'ocr' | 'result';
 
@@ -26,28 +27,28 @@ const STEPS: StepConfig[] = [
     stepNumber: 2,
     label: 'Dàn ý Socratic',
     icon: 'psychology',
-    href: '/assignments/assign-nlxh-01/socratic',
+    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/socratic`,
   },
   {
     id: 'submit',
     stepNumber: 3,
     label: 'Viết tay & Nộp ảnh',
     icon: 'photo_camera',
-    href: '/assignments/assign-nlxh-01/submit',
+    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/submit`,
   },
   {
     id: 'ocr',
     stepNumber: 4,
     label: 'Kiểm tra OCR',
     icon: 'document_scanner',
-    href: '/assignments/assign-nlxh-01/ocr',
+    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/ocr`,
   },
   {
     id: 'result',
     stepNumber: 5,
     label: 'Đánh giá Rubric',
     icon: 'verified',
-    href: '/assignments/assign-nlxh-01/result',
+    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/result`,
   },
 ];
 
@@ -58,7 +59,7 @@ interface AssignmentWorkflowStepperProps {
 
 export default function AssignmentWorkflowStepper({
   currentStep,
-  assignmentId = 'assign-nlxh-01',
+  assignmentId = CENTRAL_ASSIGNMENT_ID,
 }: AssignmentWorkflowStepperProps) {
   const currentIdx = STEPS.findIndex((s) => s.id === currentStep);
 

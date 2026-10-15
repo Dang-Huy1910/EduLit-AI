@@ -5,18 +5,19 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
+import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 
 export default function StudentAssignmentsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { assignments, submittedAssignmentIds, addToast } = useAppStore();
+  const { assignments, submittedAssignmentIds, submissions, addToast } = useAppStore();
 
   const initialTab = searchParams.get('tab') === 'submitted' ? 'submitted' : 'todo';
   const [activeTab, setActiveTab] = useState<'todo' | 'submitted'>(initialTab);
-  const [codeInput, setCodeInput] = useState('VAN12-NLXH-01');
+  const [codeInput, setCodeInput] = useState('VAN12-NLVH-01');
   const [codeError, setCodeError] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
-  const [expandedInstructions, setExpandedInstructions] = useState<Record<string, boolean>>({ 'assign-nlxh-01': false });
+  const [expandedInstructions, setExpandedInstructions] = useState<Record<string, boolean>>({ [CENTRAL_ASSIGNMENT_ID]: false });
   const [expandedRubrics, setExpandedRubrics] = useState<Record<string, boolean>>({});
 
   const toggleInstructions = (id: string) => {
@@ -82,7 +83,7 @@ export default function StudentAssignmentsView() {
                   setCodeInput(e.target.value);
                   setCodeError(false);
                 }}
-                placeholder="VD: VAN12-NLXH-01"
+                placeholder="VD: VAN12-NLVH-01"
                 className="w-full px-2.5 py-1.5 text-xs font-mono uppercase rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-secondary"
               />
               <button
@@ -99,7 +100,7 @@ export default function StudentAssignmentsView() {
               </p>
             )}
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/20 text-[10px] text-on-surface-variant">
-              <span>Mã mẫu: VAN12-NLXH-01</span>
+              <span>Mã mẫu: VAN12-NLVH-01</span>
               <button
                 type="button"
                 onClick={() => {
@@ -225,11 +226,7 @@ export default function StudentAssignmentsView() {
               </div>
             ) : (
               todoAssignments.map((assignment) => {
-                const isNewAssigned =
-                  assignment.id === 'assign-nlvh-chipheo' ||
-                  assignment.id.startsWith('assign-new-') ||
-                  assignment.id.startsWith('assign-draft-');
-                const isNlxh = assignment.id === 'assign-nlxh-01';
+                const isCurrent = assignment.id === CENTRAL_ASSIGNMENT_ID;
                 const isInstructionsOpen = !!expandedInstructions[assignment.id];
                 const isRubricOpen = !!expandedRubrics[assignment.id];
 
@@ -237,27 +234,20 @@ export default function StudentAssignmentsView() {
                   <div
                     key={assignment.id}
                     className={`p-5 bg-surface-container-lowest rounded-xl shadow-sm space-y-4 transition-all ${
-                      isNewAssigned
-                        ? 'border-2 border-amber-400 bg-amber-50/20'
-                        : isNlxh
+                      isCurrent
                         ? 'border-2 border-primary-container/60'
                         : 'border border-outline-variant/30'
                     }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-outline-variant/20">
                       <div className="flex flex-wrap items-center gap-2">
-                        {isNewAssigned ? (
-                          <span className="text-xs font-bold text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-300 animate-pulse">
-                            <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
-                            <span>✨ Đề mới được giao • Cô Đặng Loan</span>
-                          </span>
-                        ) : isNlxh ? (
+                        {isCurrent ? (
                           <span className="text-xs font-bold text-on-primary-container bg-primary-container px-2.5 py-0.5 rounded-full">
-                            Đang lập dàn ý (Bước 2/5)
+                            Đang thực hiện (Quy trình 5 bước)
                           </span>
                         ) : (
                           <span className="text-xs font-semibold text-on-surface-variant bg-surface-container px-2.5 py-0.5 rounded-full">
-                            Chưa bắt đầu (Bước 1/5)
+                            Chưa bắt đầu
                           </span>
                         )}
                         <span className="text-xs text-secondary font-mono font-semibold">{assignment.code}</span>
@@ -287,8 +277,8 @@ export default function StudentAssignmentsView() {
                           <span className="material-symbols-outlined text-base">check_circle</span>
                           <span>1. Đọc hiểu</span>
                         </div>
-                        <div className={`flex items-center gap-1.5 ${isNlxh ? 'text-primary font-bold' : 'text-outline-variant font-medium'}`}>
-                          <span className="material-symbols-outlined text-base">{isNlxh ? 'pending' : 'radio_button_unchecked'}</span>
+                        <div className="flex items-center gap-1.5 text-primary font-bold">
+                          <span className="material-symbols-outlined text-base">pending</span>
                           <span>2. Socratic</span>
                         </div>
                         <div className="flex items-center gap-1.5 text-outline-variant">
@@ -335,25 +325,25 @@ export default function StudentAssignmentsView() {
                         <span className="material-symbols-outlined text-base">
                           {isRubricOpen ? 'expand_less' : 'expand_more'}
                         </span>
-                        Thang điểm Rubric chuẩn GDPT 2018 (Tổng 10.0đ)
+                        Thang điểm Rubric chuẩn GDPT 2018 (Tổng 4.0đ)
                       </button>
                       {isRubricOpen && (
                         <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                           <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C1. Bố cục</span>
-                            <span className="text-on-surface-variant text-[11px]">2.0 điểm tối đa</span>
+                            <span className="font-semibold block text-primary">C1. Nội dung &amp; Liên hệ</span>
+                            <span className="text-on-surface-variant text-[11px]">2.50 điểm tối đa</span>
                           </div>
                           <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C2. Luận điểm</span>
-                            <span className="text-on-surface-variant text-[11px]">4.0 điểm tối đa</span>
+                            <span className="font-semibold block text-primary">C2. Phân tích &amp; Lập luận</span>
+                            <span className="text-on-surface-variant text-[11px]">0.75 điểm tối đa</span>
                           </div>
                           <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C3. Diễn đạt</span>
-                            <span className="text-on-surface-variant text-[11px]">2.0 điểm (-0.25đ/lỗi)</span>
+                            <span className="font-semibold block text-primary">C3. Diễn đạt &amp; Ngôn ngữ</span>
+                            <span className="text-on-surface-variant text-[11px]">0.50 điểm (-0.25đ/lỗi)</span>
                           </div>
                           <div className="p-2 bg-surface-container-low rounded border border-outline-variant/30">
-                            <span className="font-semibold block text-primary">C4. Sáng tạo</span>
-                            <span className="text-on-surface-variant text-[11px]">2.0 điểm tối đa</span>
+                            <span className="font-semibold block text-primary">C4. Cấu trúc &amp; Quy cách</span>
+                            <span className="text-on-surface-variant text-[11px]">0.25 điểm tối đa</span>
                           </div>
                         </div>
                       )}
@@ -376,7 +366,7 @@ export default function StudentAssignmentsView() {
                           href={`/assignments/${assignment.id}/socratic`}
                           className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-semibold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5"
                         >
-                          <span>{isNlxh ? 'Tiếp tục lập dàn ý Socratic' : 'Bắt đầu lập dàn ý Socratic'}</span>
+                          <span>Tiếp tục lập dàn ý Socratic</span>
                           <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                         </Link>
                       </div>
@@ -407,57 +397,66 @@ export default function StudentAssignmentsView() {
                 </button>
               </div>
             ) : (
-              submittedAssignments.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="p-5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm space-y-4"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-outline-variant/20">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-tertiary bg-tertiary-container/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm">verified</span>
-                        Đã có kết quả (7.5 / 10.0)
+              submittedAssignments.map((assignment) => {
+                const sub = submissions['sub-bui-ha-my'] || Object.values(submissions)[0];
+                const score = sub ? sub.totalScore.toFixed(2) : '3.60';
+                const score10 = sub ? sub.scoreScale10.toFixed(1) : '9.0';
+                const isPublished = sub ? sub.isPublishedToStudent : true;
+
+                return (
+                  <div
+                    key={assignment.id}
+                    className="p-5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm space-y-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-outline-variant/20">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-tertiary bg-tertiary-container/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">verified</span>
+                          Đã có kết quả ({score} / 4.00 • Quy đổi {score10} / 10)
+                        </span>
+                        <span className="text-xs text-on-surface-variant font-mono">Mã bài nộp: {sub?.id || `SUB_20261015_${assignment.code}`}</span>
+                      </div>
+                      <span className="text-xs text-on-surface-variant">Hạn nộp: {assignment.deadline}</span>
+                    </div>
+
+                    <div>
+                      <h3 className="font-headline-md text-base font-bold text-on-surface font-merriweather">
+                        {assignment.title}
+                      </h3>
+                      <p className="text-xs text-on-surface-variant mt-1">
+                        Xếp loại: <strong>{Number(score) >= 3.6 ? 'Giỏi (Năng lực phân tích xuất sắc)' : 'Khá (Phát triển tốt)'}</strong> • Điểm chi tiết: C1: 2.25/2.50 | C2: 0.65/0.75 | C3: 0.45/0.50 | C4: 0.25/0.25
+                      </p>
+                    </div>
+
+                    <div className="p-3 bg-surface-container-low/50 rounded-lg text-xs flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-on-surface-variant">
+                        <span className="material-symbols-outlined text-secondary text-base">photo_library</span>
+                        <span>Đã nhận dạng OCR 2 trang viết tay • Độ tin cậy 96%</span>
+                      </div>
+                      <span className="text-tertiary font-semibold">
+                        {isPublished ? 'Đã được giáo viên công bố' : 'Giáo viên đang rà soát'}
                       </span>
-                      <span className="text-xs text-on-surface-variant font-mono">Mã bài nộp: SUB_20261012_{assignment.code}</span>
                     </div>
-                    <span className="text-xs text-on-surface-variant">Hạn nộp: {assignment.deadline}</span>
-                  </div>
 
-                  <div>
-                    <h3 className="font-headline-md text-base font-bold text-on-surface font-merriweather">
-                      {assignment.title}
-                    </h3>
-                    <p className="text-xs text-on-surface-variant mt-1">
-                      Xếp loại: <strong>Khá (Phát triển năng lực)</strong> • Điểm chi tiết: Bố cục 2.0 | Luận điểm 3.0 | Diễn đạt 1.25 | Sáng tạo 1.25
-                    </p>
-                  </div>
-
-                  <div className="p-3 bg-surface-container-low/50 rounded-lg text-xs flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-on-surface-variant">
-                      <span className="material-symbols-outlined text-secondary text-base">photo_library</span>
-                      <span>Đã nhận dạng OCR 2 trang giấy • Độ tin cậy 94%</span>
+                    <div className="pt-2 flex items-center justify-end gap-3">
+                      <Link
+                        href={`/assignments/${assignment.id}/ocr`}
+                        className="px-3.5 py-1.5 rounded-lg border border-outline-variant/60 text-xs font-medium text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5"
+                      >
+                        <span className="material-symbols-outlined text-sm">document_scanner</span>
+                        <span>Đối chiếu OCR 2 trang</span>
+                      </Link>
+                      <Link
+                        href={`/assignments/${assignment.id}/result`}
+                        className="px-4 py-1.5 rounded-lg bg-secondary text-white text-xs font-semibold hover:bg-secondary/90 transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        <span className="material-symbols-outlined text-sm">visibility</span>
+                        <span>Xem nhận xét &amp; Rubric</span>
+                      </Link>
                     </div>
-                    <span className="text-tertiary font-semibold">Đã ẩn danh PII hợp lệ</span>
                   </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-3">
-                    <Link
-                      href={`/assignments/${assignment.id}/ocr`}
-                      className="px-3.5 py-1.5 rounded-lg border border-outline-variant/60 text-xs font-medium text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5"
-                    >
-                      <span className="material-symbols-outlined text-sm">document_scanner</span>
-                      <span>Bản chép OCR</span>
-                    </Link>
-                    <Link
-                      href={`/assignments/${assignment.id}/result`}
-                      className="px-4 py-1.5 rounded-lg bg-secondary text-white text-xs font-semibold hover:bg-secondary/90 transition-all flex items-center gap-1.5 shadow-sm"
-                    >
-                      <span className="material-symbols-outlined text-sm">visibility</span>
-                      <span>Xem kết quả &amp; Nhận xét chi tiết</span>
-                    </Link>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
