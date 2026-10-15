@@ -1,4 +1,5 @@
 import {
+  CENTRAL_ASSIGNMENT_ID,
   CENTRAL_ASSIGNMENT,
   RUBRIC_MAU_TU_DO_DAT,
   MATERIALS_MAU_TU_DO_DAT,
@@ -30,8 +31,12 @@ export const MOCK_TRANSCRIPTION_LINES = [
 export const MOCK_STUDENT_RESULT = INITIAL_SUBMISSIONS['sub-bui-ha-my'];
 
 // Dynamically calculated report metrics based on current submissions
-export function computeReportMetrics(submissions: Record<string, typeof INITIAL_SUBMISSIONS['sub-bui-ha-my']>) {
-  const subList = Object.values(submissions);
+export function computeReportMetrics(
+  submissions: Record<string, any>,
+  assignmentId: string = CENTRAL_ASSIGNMENT_ID
+) {
+  const allSubs = Object.values(submissions);
+  const subList = allSubs.filter((s: any) => !assignmentId || s.assignmentId === assignmentId);
   const totalStudents = 40; // Class size (40 HS)
   const submittedCount = subList.length;
   const assessedCount = subList.filter((s) => s.status === 'graded').length;

@@ -10,7 +10,15 @@ import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 export default function StudentAssignmentsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { assignments, rubrics, submittedAssignmentIds, submissions, addToast } = useAppStore();
+  const {
+    assignments,
+    rubrics,
+    submittedAssignmentIds,
+    submissions,
+    currentUser,
+    getStudentSubmission,
+    addToast,
+  } = useAppStore();
 
   const initialTab = searchParams.get('tab') === 'submitted' ? 'submitted' : 'todo';
   const [activeTab, setActiveTab] = useState<'todo' | 'submitted'>(initialTab);
@@ -140,10 +148,10 @@ export default function StudentAssignmentsView() {
           <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
             <span className="text-xs text-on-surface-variant block">Điểm trung bình</span>
             <span className="text-xl font-bold text-secondary font-merriweather">
-              {submittedAssignments.length > 0 ? '7.5 / 10' : '-- / 10'}
+              {submittedAssignments.length > 0 ? '8.8 / 10' : '-- / 10'}
             </span>
             <span className="text-[10px] text-secondary font-medium block mt-0.5">
-              {submittedAssignments.length > 0 ? 'Mức Khá (Phát triển tốt)' : 'Chờ làm bài'}
+              {submittedAssignments.length > 0 ? 'Mức Giỏi (Tích lũy tốt)' : 'Chờ làm bài'}
             </span>
           </div>
         </div>
@@ -193,16 +201,16 @@ export default function StudentAssignmentsView() {
                 <div className="w-14 h-14 rounded-full bg-tertiary-container/30 flex items-center justify-center text-tertiary mx-auto mb-3">
                   <span className="material-symbols-outlined text-3xl">verified</span>
                 </div>
-                <h3 className="text-base font-bold text-on-surface mb-1">Tuyệt vời! Em đã hoàn thành hết bài tập</h3>
-                <p className="text-xs text-on-surface-variant mb-4">
-                  Tất cả bài tập đã được nộp và chuyển sang tab &quot;Bài đã nộp &amp; Lịch sử chấm&quot;. Hãy kiểm tra nhận xét chi tiết của AI và cô giáo nhé!
+                <h3 className="text-base font-bold text-on-surface mb-1">Chưa có bài tập mới cần làm</h3>
+                <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
+                  Em đã hoàn thành <strong>02 bài tập trước đó</strong>. Hãy kiểm tra nhận xét chi tiết của AI và cô giáo ở tab bên cạnh hoặc chờ cô giáo giao đề bài mới nhé!
                 </p>
                 <button
                   type="button"
                   onClick={() => setActiveTab('submitted')}
                   className="px-4 py-2 bg-secondary text-white rounded-lg text-xs font-semibold hover:bg-secondary/90 transition-all shadow-sm"
                 >
-                  Xem bài đã nộp &rarr;
+                  Xem lịch sử bài đã nộp ({submittedAssignments.length}) &rarr;
                 </button>
               </div>
             ) : (
@@ -382,10 +390,25 @@ export default function StudentAssignmentsView() {
               </div>
             ) : (
               submittedAssignments.map((assignment) => {
-                const sub = submissions['sub-bui-ha-my'] || Object.values(submissions)[0];
-                const score = sub ? sub.totalScore.toFixed(2) : '3.60';
-                const score10 = sub ? sub.scoreScale10.toFixed(1) : '9.0';
+                const sub =
+                  getStudentSubmission?.(assignment.id, currentUser?.id || 'user-student-48') ||
+                  (assignment.id === CENTRAL_ASSIGNMENT_ID ? submissions?.['sub-bui-ha-my'] : undefined) ||
+                  (submissions ? Object.values(submissions).find((s) => s.assignmentId === assignment.id) : undefined);
+
+                const score = typeof sub?.totalScore === 'number' ? sub.totalScore.toFixed(2) : '3.60';
+                const score10 = typeof sub?.scoreScale10 === 'number' ? sub.scoreScale10.toFixed(1) : '9.0';
                 const isPublished = sub ? sub.isPublishedToStudent : true;
+                const gradeLevel =
+                  sub?.gradeLevel ||
+                  (Number(score) >= 3.6
+                    ? 'Giỏi (Năng lực phân tích xuất sắc)'
+                    : 'Khá (Phát triển tốt)');
+
+                const criteriaBreakdown = Array.isArray(sub?.evaluations) && sub.evaluations.length > 0
+                  ? sub.evaluations
+                      .map((e) => `${(e.criterionId || '').slice(0, 2)}: ${(Number(e.awardedScore) || 0).toFixed(2)}/${(Number(e.maxScore) || 0).toFixed(2)}`)
+                      .join(' | ')
+                  : 'C1: 2.25/2.50 | C2: 0.65/0.75 | C3: 0.45/0.50 | C4: 0.25/0.25';
 
                 return (
                   <div
@@ -408,14 +431,14 @@ export default function StudentAssignmentsView() {
                         {assignment.title}
                       </h3>
                       <p className="text-xs text-on-surface-variant mt-1">
-                        Xếp loại: <strong>{Number(score) >= 3.6 ? 'Giỏi (Năng lực phân tích xuất sắc)' : 'Khá (Phát triển tốt)'}</strong> • Điểm chi tiết: C1: 2.25/2.50 | C2: 0.65/0.75 | C3: 0.45/0.50 | C4: 0.25/0.25
+                        Xếp loại: <strong>{gradeLevel}</strong> • Điểm chi tiết: {criteriaBreakdown}
                       </p>
                     </div>
 
                     <div className="p-3 bg-surface-container-low/50 rounded-lg text-xs flex items-center justify-between">
                       <div className="flex items-center gap-2 text-on-surface-variant">
                         <span className="material-symbols-outlined text-secondary text-base">photo_library</span>
-                        <span>Đã nhận dạng OCR 2 trang viết tay • Độ tin cậy 96%</span>
+                        <span>Đã nhận dạng OCR 2 trang viết tay • {sub?.ocrConfidenceLabel || 'Độ chính xác 98%'}</span>
                       </div>
                       <span className="text-tertiary font-semibold">
                         {isPublished ? 'Đã được giáo viên công bố' : 'Giáo viên đang rà soát'}

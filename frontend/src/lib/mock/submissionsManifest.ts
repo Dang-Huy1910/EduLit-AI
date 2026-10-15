@@ -1,5 +1,9 @@
 import { StudentSubmission } from '../types';
-import { CENTRAL_ASSIGNMENT_ID } from './assignmentData';
+import {
+  CENTRAL_ASSIGNMENT_ID,
+  MOCK_ASSIGNMENT_NLXH_ID,
+  MOCK_ASSIGNMENT_BEP_LUA_ID,
+} from './assignmentData';
 
 export interface SubmissionManifestEntry {
   assignmentId: string;
@@ -522,6 +526,176 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
         actionLabel: 'Nâng cấp đoạn so sánh',
       },
     ],
+  },
+
+  'sub-mock-bui-ha-my-nlxh': {
+    id: 'sub-mock-bui-ha-my-nlxh',
+    assignmentId: MOCK_ASSIGNMENT_NLXH_ID,
+    studentId: 'user-student-48',
+    studentName: 'Bùi Hà My',
+    studentCode: 'VN-12A1-048',
+    submissionDate: '14/09/2026 21:15',
+    status: 'graded',
+    pages: [
+      {
+        pageIndex: 1,
+        imageUrl: '/submissions/assign-nlvh-mau-tu-do-dat/user-student-48/page-1.jpg',
+        size: '1.2 MB',
+        caption: 'Bùi Hà My - Bài NLXH Trang 1',
+      },
+      {
+        pageIndex: 2,
+        imageUrl: '/submissions/assign-nlvh-mau-tu-do-dat/user-student-48/page-2.jpg',
+        size: '760 KB',
+        caption: 'Bùi Hà My - Bài NLXH Trang 2',
+      },
+    ],
+    transcriptionByPage: [
+      {
+        pageIndex: 1,
+        lines: [
+          'Quê hương là chiếc nôi nuôi dưỡng tâm hồn, là mạch nguồn không bao giờ cạn',
+          'trong tâm thức của mỗi con người. Trong thời đại toàn cầu hóa ngày nay, việc giữ',
+          'gìn và hướng về cội nguồn quê hương càng mang ý nghĩa sống còn đối với người trẻ.',
+        ],
+      },
+    ],
+    totalScore: 3.6,
+    maxScore: 4.0,
+    scoreScale10: 9.0,
+    gradeLevel: 'Giỏi (Năng lực lập luận xã hội xuất sắc)',
+    ocrConfidenceLabel: 'Đã hoàn tất đối chiếu OCR (Độ chính xác: 99.1%)',
+    flaggedSegmentsCount: 0,
+    isPublishedToStudent: true,
+    teacherNotes:
+      'Bài viết có chiều sâu lí luận xã hội rất tốt, dẫn chứng thực tế sinh động về trách nhiệm của người trẻ với quê hương đất nước. Lập luận chặt chẽ, truyền cảm.',
+    evaluations: [
+      {
+        criterionId: 'C1_CONTENT_ART_RELATION',
+        criterionName: 'Nội dung, nghệ thuật và liên hệ',
+        awardedScore: 2.3,
+        maxScore: 2.5,
+        strengths: [
+          'Giải thích thấu đáo khái niệm cội nguồn quê hương.',
+          'Phân tích sâu sắc vai trò điểm tựa tinh thần và bản sắc văn hóa của người trẻ.',
+        ],
+        weaknesses: ['Cần bổ sung thêm 1 phản biện nhỏ về lối sống vọng ngoại.'],
+        comment: 'Nội dung lập luận xuất sắc.',
+      },
+      {
+        criterionId: 'C2_ANALYSIS_ARGUMENT',
+        criterionName: 'Phân tích, lập luận và sử dụng dẫn chứng',
+        awardedScore: 0.7,
+        maxScore: 0.75,
+        strengths: ['Dẫn chứng cập nhật thời sự, lập luận sắc sảo.'],
+        weaknesses: [],
+        comment: 'Lập luận thuyết phục.',
+      },
+      {
+        criterionId: 'C3_EXPRESSION_LANGUAGE',
+        criterionName: 'Diễn đạt, ngôn ngữ và chính tả',
+        awardedScore: 0.45,
+        maxScore: 0.5,
+        strengths: ['Diễn đạt trong sáng, giàu cảm xúc chính luận.'],
+        weaknesses: [],
+        comment: 'Hành văn chuẩn mực.',
+      },
+      {
+        criterionId: 'C4_STRUCTURE_FORMAT',
+        criterionName: 'Bố cục và đáp ứng hình thức',
+        awardedScore: 0.15,
+        maxScore: 0.25,
+        strengths: ['Bố cục 3 phần cân đối.'],
+        weaknesses: ['Dung lượng khoảng 550 chữ.'],
+        comment: 'Đạt yêu cầu hình thức.',
+      },
+    ],
+    pedagogicalTasks: [],
+  },
+
+  'sub-mock-bui-ha-my-bep-lua': {
+    id: 'sub-mock-bui-ha-my-bep-lua',
+    assignmentId: MOCK_ASSIGNMENT_BEP_LUA_ID,
+    studentId: 'user-student-48',
+    studentName: 'Bùi Hà My',
+    studentCode: 'VN-12A1-048',
+    submissionDate: '01/10/2026 20:30',
+    status: 'graded',
+    pages: [
+      {
+        pageIndex: 1,
+        imageUrl: '/submissions/assign-nlvh-mau-tu-do-dat/user-student-48/page-1.jpg',
+        size: '1.2 MB',
+        caption: 'Bùi Hà My - Bếp lửa Trang 1',
+      },
+      {
+        pageIndex: 2,
+        imageUrl: '/submissions/assign-nlvh-mau-tu-do-dat/user-student-48/page-2.jpg',
+        size: '760 KB',
+        caption: 'Bùi Hà My - Bếp lửa Trang 2',
+      },
+    ],
+    transcriptionByPage: [
+      {
+        pageIndex: 1,
+        lines: [
+          'Hình ảnh bếp lửa trong thơ Bằng Việt không chỉ là một bếp lửa thông thường',
+          'mà là biểu tượng của tình bà cháu thiêng liêng, của hơi ấm quê hương nâng bước',
+          'người cháu trên vạn nẻo đường đời...',
+        ],
+      },
+    ],
+    totalScore: 3.4,
+    maxScore: 4.0,
+    scoreScale10: 8.5,
+    gradeLevel: 'Khá Giỏi (Cảm thụ văn học tinh tế)',
+    ocrConfidenceLabel: 'Đã hoàn tất đối chiếu OCR (Độ chính xác: 98.7%)',
+    flaggedSegmentsCount: 0,
+    isPublishedToStudent: true,
+    teacherNotes:
+      'Cảm thụ tinh tế về tình bà cháu và hình ảnh bếp lửa ấp iu nồng đượm. Cần nâng cao tính khái quát ở phần kết bài để làm bật tầm vóc triết lí.',
+    evaluations: [
+      {
+        criterionId: 'C1_CONTENT_ART_RELATION',
+        criterionName: 'Nội dung, nghệ thuật và liên hệ',
+        awardedScore: 2.15,
+        maxScore: 2.5,
+        strengths: [
+          'Phân tích xúc động tình cảm bà cháu qua từng khổ thơ.',
+          'Chỉ ra được ý nghĩa biểu tượng của bếp lửa và ngọn lửa nhen nhóm niềm tin.',
+        ],
+        weaknesses: ['Phần kết luận còn hơi vội vàng.'],
+        comment: 'Bài cảm thụ rất chân thành.',
+      },
+      {
+        criterionId: 'C2_ANALYSIS_ARGUMENT',
+        criterionName: 'Phân tích, lập luận và sử dụng dẫn chứng',
+        awardedScore: 0.65,
+        maxScore: 0.75,
+        strengths: ['Dẫn chứng trích thơ chính xác, bình thơ có hồn.'],
+        weaknesses: [],
+        comment: 'Kĩ năng lập luận tốt.',
+      },
+      {
+        criterionId: 'C3_EXPRESSION_LANGUAGE',
+        criterionName: 'Diễn đạt, ngôn ngữ và chính tả',
+        awardedScore: 0.4,
+        maxScore: 0.5,
+        strengths: ['Câu văn mượt mà, cảm xúc thiết tha.'],
+        weaknesses: [],
+        comment: 'Văn phong giàu chất thơ.',
+      },
+      {
+        criterionId: 'C4_STRUCTURE_FORMAT',
+        criterionName: 'Bố cục và đáp ứng hình thức',
+        awardedScore: 0.2,
+        maxScore: 0.25,
+        strengths: ['Đủ 3 phần Mở - Thân - Kết.'],
+        weaknesses: [],
+        comment: 'Cấu trúc đạt yêu cầu.',
+      },
+    ],
+    pedagogicalTasks: [],
   },
 };
 

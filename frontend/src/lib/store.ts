@@ -16,6 +16,9 @@ import {
 import {
   CENTRAL_ASSIGNMENT_ID,
   CENTRAL_ASSIGNMENT,
+  INITIAL_ASSIGNMENTS,
+  MOCK_ASSIGNMENT_NLXH_ID,
+  MOCK_ASSIGNMENT_BEP_LUA_ID,
   RUBRIC_MAU_TU_DO_DAT,
   RUBRIC_CAPACITY_CREATIVE_5T,
   AVAILABLE_RUBRICS,
@@ -27,6 +30,13 @@ import {
   INITIAL_SUBMISSIONS,
   SUBMISSION_MANIFEST,
 } from './mock/submissionsManifest';
+
+const START_SUBMISSIONS: Record<string, StudentSubmission> = {
+  'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
+  'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
+  'sub-mock-bui-ha-my-nlxh': INITIAL_SUBMISSIONS['sub-mock-bui-ha-my-nlxh'],
+  'sub-mock-bui-ha-my-bep-lua': INITIAL_SUBMISSIONS['sub-mock-bui-ha-my-bep-lua'],
+};
 import {
   matchSocraticBranch,
   FALLBACK_RESPONSE,
@@ -213,41 +223,53 @@ export const useAppStore = create<AppState>()(
         }
 
         if (milestone === 'start') {
-          // Milestone 1: Trần Minh Khôi & Nguyễn Lan Anh already submitted; Bùi Hà My has NOT submitted yet
-          const startSubmissions: Record<string, StudentSubmission> = {
-            'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
-            'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
-          };
+          // Milestone 1: Start state with mock history assignments, Central Assignment not yet submitted by Bùi Hà My
           set({
             demoMilestone: 'start',
             isAiResponding: false,
-            submittedAssignmentIds: [],
-            submissions: startSubmissions,
-            assignments: [
-              {
-                ...CENTRAL_ASSIGNMENT,
-                totalSubmissions: 2,
-                assessedSubmissions: 2,
-              },
-            ],
+            submittedAssignmentIds: [MOCK_ASSIGNMENT_NLXH_ID, MOCK_ASSIGNMENT_BEP_LUA_ID],
+            submissions: { ...START_SUBMISSIONS },
+            assignments: [...INITIAL_ASSIGNMENTS],
             uploadedPages: [],
             outline: INITIAL_OUTLINE,
             socraticMessages: INITIAL_SOCRATIC_MESSAGES,
           });
         } else {
           // Milestone 2: Complete view with all 3 students submitted & graded
+          const centralInList = get().assignments.some((a) => a.id === CENTRAL_ASSIGNMENT_ID);
+          const completeAssignments = centralInList
+            ? get().assignments.map((a) =>
+                a.id === CENTRAL_ASSIGNMENT_ID
+                  ? {
+                      ...a,
+                      status: 'published' as const,
+                      statusLabel: 'Đã hoàn thành',
+                      totalSubmissions: 3,
+                      assessedSubmissions: 3,
+                    }
+                  : a
+              )
+            : [
+                {
+                  ...CENTRAL_ASSIGNMENT,
+                  status: 'published' as const,
+                  statusLabel: 'Đã hoàn thành',
+                  totalSubmissions: 3,
+                  assessedSubmissions: 3,
+                },
+                ...get().assignments,
+              ];
+
           set({
             demoMilestone: 'complete',
             isAiResponding: false,
-            submittedAssignmentIds: [CENTRAL_ASSIGNMENT_ID],
-            submissions: { ...INITIAL_SUBMISSIONS },
-            assignments: [
-              {
-                ...CENTRAL_ASSIGNMENT,
-                totalSubmissions: 3,
-                assessedSubmissions: 3,
-              },
+            submittedAssignmentIds: [
+              MOCK_ASSIGNMENT_NLXH_ID,
+              MOCK_ASSIGNMENT_BEP_LUA_ID,
+              CENTRAL_ASSIGNMENT_ID,
             ],
+            submissions: { ...INITIAL_SUBMISSIONS },
+            assignments: completeAssignments,
             uploadedPages: INITIAL_SUBMISSIONS['sub-bui-ha-my'].pages,
           });
         }
@@ -263,30 +285,18 @@ export const useAppStore = create<AppState>()(
           localStorage.removeItem('edulit-app-v1');
         }
 
-        // Return to milestone 'start'
-        const startSubmissions: Record<string, StudentSubmission> = {
-          'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
-          'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
-        };
-
         const currentRole = get().currentUser?.role || 'teacher';
         set({
           currentUser: currentRole === 'student' ? DEMO_STUDENTS[0] : DEMO_TEACHER,
           demoMilestone: 'start',
           isAiResponding: false,
-          assignments: [
-            {
-              ...CENTRAL_ASSIGNMENT,
-              totalSubmissions: 2,
-              assessedSubmissions: 2,
-            },
-          ],
+          assignments: [...INITIAL_ASSIGNMENTS],
           activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
           activeRubric: RUBRIC_MAU_TU_DO_DAT,
           rubrics: AVAILABLE_RUBRICS,
           materials: MATERIALS_MAU_TU_DO_DAT,
-          submissions: startSubmissions,
-          submittedAssignmentIds: [],
+          submissions: { ...START_SUBMISSIONS },
+          submittedAssignmentIds: [MOCK_ASSIGNMENT_NLXH_ID, MOCK_ASSIGNMENT_BEP_LUA_ID],
           outline: INITIAL_OUTLINE,
           socraticMessages: INITIAL_SOCRATIC_MESSAGES,
           uploadedPages: [],
@@ -303,13 +313,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Assignments & Materials
-      assignments: [
-        {
-          ...CENTRAL_ASSIGNMENT,
-          totalSubmissions: 2,
-          assessedSubmissions: 2,
-        },
-      ],
+      assignments: [...INITIAL_ASSIGNMENTS],
       activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
       activeRubric: RUBRIC_MAU_TU_DO_DAT,
       rubrics: AVAILABLE_RUBRICS,
@@ -348,11 +352,40 @@ export const useAppStore = create<AppState>()(
       },
 
       publishAssignment: (id, updates) => {
-        set((state) => ({
-          assignments: state.assignments.map((a) =>
-            a.id === id ? { ...a, status: 'published', statusLabel: 'Đã giao', ...updates } : a
-          ),
-        }));
+        set((state) => {
+          const exists = state.assignments.some((a) => a.id === id);
+          let updatedAssignments: Assignment[];
+          if (exists) {
+            updatedAssignments = state.assignments.map((a) =>
+              a.id === id ? { ...a, status: 'published', statusLabel: 'Đã giao', ...updates } : a
+            );
+          } else {
+            const base = id === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : {
+              ...CENTRAL_ASSIGNMENT,
+              id,
+              code: updates?.code || 'VAN12-NLVH-01',
+              title: updates?.title || CENTRAL_ASSIGNMENT.title,
+              studentTitle: updates?.studentTitle || updates?.title || CENTRAL_ASSIGNMENT.studentTitle,
+              topic: updates?.topic || updates?.title || CENTRAL_ASSIGNMENT.topic,
+              instructions: updates?.instructions || CENTRAL_ASSIGNMENT.instructions,
+              deadline: updates?.deadline || '28/10/2026 23:59',
+              rubricId: updates?.rubricId || CENTRAL_ASSIGNMENT.rubricId,
+            };
+            const newAssignment: Assignment = {
+              ...base,
+              status: 'published',
+              statusLabel: 'Đang mở nộp bài',
+              totalSubmissions: 2,
+              assessedSubmissions: 2,
+              ...updates,
+            };
+            updatedAssignments = [newAssignment, ...state.assignments];
+          }
+          return {
+            assignments: updatedAssignments,
+            activeAssignmentId: id,
+          };
+        });
       },
 
       addMaterial: (materialData) => {
@@ -369,11 +402,8 @@ export const useAppStore = create<AppState>()(
       },
 
       // Submissions
-      submissions: {
-        'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
-        'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
-      },
-      submittedAssignmentIds: [],
+      submissions: { ...START_SUBMISSIONS },
+      submittedAssignmentIds: [MOCK_ASSIGNMENT_NLXH_ID, MOCK_ASSIGNMENT_BEP_LUA_ID],
 
       getStudentSubmission: (assignmentId: string, studentId: string) => {
         const list = Object.values(get().submissions);
@@ -731,18 +761,18 @@ export const useAppStore = create<AppState>()(
         ocrStatus: state.ocrStatus,
         flaggedSegments: state.flaggedSegments,
         // Strip out gigantic raw base64 data URLs from storage to guarantee 0 quota overflow
-        uploadedPages: state.uploadedPages.map((p) => ({
+        uploadedPages: (state.uploadedPages || []).map((p) => ({
           ...p,
-          imageUrl: p.imageUrl.startsWith('data:') ? '' : p.imageUrl,
+          imageUrl: p?.imageUrl && typeof p.imageUrl === 'string' && p.imageUrl.startsWith('data:') ? '' : (p?.imageUrl || ''),
         })),
         submissions: Object.fromEntries(
-          Object.entries(state.submissions).map(([id, sub]) => [
+          Object.entries(state.submissions || {}).map(([id, sub]) => [
             id,
             {
               ...sub,
-              pages: sub.pages.map((p) => ({
+              pages: (sub?.pages || []).map((p) => ({
                 ...p,
-                imageUrl: p.imageUrl.startsWith('data:') ? '' : p.imageUrl,
+                imageUrl: p?.imageUrl && typeof p.imageUrl === 'string' && p.imageUrl.startsWith('data:') ? '' : (p?.imageUrl || ''),
               })),
             },
           ])

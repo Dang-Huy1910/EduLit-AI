@@ -356,11 +356,101 @@ export const AVAILABLE_RUBRICS: Rubric[] = [
   RUBRIC_CAPACITY_CREATIVE_5T,
 ];
 
+export const MOCK_ASSIGNMENT_NLXH_ID = 'assign-mock-nlxh-coi-nguon';
+export const MOCK_ASSIGNMENT_BEP_LUA_ID = 'assign-mock-nlvh-bep-lua';
+
+export const MOCK_ASSIGNMENT_NLXH: Assignment = {
+  id: MOCK_ASSIGNMENT_NLXH_ID,
+  code: 'VAN12-NLXH-01',
+  title: 'Nghị luận xã hội: Ý nghĩa của cội nguồn quê hương đối với người trẻ',
+  studentTitle: 'Bài viết số 1 — Nghị luận xã hội (Kỳ I)',
+  topic: 'Suy nghĩ về vai trò của cội nguồn quê hương trong việc hình thành nhân cách và bồi đắp tâm hồn người trẻ',
+  instructions: `Viết một bài văn nghị luận xã hội (khoảng 600 chữ) bàn về ý nghĩa của việc giữ gìn và hướng về cội nguồn quê hương đối với thế hệ trẻ trong thời đại hội nhập toàn cầu hiện nay.
+
+Yêu cầu thực hiện:
+1. Mở bài: Dẫn dắt vấn đề cội nguồn quê hương trong đời sống mỗi con người.
+2. Thân bài:
+   - Giải thích khái niệm "cội nguồn quê hương" (nơi chôn rau cắt rốn, dòng tộc, bản sắc văn hóa cội rễ).
+   - Phân tích ý nghĩa: quê hương là điểm tựa tinh thần vững chắc, bồi đắp đạo lí "uống nước nhớ nguồn", giúp người trẻ không bị hòa tan khi vươn ra biển lớn.
+   - Bàn luận mở rộng: phê phán lối sống vọng ngoại, quay lưng chối bỏ nguồn cội.
+   - Bài học nhận thức và hành động của bản thân.
+3. Kết bài: Khẳng định giá trị thiêng liêng của quê hương và thông điệp gửi gắm.`,
+  gradeLevel: 12,
+  classId: '12A1',
+  className: 'Lớp 12A1 • THPT Đan Phượng (40 HS)',
+  status: 'published',
+  statusLabel: 'Đã kết thúc',
+  deadline: '15/09/2026 23:59',
+  totalSubmissions: 40,
+  assessedSubmissions: 40,
+  flaggedSubmissions: 0,
+  rubricId: CENTRAL_RUBRIC_ID,
+  linkedMaterialIds: [],
+  learningGoals: [
+    {
+      id: 'LG_NLXH_1',
+      goal: 'Nêu bật luận điểm về vai trò cội nguồn và bản sắc văn hóa',
+      criterionId: 'C1_CONTENT_ART_RELATION',
+    },
+    {
+      id: 'LG_NLXH_2',
+      goal: 'Lập luận chặt chẽ, dẫn chứng xác thực, cảm xúc chân thành',
+      criterionId: 'C2_ANALYSIS_ARGUMENT',
+    },
+  ],
+};
+
+export const MOCK_ASSIGNMENT_BEP_LUA: Assignment = {
+  id: MOCK_ASSIGNMENT_BEP_LUA_ID,
+  code: 'VAN12-NLVH-02',
+  title: 'Phân tích hình tượng bếp lửa và tình bà cháu trong bài thơ "Bếp lửa" (Bằng Việt)',
+  studentTitle: 'Bài viết số 2 — Nghị luận văn học (Kỳ I)',
+  topic: 'Cảm nhận về hình tượng bếp lửa sưởi ấm tâm hồn và tình bà cháu thiêng liêng',
+  instructions: `Viết bài văn nghị luận văn học phân tích hình ảnh ngọn lửa và bếp lửa ấp iu nồng đượm, qua đó làm bật tình cảm bà cháu sâu nặng và triết lí về cội nguồn ân nghĩa trong bài thơ "Bếp lửa" của nhà thơ Bằng Việt.
+
+Yêu cầu thực hiện:
+1. Mở bài: Giới thiệu tác giả Bằng Việt, bài thơ "Bếp lửa" và hình tượng trung tâm: ngọn lửa - tình bà cháu.
+2. Thân bài:
+   - Những kỷ niệm tuổi thơ sống bên bà và bếp lửa (những năm tháng gian khó, khói hun nhèm mắt, giặc đốt làng...).
+   - Hình ảnh người bà tần tảo, giàu đức hy sinh và ngọn lửa nhen nhóm niềm tin, sự sống.
+   - Suy ngẫm của người cháu khi đã trưởng thành nơi đất khách: "Giờ cháu đã đi xa... nhưng vẫn chẳng lúc nào quên nhắc nhở: Sớm mai này bà nhóm bếp lên chưa?".
+   - Đánh giá nghệ thuật kết hợp nhuần nhuyễn giữa biểu cảm với tự sự, miêu tả và bình luận.
+3. Kết bài: Khẳng định sức sống trường tồn của tình bà cháu và ngọn lửa quê hương.`,
+  gradeLevel: 12,
+  classId: '12A1',
+  className: 'Lớp 12A1 • THPT Đan Phượng (40 HS)',
+  status: 'published',
+  statusLabel: 'Đã kết thúc',
+  deadline: '02/10/2026 23:59',
+  totalSubmissions: 40,
+  assessedSubmissions: 40,
+  flaggedSubmissions: 0,
+  rubricId: CENTRAL_RUBRIC_ID,
+  linkedMaterialIds: [],
+  learningGoals: [
+    {
+      id: 'LG_BL_1',
+      goal: 'Phân tích hình tượng bếp lửa qua các tầng nghĩa thực và biểu tượng',
+      criterionId: 'C1_CONTENT_ART_RELATION',
+    },
+    {
+      id: 'LG_BL_2',
+      goal: 'Làm sáng tỏ mạch cảm xúc hồi tưởng kết hợp triết lí ân nghĩa',
+      criterionId: 'C2_ANALYSIS_ARGUMENT',
+    },
+  ],
+};
+
+export const INITIAL_ASSIGNMENTS: Assignment[] = [
+  MOCK_ASSIGNMENT_NLXH,
+  MOCK_ASSIGNMENT_BEP_LUA,
+];
+
 export const CENTRAL_ASSIGNMENT: Assignment = {
   id: CENTRAL_ASSIGNMENT_ID,
   code: 'VAN12-NLVH-01',
   title: 'Phân tích "Màu tự do của đất" — Trần Quang Quý',
-  studentTitle: 'Bài viết số 1 — Nghị luận văn học',
+  studentTitle: 'Bài viết số 3 — Nghị luận văn học (Trọng tâm)',
   topic: 'Cảm nhận "tự do" qua hình ảnh làng quê trong bài thơ "Màu tự do của đất"',
   instructions: `Viết bài văn nghị luận (khoảng 600 chữ) phân tích cách nhà thơ Trần Quang Quý cảm nhận "tự do" qua những hình ảnh làng quê trong bài thơ "Màu tự do của đất", đồng thời liên hệ với một bài thơ hoặc đoạn thơ khác viết về làng quê, đồng ruộng mà anh/chị đã đọc để làm rõ cách nhìn riêng của tác giả. (4,0 điểm)
 
@@ -377,10 +467,10 @@ Yêu cầu thực hiện:
   classId: '12A1',
   className: 'Lớp 12A1 • THPT Đan Phượng (40 HS)',
   status: 'published',
-  statusLabel: 'Đã giao',
+  statusLabel: 'Đang mở nộp bài',
   deadline: '28/10/2026 23:59',
-  totalSubmissions: 3,
-  assessedSubmissions: 3,
+  totalSubmissions: 2,
+  assessedSubmissions: 2,
   flaggedSubmissions: 0,
   rubricId: CENTRAL_RUBRIC_ID,
   linkedMaterialIds: ['mat-nlvh-mau-tu-do-dat', 'mat-barem-docx-4d'],
