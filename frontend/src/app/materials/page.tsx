@@ -414,19 +414,7 @@ export default function MaterialsPage() {
                 </div>
               )}
 
-              {/* Demo switch for failure */}
-              <div className="p-2.5 bg-surface-container-low rounded-lg flex items-center justify-between text-[11px]">
-                <span className="text-on-surface-variant font-medium">Mô phỏng trường hợp file scan mờ / lỗi:</span>
-                <label className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={forceFail}
-                    onChange={(e) => setForceFail(e.target.checked)}
-                    className="rounded text-error focus:ring-error"
-                  />
-                  <span className="text-error font-semibold">Bật lỗi xử lý</span>
-                </label>
-              </div>
+
 
               <div className="pt-3 border-t border-outline-variant/20 flex items-center justify-end gap-2">
                 <button

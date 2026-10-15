@@ -254,7 +254,8 @@ export const useAppStore = create<AppState>()(
           activeAiResponseTimeout = null;
         }
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('edulit-demo-v2');
+          sessionStorage.removeItem('edulit-app-v1');
+          localStorage.removeItem('edulit-app-v1');
         }
 
         // Return to milestone 'start'
@@ -664,7 +665,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'edulit-demo-v3',
+      name: 'edulit-app-v1',
       storage: createJSONStorage(() => ({
         getItem: (key: string) => {
           if (typeof window === 'undefined') return null;
@@ -721,3 +722,10 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+if (typeof window !== 'undefined') {
+  (window as unknown as { resetEduLit?: () => void }).resetEduLit = () => {
+    useAppStore.getState().resetDemoState();
+    window.location.reload();
+  };
+}

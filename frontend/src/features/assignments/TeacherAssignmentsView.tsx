@@ -173,16 +173,6 @@ export default function TeacherAssignmentsView() {
               Chưa đủ học liệu ({blockedCount})
             </button>
           </div>
-
-          {/* Prototype Demo Toggle */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowEmptyState(!showEmptyState)}
-              className="text-xs px-2.5 py-1 rounded border border-outline-variant/50 text-secondary hover:bg-surface-container-low transition-all font-medium"
-            >
-              {showEmptyState ? '↩ Khôi phục danh sách' : '⚡ Thử nghiệm Xem Trống (Empty State)'}
-            </button>
-          </div>
         </div>
 
         {/* Empty State */}

@@ -58,7 +58,7 @@ export default function StudentAssignmentsView() {
                 Học sinh Bùi Hà My (Lớp 12A1)
               </span>
               <span className="text-xs bg-surface-container text-on-surface-variant font-medium px-2 py-0.5 rounded-full">
-                Dữ liệu minh họa (Prototype Demo)
+                Học kỳ I • Năm học 2026 - 2027
               </span>
             </div>
             <h1 className="font-headline-lg text-2xl font-bold text-on-surface font-merriweather">
@@ -100,17 +100,7 @@ export default function StudentAssignmentsView() {
               </p>
             )}
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/20 text-[10px] text-on-surface-variant">
-              <span>Mã mẫu: VAN12-NLVH-01</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setCodeInput('SAI-MA-DE-99');
-                  setCodeError(true);
-                }}
-                className="text-secondary hover:underline"
-              >
-                Mô phỏng lỗi
-              </button>
+              <span>Mã bài tập: VAN12-NLVH-01</span>
             </div>
           </div>
         </div>
@@ -180,15 +170,6 @@ export default function StudentAssignmentsView() {
               }`}
             >
               Bài đã nộp &amp; Lịch sử chấm ({submittedAssignments.length})
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowEmptyState(!showEmptyState)}
-              className="text-xs px-2.5 py-1 rounded border border-outline-variant/50 text-secondary hover:bg-surface-container-low transition-all"
-            >
-              {showEmptyState ? '↩ Khôi phục bài tập' : '⚡ Trạng thái Rỗng'}
             </button>
           </div>
         </div>

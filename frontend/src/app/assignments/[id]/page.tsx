@@ -360,7 +360,7 @@ export default function AssignmentEditorPage() {
                 <div className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
                   <span className="material-symbols-outlined text-primary text-base mt-0.5">gavel</span>
                   <div className="flex-1">
-                    <p className="font-semibold text-on-surface">Hướng dẫn chấm Đề chạy thử</p>
+                    <p className="font-semibold text-on-surface">Hướng dẫn chấm &amp; Ma trận đề bài</p>
                     <p className="text-[11px] text-on-surface-variant">Thang 4.0 điểm • Barem 4 tiêu chí GDPT 2018</p>
                   </div>
                 </div>

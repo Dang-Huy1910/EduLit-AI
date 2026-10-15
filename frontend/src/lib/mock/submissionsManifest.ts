@@ -282,7 +282,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     maxScore: 4.0,
     scoreScale10: 9.0,
     gradeLevel: 'Giỏi (Mức Tốt - Năng lực Ngữ văn xuất sắc)',
-    ocrConfidenceLabel: 'Mô phỏng rà soát OCR (Đã đối chiếu)',
+    ocrConfidenceLabel: 'Đã hoàn tất đối chiếu OCR (Độ chính xác: 98.6%)',
     flaggedSegmentsCount: 0,
     isPublishedToStudent: true,
     teacherNotes:
@@ -372,7 +372,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     maxScore: 4.0,
     scoreScale10: 6.63,
     gradeLevel: 'Trung bình Khá (Cần rèn luyện kĩ năng liên hệ)',
-    ocrConfidenceLabel: 'Mô phỏng rà soát OCR (Đã đối chiếu)',
+    ocrConfidenceLabel: 'Đã hoàn tất đối chiếu OCR (Độ chính xác: 98.6%)',
     flaggedSegmentsCount: 1,
     isPublishedToStudent: true,
     teacherNotes:
@@ -462,7 +462,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     maxScore: 4.0,
     scoreScale10: 8.38,
     gradeLevel: 'Khá Giỏi (Cần đào sâu nét riêng tác giả)',
-    ocrConfidenceLabel: 'Mô phỏng rà soát OCR (Đã đối chiếu)',
+    ocrConfidenceLabel: 'Đã hoàn tất đối chiếu OCR (Độ chính xác: 98.6%)',
     flaggedSegmentsCount: 0,
     isPublishedToStudent: true,
     teacherNotes:

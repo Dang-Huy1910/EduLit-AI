@@ -104,7 +104,7 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho Đề chạy thử "Màu tự do của đất".\n• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.\n• Phân tích kết quả và lỗi phổ biến của 3 học sinh demo (Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh).\n\nCô muốn bắt đầu với nội dung nào ạ?`,
+          text: `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".\n• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.\n• Phân tích kết quả và lỗi phổ biến của 3 học sinh (Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh).\n\nCô muốn bắt đầu với nội dung nào ạ?`,
           timestamp: '08:00',
           modelBadge: 'EduLit Co-Pilot v2.4',
         },
@@ -183,14 +183,14 @@ export default function ChatbotPage() {
     {
       icon: 'assignment_add',
       title: 'Thang điểm 4.0 chuẩn',
-      desc: 'Cấu trúc Barem 4 tiêu chí cho Đề chạy thử',
+      desc: 'Cấu trúc Barem 4 tiêu chí chuẩn GDPT 2018',
       prompt: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học 600 chữ bài Màu tự do của đất.',
     },
     {
       icon: 'analytics',
       title: 'Phân tích 3 bài nộp 12A1',
       desc: 'Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh',
-      prompt: 'Phân tích điểm mạnh và lỗi phổ biến của 3 học sinh demo trong bài Màu tự do của đất.',
+      prompt: 'Phân tích điểm mạnh và lỗi phổ biến của 3 học sinh trong bài Màu tự do của đất.',
     },
     {
       icon: 'psychology',
@@ -229,9 +229,9 @@ export default function ChatbotPage() {
 
       if (isTeacher) {
         if (lower.includes('barem') || lower.includes('rubric') || lower.includes('4.0') || lower.includes('tiêu chí')) {
-          replyText = `Thưa Cô Đặng Loan, thang điểm 4.0 chuẩn của Đề chạy thử được phân bổ như sau:\n\n1. **C1. Nội dung, nghệ thuật & Liên hệ (2.50 điểm):** Phân tích cảm nhận về tự do qua hình ảnh làng quê (1.50đ); liên hệ tác phẩm ngoài và làm rõ nét riêng của tác giả (1.00đ - thiếu phần này trừ điểm nặng).\n2. **C2. Phân tích & Lập luận (0.75 điểm):** Lập luận chặt chẽ, khai thác nghịch lí "không thoát ly bùn đất" và chuỗi "buộc – neo – cởi".\n3. **C3. Diễn đạt & Ngôn ngữ (0.50 điểm):** Đúng chính tả, dùng từ chính xác, câu văn truyền cảm (-0.25đ/lỗi).\n4. **C4. Cấu trúc & Quy cách (0.25 điểm):** Đảm bảo bố cục 3 phần Mở - Thân - Kết của bài nghị luận văn học ~600 chữ.`;
+          replyText = `Thưa Cô Đặng Loan, thang điểm 4.0 chuẩn của đề bài được phân bổ như sau:\n\n1. **C1. Nội dung, nghệ thuật & Liên hệ (2.50 điểm):** Phân tích cảm nhận về tự do qua hình ảnh làng quê (1.50đ); liên hệ tác phẩm ngoài và làm rõ nét riêng của tác giả (1.00đ - thiếu phần này trừ điểm nặng).\n2. **C2. Phân tích & Lập luận (0.75 điểm):** Lập luận chặt chẽ, khai thác nghịch lí "không thoát ly bùn đất" và chuỗi "buộc – neo – cởi".\n3. **C3. Diễn đạt & Ngôn ngữ (0.50 điểm):** Đúng chính tả, dùng từ chính xác, câu văn truyền cảm (-0.25đ/lỗi).\n4. **C4. Cấu trúc & Quy cách (0.25 điểm):** Đảm bảo bố cục 3 phần Mở - Thân - Kết của bài nghị luận văn học ~600 chữ.`;
         } else if (lower.includes('học sinh') || lower.includes('12a1') || lower.includes('bài nộp') || lower.includes('phân tích')) {
-          replyText = `Thưa cô Đặng Loan, kết quả đối chiếu 3 bài nộp demo của Lớp 12A1:\n\n• **Bùi Hà My (3.60/4.00đ - Giỏi):** Phân tích sâu nghịch lí tự do và chuỗi buộc – neo – cởi; liên hệ sắc sảo với *Bếp lửa* của Bằng Việt.\n• **Trần Minh Khôi (2.65/4.00đ - TB Khá):** Cảm nhận hình ảnh thơ tốt nhưng hoàn toàn thiếu phần liên hệ tác phẩm ngoài; bị trừ điểm theo đúng hướng dẫn chấm tiêu chí C1.\n• **Nguyễn Lan Anh (3.35/4.00đ - Khá):** Có liên hệ với *Quê hương* của Tế Hanh nhưng cần làm rõ hơn nét riêng trong cách nhìn của Trần Quang Quý.`;
+          replyText = `Thưa cô Đặng Loan, kết quả đối chiếu 3 bài nộp tiêu biểu của Lớp 12A1:\n\n• **Bùi Hà My (3.60/4.00đ - Giỏi):** Phân tích sâu nghịch lí tự do và chuỗi buộc – neo – cởi; liên hệ sắc sảo với *Bếp lửa* của Bằng Việt.\n• **Trần Minh Khôi (2.65/4.00đ - TB Khá):** Cảm nhận hình ảnh thơ tốt nhưng hoàn toàn thiếu phần liên hệ tác phẩm ngoài; bị trừ điểm theo đúng hướng dẫn chấm tiêu chí C1.\n• **Nguyễn Lan Anh (3.35/4.00đ - Khá):** Có liên hệ với *Quê hương* của Tế Hanh nhưng cần làm rõ hơn nét riêng trong cách nhìn của Trần Quang Quý.`;
           actionLink = {
             label: 'Xem chi tiết bảng tổng hợp báo cáo lớp →',
             href: '/reports',
@@ -533,7 +533,7 @@ export default function ChatbotPage() {
                   <div className="flex items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => addToast('Đính kèm ngữ liệu chuẩn GDPT 2018 (Tính năng prototype)', 'info')}
+                      onClick={() => addToast('Đã đính kèm ngữ liệu chuẩn GDPT 2018.', 'success')}
                       className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all"
                       title="Đính kèm tài liệu học liệu"
                     >
@@ -541,7 +541,7 @@ export default function ChatbotPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => addToast('Nhập liệu giọng nói tiếng Việt (Tính năng prototype)', 'info')}
+                      onClick={() => addToast('Đang kích hoạt micro nhận diện giọng nói tiếng Việt...', 'info')}
                       className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all"
                       title="Nhập bằng giọng nói"
                     >

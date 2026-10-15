@@ -34,9 +34,6 @@ export default function SocraticChatPage() {
     removeOutlinePoint,
     reorderOutlinePoints,
     addToast,
-    demoMilestone,
-    setDemoMilestone,
-    resetDemoState,
   } = useAppStore();
 
   const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
@@ -165,54 +162,7 @@ export default function SocraticChatPage() {
         {/* 5-Step Workflow Stepper */}
         <AssignmentWorkflowStepper currentStep="socratic" assignmentId={assignmentId} />
 
-        {/* Demo Toolbar */}
-        <div className="p-2.5 bg-surface-container-low/70 rounded-lg flex flex-wrap items-center justify-between gap-2 text-xs border border-outline-variant/20">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm text-secondary">tune</span>
-            <span className="text-on-surface-variant font-medium">Điều khiển kịch bản Demo:</span>
-            <span className="px-2 py-0.5 rounded-full bg-secondary-fixed/40 text-secondary text-[11px] font-semibold">
-              Đề: Màu tự do của đất (4,0 điểm)
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setDemoMilestone('start');
-                addToast('Đã chuyển về mốc: Bắt đầu kịch bản (Bùi Hà My chưa nộp bài)', 'info');
-              }}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
-                demoMilestone === 'start'
-                  ? 'bg-primary-container text-on-primary-container font-bold'
-                  : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'
-              }`}
-            >
-              Mốc 1: Bắt đầu kịch bản
-            </button>
-            <button
-              onClick={() => {
-                setDemoMilestone('complete');
-                addToast('Đã chuyển về mốc: Xem dữ liệu hoàn chỉnh (đủ 3 bài nộp)', 'info');
-              }}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all ${
-                demoMilestone === 'complete'
-                  ? 'bg-primary-container text-on-primary-container font-bold'
-                  : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container'
-              }`}
-            >
-              Mốc 2: Dữ liệu hoàn chỉnh
-            </button>
-            <button
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã reset toàn bộ kịch bản và làm mới dữ liệu!', 'success');
-              }}
-              className="px-2 py-1 rounded text-[11px] font-semibold text-error hover:bg-error-container/30 transition-all flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-[14px]">restart_alt</span>
-              <span>Reset Demo</span>
-            </button>
-          </div>
-        </div>
+
 
         {/* Pedagogical Guideline Alert */}
         <div className="p-3 bg-surface-container-low/50 rounded-xl border border-secondary/20 flex items-center gap-2.5 text-xs text-on-surface-variant">
@@ -554,8 +504,8 @@ export default function SocraticChatPage() {
                   ))}
                 </div>
 
-                <p className="text-[10px] text-outline/80 italic pt-1 border-t border-outline-variant/20">
-                  * Ghi chú: Đây là kiểm tra cấu trúc tự động trong mock; không giả lập AI hiểu hoàn toàn mọi ý người dùng tự nhập.
+                <p className="text-[10px] text-on-surface-variant/80 italic pt-1 border-t border-outline-variant/20">
+                  * Hệ thống tự động đối chiếu các luận điểm trọng tâm dựa theo khung ma trận chuẩn GDPT 2018.
                 </p>
               </div>
             </div>

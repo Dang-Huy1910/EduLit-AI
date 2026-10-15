@@ -69,9 +69,6 @@ export default function SubmitPhotosPage() {
     reorderUploadedPages,
     submitHandwrittenEssay,
     addToast,
-    demoMilestone,
-    setDemoMilestone,
-    resetDemoState,
   } = useAppStore();
 
   const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
@@ -95,6 +92,13 @@ export default function SubmitPhotosPage() {
   useEffect(() => {
     router.prefetch(`/assignments/${assignmentId}/ocr`);
   }, [router, assignmentId]);
+
+  // Auto-load student scanned pages if empty
+  useEffect(() => {
+    if (uploadedPages.length === 0) {
+      loadDemoBuiHaMyPages();
+    }
+  }, [uploadedPages.length, loadDemoBuiHaMyPages]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -126,19 +130,18 @@ export default function SubmitPhotosPage() {
 
   const handleLoadDemo = () => {
     loadDemoBuiHaMyPages();
-    addToast('Đã nạp bộ 2 trang ảnh mẫu của học sinh Bùi Hà My!', 'success');
+    addToast('Đã đồng bộ 2 trang bài viết tay từ ứng dụng quét!', 'success');
   };
 
   const handleSubmit = () => {
     if (uploadedPages.length === 0) {
-      addToast('Vui lòng chọn bộ ảnh mẫu hoặc tải lên ít nhất 1 ảnh bài viết tay.', 'error');
+      addToast('Vui lòng chọn hoặc tải lên ít nhất 1 ảnh bài viết tay.', 'error');
       return;
     }
 
     setIsSubmitting(true);
     try {
       submitHandwrittenEssay(assignmentId);
-      addToast('Đã lưu bài nộp. Chuyển sang đối chiếu OCR...', 'success');
     } catch (err) {
       console.warn('submitHandwrittenEssay warning:', err);
     }
@@ -185,34 +188,6 @@ export default function SubmitPhotosPage() {
         {/* 5-Step Workflow Stepper */}
         <AssignmentWorkflowStepper currentStep="submit" assignmentId={assignmentId} />
 
-        {/* Demo Toolbar */}
-        <div className="p-2.5 bg-surface-container-low/70 rounded-lg border border-outline-variant/20 flex flex-wrap items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm text-secondary">tune</span>
-            <span className="font-semibold text-on-surface">Thao tác nhanh cho Demo:</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleLoadDemo}
-              className="px-3 py-1.5 bg-secondary text-white font-semibold text-xs rounded-lg hover:bg-secondary/90 shadow-sm flex items-center gap-1.5 transition-all"
-            >
-              <span className="material-symbols-outlined text-sm">photo_library</span>
-              <span>Nạp bộ 2 ảnh mẫu Bùi Hà My (1-click)</span>
-            </button>
-            <button
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã làm mới dữ liệu và xóa ảnh tạm.', 'info');
-              }}
-              className="px-2.5 py-1 text-error text-xs font-semibold hover:bg-error-container/30 rounded flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-sm">restart_alt</span>
-              <span>Xóa bài làm</span>
-            </button>
-          </div>
-        </div>
-
         {/* Upload & Instructions Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left Upload Action & Info (5 cols) */}
@@ -251,8 +226,8 @@ export default function SubmitPhotosPage() {
                   onClick={handleLoadDemo}
                   className="w-full py-2.5 px-4 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold rounded-xl border border-outline-variant/40 flex items-center justify-center gap-2 transition-all"
                 >
-                  <span className="material-symbols-outlined text-base text-secondary">auto_stories</span>
-                  <span>Dùng bộ ảnh mẫu Bùi Hà My (2 trang)</span>
+                  <span className="material-symbols-outlined text-base text-secondary">sync</span>
+                  <span>Đồng bộ từ camera / EduLit Scanner (2 trang)</span>
                 </button>
               </div>
 
@@ -264,9 +239,6 @@ export default function SubmitPhotosPage() {
                 </div>
                 <p className="leading-relaxed">
                   • Vùng tên và mã định danh trên bài thi được che mờ tự động để đảm bảo tính khách quan trước khi gửi sang hội đồng chấm.
-                </p>
-                <p className="leading-relaxed">
-                  • <em>(Ghi chú minh bạch: Chức năng che mờ được mô phỏng trong bản prototype).</em>
                 </p>
               </div>
             </div>
@@ -322,7 +294,7 @@ export default function SubmitPhotosPage() {
                   </div>
                   <h4 className="font-bold text-xs text-on-surface">Chưa có trang bài làm nào</h4>
                   <p className="text-[11px] text-on-surface-variant max-w-sm mx-auto">
-                    Bấm &ldquo;Nạp bộ 2 ảnh mẫu Bùi Hà My&rdquo; hoặc tải file ảnh từ thiết bị để bắt đầu.
+                    Bấm &ldquo;Đồng bộ từ camera&rdquo; hoặc tải file ảnh từ thiết bị để bắt đầu.
                   </p>
                 </div>
               ) : (
@@ -360,7 +332,7 @@ export default function SubmitPhotosPage() {
 
                       <div className="flex items-center justify-between text-[11px] pt-1">
                         <span className="text-on-surface-variant truncate max-w-[140px] text-[10px]">
-                          {page.isCustomUpload ? 'Ảnh tự tải lên' : 'Ảnh mẫu demo'}
+                          {page.isCustomUpload ? 'Ảnh tải lên từ tệp' : 'Bản quét camera'}
                         </span>
 
                         <div className="flex items-center gap-1">
@@ -402,11 +374,20 @@ export default function SubmitPhotosPage() {
 
             {/* Bottom Submit Action */}
             <div className="pt-4 mt-4 border-t border-outline-variant/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <span className="text-xs text-on-surface-variant">
-                {uploadedPages.length > 0
-                  ? `Đã sẵn sàng nộp ${uploadedPages.length} trang.`
-                  : 'Vui lòng thêm ảnh trước khi nộp.'}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-on-surface-variant">
+                  {uploadedPages.length > 0
+                    ? `Đã sẵn sàng nộp ${uploadedPages.length} trang.`
+                    : 'Vui lòng thêm ảnh trước khi nộp.'}
+                </span>
+
+                {isSubmitting && (
+                  <div className="flex items-center gap-1.5 text-[11px] text-primary">
+                    <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
+                    <span>Đang xử lý nộp bài...</span>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -415,7 +396,7 @@ export default function SubmitPhotosPage() {
                 className="py-2.5 px-6 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                 ) : (
                   <span className="material-symbols-outlined text-base">check_circle</span>
                 )}

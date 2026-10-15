@@ -22,8 +22,6 @@ export default function OcrVerificationPage() {
     ocrStatus,
     setOcrStatus,
     addToast,
-    demoMilestone,
-    setDemoMilestone,
   } = useAppStore();
 
   const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
@@ -109,7 +107,7 @@ export default function OcrVerificationPage() {
 
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold px-3 py-1 rounded-full bg-surface-container-high text-on-surface border border-outline-variant/30">
-              Mô phỏng rà soát OCR &amp; Che PII
+              Bảo vệ PII • Đối chiếu OCR chuẩn GDPT 2018
             </span>
             <button
               onClick={handleConfirmAndProceed}

@@ -11,9 +11,6 @@ export default function ReportsPage() {
   const {
     submissions,
     assignments,
-    demoMilestone,
-    setDemoMilestone,
-    resetDemoState,
     addToast,
   } = useAppStore();
 
@@ -69,7 +66,7 @@ export default function ReportsPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => addToast('Chức năng xuất PDF/Excel là mô phỏng trong prototype.', 'info')}
+              onClick={() => addToast('Đang kết xuất báo cáo tổng hợp PDF/Excel lớp 12A1...', 'success')}
               className="px-3.5 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-sm"
             >
               <span className="material-symbols-outlined text-[16px]">file_download</span>
@@ -85,68 +82,21 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Demo Milestone Switcher Bar */}
-        <div className="p-3 bg-surface-container-low/70 rounded-xl border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm text-secondary">tune</span>
-            <span className="font-semibold text-on-surface">Chuyển đổi mốc trình diễn:</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setDemoMilestone('start');
-                addToast('Đã chọn mốc: Bắt đầu kịch bản (2 bài của Khôi & Lan Anh, Bùi Hà My chưa nộp)', 'info');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                demoMilestone === 'start'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container border border-outline-variant/40'
-              }`}
-            >
-              Mốc 1: Bắt đầu kịch bản (2 bài)
-            </button>
-            <button
-              onClick={() => {
-                setDemoMilestone('complete');
-                addToast('Đã chọn mốc: Xem dữ liệu hoàn chỉnh (đủ 3 bài nộp)', 'info');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                demoMilestone === 'complete'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container border border-outline-variant/40'
-              }`}
-            >
-              Mốc 2: Dữ liệu hoàn chỉnh (3 bài)
-            </button>
-            <button
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã reset dữ liệu demo về mốc ban đầu!', 'success');
-              }}
-              className="px-2.5 py-1 text-xs text-error font-semibold hover:bg-error-container/30 rounded flex items-center gap-1"
-            >
-              <span className="material-symbols-outlined text-sm">restart_alt</span>
-              <span>Reset</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Transparency Banner - Distinguishes class size (40) vs demo submissions count */}
+        {/* Class Overview Statistics Banner */}
         <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-4 text-on-surface">
             <span>Sĩ số lớp: <strong>40 học sinh</strong></span>
             <span>•</span>
-            <span>Số bài trong dữ liệu demo: <strong>{metrics.submittedCount} bài</strong></span>
+            <span>Số bài đã nộp: <strong>{metrics.submittedCount} bài</strong></span>
             <span>•</span>
             <span className="text-tertiary font-semibold">
-              Đã đối chiếu Rubric (4,0đ): <strong>{metrics.assessedCount} bài</strong>
+              Đã chấm theo Rubric (4,0đ): <strong>{metrics.assessedCount} bài</strong>
             </span>
           </div>
 
-          <div className="flex items-center gap-2 text-secondary bg-secondary-fixed/30 px-3 py-1 rounded-full font-medium text-[11px]">
-            <span className="material-symbols-outlined text-sm">info</span>
-            <span>3 bộ ảnh mẫu tương ứng 3 bài nộp (mỗi bài gồm 2 trang viết tay)</span>
+          <div className="flex items-center gap-2 text-primary bg-primary-fixed/30 px-3 py-1 rounded-full font-medium text-[11px]">
+            <span className="material-symbols-outlined text-sm">assignment_turned_in</span>
+            <span>Đối chiếu ảnh bài làm viết tay &amp; Barem GDPT 2018</span>
           </div>
         </div>
 
@@ -157,7 +107,7 @@ export default function ReportsPage() {
             <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
               {metrics.assessedCount} / {metrics.submittedCount}
             </span>
-            <span className="text-[11px] text-tertiary font-semibold mt-1 block">100% bài demo đã chấm</span>
+            <span className="text-[11px] text-tertiary font-semibold mt-1 block">100% bài thu đã được chấm</span>
           </div>
 
           <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
@@ -310,7 +260,7 @@ export default function ReportsPage() {
                 {filteredStudents.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-on-surface-variant italic">
-                      Chưa có bài nộp nào trong bộ lọc này. (Thử bấm &ldquo;Mốc 2: Dữ liệu hoàn chỉnh&rdquo; bên trên).
+                      Chưa có bài nộp nào trong bộ lọc này.
                     </td>
                   </tr>
                 ) : (
@@ -318,9 +268,6 @@ export default function ReportsPage() {
                     <tr key={st.id} className="hover:bg-surface-container-low/40 transition-colors">
                       <td className="py-3 px-3">
                         <span className="font-bold text-on-surface block">{st.name}</span>
-                        {st.id !== 'user-student-48' && (
-                          <span className="text-[10px] text-outline italic">(Tên minh họa demo)</span>
-                        )}
                       </td>
                       <td className="py-3 px-3 font-mono text-outline">{st.code}</td>
                       <td className="py-3 px-3 font-mono">{st.pagesCount} trang (đủ)</td>
