@@ -586,7 +586,7 @@ export const useAppStore = create<AppState>()(
             isAiResponding: false,
           }));
           activeAiResponseTimeout = null;
-        }, 750);
+        }, 1000);
       },
 
       // Uploaded Pages

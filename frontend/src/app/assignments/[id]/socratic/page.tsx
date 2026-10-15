@@ -246,9 +246,13 @@ export default function SocraticChatPage() {
               ))}
 
               {isAiResponding && (
-                <div className="flex items-center gap-2 p-3 bg-surface-container-low rounded-xl max-w-[80%] text-xs text-on-surface-variant italic">
-                  <span className="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
-                  <span>Trợ lý Socratic đang đối chiếu ngữ liệu bài thơ và phản hồi...</span>
+                <div className="flex items-center gap-2.5 p-3.5 bg-surface-container-low/70 rounded-xl max-w-[80%] text-xs text-on-surface-variant border border-outline-variant/30 shadow-xs">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="w-2 h-2 rounded-full bg-secondary animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-2 h-2 rounded-full bg-secondary animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-2 h-2 rounded-full bg-secondary animate-bounce"></span>
+                  </div>
+                  <span className="italic font-medium">Trợ lý Socratic đang phân tích và soạn phản hồi...</span>
                 </div>
               )}
               <div ref={messagesEndRef} />

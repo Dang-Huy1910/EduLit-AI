@@ -244,31 +244,26 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Quick Login Accounts */}
-            <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Tài khoản đăng nhập khả dụng:
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[11px]">
-                <button
-                  type="button"
-                  onClick={handleQuickLoginTeacher}
-                  className="p-2 rounded-lg border border-slate-200 hover:border-primary hover:bg-amber-50/40 text-left transition-all"
-                >
-                  <div className="font-bold text-slate-800">Cô Đặng Loan</div>
-                  <div className="text-[10px] text-primary font-medium">Giáo viên &rarr;</div>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleQuickLoginStudent}
-                  className="p-2 rounded-lg border border-slate-200 hover:border-secondary hover:bg-cyan-50/40 text-left transition-all"
-                >
-                  <div className="font-bold text-slate-800">Bùi Hà My</div>
-                  <div className="text-[10px] text-secondary font-medium">Học sinh &rarr;</div>
-                </button>
-              </div>
+            {/* Quick Role Selection */}
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={handleQuickLoginTeacher}
+                className="px-2.5 py-1 rounded-md border border-slate-200/90 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-900 transition-all text-[11px] font-medium flex items-center gap-1.5 shadow-2xs"
+                title="Đăng nhập vai trò Giáo viên (Cô Đặng Loan)"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                <span>GV: Cô Loan</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleQuickLoginStudent}
+                className="px-2.5 py-1 rounded-md border border-slate-200/90 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-slate-700 hover:text-sky-900 transition-all text-[11px] font-medium flex items-center gap-1.5 shadow-2xs"
+                title="Đăng nhập vai trò Học sinh (Bùi Hà My)"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0"></span>
+                <span>HS: Hà My</span>
+              </button>
             </div>
 
             {/* Bottom Footer Links */}
