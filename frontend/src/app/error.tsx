@@ -17,8 +17,18 @@ export default function ErrorBoundary({
   const handleResetStorage = () => {
     try {
       if (typeof window !== 'undefined') {
-        sessionStorage.clear();
-        localStorage.clear();
+        const keys = [
+          'edulit-app-v2',
+          'edulit-app-v1',
+          'edulit-demo-v3',
+          'edulit-ai-storage',
+        ];
+        for (const k of keys) {
+          try {
+            sessionStorage.removeItem(k);
+            localStorage.removeItem(k);
+          } catch {}
+        }
         window.location.href = '/assignments';
       }
     } catch {

@@ -107,21 +107,8 @@ export default function AssignmentEditorPage() {
       status: 'published',
       statusLabel: 'Đang mở nộp bài',
     });
-    addToast(`Đã áp dụng ${currentRubric.shortTitle || currentRubric.name} và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
+    addToast(`Đã áp dụng ${currentRubric.shortTitle || currentRubric.name} và giao đề "${title}" thành công cho Lớp 11A14!`, 'success');
     router.push('/assignments');
-  };
-
-  const handleLoadDemoTemplate = () => {
-    setTitle(CENTRAL_ASSIGNMENT.title);
-    setInstructions(CENTRAL_ASSIGNMENT.instructions);
-    setDeadline(CENTRAL_ASSIGNMENT.deadline || '28/10/2026 23:59');
-    setSelectedRubricId(CENTRAL_RUBRIC_ID);
-    const chosen = rubrics.find((r) => r.id === CENTRAL_RUBRIC_ID) || rubrics[0];
-    if (chosen) {
-      setCriteria(chosen.criteria);
-      setActiveRubricById(chosen.id);
-    }
-    addToast('Đã nạp lại mẫu đề bài: "Màu tự do của đất" (Trần Quang Quý)', 'info');
   };
 
   return (
@@ -156,16 +143,6 @@ export default function AssignmentEditorPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isNew && (
-              <button
-                type="button"
-                onClick={handleLoadDemoTemplate}
-                className="px-3 py-2 rounded-lg border border-secondary/40 text-secondary bg-surface-container-lowest text-xs font-semibold hover:bg-secondary/10 transition-all flex items-center gap-1.5 shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-                <span>Nạp mẫu demo</span>
-              </button>
-            )}
             <button
               onClick={handleSaveDraft}
               className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm"
@@ -177,25 +154,10 @@ export default function AssignmentEditorPage() {
               className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>Xác nhận Rubric &amp; Giao bài cho Lớp 12A1</span>
+              <span>Xác nhận Rubric &amp; Giao bài cho Lớp 11A14</span>
             </button>
           </div>
         </div>
-
-        {/* Banner for New Assignment Demo */}
-        {isNew && (
-          <div className="p-4 bg-primary-container/20 border border-primary/30 rounded-xl flex items-start gap-3 text-xs text-on-surface">
-            <span className="material-symbols-outlined text-primary text-xl mt-0.5">auto_awesome</span>
-            <div className="space-y-1">
-              <p className="font-semibold text-primary">
-                Quy trình demo: Giáo viên khởi tạo và giao đề bài mới
-              </p>
-              <p className="text-on-surface-variant leading-relaxed">
-                Hệ thống đã nạp sẵn ngữ liệu bài thơ <strong>&quot;Màu tự do của đất&quot; (Trần Quang Quý)</strong> và hướng dẫn chấm từ file DOCX gốc. Cô giáo chỉ cần chọn Barem phù hợp (Chuẩn 4 tiêu chí hoặc Năng lực sáng tạo 5 tiêu chí), tinh chỉnh trọng số nếu muốn, rồi bấm <strong>&quot;Xác nhận Rubric &amp; Giao bài cho Lớp 12A1&quot;</strong>.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Version preservation warning banner */}
         <div className="p-3.5 bg-surface-container-low/70 border border-outline-variant/30 rounded-xl flex items-center gap-3 text-xs text-on-surface-variant">
@@ -216,7 +178,7 @@ export default function AssignmentEditorPage() {
                   <span className="material-symbols-outlined text-sm">edit_document</span>
                   1. Thông tin đề bài &amp; Yêu cầu sư phạm
                 </span>
-                <span className="text-xs text-on-surface-variant font-medium">Khối 12 THPT Đan Phượng</span>
+                <span className="text-xs text-on-surface-variant font-medium">Khối 11 THPT Đan Phượng</span>
               </div>
 
               <div>
@@ -235,7 +197,7 @@ export default function AssignmentEditorPage() {
                   <input
                     type="text"
                     disabled
-                    value="Lớp 12A1 • THPT Đan Phượng (40 HS)"
+                    value="Lớp 11A14 • THPT Đan Phượng (41 HS)"
                     className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-low text-on-surface-variant"
                   />
                 </div>
@@ -650,7 +612,7 @@ export default function AssignmentEditorPage() {
                   className="w-full py-2.5 bg-primary-container text-on-primary-container font-bold text-xs rounded-lg hover:brightness-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-base">send</span>
-                  <span>Xác nhận &amp; Giao bài cho Lớp 12A1</span>
+                  <span>Xác nhận &amp; Giao bài cho Lớp 11A14</span>
                 </button>
               </div>
             </div>

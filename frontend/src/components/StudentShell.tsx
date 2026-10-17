@@ -15,7 +15,7 @@ interface StudentShellProps {
 
 export default function StudentShell({
   children,
-  headerTitle = 'Khối 12 - Lớp 12A1',
+  headerTitle = 'Khối 11 - Lớp 11A14',
   headerSubtitle = 'Bài viết số 1 — Nghị luận xã hội',
 }: StudentShellProps) {
   const pathname = usePathname();
@@ -57,7 +57,14 @@ export default function StudentShell({
 
   const handleLogout = () => {
     logout();
+    addToast('Đã đăng xuất khỏi hệ thống EduLit.', 'info');
     router.push('/login');
+  };
+
+  const handleResetDemo = () => {
+    resetDemoState('student');
+    addToast('Đã khôi phục toàn bộ dữ liệu demo ban đầu!', 'success');
+    window.location.href = '/assignments';
   };
 
   return (
@@ -83,7 +90,7 @@ export default function StudentShell({
         </div>
         <div className="flex items-center gap-2">
           <span className="font-caption text-secondary bg-secondary-fixed/50 px-2.5 py-0.5 rounded-full text-xs font-semibold">
-            {currentUser.name || 'Bùi Hà My'}
+            {currentUser.name || 'Đỗ Đăng An'}
           </span>
         </div>
       </div>
@@ -223,10 +230,7 @@ export default function StudentShell({
             </div>
             <button
               type="button"
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
-              }}
+              onClick={handleResetDemo}
               title="Khôi phục trạng thái ban đầu"
               className="p-1.5 rounded-lg text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
             >
@@ -237,10 +241,7 @@ export default function StudentShell({
           <div className="p-2 flex justify-center mb-3">
             <button
               type="button"
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
-              }}
+              onClick={handleResetDemo}
               title="Khôi phục trạng thái ban đầu"
               className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center"
             >
@@ -277,7 +278,7 @@ export default function StudentShell({
             </div>
             <span className="font-caption text-xs bg-secondary-fixed/50 text-secondary px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-              <span>Học sinh: {currentUser.name || 'Bùi Hà My'}</span>
+              <span>Học sinh: {currentUser.name || 'Đỗ Đăng An'}</span>
             </span>
           </div>
 
@@ -299,14 +300,14 @@ export default function StudentShell({
             <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
               <div className="text-right">
                 <div className="font-label-md text-sm text-on-surface font-semibold">
-                  {currentUser.name || 'Bùi Hà My'}
+                  {currentUser.name || 'Đỗ Đăng An'}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
-                  Lớp 12A1 • THPT Đan Phượng
+                  {currentUser.classId ? `Lớp ${currentUser.classId}` : 'Lớp 11A14'} • THPT Đan Phượng
                 </div>
               </div>
               <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs ring-2 ring-secondary-container/40">
-                {currentUser.avatarInitials || 'HM'}
+                {currentUser.avatarInitials || 'ĐA'}
               </div>
               <button
                 onClick={handleLogout}

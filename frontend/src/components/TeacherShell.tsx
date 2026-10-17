@@ -35,7 +35,14 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
 
   const handleLogout = () => {
     logout();
+    addToast('Đã đăng xuất khỏi hệ thống EduLit.', 'info');
     router.push('/login');
+  };
+
+  const handleResetDemo = () => {
+    resetDemoState('teacher');
+    addToast('Đã khôi phục toàn bộ dữ liệu demo ban đầu!', 'success');
+    window.location.href = '/assignments';
   };
 
   return (
@@ -157,10 +164,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             </div>
             <button
               type="button"
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
-              }}
+              onClick={handleResetDemo}
               title="Khôi phục trạng thái ban đầu"
               className="p-1.5 rounded-lg text-outline hover:text-primary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
             >
@@ -171,10 +175,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
           <div className="p-2 flex justify-center mb-3">
             <button
               type="button"
-              onClick={() => {
-                resetDemoState();
-                addToast('Đã khôi phục dữ liệu ban đầu!', 'success');
-              }}
+              onClick={handleResetDemo}
               title="Khôi phục trạng thái ban đầu"
               className="p-2 rounded-xl text-outline hover:text-primary hover:bg-surface-container transition-all flex items-center justify-center"
             >
@@ -206,7 +207,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             {breadcrumb || (
               <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px] text-outline">school</span>
-                <span>Lớp 12A1 • THPT Đan Phượng</span>
+                <span>Lớp 11A14 • THPT Đan Phượng</span>
                 <span className="text-outline-variant">/</span>
                 <span className="text-on-surface font-semibold">Nghị luận xã hội GDPT 2018</span>
               </div>

@@ -31,12 +31,11 @@ import {
   SUBMISSION_MANIFEST,
 } from './mock/submissionsManifest';
 
-const START_SUBMISSIONS: Record<string, StudentSubmission> = {
-  'sub-tran-minh-khoi': INITIAL_SUBMISSIONS['sub-tran-minh-khoi'],
-  'sub-nguyen-lan-anh': INITIAL_SUBMISSIONS['sub-nguyen-lan-anh'],
-  'sub-mock-bui-ha-my-nlxh': INITIAL_SUBMISSIONS['sub-mock-bui-ha-my-nlxh'],
-  'sub-mock-bui-ha-my-bep-lua': INITIAL_SUBMISSIONS['sub-mock-bui-ha-my-bep-lua'],
-};
+const START_SUBMISSIONS: Record<string, StudentSubmission> = Object.fromEntries(
+  Object.entries(INITIAL_SUBMISSIONS).filter(
+    ([id]) => id !== 'sub-user-student-11a14-001' && id !== 'sub-bui-ha-my'
+  )
+);
 import {
   matchSocraticBranch,
   FALLBACK_RESPONSE,
@@ -70,7 +69,7 @@ interface AppState {
   // Milestone & Reset
   demoMilestone: DemoMilestone;
   setDemoMilestone: (milestone: DemoMilestone) => void;
-  resetDemoState: () => void;
+  resetDemoState: (role?: Role) => void;
 
   // Assignments & Rubric
   assignments: Assignment[];
@@ -111,6 +110,7 @@ interface AppState {
 
   // Submission Photos & Upload
   uploadedPages: SubmissionPageImage[];
+  loadStudentPages: (assignmentId?: string, studentId?: string) => void;
   loadDemoBuiHaMyPages: () => void;
   addCustomUploadedPage: (page: SubmissionPageImage) => void;
   removeUploadedPage: (pageIndex: number) => void;
@@ -130,13 +130,14 @@ interface AppState {
   ) => void;
 }
 
-// Initial Outline for Bùi Hà My
+// Initial Outline for Đỗ Đăng An
 const INITIAL_OUTLINE: OutlineSection[] = [
   {
     id: 'intro',
     title: 'I. Mở bài — Đặt vấn đề',
     points: [
       'Giới thiệu tác giả Trần Quang Quý và bài thơ "Màu tự do của đất".',
+      'Nêu cảm nhận về tự do gắn liền với không gian làng quê mộc mạc.',
     ],
   },
   {
@@ -144,6 +145,8 @@ const INITIAL_OUTLINE: OutlineSection[] = [
     title: 'II. Thân bài — Triển khai luận điểm',
     points: [
       'Hình ảnh ngọn khói cay mùi rơm rạ dắt về cánh đồng và cội nguồn làng quê.',
+      'Nghịch lí tự do không thoát ly bùn đất, tự do của mồ hôi và sự gắn bó bền chặt.',
+      'Liên hệ mở rộng với bài thơ "Đồng chí" của Chính Hữu làm nổi bật nét riêng triết lý.',
     ],
   },
   {
@@ -151,6 +154,7 @@ const INITIAL_OUTLINE: OutlineSection[] = [
     title: 'III. Kết bài — Đánh giá & Thông điệp',
     points: [
       'Khái quát chiều sâu suy tưởng của bài thơ về đất đai và tự do.',
+      'Khẳng định tự do đích thực luôn bắt nguồn từ những điều bình dị và cội nguồn.',
     ],
   },
 ];
@@ -173,13 +177,13 @@ let activeAiResponseTimeout: NodeJS.Timeout | null = null;
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // Session
-      currentUser: DEMO_TEACHER,
+      // Session: default to Đỗ Đăng An
+      currentUser: DEMO_STUDENTS[0],
       setRole: (role: Role) => {
         if (role === 'teacher') {
           set({ currentUser: DEMO_TEACHER });
         } else {
-          set({ currentUser: DEMO_STUDENTS[0] }); // Bùi Hà My
+          set({ currentUser: DEMO_STUDENTS[0] }); // Đỗ Đăng An
         }
       },
       setUser: (user: User) => set({ currentUser: user }),
@@ -194,7 +198,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       logout: () => {
-        set({ currentUser: DEMO_TEACHER });
+        set({ currentUser: DEMO_STUDENTS[0] });
       },
 
       // Sidebar Layout
@@ -223,42 +227,55 @@ export const useAppStore = create<AppState>()(
         }
 
         if (milestone === 'start') {
-          // Milestone 1: Start state with mock history assignments, Central Assignment not yet submitted by Bùi Hà My
+          // Milestone 1: Start state with mock history assignments, Central Assignment not yet submitted by Đỗ Đăng An (40/41 submitted)
           set({
             demoMilestone: 'start',
             isAiResponding: false,
             submittedAssignmentIds: [MOCK_ASSIGNMENT_NLXH_ID, MOCK_ASSIGNMENT_BEP_LUA_ID],
             submissions: { ...START_SUBMISSIONS },
-            assignments: [...INITIAL_ASSIGNMENTS],
+            assignments: [
+              {
+                ...CENTRAL_ASSIGNMENT,
+                status: 'published' as const,
+                statusLabel: 'Đang mở nộp bài',
+                totalSubmissions: 40,
+                assessedSubmissions: 40,
+              },
+              ...INITIAL_ASSIGNMENTS,
+            ],
             uploadedPages: [],
             outline: INITIAL_OUTLINE,
             socraticMessages: INITIAL_SOCRATIC_MESSAGES,
+            ocrStatus: 'needs_review',
+            flaggedSegments: [
+              {
+                lineRef: 27,
+                text: 'tự cày tay cày xới, đổ mồ hôi và "neo đời mình"',
+                note: 'Chữ viết tay lặp "cày" trước "tay cày xới": đối chiếu bản chép và ảnh gốc',
+                isCorrected: false,
+              },
+            ],
           });
         } else {
-          // Milestone 2: Complete view with all 3 students submitted & graded
-          const centralInList = get().assignments.some((a) => a.id === CENTRAL_ASSIGNMENT_ID);
-          const completeAssignments = centralInList
-            ? get().assignments.map((a) =>
-                a.id === CENTRAL_ASSIGNMENT_ID
-                  ? {
-                      ...a,
-                      status: 'published' as const,
-                      statusLabel: 'Đã hoàn thành',
-                      totalSubmissions: 3,
-                      assessedSubmissions: 3,
-                    }
-                  : a
-              )
-            : [
-                {
-                  ...CENTRAL_ASSIGNMENT,
-                  status: 'published' as const,
-                  statusLabel: 'Đã hoàn thành',
-                  totalSubmissions: 3,
-                  assessedSubmissions: 3,
-                },
-                ...get().assignments,
-              ];
+          // Milestone 2: Complete view with all 41 students submitted & graded
+          const completeAssignments = [
+            {
+              ...CENTRAL_ASSIGNMENT,
+              status: 'published' as const,
+              statusLabel: 'Đã hoàn thành',
+              totalSubmissions: 41,
+              assessedSubmissions: 41,
+            },
+            ...INITIAL_ASSIGNMENTS,
+          ];
+
+          const student1Pages = (INITIAL_SUBMISSIONS['sub-user-student-11a14-001']?.pages || []).map((p) => ({
+            pageIndex: p.pageIndex,
+            imageUrl: p.imageUrl,
+            size: p.size,
+            caption: p.caption,
+            isCustomUpload: false,
+          }));
 
           set({
             demoMilestone: 'complete',
@@ -270,24 +287,35 @@ export const useAppStore = create<AppState>()(
             ],
             submissions: { ...INITIAL_SUBMISSIONS },
             assignments: completeAssignments,
-            uploadedPages: INITIAL_SUBMISSIONS['sub-bui-ha-my'].pages,
+            uploadedPages: student1Pages,
+            ocrStatus: 'confirmed',
           });
         }
       },
 
-      resetDemoState: () => {
+      resetDemoState: (targetRole?: Role) => {
         if (activeAiResponseTimeout) {
           clearTimeout(activeAiResponseTimeout);
           activeAiResponseTimeout = null;
         }
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('edulit-app-v1');
-          localStorage.removeItem('edulit-app-v1');
+          const keysToPurge = [
+            'edulit-app-v2',
+            'edulit-app-v1',
+            'edulit-demo-v3',
+            'edulit-ai-storage',
+          ];
+          for (const k of keysToPurge) {
+            try {
+              sessionStorage.removeItem(k);
+              localStorage.removeItem(k);
+            } catch {}
+          }
         }
 
-        const currentRole = get().currentUser?.role || 'teacher';
+        const roleToSet = targetRole || get().currentUser?.role || 'student';
         set({
-          currentUser: currentRole === 'student' ? DEMO_STUDENTS[0] : DEMO_TEACHER,
+          currentUser: roleToSet === 'teacher' ? DEMO_TEACHER : DEMO_STUDENTS[0],
           demoMilestone: 'start',
           isAiResponding: false,
           assignments: [...INITIAL_ASSIGNMENTS],
@@ -303,9 +331,9 @@ export const useAppStore = create<AppState>()(
           ocrStatus: 'needs_review',
           flaggedSegments: [
             {
-              lineRef: 8,
-              text: 'tôi hít thở mầu tự do của đất',
-              note: 'Từ "mầu": rà soát đối chiếu bản in gốc (màu vs mầu)',
+              lineRef: 27,
+              text: 'tự cày tay cày xới, đổ mồ hôi và "neo đời mình"',
+              note: 'Chữ viết tay lặp "cày" trước "tay cày xới": đối chiếu bản chép và ảnh gốc',
               isCorrected: false,
             },
           ],
@@ -357,13 +385,14 @@ export const useAppStore = create<AppState>()(
           let updatedAssignments: Assignment[];
           if (exists) {
             updatedAssignments = state.assignments.map((a) =>
-              a.id === id ? { ...a, status: 'published', statusLabel: 'Đã giao', ...updates } : a
+              a.id === id ? { ...a, status: updates?.status || 'published', statusLabel: updates?.statusLabel || 'Đã giao', ...updates } : a
             );
           } else {
-            const base = id === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : {
+            const isCentral = id === CENTRAL_ASSIGNMENT_ID;
+            const base = isCentral ? CENTRAL_ASSIGNMENT : {
               ...CENTRAL_ASSIGNMENT,
               id,
-              code: updates?.code || 'VAN12-NLVH-01',
+              code: updates?.code || 'VAN11-NLVH-01',
               title: updates?.title || CENTRAL_ASSIGNMENT.title,
               studentTitle: updates?.studentTitle || updates?.title || CENTRAL_ASSIGNMENT.studentTitle,
               topic: updates?.topic || updates?.title || CENTRAL_ASSIGNMENT.topic,
@@ -373,10 +402,10 @@ export const useAppStore = create<AppState>()(
             };
             const newAssignment: Assignment = {
               ...base,
-              status: 'published',
-              statusLabel: 'Đang mở nộp bài',
-              totalSubmissions: 2,
-              assessedSubmissions: 2,
+              status: updates?.status || 'published',
+              statusLabel: updates?.statusLabel || (updates?.status === 'draft' ? 'Bản nháp' : 'Đang mở nộp bài'),
+              totalSubmissions: isCentral ? 40 : 0,
+              assessedSubmissions: isCentral ? 40 : 0,
               ...updates,
             };
             updatedAssignments = [newAssignment, ...state.assignments];
@@ -592,8 +621,9 @@ export const useAppStore = create<AppState>()(
       // Uploaded Pages
       uploadedPages: [],
 
-      loadDemoBuiHaMyPages: () => {
-        const manifest = SUBMISSION_MANIFEST['user-student-48'];
+      loadStudentPages: (assignmentId?: string, studentId?: string) => {
+        const targetSid = studentId || get().currentUser?.id || 'user-student-11a14-001';
+        const manifest = SUBMISSION_MANIFEST[targetSid] || SUBMISSION_MANIFEST['user-student-11a14-001'];
         if (manifest) {
           const pages: SubmissionPageImage[] = manifest.pages.map((p) => ({
             pageIndex: p.pageIndex,
@@ -604,6 +634,10 @@ export const useAppStore = create<AppState>()(
           }));
           set({ uploadedPages: pages });
         }
+      },
+
+      loadDemoBuiHaMyPages: () => {
+        get().loadStudentPages(CENTRAL_ASSIGNMENT_ID, get().currentUser?.id);
       },
 
       addCustomUploadedPage: (page) => {
@@ -633,16 +667,16 @@ export const useAppStore = create<AppState>()(
       },
 
       submitHandwrittenEssay: (assignmentId) => {
-        const { uploadedPages, submissions, currentUser } = get();
-        const studentId = currentUser.id;
-        const studentName = currentUser.name;
-        const studentCode = currentUser.code || 'VN-12A1-048';
-        const submissionId = `sub-${studentId === 'user-student-48' ? 'bui-ha-my' : studentId}`;
+        const { uploadedPages, currentUser } = get();
+        const studentId = currentUser.id || 'user-student-11a14-001';
+        const studentName = currentUser.name || 'Đỗ Đăng An';
+        const studentCode = currentUser.code || 'VN-11A14-001';
+        const submissionId = `sub-${studentId}`;
 
         const defaultManifest =
-          SUBMISSION_MANIFEST[studentId] || SUBMISSION_MANIFEST['user-student-48'];
+          SUBMISSION_MANIFEST[studentId] || SUBMISSION_MANIFEST['user-student-11a14-001'];
         const baseSub =
-          INITIAL_SUBMISSIONS[submissionId] || INITIAL_SUBMISSIONS['sub-bui-ha-my'];
+          INITIAL_SUBMISSIONS[submissionId] || INITIAL_SUBMISSIONS['sub-user-student-11a14-001'];
 
         const newSub: StudentSubmission = {
           ...baseSub,
@@ -655,29 +689,33 @@ export const useAppStore = create<AppState>()(
             'Hôm nay ' +
             new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
           status: 'submitted',
-          pages: uploadedPages,
-          transcriptionByPage: defaultManifest.transcriptionByPage,
+          pages: uploadedPages.length > 0 ? uploadedPages : (baseSub?.pages || []),
+          transcriptionByPage: defaultManifest?.transcriptionByPage || baseSub?.transcriptionByPage || [],
           isPublishedToStudent: false, // Wait for teacher to publish in demo flow
         };
 
-        set((state) => ({
-          submissions: {
+        set((state) => {
+          const nextSubmissions = {
             ...state.submissions,
             [submissionId]: newSub,
-          },
-          submittedAssignmentIds: state.submittedAssignmentIds.includes(assignmentId)
-            ? state.submittedAssignmentIds
-            : [...state.submittedAssignmentIds, assignmentId],
-          assignments: state.assignments.map((a) =>
-            a.id === assignmentId
-              ? {
-                  ...a,
-                  totalSubmissions: Object.keys({ ...state.submissions, [submissionId]: newSub }).length,
-                  assessedSubmissions: Object.keys({ ...state.submissions, [submissionId]: newSub }).length,
-                }
-              : a
-          ),
-        }));
+          };
+          const centralSubs = Object.values(nextSubmissions).filter((s) => s.assignmentId === assignmentId);
+          return {
+            submissions: nextSubmissions,
+            submittedAssignmentIds: state.submittedAssignmentIds.includes(assignmentId)
+              ? state.submittedAssignmentIds
+              : [...state.submittedAssignmentIds, assignmentId],
+            assignments: state.assignments.map((a) =>
+              a.id === assignmentId
+                ? {
+                    ...a,
+                    totalSubmissions: centralSubs.length,
+                    assessedSubmissions: centralSubs.filter((s) => s.status === 'graded').length,
+                  }
+                : a
+            ),
+          };
+        });
       },
 
       // OCR Verification
@@ -685,9 +723,9 @@ export const useAppStore = create<AppState>()(
       setOcrStatus: (status) => set({ ocrStatus: status }),
       flaggedSegments: [
         {
-          lineRef: 8,
-          text: 'tôi hít thở mầu tự do của đất',
-          note: 'Từ "mầu": rà soát đối chiếu bản in gốc (màu vs mầu)',
+          lineRef: 27,
+          text: 'tự cày tay cày xới, đổ mồ hôi và "neo đời mình"',
+          note: 'Chữ viết tay lặp "cày" trước "tay cày xới": đối chiếu bản chép và ảnh gốc',
           isCorrected: false,
         },
       ],
@@ -724,7 +762,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'edulit-app-v1',
+      name: 'edulit-app-v2',
       storage: createJSONStorage(() => ({
         getItem: (key: string) => {
           if (typeof window === 'undefined') return null;
@@ -784,10 +822,7 @@ export const useAppStore = create<AppState>()(
 
 if (typeof window !== 'undefined') {
   (window as unknown as { resetEduLit?: (role?: 'teacher' | 'student') => void }).resetEduLit = (role) => {
-    if (role) {
-      useAppStore.getState().setRole(role);
-    }
-    useAppStore.getState().resetDemoState();
-    window.location.reload();
+    useAppStore.getState().resetDemoState(role);
+    window.location.href = '/assignments';
   };
 }

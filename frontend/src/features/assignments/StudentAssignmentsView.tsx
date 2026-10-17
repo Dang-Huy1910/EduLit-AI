@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 
 export default function StudentAssignmentsView() {
   const router = useRouter();
@@ -17,12 +17,13 @@ export default function StudentAssignmentsView() {
     submissions,
     currentUser,
     getStudentSubmission,
+    publishAssignment,
     addToast,
   } = useAppStore();
 
   const initialTab = searchParams.get('tab') === 'submitted' ? 'submitted' : 'todo';
   const [activeTab, setActiveTab] = useState<'todo' | 'submitted'>(initialTab);
-  const [codeInput, setCodeInput] = useState('VAN12-NLVH-01');
+  const [codeInput, setCodeInput] = useState('VAN11-NLVH-01');
   const [codeError, setCodeError] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [expandedInstructions, setExpandedInstructions] = useState<Record<string, boolean>>({ [CENTRAL_ASSIGNMENT_ID]: false });
@@ -44,7 +45,11 @@ export default function StudentAssignmentsView() {
   const handleOpenCode = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = codeInput.trim().toUpperCase();
-    const matched = assignments.find((a) => a.code.toUpperCase() === clean);
+    let matched = assignments.find((a) => a.code.toUpperCase() === clean);
+    if (!matched && (clean === 'VAN11-NLVH-01' || clean === 'VAN12-NLVH-01' || clean === CENTRAL_ASSIGNMENT.code.toUpperCase())) {
+      publishAssignment(CENTRAL_ASSIGNMENT_ID);
+      matched = CENTRAL_ASSIGNMENT;
+    }
     if (matched) {
       setCodeError(false);
       addToast(`Mở thành công: ${matched.title}`, 'success');
@@ -63,7 +68,7 @@ export default function StudentAssignmentsView() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2 py-0.5 rounded-full">
-                Học sinh Bùi Hà My (Lớp 12A1)
+                Học sinh {currentUser?.name || 'Đỗ Đăng An'} ({currentUser?.classId ? `Lớp ${currentUser.classId}` : 'Lớp 11A14'})
               </span>
               <span className="text-xs bg-surface-container text-on-surface-variant font-medium px-2 py-0.5 rounded-full">
                 Học kỳ I • Năm học 2026 - 2027
@@ -108,7 +113,7 @@ export default function StudentAssignmentsView() {
               </p>
             )}
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/20 text-[10px] text-on-surface-variant">
-              <span>Mã bài tập: VAN12-NLVH-01</span>
+              <span>Mã bài tập: VAN11-NLVH-01</span>
             </div>
           </div>
         </div>
@@ -391,8 +396,9 @@ export default function StudentAssignmentsView() {
             ) : (
               submittedAssignments.map((assignment) => {
                 const sub =
-                  getStudentSubmission?.(assignment.id, currentUser?.id || 'user-student-48') ||
-                  (assignment.id === CENTRAL_ASSIGNMENT_ID ? submissions?.['sub-bui-ha-my'] : undefined) ||
+                  getStudentSubmission?.(assignment.id, currentUser?.id || 'user-student-11a14-001') ||
+                  (assignment.id === CENTRAL_ASSIGNMENT_ID ? submissions?.['sub-user-student-11a14-001'] : undefined) ||
+                  (submissions ? Object.values(submissions).find((s) => s.assignmentId === assignment.id && s.studentId === (currentUser?.id || 'user-student-11a14-001')) : undefined) ||
                   (submissions ? Object.values(submissions).find((s) => s.assignmentId === assignment.id) : undefined);
 
                 const score = typeof sub?.totalScore === 'number' ? sub.totalScore.toFixed(2) : '3.60';
@@ -409,6 +415,8 @@ export default function StudentAssignmentsView() {
                       .map((e) => `${(e.criterionId || '').slice(0, 2)}: ${(Number(e.awardedScore) || 0).toFixed(2)}/${(Number(e.maxScore) || 0).toFixed(2)}`)
                       .join(' | ')
                   : 'C1: 2.25/2.50 | C2: 0.65/0.75 | C3: 0.45/0.50 | C4: 0.25/0.25';
+
+                const pageCount = sub?.pages?.length || 2;
 
                 return (
                   <div
@@ -438,7 +446,7 @@ export default function StudentAssignmentsView() {
                     <div className="p-3 bg-surface-container-low/50 rounded-lg text-xs flex items-center justify-between">
                       <div className="flex items-center gap-2 text-on-surface-variant">
                         <span className="material-symbols-outlined text-secondary text-base">photo_library</span>
-                        <span>Đã nhận dạng OCR 2 trang viết tay • {sub?.ocrConfidenceLabel || 'Độ chính xác 98%'}</span>
+                        <span>Đã nhận dạng OCR {pageCount} trang viết tay • {sub?.ocrConfidenceLabel || 'Độ chính xác 98%'}</span>
                       </div>
                       <span className="text-tertiary font-semibold">
                         {isPublished ? 'Đã được giáo viên công bố' : 'Giáo viên đang rà soát'}
@@ -451,7 +459,7 @@ export default function StudentAssignmentsView() {
                         className="px-3.5 py-1.5 rounded-lg border border-outline-variant/60 text-xs font-medium text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5"
                       >
                         <span className="material-symbols-outlined text-sm">document_scanner</span>
-                        <span>Đối chiếu OCR 2 trang</span>
+                        <span>Đối chiếu OCR {pageCount} trang</span>
                       </Link>
                       <Link
                         href={`/assignments/${assignment.id}/result`}

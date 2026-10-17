@@ -1,0 +1,412 @@
+[
+  {
+    "id": "user-student-11a14-001",
+    "name": "Đỗ Đăng An",
+    "role": "student",
+    "email": "do.dangan@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-001",
+    "avatarInitials": "ĐA"
+  },
+  {
+    "id": "user-student-11a14-002",
+    "name": "Nguyễn Thu An",
+    "role": "student",
+    "email": "nguyen.thuan@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-002",
+    "avatarInitials": "NA"
+  },
+  {
+    "id": "user-student-11a14-003",
+    "name": "Nguyễn Thị Ngọc Anh",
+    "role": "student",
+    "email": "nguyen.thingocanh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-003",
+    "avatarInitials": "NA"
+  },
+  {
+    "id": "user-student-11a14-004",
+    "name": "Bùi Hà Chi",
+    "role": "student",
+    "email": "bui.hachi@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-004",
+    "avatarInitials": "BC"
+  },
+  {
+    "id": "user-student-11a14-005",
+    "name": "Trần Quỳnh Chi",
+    "role": "student",
+    "email": "tran.quynhchi@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-005",
+    "avatarInitials": "TC"
+  },
+  {
+    "id": "user-student-11a14-006",
+    "name": "Trần Diệp Diệp",
+    "role": "student",
+    "email": "tran.diepdiep@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-006",
+    "avatarInitials": "TD"
+  },
+  {
+    "id": "user-student-11a14-007",
+    "name": "Nguyễn Trung Dũng",
+    "role": "student",
+    "email": "nguyen.trungdung@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-007",
+    "avatarInitials": "ND"
+  },
+  {
+    "id": "user-student-11a14-008",
+    "name": "Đỗ Quang Duy",
+    "role": "student",
+    "email": "do.quangduy@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-008",
+    "avatarInitials": "ĐD"
+  },
+  {
+    "id": "user-student-11a14-009",
+    "name": "Nguyễn Thu Hà",
+    "role": "student",
+    "email": "nguyen.thuha@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-009",
+    "avatarInitials": "NH"
+  },
+  {
+    "id": "user-student-11a14-010",
+    "name": "Nguyễn Thanh Hằng",
+    "role": "student",
+    "email": "nguyen.thanhhang@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-010",
+    "avatarInitials": "NH"
+  },
+  {
+    "id": "user-student-11a14-011",
+    "name": "Hà Bảo Hân",
+    "role": "student",
+    "email": "ha.baohan@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-011",
+    "avatarInitials": "HH"
+  },
+  {
+    "id": "user-student-11a14-012",
+    "name": "Đông Khánh Huyền",
+    "role": "student",
+    "email": "dong.khanhhuyen@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-012",
+    "avatarInitials": "ĐH"
+  },
+  {
+    "id": "user-student-11a14-013",
+    "name": "Tạ Thị Thu Hương",
+    "role": "student",
+    "email": "ta.thithuhuong@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-013",
+    "avatarInitials": "TH"
+  },
+  {
+    "id": "user-student-11a14-014",
+    "name": "Bùi Thị Ngọc Khuê",
+    "role": "student",
+    "email": "bui.thingockhue@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-014",
+    "avatarInitials": "BK"
+  },
+  {
+    "id": "user-student-11a14-015",
+    "name": "Chu Nhật Linh",
+    "role": "student",
+    "email": "chu.nhatlinh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-015",
+    "avatarInitials": "CL"
+  },
+  {
+    "id": "user-student-11a14-016",
+    "name": "Lê Nguyễn Diệu Linh",
+    "role": "student",
+    "email": "le.nguyendieulinh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-016",
+    "avatarInitials": "LL"
+  },
+  {
+    "id": "user-student-11a14-017",
+    "name": "Nguyễn Ngọc Linh",
+    "role": "student",
+    "email": "nguyen.ngoclinh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-017",
+    "avatarInitials": "NL"
+  },
+  {
+    "id": "user-student-11a14-018",
+    "name": "Trần Hà Linh",
+    "role": "student",
+    "email": "tran.halinh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-018",
+    "avatarInitials": "TL"
+  },
+  {
+    "id": "user-student-11a14-019",
+    "name": "Trần Phương Linh",
+    "role": "student",
+    "email": "tran.phuonglinh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-019",
+    "avatarInitials": "TL"
+  },
+  {
+    "id": "user-student-11a14-020",
+    "name": "Phí Nguyên Mạnh",
+    "role": "student",
+    "email": "phi.nguyenmanh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-020",
+    "avatarInitials": "PM"
+  },
+  {
+    "id": "user-student-11a14-021",
+    "name": "Nguyễn Hoa Tuệ Mẫn",
+    "role": "student",
+    "email": "nguyen.hoatueman@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-021",
+    "avatarInitials": "NM"
+  },
+  {
+    "id": "user-student-11a14-022",
+    "name": "Nguyễn Viết Bảo Minh",
+    "role": "student",
+    "email": "nguyen.vietbaominh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-022",
+    "avatarInitials": "NM"
+  },
+  {
+    "id": "user-student-11a14-023",
+    "name": "Nguyễn Hà My",
+    "role": "student",
+    "email": "nguyen.hamy@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-023",
+    "avatarInitials": "NM"
+  },
+  {
+    "id": "user-student-11a14-024",
+    "name": "Nguyễn Thị Ngân",
+    "role": "student",
+    "email": "nguyen.thingan@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-024",
+    "avatarInitials": "NN"
+  },
+  {
+    "id": "user-student-11a14-025",
+    "name": "Cao Thị Ánh Ngọc",
+    "role": "student",
+    "email": "cao.thianhngoc@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-025",
+    "avatarInitials": "CN"
+  },
+  {
+    "id": "user-student-11a14-026",
+    "name": "Trần Vũ Thanh Ngọc",
+    "role": "student",
+    "email": "tran.vuthanhngoc@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-026",
+    "avatarInitials": "TN"
+  },
+  {
+    "id": "user-student-11a14-027",
+    "name": "Đỗ Văn Nguyên",
+    "role": "student",
+    "email": "do.vannguyen@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-027",
+    "avatarInitials": "ĐN"
+  },
+  {
+    "id": "user-student-11a14-028",
+    "name": "Nguyễn Ngọc Mẫn Nhi",
+    "role": "student",
+    "email": "nguyen.ngocmannhi@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-028",
+    "avatarInitials": "NN"
+  },
+  {
+    "id": "user-student-11a14-029",
+    "name": "Phạm Yến Nhi",
+    "role": "student",
+    "email": "pham.yennhi@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-029",
+    "avatarInitials": "PN"
+  },
+  {
+    "id": "user-student-11a14-030",
+    "name": "Trần Yến Nhi",
+    "role": "student",
+    "email": "tran.yennhi@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-030",
+    "avatarInitials": "TN"
+  },
+  {
+    "id": "user-student-11a14-031",
+    "name": "Bùi Hồng Nhung",
+    "role": "student",
+    "email": "bui.hongnhung@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-031",
+    "avatarInitials": "BN"
+  },
+  {
+    "id": "user-student-11a14-032",
+    "name": "Đoàn Nguyễn Mai Như",
+    "role": "student",
+    "email": "doan.nguyenmainhu@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-032",
+    "avatarInitials": "ĐN"
+  },
+  {
+    "id": "user-student-11a14-033",
+    "name": "Trần Mai Phương",
+    "role": "student",
+    "email": "tran.maiphuong@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-033",
+    "avatarInitials": "TP"
+  },
+  {
+    "id": "user-student-11a14-034",
+    "name": "Nguyễn Thị Phượng",
+    "role": "student",
+    "email": "nguyen.thiphuong@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-034",
+    "avatarInitials": "NP"
+  },
+  {
+    "id": "user-student-11a14-035",
+    "name": "Phạm Minh Tâm",
+    "role": "student",
+    "email": "pham.minhtam@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-035",
+    "avatarInitials": "PT"
+  },
+  {
+    "id": "user-student-11a14-036",
+    "name": "Đàm Thị Thu",
+    "role": "student",
+    "email": "dam.thithu@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-036",
+    "avatarInitials": "ĐT"
+  },
+  {
+    "id": "user-student-11a14-037",
+    "name": "Hoàng Thị Trang",
+    "role": "student",
+    "email": "hoang.thitrang@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-037",
+    "avatarInitials": "HT"
+  },
+  {
+    "id": "user-student-11a14-038",
+    "name": "Nguyễn Minh Trang",
+    "role": "student",
+    "email": "nguyen.minhtrang@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-038",
+    "avatarInitials": "NT"
+  },
+  {
+    "id": "user-student-11a14-039",
+    "name": "Nguyễn Thùy Trang",
+    "role": "student",
+    "email": "nguyen.thuytrang@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-039",
+    "avatarInitials": "NT"
+  },
+  {
+    "id": "user-student-11a14-040",
+    "name": "Lê Thuỳ Vân",
+    "role": "student",
+    "email": "le.thuyvan@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-040",
+    "avatarInitials": "LV"
+  },
+  {
+    "id": "user-student-11a14-041",
+    "name": "Đặng Gia Vinh",
+    "role": "student",
+    "email": "dang.giavinh@thptdanphuong.edu.vn",
+    "school": "THPT Đan Phượng",
+    "classId": "11A14",
+    "code": "VN-11A14-041",
+    "avatarInitials": "ĐV"
+  }
+]

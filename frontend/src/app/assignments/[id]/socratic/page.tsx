@@ -11,6 +11,7 @@ import {
 } from '@/lib/mock/socraticScript';
 import {
   CENTRAL_ASSIGNMENT_ID,
+  CENTRAL_ASSIGNMENT,
   POEM_TEXT_LINES,
   POEM_SOURCE_NOTES,
   DOCX_ORIGINAL_GUIDE,
@@ -33,9 +34,10 @@ export default function SocraticChatPage() {
     removeOutlinePoint,
     reorderOutlinePoints,
     addToast,
+    currentUser,
   } = useAppStore();
 
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
 
   const [inputMessage, setInputMessage] = useState('');
   const [readingModalOpen, setReadingModalOpen] = useState(false);
@@ -117,7 +119,7 @@ export default function SocraticChatPage() {
   const coverage = evaluateOutlineCoverage(outline);
 
   return (
-    <StudentShell headerTitle="Khối 12 - Lớp 12A1" headerSubtitle="Trợ lý gợi mở Socratic & Lập dàn ý">
+    <StudentShell headerTitle="Khối 11 - Lớp 11A14" headerSubtitle="Trợ lý gợi mở Socratic & Lập dàn ý">
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Top Breadcrumb & Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
@@ -187,9 +189,9 @@ export default function SocraticChatPage() {
                       </>
                     ) : (
                       <>
-                        <span className="font-semibold text-on-surface">Bùi Hà My</span>
+                        <span className="font-semibold text-on-surface">{currentUser?.name || 'Đỗ Đăng An'}</span>
                         <span className="w-5 h-5 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-[10px]">
-                          HM
+                          {currentUser?.avatarInitials || 'ĐA'}
                         </span>
                       </>
                     )}

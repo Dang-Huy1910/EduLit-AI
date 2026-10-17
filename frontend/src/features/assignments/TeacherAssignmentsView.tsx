@@ -9,7 +9,7 @@ import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 
 export default function TeacherAssignmentsView() {
   const router = useRouter();
-  const { assignments, rubrics, addToast } = useAppStore();
+  const { assignments, rubrics, demoMilestone, addToast } = useAppStore();
 
   const [activeFilter, setActiveFilter] = useState<'all' | 'published' | 'draft' | 'blocked'>('all');
   const [showEmptyState, setShowEmptyState] = useState(false);
@@ -56,7 +56,7 @@ export default function TeacherAssignmentsView() {
               className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container hover:brightness-95 text-sm font-semibold flex items-center gap-2 transition-all shadow-sm"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
-              <span>+ Tạo bài tập mới</span>
+              <span>Tạo bài tập mới</span>
             </Link>
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function TeacherAssignmentsView() {
             <div>
               <span className="text-xs text-on-surface-variant font-medium">Lớp phụ trách</span>
               <div className="text-base font-bold text-on-surface mt-0.5">
-                Lớp 12A1 • THPT Đan Phượng (40 HS)
+                Lớp 11A14 • THPT Đan Phượng (41 HS)
               </div>
               <span className="text-[11px] text-secondary font-semibold">Học kỳ I • Năm học 2026-2027</span>
             </div>
@@ -80,14 +80,22 @@ export default function TeacherAssignmentsView() {
             <div>
               <span className="text-xs text-on-surface-variant font-medium">Trạng thái bài tập</span>
               <div className="text-base font-bold text-on-surface mt-0.5">
-                {hasCentralAssignment ? '01 bài đang mở nộp' : '02 bài đã hoàn thành'}
+                {!hasCentralAssignment
+                  ? '02 bài đã hoàn thành'
+                  : demoMilestone === 'start'
+                  ? '01 bài đang mở nộp'
+                  : '01 bài đã hoàn thành'}
               </div>
               <span className="text-[11px] text-tertiary font-semibold">
-                {hasCentralAssignment ? 'Lớp 12A1 đang làm bài' : '40/40 học sinh đã nộp'}
+                {!hasCentralAssignment
+                  ? 'Chưa giao bài tập mới'
+                  : demoMilestone === 'start'
+                  ? '40/41 học sinh đã nộp'
+                  : '41/41 học sinh đã nộp'}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-tertiary-container/30 text-tertiary flex items-center justify-center font-bold text-xs">
-              {hasCentralAssignment ? 'Đang mở' : '100%'}
+              {!hasCentralAssignment ? '2 đã xong' : demoMilestone === 'start' ? 'Đang mở' : '100%'}
             </div>
           </div>
 
@@ -95,10 +103,10 @@ export default function TeacherAssignmentsView() {
             <div>
               <span className="text-xs text-on-surface-variant font-medium">Tiến độ chấm Rubric AI</span>
               <div className="text-base font-bold text-on-surface mt-0.5">
-                {totalAssessedCount} bài đã chấm
+                {hasCentralAssignment ? `${totalAssessedCount} bài đã chấm` : '80 bài học kỳ I'}
               </div>
               <span className="text-[11px] text-[#CA8A04] font-semibold">
-                Đạt chuẩn thang điểm 4,0đ
+                {hasCentralAssignment ? 'Đạt chuẩn thang điểm 4,0đ' : 'Chờ giao đề số 3'}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-secondary-fixed/50 text-secondary flex items-center justify-center">
@@ -113,10 +121,15 @@ export default function TeacherAssignmentsView() {
             <div className="flex items-start gap-3">
               <span className="material-symbols-outlined text-secondary text-xl mt-0.5">lightbulb</span>
               <div className="text-xs leading-relaxed text-on-surface">
-                <p className="font-semibold text-secondary">Nguyên tắc triển khai GDPT 2018:</p>
+                <p className="font-semibold text-secondary">
+                  {!hasCentralAssignment
+                    ? 'Quy trình khởi tạo bài tập mới (GDPT 2018):'
+                    : 'Nguyên tắc triển khai GDPT 2018:'}
+                </p>
                 <p className="text-on-surface-variant mt-0.5">
-                  Mỗi bài viết cần gắn với ít nhất <strong>01 học liệu chuẩn</strong> và <strong>Barem Rubric đã xác nhận</strong>.
-                  Trợ lý Socratic sẽ đồng hành hướng dẫn học sinh lập dàn ý thông qua các câu hỏi mở mà không viết hộ.
+                  {!hasCentralAssignment
+                    ? 'Lớp 11A14 hiện đã hoàn thành 2 bài tập trước. Cô giáo hãy bấm "Tạo bài tập mới" ở góc trên bên phải để nạp ngữ liệu "Màu tự do của đất", cấu hình Barem Rubric 4.0đ và giao đề cho học sinh.'
+                    : 'Mỗi bài viết cần gắn với ít nhất 01 học liệu chuẩn và Barem Rubric đã xác nhận. Trợ lý Socratic sẽ đồng hành hướng dẫn học sinh lập dàn ý thông qua các câu hỏi mở mà không viết hộ.'}
                 </p>
               </div>
             </div>
@@ -260,7 +273,7 @@ export default function TeacherAssignmentsView() {
                     <div>
                       <span className="text-[10px] text-outline block">Bài đã chấm:</span>
                       <span className="font-semibold text-on-surface">
-                        {assignment.assessedSubmissions}/{assignment.totalSubmissions || 40}
+                        {assignment.assessedSubmissions}/{assignment.totalSubmissions || 41}
                       </span>
                     </div>
                   </div>

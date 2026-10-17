@@ -290,7 +290,7 @@ export default function WritingProfilePage() {
                     <span>Giáo viên thẩm định</span>
                   </div>
                   <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    Cô Đặng Loan rà soát các nhận xét sơ bộ để xác nhận điểm mạnh hoặc ghi nhận sự tiến bộ vượt bậc của em qua các bài sau.
+                    Cô Đặng Hoàng Loan rà soát các nhận xét sơ bộ để xác nhận điểm mạnh hoặc ghi nhận sự tiến bộ vượt bậc của em qua các bài sau.
                   </p>
                 </div>
 

@@ -28,12 +28,138 @@ export default function FloatingChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Draggable FAB state
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ clientX: number; clientY: number; startX: number; startY: number }>({
+    clientX: 0,
+    clientY: 0,
+    startX: 0,
+    startY: 0,
+  });
+  const movedRef = useRef(false);
+  const justDraggedRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+
+    isDraggingRef.current = true;
+    movedRef.current = false;
+    dragStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      startX: rect.left,
+      startY: rect.top,
+    };
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current) return;
+
+    const dx = e.clientX - dragStartRef.current.clientX;
+    const dy = e.clientY - dragStartRef.current.clientY;
+
+    if (!movedRef.current && Math.hypot(dx, dy) > 4) {
+      movedRef.current = true;
+    }
+
+    if (movedRef.current) {
+      const el = containerRef.current;
+      const width = el ? el.offsetWidth : 60;
+      const height = el ? el.offsetHeight : 60;
+
+      const rawX = dragStartRef.current.startX + dx;
+      const rawY = dragStartRef.current.startY + dy;
+
+      const clampX = Math.min(Math.max(12, rawX), window.innerWidth - width - 12);
+      const clampY = Math.min(Math.max(12, rawY), window.innerHeight - height - 12);
+
+      setPosition({ x: clampX, y: clampY });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+
+    if (movedRef.current) {
+      justDraggedRef.current = true;
+      setTimeout(() => {
+        justDraggedRef.current = false;
+      }, 100);
+    }
+  };
+
+  const handleButtonClick = (e: React.MouseEvent) => {
+    if (justDraggedRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    setIsOpen((prev) => !prev);
+  };
+
+  // Re-clamp position on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setPosition((prev) => {
+        if (!prev) return null;
+        const width = 60;
+        const height = 60;
+        const clampX = Math.min(Math.max(12, prev.x), window.innerWidth - width - 12);
+        const clampY = Math.min(Math.max(12, prev.y), window.innerHeight - height - 12);
+        return { x: clampX, y: clampY };
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const getPanelStyle = (): React.CSSProperties => {
+    if (!position || typeof window === 'undefined') {
+      return {};
+    }
+    const panelWidth = Math.min(390, window.innerWidth - 32);
+    const panelHeight = Math.min(520, window.innerHeight - 32);
+
+    let top: number;
+    if (position.y > window.innerHeight / 2) {
+      top = Math.max(16, position.y - panelHeight - 12);
+    } else {
+      top = Math.min(window.innerHeight - panelHeight - 16, position.y + 64 + 12);
+    }
+
+    let left: number;
+    if (position.x > window.innerWidth / 2) {
+      left = Math.max(16, position.x + 56 - panelWidth);
+    } else {
+      left = Math.min(window.innerWidth - panelWidth - 16, position.x);
+    }
+
+    return {
+      top: `${top}px`,
+      left: `${left}px`,
+      right: 'auto',
+      bottom: 'auto',
+    };
+  };
+
   const initialAIMessage: QuickMessage = {
     id: 'msg-init',
     sender: 'ai',
     text: isTeacher
-      ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích 3 bài nộp đã chấm hay phương pháp gợi mở Socratic ạ?`
-      : `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ Bếp lửa hôm nay?`,
+      ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích tiến độ chấm bài Lớp 11A14 hay phương pháp gợi mở Socratic ạ?`
+      : `Chào bạn ${currentUser.name || 'Đỗ Đăng An'}! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ tác phẩm ngoài hôm nay?`,
     timestamp: 'Vừa xong',
   };
 
@@ -46,12 +172,12 @@ export default function FloatingChatWidget() {
         id: `msg-${Date.now()}`,
         sender: 'ai',
         text: isTeacher
-          ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
-          : `Chào bạn Bùi Hà My! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
+          ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
+          : `Chào bạn ${currentUser.name || 'Đỗ Đăng An'}! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
         timestamp: 'Vừa xong',
       },
     ]);
-  }, [currentUser.role, isTeacher]);
+  }, [currentUser.role, currentUser.name, isTeacher]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -70,7 +196,7 @@ export default function FloatingChatWidget() {
   const quickPrompts = isTeacher
     ? [
         { label: '⚖️ Barem 4.0 điểm', text: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học Màu tự do của đất.' },
-        { label: '📊 Tiến độ 3 bài nộp', text: 'Tóm tắt kết quả chấm và lỗi cần lưu ý của 3 học sinh Lớp 12A1.' },
+        { label: '📊 Tiến độ bài nộp 11A14', text: 'Tóm tắt kết quả chấm và các điểm cần lưu ý của Lớp 11A14.' },
         { label: '🌱 Gợi mở nghịch lí', text: 'Gợi ý câu hỏi Socratic giúp học sinh hiểu nghịch lí "không thoát ly bùn đất".' },
       ]
     : [
@@ -100,11 +226,11 @@ export default function FloatingChatWidget() {
 
       if (isTeacher) {
         if (lower.includes('barem') || lower.includes('4.0')) {
-          reply = `Dạ thưa Cô Đặng Loan, thang 4.0 chuẩn gồm:\n• C1 (2.50đ): Phân tích tự do qua làng quê & Liên hệ tác phẩm ngoài\n• C2 (0.75đ): Nghịch lí bùn đất & chuỗi buộc-neo-cởi\n• C3 (0.50đ): Diễn đạt & ngữ pháp\n• C4 (0.25đ): Bố cục bài 600 chữ.`;
-        } else if (lower.includes('bài nộp') || lower.includes('12a1') || lower.includes('tiến độ')) {
-          reply = `Dạ 3 bài nộp tiêu biểu Lớp 12A1: Bùi Hà My (3.60/4.00đ - Giỏi), Trần Minh Khôi (2.65/4.00đ - thiếu liên hệ ngoài bị trừ C1), Nguyễn Lan Anh (3.35/4.00đ - Khá).`;
+          reply = `Dạ thưa Cô Đặng Hoàng Loan, thang 4.0 chuẩn gồm:\n• C1 (2.50đ): Phân tích tự do qua làng quê & Liên hệ tác phẩm ngoài\n• C2 (0.75đ): Nghịch lí bùn đất & chuỗi buộc-neo-cởi\n• C3 (0.50đ): Diễn đạt & ngữ pháp\n• C4 (0.25đ): Bố cục bài 600 chữ.`;
+        } else if (lower.includes('bài nộp') || lower.includes('11a14') || lower.includes('12a1') || lower.includes('tiến độ')) {
+          reply = `Dạ tiến độ chấm bài Lớp 11A14: Đã nộp 41/41 học sinh. Các bài nộp tiêu biểu: Đỗ Đăng An (3.60/4.00đ - Giỏi), Bùi Hà Chi (3.50/4.00đ - Giỏi), Nguyễn Trung Dũng (3.20/4.00đ - Khá).`;
         } else {
-          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Loan: "${text}". Cô có thể bấm nút phóng to (⛶) để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
+          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Hoàng Loan: "${text}". Cô có thể bấm nút phóng to (⛶) để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
         }
       } else {
         if (lower.includes('yêu cầu') || lower.includes('trọng tâm')) {
@@ -141,7 +267,12 @@ export default function FloatingChatWidget() {
     <>
       {/* 1. Messenger-style Popup Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-24 right-4 sm:right-6 w-[92vw] sm:w-[390px] h-[520px] max-h-[80vh] z-50 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div
+          style={getPanelStyle()}
+          className={`fixed w-[92vw] sm:w-[390px] h-[520px] max-h-[80vh] z-50 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${
+            !position ? 'bottom-24 right-4 sm:right-6' : ''
+          }`}
+        >
           {/* Header */}
           <div
             className={`p-3.5 px-4 text-white flex items-center justify-between shrink-0 shadow-xs ${
@@ -157,7 +288,7 @@ export default function FloatingChatWidget() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-bold text-xs sm:text-sm leading-none">
-                    {isTeacher ? 'EduLit Co-Pilot' : 'Socratic AI'}
+                    {isTeacher ? 'Trợ lý sư phạm' : 'Socratic AI'}
                   </h3>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span className="text-[9px] bg-white/20 px-1 py-0.2 rounded font-mono font-bold">
@@ -165,7 +296,7 @@ export default function FloatingChatWidget() {
                   </span>
                 </div>
                 <p className="text-[10px] text-white/80 mt-0.5">
-                  {isTeacher ? 'Hỗ trợ Cô Đặng Loan • THPT Đan Phượng' : 'Đồng hành cùng Bùi Hà My'}
+                  {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : `Đồng hành cùng ${currentUser.name || 'Đỗ Đăng An'}`}
                 </p>
               </div>
             </div>
@@ -259,7 +390,7 @@ export default function FloatingChatWidget() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  isTeacher ? 'Nhắn tin hỏi EduLit Co-Pilot...' : 'Hỏi Socratic AI về dàn ý, mở bài...'
+                  isTeacher ? 'Nhắn tin hỏi Trợ lý sư phạm...' : 'Hỏi Socratic AI về dàn ý, mở bài...'
                 }
                 className="flex-1 bg-transparent text-xs text-on-surface placeholder:text-outline focus:outline-none py-1"
               />
@@ -288,20 +419,34 @@ export default function FloatingChatWidget() {
         </div>
       )}
 
-      {/* 2. Floating Action Button (FAB) at Bottom-Right */}
-      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 group">
+      {/* 2. Floating Action Button (FAB) - Draggable */}
+      <div
+        ref={containerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          isDraggingRef.current = false;
+        }}
+        style={
+          position
+            ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
+            : { bottom: '24px', right: '24px' }
+        }
+        className="fixed z-50 flex items-center gap-2 select-none touch-none cursor-grab active:cursor-grabbing group"
+      >
         {!isOpen && (
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/50 shadow-md text-xs font-semibold text-on-surface animate-in fade-in slide-in-from-right-3 duration-200">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/50 shadow-md text-xs font-semibold text-on-surface animate-in fade-in slide-in-from-right-3 duration-200 pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>{isTeacher ? 'Hỏi Cô Đặng Loan Co-Pilot' : 'Hỏi Socratic AI'}</span>
+            <span>{isTeacher ? 'Trợ lý sư phạm' : 'Hỏi Socratic AI'}</span>
           </div>
         )}
 
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          title={isOpen ? 'Đóng hộp thoại AI' : 'Mở trợ lý EduLit AI'}
-          className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 ${
+          onClick={handleButtonClick}
+          title={isOpen ? 'Đóng hộp thoại AI' : isTeacher ? 'Mở Trợ lý sư phạm (Kéo để di chuyển vị trí)' : 'Mở trợ lý EduLit AI (Kéo để di chuyển vị trí)'}
+          className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform duration-200 cursor-grab active:cursor-grabbing ${
             isOpen
               ? 'bg-on-surface text-surface'
               : isTeacher

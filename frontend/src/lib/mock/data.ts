@@ -14,21 +14,21 @@ import {
 export const SCHOOL_NAME = 'THPT Đan Phượng';
 
 export const MOCK_TEACHER = DEMO_TEACHER;
-export const MOCK_STUDENT = DEMO_STUDENTS[0]; // Bùi Hà My
-export const MOCK_STUDENT_KHOI = DEMO_STUDENTS[1];
-export const MOCK_STUDENT_LAN_ANH = DEMO_STUDENTS[2];
+export const MOCK_STUDENT = DEMO_STUDENTS[0]; // Đỗ Đăng An (STT 1)
+export const MOCK_STUDENT_KHOI = DEMO_STUDENTS[1]; // Nguyễn Thu An (STT 2)
+export const MOCK_STUDENT_LAN_ANH = DEMO_STUDENTS[2]; // Nguyễn Thị Ngọc Anh (STT 3)
 
 export const MOCK_RUBRIC = RUBRIC_MAU_TU_DO_DAT;
 export const MOCK_ASSIGNMENTS = [CENTRAL_ASSIGNMENT];
 export const MOCK_MATERIALS = MATERIALS_MAU_TU_DO_DAT;
 
-// Default transcription lines from Bùi Hà My (Trang 1 + Trang 2)
+// Default transcription lines from Đỗ Đăng An (Trang 1 + Trang 2)
 export const MOCK_TRANSCRIPTION_LINES = [
-  ...SUBMISSION_MANIFEST['user-student-48'].transcriptionByPage[0].lines,
-  ...SUBMISSION_MANIFEST['user-student-48'].transcriptionByPage[1].lines,
+  ...(SUBMISSION_MANIFEST['user-student-11a14-001']?.transcriptionByPage?.[0]?.lines || []),
+  ...(SUBMISSION_MANIFEST['user-student-11a14-001']?.transcriptionByPage?.[1]?.lines || []),
 ];
 
-export const MOCK_STUDENT_RESULT = INITIAL_SUBMISSIONS['sub-bui-ha-my'];
+export const MOCK_STUDENT_RESULT = INITIAL_SUBMISSIONS['sub-user-student-11a14-001'];
 
 // Dynamically calculated report metrics based on current submissions
 export function computeReportMetrics(
@@ -37,7 +37,7 @@ export function computeReportMetrics(
 ) {
   const allSubs = Object.values(submissions);
   const subList = allSubs.filter((s: any) => !assignmentId || s.assignmentId === assignmentId);
-  const totalStudents = 40; // Class size (40 HS)
+  const totalStudents = DEMO_STUDENTS.length; // Class size (41 HS)
   const submittedCount = subList.length;
   const assessedCount = subList.filter((s) => s.status === 'graded').length;
   const flaggedCount = subList.reduce((sum, s) => sum + (s.flaggedSegmentsCount || 0), 0);
@@ -61,51 +61,78 @@ export function computeReportMetrics(
     { range: '[3.6–4.0] (9.0–10đ)', count: subList.filter((s) => s.totalScore >= 3.6).length, label: 'Giỏi' },
   ];
 
+  // Dynamic common issues from actual evaluations in subList
+  const issueRelationCount = subList.filter((s) =>
+    s.evaluations?.some((e: any) =>
+      e.criterionId === 'C1_CONTENT_ART_RELATION' &&
+      (e.awardedScore < e.maxScore || (e.weaknesses && e.weaknesses.some((w: string) => w.toLowerCase().includes('liên hệ'))))
+    )
+  ).length;
+
+  const issueParadoxCount = subList.filter((s) =>
+    s.evaluations?.some((e: any) =>
+      e.weaknesses && e.weaknesses.some((w: string) => w.toLowerCase().includes('nghịch lí') || w.toLowerCase().includes('diễn xuôi'))
+    )
+  ).length;
+
+  const issueStructureCount = subList.filter((s) =>
+    s.evaluations?.some((e: any) =>
+      e.criterionId === 'C2_ANALYSIS_ARGUMENT' && e.awardedScore < e.maxScore
+    )
+  ).length;
+
   const commonIssues = [
     {
       criterionId: 'C1_CONTENT_ART_RELATION',
       issueType: 'Thiếu hoặc chưa làm nổi bật nét riêng khi liên hệ tác phẩm ngoài',
-      count: subList.filter((s) => s.studentId === 'user-student-02' || s.studentId === 'user-student-03').length,
+      count: issueRelationCount,
       total: assessedCount,
-      percentage: assessedCount > 0 ? `${Math.round(((subList.filter((s) => s.studentId === 'user-student-02' || s.studentId === 'user-student-03').length) / assessedCount) * 100)}%` : '0%',
+      percentage: assessedCount > 0 ? `${Math.round((issueRelationCount / assessedCount) * 100)}%` : '0%',
       impact: 'Mất điểm tiêu chí Liên hệ mở rộng (tiêu chí C1)',
       action: 'Dành 15 phút đầu tiết: Hướng dẫn so sánh nét riêng của Trần Quang Quý với "Bếp lửa" (Bằng Việt) và "Quê hương" (Tế Hanh).',
     },
     {
       criterionId: 'C1_CONTENT_ART_RELATION',
-      issueType: 'Diễn xuôi thơ, chưa phân tích nghịch lí "không thoát ly bùn đất"',
-      count: subList.filter((s) => s.studentId === 'user-student-02').length,
+      issueType: 'Diễn xuôi thơ, chưa phân tích sâu nghịch lí "không thoát ly bùn đất"',
+      count: issueParadoxCount,
       total: assessedCount,
-      percentage: assessedCount > 0 ? `${Math.round((1 / assessedCount) * 100)}%` : '0%',
+      percentage: assessedCount > 0 ? `${Math.round((issueParadoxCount / assessedCount) * 100)}%` : '0%',
       impact: 'Chưa chạm vào chiều sâu triết lí của tự do (tiêu chí C1)',
       action: 'Tổ chức thảo luận nhóm: Phân tích nghịch lí khát vọng thoát nhọc nhằn cơ bắp song tự do đích thực gắn liền với đất đai.',
     },
     {
       criterionId: 'C2_ANALYSIS_ARGUMENT',
       issueType: 'Chưa khai thác trục liên kết chuỗi động từ buộc – neo – cởi',
-      count: 1,
+      count: issueStructureCount,
       total: assessedCount,
-      percentage: assessedCount > 0 ? `${Math.round((1 / assessedCount) * 100)}%` : '0%',
+      percentage: assessedCount > 0 ? `${Math.round((issueStructureCount / assessedCount) * 100)}%` : '0%',
       impact: 'Chưa thấy được kết cấu vòng tròn ngọn khói',
       action: 'Vẽ sơ đồ tư duy liên kết 3 động từ "buộc" (khổ 1), "neo" (khổ 3), "cởi" (khổ 4).',
     },
   ];
 
-  const studentRows = subList.map((s) => ({
-    id: s.studentId,
-    submissionId: s.id,
-    name: s.studentName,
-    code: s.studentCode,
-    score: s.totalScore,
-    scoreScale10: s.scoreScale10,
-    status: s.status === 'graded' ? 'Đã chấm Rubric' : 'Chờ chấm',
-    isPublished: s.isPublishedToStudent,
-    pagesCount: s.pages.length,
-  }));
+  const studentRows = DEMO_STUDENTS.map((student) => {
+    const sub = subList.find((s) => s.studentId === student.id);
+    return {
+      id: student.id,
+      submissionId: sub ? sub.id : `sub-${student.id}`,
+      name: student.name,
+      code: student.code || '',
+      score: sub ? sub.totalScore : 0,
+      scoreScale10: sub ? sub.scoreScale10 : 0,
+      status: sub
+        ? sub.status === 'graded'
+          ? 'Đã chấm Rubric'
+          : 'Đã nộp bài (Chờ chấm)'
+        : 'Chưa nộp bài',
+      isPublished: sub ? sub.isPublishedToStudent : false,
+      pagesCount: sub ? sub.pages.length : 0,
+    };
+  });
 
   return {
-    classId: '12A1',
-    className: 'Lớp 12A1 • THPT Đan Phượng (Sĩ số 40 HS)',
+    classId: '11A14',
+    className: 'Lớp 11A14 • THPT Đan Phượng (Sĩ số 41 HS)',
     schoolName: SCHOOL_NAME,
     totalStudents,
     submittedCount,

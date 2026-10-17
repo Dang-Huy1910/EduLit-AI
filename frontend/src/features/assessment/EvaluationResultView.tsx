@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { GradingEvaluation, StudentSubmission } from '@/lib/types';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
-import { CENTRAL_ASSIGNMENT_ID, DOCX_ORIGINAL_GUIDE } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT, DOCX_ORIGINAL_GUIDE } from '@/lib/mock/assignmentData';
 import { SUBMISSION_MANIFEST } from '@/lib/mock/submissionsManifest';
 
 interface EvaluationResultViewProps {
@@ -31,7 +31,7 @@ export default function EvaluationResultView({
   } = useAppStore();
 
   const targetStudentId = studentId || currentUser.id;
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
   const submission = getStudentSubmission(assignmentId, targetStudentId);
 
   // Tab navigation inside evaluation detail
@@ -154,7 +154,7 @@ export default function EvaluationResultView({
             Bài làm đang được Giáo viên thẩm định &amp; Phê duyệt điểm
           </h2>
           <p className="text-xs text-on-surface-variant max-w-lg mx-auto leading-relaxed">
-            Học sinh <strong className="text-on-surface">{submission.studentName}</strong> ({submission.studentCode}) đã nộp bài vào lúc {submission.submissionDate}. Để đảm bảo tính chính xác và khách quan theo chuẩn GDPT 2018, kết quả và nhận xét chi tiết sẽ hiển thị ngay sau khi Cô Đặng Loan công bố kết quả chính thức.
+            Học sinh <strong className="text-on-surface">{submission.studentName}</strong> ({submission.studentCode}) đã nộp bài vào lúc {submission.submissionDate}. Để đảm bảo tính chính xác và khách quan theo chuẩn GDPT 2018, kết quả và nhận xét chi tiết sẽ hiển thị ngay sau khi Cô Đặng Hoàng Loan công bố kết quả chính thức.
           </p>
           <div className="flex justify-center gap-3 pt-2">
             <Link
@@ -207,7 +207,7 @@ export default function EvaluationResultView({
               className="px-3.5 py-1.5 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1 shadow-sm"
             >
               <span className="material-symbols-outlined text-sm">arrow_back</span>
-              <span>Báo cáo lớp 12A1</span>
+              <span>Báo cáo lớp 11A14</span>
             </Link>
           ) : (
             <Link
@@ -457,7 +457,7 @@ export default function EvaluationResultView({
             <div className="flex items-center justify-between pb-1">
               <span className="font-bold text-xs text-primary flex items-center gap-1.5 uppercase tracking-wider">
                 <span className="material-symbols-outlined text-sm">rate_review</span>
-                <span>Nhận xét tổng quát của Giáo viên bộ môn (Cô Đặng Loan):</span>
+                <span>Nhận xét tổng quát của Giáo viên bộ môn (Cô Đặng Hoàng Loan):</span>
               </span>
             </div>
 
@@ -587,7 +587,7 @@ export default function EvaluationResultView({
                   src={
                     activeImage.imageUrl ||
                     SUBMISSION_MANIFEST[targetStudentId]?.pages.find((p) => p.pageIndex === activeHandwritingPage)?.localPath ||
-                    SUBMISSION_MANIFEST['user-student-48'].pages[0].localPath
+                    SUBMISSION_MANIFEST['user-student-11a14-001'].pages[0].localPath
                   }
                   alt={activeImage.caption}
                   className="max-h-[600px] w-auto object-contain rounded-lg shadow-lg border border-outline-variant/40 select-none"
@@ -608,7 +608,7 @@ export default function EvaluationResultView({
               Bản chép số hóa từng trang đối chiếu:
             </span>
             <span className="text-[11px] text-on-surface-variant">
-              Tách bạch 2 trang theo đúng bài nộp
+              Tách bạch {submission.transcriptionByPage.length} trang theo đúng bài nộp
             </span>
           </div>
 
