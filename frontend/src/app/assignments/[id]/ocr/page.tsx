@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 import { SUBMISSION_MANIFEST } from '@/lib/mock/submissionsManifest';
 
 export default function OcrVerificationPage() {
@@ -24,7 +24,7 @@ export default function OcrVerificationPage() {
     addToast,
   } = useAppStore();
 
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
   const submission = getStudentSubmission(assignmentId, currentUser.id);
 
   // Fallback to Đỗ Đăng An's manifest if submission in memory hasn't been created yet

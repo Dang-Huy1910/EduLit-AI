@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { GradingEvaluation, StudentSubmission } from '@/lib/types';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
-import { CENTRAL_ASSIGNMENT_ID, DOCX_ORIGINAL_GUIDE } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT, DOCX_ORIGINAL_GUIDE } from '@/lib/mock/assignmentData';
 import { SUBMISSION_MANIFEST } from '@/lib/mock/submissionsManifest';
 
 interface EvaluationResultViewProps {
@@ -31,7 +31,7 @@ export default function EvaluationResultView({
   } = useAppStore();
 
   const targetStudentId = studentId || currentUser.id;
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
   const submission = getStudentSubmission(assignmentId, targetStudentId);
 
   // Tab navigation inside evaluation detail

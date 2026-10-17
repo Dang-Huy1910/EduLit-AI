@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 
 export default function StudentAssignmentsView() {
   const router = useRouter();
@@ -17,12 +17,13 @@ export default function StudentAssignmentsView() {
     submissions,
     currentUser,
     getStudentSubmission,
+    publishAssignment,
     addToast,
   } = useAppStore();
 
   const initialTab = searchParams.get('tab') === 'submitted' ? 'submitted' : 'todo';
   const [activeTab, setActiveTab] = useState<'todo' | 'submitted'>(initialTab);
-  const [codeInput, setCodeInput] = useState('VAN12-NLVH-01');
+  const [codeInput, setCodeInput] = useState('VAN11-NLVH-01');
   const [codeError, setCodeError] = useState(false);
   const [showEmptyState, setShowEmptyState] = useState(false);
   const [expandedInstructions, setExpandedInstructions] = useState<Record<string, boolean>>({ [CENTRAL_ASSIGNMENT_ID]: false });
@@ -44,7 +45,11 @@ export default function StudentAssignmentsView() {
   const handleOpenCode = (e: React.FormEvent) => {
     e.preventDefault();
     const clean = codeInput.trim().toUpperCase();
-    const matched = assignments.find((a) => a.code.toUpperCase() === clean);
+    let matched = assignments.find((a) => a.code.toUpperCase() === clean);
+    if (!matched && (clean === 'VAN11-NLVH-01' || clean === 'VAN12-NLVH-01' || clean === CENTRAL_ASSIGNMENT.code.toUpperCase())) {
+      publishAssignment(CENTRAL_ASSIGNMENT_ID);
+      matched = CENTRAL_ASSIGNMENT;
+    }
     if (matched) {
       setCodeError(false);
       addToast(`Mở thành công: ${matched.title}`, 'success');
@@ -108,7 +113,7 @@ export default function StudentAssignmentsView() {
               </p>
             )}
             <div className="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant/20 text-[10px] text-on-surface-variant">
-              <span>Mã bài tập: VAN12-NLVH-01</span>
+              <span>Mã bài tập: VAN11-NLVH-01</span>
             </div>
           </div>
         </div>
@@ -392,7 +397,7 @@ export default function StudentAssignmentsView() {
               submittedAssignments.map((assignment) => {
                 const sub =
                   getStudentSubmission?.(assignment.id, currentUser?.id || 'user-student-11a14-001') ||
-                  (assignment.id === CENTRAL_ASSIGNMENT_ID ? (submissions?.['sub-user-student-11a14-001'] || submissions?.['sub-bui-ha-my']) : undefined) ||
+                  (assignment.id === CENTRAL_ASSIGNMENT_ID ? submissions?.['sub-user-student-11a14-001'] : undefined) ||
                   (submissions ? Object.values(submissions).find((s) => s.assignmentId === assignment.id && s.studentId === (currentUser?.id || 'user-student-11a14-001')) : undefined) ||
                   (submissions ? Object.values(submissions).find((s) => s.assignmentId === assignment.id) : undefined);
 

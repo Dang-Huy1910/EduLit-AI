@@ -5,7 +5,7 @@ import Link from 'next/link';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { computeReportMetrics } from '@/lib/mock/data';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 
 export default function ReportsPage() {
   const {
@@ -16,8 +16,11 @@ export default function ReportsPage() {
 
   const [studentSearch, setStudentSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [sortOrder, setSortOrder] = useState<'default' | 'score_desc' | 'score_asc'>('default');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 5;
 
-  const assignment = assignments.find((a) => a.id === CENTRAL_ASSIGNMENT_ID) || assignments[0];
+  const assignment = assignments.find((a) => a.id === CENTRAL_ASSIGNMENT_ID) || CENTRAL_ASSIGNMENT;
   const metrics = computeReportMetrics(submissions);
 
   const filteredStudents = metrics.studentRows.filter((s) => {
@@ -34,6 +37,26 @@ export default function ReportsPage() {
     }
     return true;
   });
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
+    if (sortOrder === 'score_desc') return b.score - a.score;
+    if (sortOrder === 'score_asc') return a.score - b.score;
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedStudents.length / PAGE_SIZE) || 1;
+  const safePage = Math.min(Math.max(currentPage, 1), totalPages);
+  const startIndex = (safePage - 1) * PAGE_SIZE;
+  const paginatedStudents = sortedStudents.slice(startIndex, startIndex + PAGE_SIZE);
+
+  const handleToggleSortScore = () => {
+    setCurrentPage(1);
+    setSortOrder((prev) => {
+      if (prev === 'default') return 'score_desc';
+      if (prev === 'score_desc') return 'score_asc';
+      return 'default';
+    });
+  };
 
   return (
     <TeacherShell
@@ -81,6 +104,7 @@ export default function ReportsPage() {
             </button>
           </div>
         </div>
+
 
         {/* Class Overview Statistics Banner */}
         <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
@@ -223,22 +247,40 @@ export default function ReportsPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
                 placeholder="Tìm theo tên hoặc mã HS..."
                 value={studentSearch}
-                onChange={(e) => setStudentSearch(e.target.value)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary w-56"
+                onChange={(e) => {
+                  setStudentSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary w-44 sm:w-52"
               />
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none"
               >
                 <option value="all">Tất cả trạng thái</option>
                 <option value="published">Đã công bố</option>
                 <option value="pending">Chưa công bố</option>
+              </select>
+              <select
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value as 'default' | 'score_desc' | 'score_asc');
+                  setCurrentPage(1);
+                }}
+                className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none font-medium"
+              >
+                <option value="default">Sắp xếp: Mặc định (STT)</option>
+                <option value="score_desc">Điểm: Cao nhất &rarr; Thấp</option>
+                <option value="score_asc">Điểm: Thấp nhất &rarr; Cao</option>
               </select>
             </div>
           </div>
@@ -250,21 +292,51 @@ export default function ReportsPage() {
                   <th className="py-2.5 px-3 rounded-l-lg">Họ và tên học sinh</th>
                   <th className="py-2.5 px-3">Mã học sinh</th>
                   <th className="py-2.5 px-3">Số trang ảnh</th>
-                  <th className="py-2.5 px-3">Điểm (Thang 4,0đ)</th>
-                  <th className="py-2.5 px-3">Quy đổi thang 10</th>
+                  <th
+                    onClick={handleToggleSortScore}
+                    className="py-2.5 px-3 cursor-pointer select-none hover:text-primary transition-colors"
+                    title="Bấm để sắp xếp theo điểm"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Điểm (Thang 4,0đ)</span>
+                      <span className="material-symbols-outlined text-[15px] text-secondary">
+                        {sortOrder === 'score_desc'
+                          ? 'arrow_downward'
+                          : sortOrder === 'score_asc'
+                          ? 'arrow_upward'
+                          : 'swap_vert'}
+                      </span>
+                    </div>
+                  </th>
+                  <th
+                    onClick={handleToggleSortScore}
+                    className="py-2.5 px-3 cursor-pointer select-none hover:text-primary transition-colors"
+                    title="Bấm để sắp xếp theo điểm quy đổi"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span>Quy đổi thang 10</span>
+                      <span className="material-symbols-outlined text-[15px] text-secondary">
+                        {sortOrder === 'score_desc'
+                          ? 'arrow_downward'
+                          : sortOrder === 'score_asc'
+                          ? 'arrow_upward'
+                          : 'swap_vert'}
+                      </span>
+                    </div>
+                  </th>
                   <th className="py-2.5 px-3">Công bố</th>
                   <th className="py-2.5 px-3 rounded-r-lg text-right">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
-                {filteredStudents.length === 0 ? (
+                {paginatedStudents.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-on-surface-variant italic">
                       Chưa có bài nộp nào trong bộ lọc này.
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((st) => (
+                  paginatedStudents.map((st) => (
                     <tr key={st.id} className="hover:bg-surface-container-low/40 transition-colors">
                       <td className="py-3 px-3">
                         <span className="font-bold text-on-surface block">{st.name}</span>
@@ -307,6 +379,102 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls (5 students / page) */}
+          {sortedStudents.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-outline-variant/20 text-xs text-on-surface-variant">
+              <div>
+                Hiển thị{' '}
+                <span className="font-semibold text-on-surface">
+                  {startIndex + 1}–{Math.min(startIndex + PAGE_SIZE, sortedStudents.length)}
+                </span>{' '}
+                trên tổng số{' '}
+                <span className="font-semibold text-on-surface">{sortedStudents.length}</span> học sinh
+                {sortOrder !== 'default' && (
+                  <span className="ml-2 text-[11px] text-secondary font-medium">
+                    ({sortOrder === 'score_desc' ? 'Điểm cao → thấp' : 'Điểm thấp → cao'})
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safePage === 1}
+                  className="p-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center text-on-surface"
+                  title="Trang đầu"
+                >
+                  <span className="material-symbols-outlined text-[16px]">first_page</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage === 1}
+                  className="px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 text-on-surface font-medium"
+                  title="Trang trước"
+                >
+                  <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                  <span>Trước</span>
+                </button>
+
+                {/* Page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => {
+                    if (
+                      num === 1 ||
+                      num === totalPages ||
+                      (num >= safePage - 1 && num <= safePage + 1)
+                    ) {
+                      const isActive = num === safePage;
+                      return (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setCurrentPage(num)}
+                          className={`w-7 h-7 rounded-lg text-xs font-semibold transition-all flex items-center justify-center ${
+                            isActive
+                              ? 'bg-primary-container text-on-primary-container shadow-xs font-bold'
+                              : 'hover:bg-surface-container text-on-surface-variant'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      );
+                    }
+                    if (num === safePage - 2 || num === safePage + 2) {
+                      return (
+                        <span key={num} className="px-1 text-outline select-none">
+                          …
+                        </span>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage === totalPages}
+                  className="px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 text-on-surface font-medium"
+                  title="Trang sau"
+                >
+                  <span>Sau</span>
+                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={safePage === totalPages}
+                  className="p-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center justify-center text-on-surface"
+                  title="Trang cuối"
+                >
+                  <span className="material-symbols-outlined text-[16px]">last_page</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </TeacherShell>

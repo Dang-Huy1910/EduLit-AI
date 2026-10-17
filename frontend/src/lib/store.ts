@@ -69,7 +69,7 @@ interface AppState {
   // Milestone & Reset
   demoMilestone: DemoMilestone;
   setDemoMilestone: (milestone: DemoMilestone) => void;
-  resetDemoState: () => void;
+  resetDemoState: (role?: Role) => void;
 
   // Assignments & Rubric
   assignments: Assignment[];
@@ -246,6 +246,15 @@ export const useAppStore = create<AppState>()(
             uploadedPages: [],
             outline: INITIAL_OUTLINE,
             socraticMessages: INITIAL_SOCRATIC_MESSAGES,
+            ocrStatus: 'needs_review',
+            flaggedSegments: [
+              {
+                lineRef: 27,
+                text: 'tự cày tay cày xới, đổ mồ hôi và "neo đời mình"',
+                note: 'Chữ viết tay lặp "cày" trước "tay cày xới": đối chiếu bản chép và ảnh gốc',
+                isCorrected: false,
+              },
+            ],
           });
         } else {
           // Milestone 2: Complete view with all 41 students submitted & graded
@@ -279,37 +288,37 @@ export const useAppStore = create<AppState>()(
             submissions: { ...INITIAL_SUBMISSIONS },
             assignments: completeAssignments,
             uploadedPages: student1Pages,
+            ocrStatus: 'confirmed',
           });
         }
       },
 
-      resetDemoState: () => {
+      resetDemoState: (targetRole?: Role) => {
         if (activeAiResponseTimeout) {
           clearTimeout(activeAiResponseTimeout);
           activeAiResponseTimeout = null;
         }
         if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('edulit-app-v1');
-          localStorage.removeItem('edulit-app-v1');
-          sessionStorage.removeItem('edulit-app-v2');
-          localStorage.removeItem('edulit-app-v2');
+          const keysToPurge = [
+            'edulit-app-v2',
+            'edulit-app-v1',
+            'edulit-demo-v3',
+            'edulit-ai-storage',
+          ];
+          for (const k of keysToPurge) {
+            try {
+              sessionStorage.removeItem(k);
+              localStorage.removeItem(k);
+            } catch {}
+          }
         }
 
-        const currentRole = get().currentUser?.role || 'student';
+        const roleToSet = targetRole || get().currentUser?.role || 'student';
         set({
-          currentUser: currentRole === 'teacher' ? DEMO_TEACHER : DEMO_STUDENTS[0],
+          currentUser: roleToSet === 'teacher' ? DEMO_TEACHER : DEMO_STUDENTS[0],
           demoMilestone: 'start',
           isAiResponding: false,
-          assignments: [
-            {
-              ...CENTRAL_ASSIGNMENT,
-              status: 'published' as const,
-              statusLabel: 'Đang mở nộp bài',
-              totalSubmissions: 40,
-              assessedSubmissions: 40,
-            },
-            ...INITIAL_ASSIGNMENTS,
-          ],
+          assignments: [...INITIAL_ASSIGNMENTS],
           activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
           activeRubric: RUBRIC_MAU_TU_DO_DAT,
           rubrics: AVAILABLE_RUBRICS,
@@ -332,16 +341,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Assignments & Materials
-      assignments: [
-        {
-          ...CENTRAL_ASSIGNMENT,
-          status: 'published' as const,
-          statusLabel: 'Đang mở nộp bài',
-          totalSubmissions: 40,
-          assessedSubmissions: 40,
-        },
-        ...INITIAL_ASSIGNMENTS,
-      ],
+      assignments: [...INITIAL_ASSIGNMENTS],
       activeAssignmentId: CENTRAL_ASSIGNMENT_ID,
       activeRubric: RUBRIC_MAU_TU_DO_DAT,
       rubrics: AVAILABLE_RUBRICS,
@@ -385,13 +385,14 @@ export const useAppStore = create<AppState>()(
           let updatedAssignments: Assignment[];
           if (exists) {
             updatedAssignments = state.assignments.map((a) =>
-              a.id === id ? { ...a, status: 'published', statusLabel: 'Đã giao', ...updates } : a
+              a.id === id ? { ...a, status: updates?.status || 'published', statusLabel: updates?.statusLabel || 'Đã giao', ...updates } : a
             );
           } else {
-            const base = id === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : {
+            const isCentral = id === CENTRAL_ASSIGNMENT_ID;
+            const base = isCentral ? CENTRAL_ASSIGNMENT : {
               ...CENTRAL_ASSIGNMENT,
               id,
-              code: updates?.code || 'VAN12-NLVH-01',
+              code: updates?.code || 'VAN11-NLVH-01',
               title: updates?.title || CENTRAL_ASSIGNMENT.title,
               studentTitle: updates?.studentTitle || updates?.title || CENTRAL_ASSIGNMENT.studentTitle,
               topic: updates?.topic || updates?.title || CENTRAL_ASSIGNMENT.topic,
@@ -401,10 +402,10 @@ export const useAppStore = create<AppState>()(
             };
             const newAssignment: Assignment = {
               ...base,
-              status: 'published',
-              statusLabel: 'Đang mở nộp bài',
-              totalSubmissions: 2,
-              assessedSubmissions: 2,
+              status: updates?.status || 'published',
+              statusLabel: updates?.statusLabel || (updates?.status === 'draft' ? 'Bản nháp' : 'Đang mở nộp bài'),
+              totalSubmissions: isCentral ? 40 : 0,
+              assessedSubmissions: isCentral ? 40 : 0,
               ...updates,
             };
             updatedAssignments = [newAssignment, ...state.assignments];
@@ -821,10 +822,7 @@ export const useAppStore = create<AppState>()(
 
 if (typeof window !== 'undefined') {
   (window as unknown as { resetEduLit?: (role?: 'teacher' | 'student') => void }).resetEduLit = (role) => {
-    if (role) {
-      useAppStore.getState().setRole(role);
-    }
-    useAppStore.getState().resetDemoState();
-    window.location.reload();
+    useAppStore.getState().resetDemoState(role);
+    window.location.href = '/assignments';
   };
 }

@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
 import { SUBMISSION_MANIFEST } from '@/lib/mock/submissionsManifest';
 
 function compressImage(file: File): Promise<{ dataUrl: string; sizeMb: string }> {
@@ -65,7 +65,6 @@ export default function SubmitPhotosPage() {
     assignments,
     uploadedPages,
     loadStudentPages,
-    loadDemoBuiHaMyPages,
     addCustomUploadedPage,
     removeUploadedPage,
     reorderUploadedPages,
@@ -74,7 +73,7 @@ export default function SubmitPhotosPage() {
     currentUser,
   } = useAppStore();
 
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
 
   const [previewModalPage, setPreviewModalPage] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

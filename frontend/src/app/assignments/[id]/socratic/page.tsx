@@ -11,6 +11,7 @@ import {
 } from '@/lib/mock/socraticScript';
 import {
   CENTRAL_ASSIGNMENT_ID,
+  CENTRAL_ASSIGNMENT,
   POEM_TEXT_LINES,
   POEM_SOURCE_NOTES,
   DOCX_ORIGINAL_GUIDE,
@@ -36,7 +37,7 @@ export default function SocraticChatPage() {
     currentUser,
   } = useAppStore();
 
-  const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
+  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
 
   const [inputMessage, setInputMessage] = useState('');
   const [readingModalOpen, setReadingModalOpen] = useState(false);

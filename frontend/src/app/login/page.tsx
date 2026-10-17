@@ -8,7 +8,7 @@ import ToastContainer from '@/components/ToastContainer';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { setUser, setRole, addToast, resetDemoState } = useAppStore();
+  const { setUser, setRole, addToast } = useAppStore();
 
   const [username, setUsername] = useState('dang.loan@thptdanphuong.edu.vn');
   const [password, setPassword] = useState('DanPhuong@2024');
@@ -265,6 +265,7 @@ export default function LoginPage() {
                 <span>HS: Đỗ Đăng An</span>
               </button>
             </div>
+
 
             {/* Bottom Footer Links */}
             <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] font-semibold text-secondary">

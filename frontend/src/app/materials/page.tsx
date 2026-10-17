@@ -100,7 +100,7 @@ export default function MaterialsPage() {
             className="px-4 py-2 bg-primary-container text-on-primary-container font-semibold rounded-lg text-sm hover:brightness-95 flex items-center gap-2 shadow-sm shrink-0"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
-            <span>+ Thêm học liệu mới</span>
+            <span>Thêm học liệu mới</span>
           </button>
         )}
       </div>

@@ -111,19 +111,6 @@ export default function AssignmentEditorPage() {
     router.push('/assignments');
   };
 
-  const handleLoadDemoTemplate = () => {
-    setTitle(CENTRAL_ASSIGNMENT.title);
-    setInstructions(CENTRAL_ASSIGNMENT.instructions);
-    setDeadline(CENTRAL_ASSIGNMENT.deadline || '28/10/2026 23:59');
-    setSelectedRubricId(CENTRAL_RUBRIC_ID);
-    const chosen = rubrics.find((r) => r.id === CENTRAL_RUBRIC_ID) || rubrics[0];
-    if (chosen) {
-      setCriteria(chosen.criteria);
-      setActiveRubricById(chosen.id);
-    }
-    addToast('Đã nạp lại mẫu đề bài: "Màu tự do của đất" (Trần Quang Quý)', 'info');
-  };
-
   return (
     <TeacherShell
       breadcrumb={
@@ -156,16 +143,6 @@ export default function AssignmentEditorPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isNew && (
-              <button
-                type="button"
-                onClick={handleLoadDemoTemplate}
-                className="px-3 py-2 rounded-lg border border-secondary/40 text-secondary bg-surface-container-lowest text-xs font-semibold hover:bg-secondary/10 transition-all flex items-center gap-1.5 shadow-sm"
-              >
-                <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-                <span>Nạp mẫu demo</span>
-              </button>
-            )}
             <button
               onClick={handleSaveDraft}
               className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm"
@@ -181,21 +158,6 @@ export default function AssignmentEditorPage() {
             </button>
           </div>
         </div>
-
-        {/* Banner for New Assignment Demo */}
-        {isNew && (
-          <div className="p-4 bg-primary-container/20 border border-primary/30 rounded-xl flex items-start gap-3 text-xs text-on-surface">
-            <span className="material-symbols-outlined text-primary text-xl mt-0.5">auto_awesome</span>
-            <div className="space-y-1">
-              <p className="font-semibold text-primary">
-                Quy trình demo: Giáo viên khởi tạo và giao đề bài mới
-              </p>
-              <p className="text-on-surface-variant leading-relaxed">
-                Hệ thống đã nạp sẵn ngữ liệu bài thơ <strong>&quot;Màu tự do của đất&quot; (Trần Quang Quý)</strong> và hướng dẫn chấm từ file DOCX gốc. Cô giáo chỉ cần chọn Barem phù hợp (Chuẩn 4 tiêu chí hoặc Năng lực sáng tạo 5 tiêu chí), tinh chỉnh trọng số nếu muốn, rồi bấm <strong>&quot;Xác nhận Rubric &amp; Giao bài cho Lớp 11A14&quot;</strong>.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Version preservation warning banner */}
         <div className="p-3.5 bg-surface-container-low/70 border border-outline-variant/30 rounded-xl flex items-center gap-3 text-xs text-on-surface-variant">
