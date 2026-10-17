@@ -32,8 +32,8 @@ export default function FloatingChatWidget() {
     id: 'msg-init',
     sender: 'ai',
     text: isTeacher
-      ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích 3 bài nộp đã chấm hay phương pháp gợi mở Socratic ạ?`
-      : `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ Bếp lửa hôm nay?`,
+      ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích tiến độ chấm bài Lớp 11A14 hay phương pháp gợi mở Socratic ạ?`
+      : `Chào bạn ${currentUser.name || 'Đỗ Đăng An'}! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ tác phẩm ngoài hôm nay?`,
     timestamp: 'Vừa xong',
   };
 
@@ -46,12 +46,12 @@ export default function FloatingChatWidget() {
         id: `msg-${Date.now()}`,
         sender: 'ai',
         text: isTeacher
-          ? `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
-          : `Chào bạn Bùi Hà My! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
+          ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
+          : `Chào bạn ${currentUser.name || 'Đỗ Đăng An'}! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
         timestamp: 'Vừa xong',
       },
     ]);
-  }, [currentUser.role, isTeacher]);
+  }, [currentUser.role, currentUser.name, isTeacher]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function FloatingChatWidget() {
   const quickPrompts = isTeacher
     ? [
         { label: '⚖️ Barem 4.0 điểm', text: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học Màu tự do của đất.' },
-        { label: '📊 Tiến độ 3 bài nộp', text: 'Tóm tắt kết quả chấm và lỗi cần lưu ý của 3 học sinh Lớp 12A1.' },
+        { label: '📊 Tiến độ bài nộp 11A14', text: 'Tóm tắt kết quả chấm và các điểm cần lưu ý của Lớp 11A14.' },
         { label: '🌱 Gợi mở nghịch lí', text: 'Gợi ý câu hỏi Socratic giúp học sinh hiểu nghịch lí "không thoát ly bùn đất".' },
       ]
     : [
@@ -100,11 +100,11 @@ export default function FloatingChatWidget() {
 
       if (isTeacher) {
         if (lower.includes('barem') || lower.includes('4.0')) {
-          reply = `Dạ thưa Cô Đặng Loan, thang 4.0 chuẩn gồm:\n• C1 (2.50đ): Phân tích tự do qua làng quê & Liên hệ tác phẩm ngoài\n• C2 (0.75đ): Nghịch lí bùn đất & chuỗi buộc-neo-cởi\n• C3 (0.50đ): Diễn đạt & ngữ pháp\n• C4 (0.25đ): Bố cục bài 600 chữ.`;
-        } else if (lower.includes('bài nộp') || lower.includes('12a1') || lower.includes('tiến độ')) {
-          reply = `Dạ 3 bài nộp tiêu biểu Lớp 12A1: Bùi Hà My (3.60/4.00đ - Giỏi), Trần Minh Khôi (2.65/4.00đ - thiếu liên hệ ngoài bị trừ C1), Nguyễn Lan Anh (3.35/4.00đ - Khá).`;
+          reply = `Dạ thưa Cô Đặng Hoàng Loan, thang 4.0 chuẩn gồm:\n• C1 (2.50đ): Phân tích tự do qua làng quê & Liên hệ tác phẩm ngoài\n• C2 (0.75đ): Nghịch lí bùn đất & chuỗi buộc-neo-cởi\n• C3 (0.50đ): Diễn đạt & ngữ pháp\n• C4 (0.25đ): Bố cục bài 600 chữ.`;
+        } else if (lower.includes('bài nộp') || lower.includes('11a14') || lower.includes('12a1') || lower.includes('tiến độ')) {
+          reply = `Dạ tiến độ chấm bài Lớp 11A14: Đã nộp 41/41 học sinh. Các bài nộp tiêu biểu: Đỗ Đăng An (3.60/4.00đ - Giỏi), Bùi Hà Chi (3.50/4.00đ - Giỏi), Nguyễn Trung Dũng (3.20/4.00đ - Khá).`;
         } else {
-          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Loan: "${text}". Cô có thể bấm nút phóng to (⛶) để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
+          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Hoàng Loan: "${text}". Cô có thể bấm nút phóng to (⛶) để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
         }
       } else {
         if (lower.includes('yêu cầu') || lower.includes('trọng tâm')) {
@@ -165,7 +165,7 @@ export default function FloatingChatWidget() {
                   </span>
                 </div>
                 <p className="text-[10px] text-white/80 mt-0.5">
-                  {isTeacher ? 'Hỗ trợ Cô Đặng Loan • THPT Đan Phượng' : 'Đồng hành cùng Bùi Hà My'}
+                  {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : `Đồng hành cùng ${currentUser.name || 'Đỗ Đăng An'}`}
                 </p>
               </div>
             </div>
@@ -293,7 +293,7 @@ export default function FloatingChatWidget() {
         {!isOpen && (
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/50 shadow-md text-xs font-semibold text-on-surface animate-in fade-in slide-in-from-right-3 duration-200">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>{isTeacher ? 'Hỏi Cô Đặng Loan Co-Pilot' : 'Hỏi Socratic AI'}</span>
+            <span>{isTeacher ? 'Hỏi Cô Đặng Hoàng Loan Co-Pilot' : 'Hỏi Socratic AI'}</span>
           </div>
         )}
 

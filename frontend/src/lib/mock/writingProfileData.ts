@@ -43,11 +43,11 @@ export interface StudentWritingProfile {
   };
 }
 
-export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
-  studentId: 'user-student-48',
-  studentName: 'Bùi Hà My',
-  studentCode: 'VN-12A1-048',
-  className: 'Lớp 12A1 • THPT Đan Phượng',
+export const MOCK_DO_DANG_AN_PROFILE: StudentWritingProfile = {
+  studentId: 'user-student-11a14-001',
+  studentName: 'Đỗ Đăng An',
+  studentCode: 'VN-11A14-001',
+  className: 'Lớp 11A14 • THPT Đan Phượng',
   personaTitle: 'Cây bút suy tưởng & giàu cảm thức thẩm mỹ',
   personaSummary:
     'Học sinh có tư duy nghị luận chững chạc, vốn từ vựng phong phú và nhịp câu giàu cảm xúc chiêm nghiệm. Khả năng phát hiện và phân tích các hình tượng giàu tính triết luận rất tốt; cần tiếp tục rèn luyện kĩ năng so sánh đối chiếu đa chiều giữa các tác phẩm.',
@@ -130,14 +130,14 @@ export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
       status: 'SUPPORTED',
       statusLabel: 'Giáo viên đã xác nhận',
       evidenceQuote:
-        'Những ngọn khói cay mùi rơm rạ dắt tôi về cánh đồng lồng lộng sao đêm, tôi hít thở mầu tự do của đất',
+        'Đọc bài "Màu tự do của đất" của Trần Quang Quý, điều đọng lại đầu tiên không phải là những hình ảnh hoa mỹ, mà là một cảm giác rất thực: mùi khói rơm rạ xộc vào cánh mũi, dẫn dắt ta về với khoảng trời đêm lộng lẫy nơi cánh đồng làng.',
       evidenceStart: 182,
       evidenceEnd: 282,
       assessmentId: 'assign-nlvh-mau-tu-do-dat',
       assignmentTitle: 'Phân tích "Màu tự do của đất" — Trần Quang Quý',
       observedAt: '24/10/2026',
       teacherFeedback:
-        'Cô Đặng Loan: "Cách em chọn câu chữ này rất tinh tế, làm nổi bật được sự chuyển đổi cảm giác từ khứu giác sang hơi thở tự do."',
+        'Cô Đặng Hoàng Loan: "Cách em chọn câu chữ này rất tinh tế, làm nổi bật được sự chuyển đổi cảm giác từ khứu giác sang hơi thở tự do."',
       socraticBridgeTip:
         'Điểm mạnh này được AI ghi nhận để khuyến khích học sinh phát huy ở các bài phân tích thơ trữ tình hiện đại.',
     },
@@ -154,14 +154,14 @@ export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
       status: 'SUPPORTED',
       statusLabel: 'Giáo viên đã xác nhận',
       evidenceQuote:
-        'Khói bếp, rơm rạ, mái đình cong hay những ngõ xóm ngủ yên... tất cả vẽ nên bức tranh thanh bình, nơi tâm hồn con người được chở che, gắn kết.',
+        'Chỉ cần một mùi khói cay, một mái đình cong hay cái ngõ xóm "ngủ hiền", con người ta đã có thể trút bỏ mọi muộn phiền để trở về với góc bình yên nhất trong tâm thức.',
       evidenceStart: 285,
       evidenceEnd: 420,
       assessmentId: 'assign-nlvh-mau-tu-do-dat',
       assignmentTitle: 'Phân tích "Màu tự do của đất" — Trần Quang Quý',
       observedAt: '24/10/2026',
       teacherFeedback:
-        'Cô Đặng Loan: "Câu văn uyển chuyển, liên kết các thi ảnh đời thường thành bệ đỡ tâm hồn một cách tự nhiên."',
+        'Cô Đặng Hoàng Loan: "Câu văn uyển chuyển, liên kết các thi ảnh đời thường thành bệ đỡ tâm hồn một cách tự nhiên."',
     },
     {
       id: 'obs-003-evidence-linking-weakness',
@@ -176,7 +176,7 @@ export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
       status: 'PROVISIONAL',
       statusLabel: 'Nhận xét sơ bộ (AI trích xuất)',
       evidenceQuote:
-        'Nếu Nguyễn Bính mang đến một vùng quê trầu cay tóc mẹ, Tế Hanh gửi gắm nỗi nhớ mặn mòi gió biển, thì Trần Quang Quý trong bài thơ lại khai thác một khía cạnh độc đáo: Cảm nhận về tự do gắn liền với bùn đất.',
+        'Cũng viết về tình yêu nơi chôn rau cắt rốn, nhưng Tế Hanh chọn góc nhìn rực rỡ, tràn đầy sinh lực của làng chài với thuyền ra khơi... Trong khi đó, Trần Quang Quý lại cúi sát xuống mặt đất.',
       evidenceStart: 512,
       evidenceEnd: 710,
       assessmentId: 'assign-nlvh-mau-tu-do-dat',
@@ -207,7 +207,7 @@ export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
       assignmentTitle: 'Nghị luận xã hội: Ý nghĩa của cội nguồn quê hương đối với người trẻ',
       observedAt: '15/09/2026',
       teacherFeedback:
-        'Cô Đặng Loan: "Mở bài trực tiếp, xác lập được vị thế của cội nguồn làm tiền đề vững chắc cho toàn bài."',
+        'Cô Đặng Hoàng Loan: "Mở bài trực tiếp, xác lập được vị thế của cội nguồn làm tiền đề vững chắc cho toàn bài."',
     },
     {
       id: 'obs-005-transitions-resolved',
@@ -229,7 +229,7 @@ export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
       assignmentTitle: 'Nghị luận xã hội: Ý nghĩa của cội nguồn quê hương đối với người trẻ',
       observedAt: '15/09/2026',
       teacherFeedback:
-        'Cô Đặng Loan: "Ghi nhận sự nỗ lực rèn luyện của Hà My. Em đã chủ động khắc phục lỗi chuyển ý qua phần gợi mở của Trợ lý AI."',
+        'Cô Đặng Hoàng Loan: "Ghi nhận sự nỗ lực rèn luyện của Đăng An. Em đã chủ động khắc phục lỗi chuyển ý qua phần gợi mở của Trợ lý AI."',
       socraticBridgeTip:
         'Mục này đã chuyển sang trạng thái RESOLVED — không còn là điểm yếu cần can thiệp thường xuyên.',
     },
@@ -253,8 +253,11 @@ export const MOCK_BUI_HA_MY_PROFILE: StudentWritingProfile = {
       assignmentTitle: 'Phân tích hình tượng bếp lửa và tình bà cháu trong bài thơ "Bếp lửa"',
       observedAt: '02/10/2026',
       teacherFeedback:
-        'Cô Đặng Loan: "Giọng văn truyền cảm, tạo được độ rung động cảm xúc ở người đọc."',
+        'Cô Đặng Hoàng Loan: "Giọng văn truyền cảm, tạo được độ rung động cảm xúc ở người đọc."',
     },
   ],
 };
 
+
+export const MOCK_STUDENT_PROFILE = MOCK_DO_DANG_AN_PROFILE;
+export const MOCK_BUI_HA_MY_PROFILE = MOCK_DO_DANG_AN_PROFILE;

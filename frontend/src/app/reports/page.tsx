@@ -66,7 +66,7 @@ export default function ReportsPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => addToast('Đang kết xuất báo cáo tổng hợp PDF/Excel lớp 12A1...', 'success')}
+              onClick={() => addToast('Đang kết xuất báo cáo tổng hợp PDF/Excel lớp 11A14...', 'success')}
               className="px-3.5 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-sm"
             >
               <span className="material-symbols-outlined text-[16px]">file_download</span>
@@ -85,7 +85,7 @@ export default function ReportsPage() {
         {/* Class Overview Statistics Banner */}
         <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
           <div className="flex flex-wrap items-center gap-4 text-on-surface">
-            <span>Sĩ số lớp: <strong>40 học sinh</strong></span>
+            <span>Sĩ số lớp: <strong>{metrics.totalStudents || 41} học sinh</strong></span>
             <span>•</span>
             <span>Số bài đã nộp: <strong>{metrics.submittedCount} bài</strong></span>
             <span>•</span>
@@ -219,7 +219,7 @@ export default function ReportsPage() {
                 Danh sách bài nộp của học sinh ({filteredStudents.length} học sinh)
               </h3>
               <p className="text-[11px] text-on-surface-variant">
-                Mỗi học sinh nộp đúng 2 trang viết tay. Bấm &ldquo;Xem chi tiết chấm&rdquo; để xem ảnh gốc và đối chiếu rubric.
+                Học sinh nộp từ 1–4 trang ảnh chụp bài viết tay. Bấm &ldquo;Xem chi tiết chấm&rdquo; để xem ảnh gốc và đối chiếu rubric.
               </p>
             </div>
 

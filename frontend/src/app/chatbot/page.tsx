@@ -52,9 +52,9 @@ export default function ChatbotPage() {
         },
         {
           id: 'session-2',
-          title: '📊 Đánh giá 3 bài nộp Lớp 12A1',
+          title: '📊 Đánh giá bài nộp Lớp 11A14',
           timeLabel: 'Hôm nay',
-          preview: 'So sánh bài làm của Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh...',
+          preview: 'So sánh bài làm của Đỗ Đăng An, Bùi Hà Chi, Nguyễn Trung Dũng...',
         },
         {
           id: 'session-3',
@@ -104,7 +104,7 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Kính chào Cô Đặng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".\n• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.\n• Phân tích kết quả và lỗi phổ biến của 3 học sinh (Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh).\n\nCô muốn bắt đầu với nội dung nào ạ?`,
+          text: `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".\n• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.\n• Phân tích kết quả và tiến độ nộp bài của Lớp 11A14 (41 học sinh).\n\nCô muốn bắt đầu với nội dung nào ạ?`,
           timestamp: '08:00',
           modelBadge: 'EduLit Co-Pilot v2.4',
         },
@@ -113,7 +113,7 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Chào bạn Bùi Hà My! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 12 tại THPT Đan Phượng.\n\nTheo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:\n• Phân tích hình ảnh làng quê và cảm nhận tự do của Trần Quang Quý.\n• Khai thác nghịch lí "không thoát ly bùn đất" và chuỗi buộc – neo – cởi.\n• Liên hệ mở rộng bài thơ ngoài để làm nổi bật nét riêng của tác giả.\n\nBạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
+          text: `Chào bạn Đỗ Đăng An! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 11 tại THPT Đan Phượng.\n\nTheo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:\n• Phân tích hình ảnh làng quê và cảm nhận tự do của Trần Quang Quý.\n• Khai thác nghịch lí "không thoát ly bùn đất" và chuỗi buộc – neo – cởi.\n• Liên hệ mở rộng bài thơ ngoài để làm nổi bật nét riêng của tác giả.\n\nBạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
           timestamp: '08:00',
           modelBadge: 'Socratic AI Engine',
           suggestedAction: {
@@ -188,9 +188,9 @@ export default function ChatbotPage() {
     },
     {
       icon: 'analytics',
-      title: 'Phân tích 3 bài nộp 12A1',
-      desc: 'Bùi Hà My, Trần Minh Khôi, Nguyễn Lan Anh',
-      prompt: 'Phân tích điểm mạnh và lỗi phổ biến của 3 học sinh trong bài Màu tự do của đất.',
+      title: 'Phân tích bài nộp 11A14',
+      desc: 'Đỗ Đăng An, Bùi Hà Chi, Nguyễn Trung Dũng',
+      prompt: 'Phân tích điểm mạnh và lỗi phổ biến của các học sinh Lớp 11A14 trong bài Màu tự do của đất.',
     },
     {
       icon: 'psychology',
@@ -229,9 +229,9 @@ export default function ChatbotPage() {
 
       if (isTeacher) {
         if (lower.includes('barem') || lower.includes('rubric') || lower.includes('4.0') || lower.includes('tiêu chí')) {
-          replyText = `Thưa Cô Đặng Loan, thang điểm 4.0 chuẩn của đề bài được phân bổ như sau:\n\n1. **C1. Nội dung, nghệ thuật & Liên hệ (2.50 điểm):** Phân tích cảm nhận về tự do qua hình ảnh làng quê (1.50đ); liên hệ tác phẩm ngoài và làm rõ nét riêng của tác giả (1.00đ - thiếu phần này trừ điểm nặng).\n2. **C2. Phân tích & Lập luận (0.75 điểm):** Lập luận chặt chẽ, khai thác nghịch lí "không thoát ly bùn đất" và chuỗi "buộc – neo – cởi".\n3. **C3. Diễn đạt & Ngôn ngữ (0.50 điểm):** Đúng chính tả, dùng từ chính xác, câu văn truyền cảm (-0.25đ/lỗi).\n4. **C4. Cấu trúc & Quy cách (0.25 điểm):** Đảm bảo bố cục 3 phần Mở - Thân - Kết của bài nghị luận văn học ~600 chữ.`;
-        } else if (lower.includes('học sinh') || lower.includes('12a1') || lower.includes('bài nộp') || lower.includes('phân tích')) {
-          replyText = `Thưa cô Đặng Loan, kết quả đối chiếu 3 bài nộp tiêu biểu của Lớp 12A1:\n\n• **Bùi Hà My (3.60/4.00đ - Giỏi):** Phân tích sâu nghịch lí tự do và chuỗi buộc – neo – cởi; liên hệ sắc sảo với *Bếp lửa* của Bằng Việt.\n• **Trần Minh Khôi (2.65/4.00đ - TB Khá):** Cảm nhận hình ảnh thơ tốt nhưng hoàn toàn thiếu phần liên hệ tác phẩm ngoài; bị trừ điểm theo đúng hướng dẫn chấm tiêu chí C1.\n• **Nguyễn Lan Anh (3.35/4.00đ - Khá):** Có liên hệ với *Quê hương* của Tế Hanh nhưng cần làm rõ hơn nét riêng trong cách nhìn của Trần Quang Quý.`;
+          replyText = `Thưa Cô Đặng Hoàng Loan, thang điểm 4.0 chuẩn của đề bài được phân bổ như sau:\n\n1. **C1. Nội dung, nghệ thuật & Liên hệ (2.50 điểm):** Phân tích cảm nhận về tự do qua hình ảnh làng quê (1.50đ); liên hệ tác phẩm ngoài và làm rõ nét riêng của tác giả (1.00đ - thiếu phần này trừ điểm nặng).\n2. **C2. Phân tích & Lập luận (0.75 điểm):** Lập luận chặt chẽ, khai thác nghịch lí "không thoát ly bùn đất" và chuỗi "buộc – neo – cởi".\n3. **C3. Diễn đạt & Ngôn ngữ (0.50 điểm):** Đúng chính tả, dùng từ chính xác, câu văn truyền cảm (-0.25đ/lỗi).\n4. **C4. Cấu trúc & Quy cách (0.25 điểm):** Đảm bảo bố cục 3 phần Mở - Thân - Kết của bài nghị luận văn học ~600 chữ.`;
+        } else if (lower.includes('học sinh') || lower.includes('11a14') || lower.includes('12a1') || lower.includes('bài nộp') || lower.includes('phân tích')) {
+          replyText = `Thưa cô Đặng Hoàng Loan, kết quả đối chiếu bài nộp tiêu biểu của Lớp 11A14 (sĩ số 41 học sinh):\n\n• **Đỗ Đăng An (3.60/4.00đ - Giỏi):** Phân tích sâu nghịch lí tự do và chuỗi buộc – neo – cởi; liên hệ sắc sảo với nét riêng tác giả.\n• **Bùi Hà Chi (3.50/4.00đ - Giỏi):** Nắm chắc phong cách thơ Trần Quang Quý, diễn đạt biểu cảm.\n• **Nguyễn Trung Dũng (3.20/4.00đ - Khá):** Cảm nhận hình ảnh thơ tốt nhưng cần mở rộng liên hệ tác phẩm ngoài theo tiêu chí C1.`;
           actionLink = {
             label: 'Xem chi tiết bảng tổng hợp báo cáo lớp →',
             href: '/reports',
@@ -239,7 +239,7 @@ export default function ChatbotPage() {
         } else if (lower.includes('hoạt động') || lower.includes('15 phút') || lower.includes('nhóm')) {
           replyText = `💡 **Kế hoạch hoạt động 15 phút đầu tiết:** *"Đối thoại hai ngọn khói quê hương"*\n\n1. **Khởi động (3 phút):** Chiếu 2 đoạn thơ: ngọn khói rơm rạ trong *Màu tự do của đất* (Trần Quang Quý) và mùi khói bếp trong *Bếp lửa* (Bằng Việt).\n2. **Thảo luận cặp đôi (7 phút):** Tìm 1 điểm gặp gỡ (nỗi nhớ quê hương, cội nguồn) và 1 nét riêng (Trần Quang Quý gắn khói với suy tưởng tự do và lao động; Bằng Việt gắn với ký ức tình bà cháu).\n3. **Đúc kết (5 phút):** Giáo viên chốt bí quyết liên hệ: không chỉ chỉ ra điểm giống mà bắt buộc phải làm bật nét độc đáo của tác giả chính.`;
         } else {
-          replyText = `Thưa cô Đặng Loan, em đã ghi nhận yêu cầu: "${text}".\n\nEduLit Co-Pilot luôn sẵn sàng hỗ trợ cô đối chiếu rubric, rà soát văn bản thơ và xây dựng các câu hỏi gợi mở cho học sinh!`;
+          replyText = `Thưa cô Đặng Hoàng Loan, em đã ghi nhận yêu cầu: "${text}".\n\nEduLit Co-Pilot luôn sẵn sàng hỗ trợ cô đối chiếu rubric, rà soát văn bản thơ và xây dựng các câu hỏi gợi mở cho học sinh!`;
         }
       } else {
         // Student
@@ -337,7 +337,7 @@ export default function ChatbotPage() {
                     <span className="text-[10px] text-secondary font-bold font-mono">v2.4</span>
                   </div>
                   <p className="text-[11px] text-on-surface-variant">
-                    {isTeacher ? 'Hỗ trợ Cô Đặng Loan • THPT Đan Phượng' : 'Đồng hành cùng Bùi Hà My • GDPT 2018'}
+                    {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : 'Đồng hành cùng Đỗ Đăng An • GDPT 2018'}
                   </p>
                 </div>
               </div>
@@ -396,8 +396,8 @@ export default function ChatbotPage() {
                     </h3>
                     <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
                       {isTeacher
-                        ? 'Hỗ trợ Cô Đặng Loan soạn giảng, cấu hình thang điểm 4.0 và phân tích bài viết học sinh Lớp 12A1.'
-                        : 'Đồng hành cùng Bùi Hà My mài giũa tư duy phân tích, khai thác nghịch lí tự do và lập dàn ý đạt điểm cao.'}
+                        ? 'Hỗ trợ Cô Đặng Hoàng Loan soạn giảng, cấu hình thang điểm 4.0 và phân tích bài viết học sinh Lớp 11A14.'
+                        : 'Đồng hành cùng Đỗ Đăng An mài giũa tư duy phân tích, khai thác nghịch lí tự do và lập dàn ý đạt điểm cao.'}
                     </p>
                   </div>
 
@@ -523,8 +523,8 @@ export default function ChatbotPage() {
                   rows={2}
                   placeholder={
                     isTeacher
-                      ? 'Hỏi Cô Đặng Loan: Cấu hình Barem 4.0, phân tích bài nộp 12A1, hoạt động nhóm 15 phút...'
-                      : 'Hỏi Socratic AI: Trọng tâm đề, khói rơm rạ, nghịch lí bùn đất, liên hệ Bếp lửa...'
+                      ? 'Hỏi Cô Đặng Hoàng Loan: Cấu hình Barem 4.0, phân tích bài nộp 11A14, hoạt động nhóm 15 phút...'
+                      : 'Hỏi Socratic AI: Trọng tâm đề, khói rơm rạ, nghịch lí bùn đất, liên hệ tác phẩm ngoài...'
                   }
                   className="w-full px-3 py-1.5 text-xs sm:text-sm bg-transparent text-on-surface placeholder:text-outline focus:outline-none resize-none leading-relaxed"
                 />

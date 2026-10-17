@@ -55,14 +55,14 @@ export default function LoginPage() {
   const handleQuickLoginTeacher = () => {
     setUser(MOCK_TEACHER);
     setRole('teacher');
-    addToast('Đăng nhập nhanh: Cô Đặng Loan (Giáo viên)', 'success');
+    addToast('Đăng nhập nhanh: Cô Đặng Hoàng Loan (Giáo viên)', 'success');
     router.push('/assignments');
   };
 
   const handleQuickLoginStudent = () => {
     setUser(MOCK_STUDENT);
     setRole('student');
-    addToast('Đăng nhập nhanh: Bùi Hà My (Học sinh)', 'success');
+    addToast('Đăng nhập nhanh: Đỗ Đăng An (Học sinh)', 'success');
     router.push('/assignments');
   };
 
@@ -250,19 +250,19 @@ export default function LoginPage() {
                 type="button"
                 onClick={handleQuickLoginTeacher}
                 className="px-2.5 py-1 rounded-md border border-slate-200/90 bg-slate-50 hover:bg-amber-50 hover:border-amber-300 text-slate-700 hover:text-amber-900 transition-all text-[11px] font-medium flex items-center gap-1.5 shadow-2xs"
-                title="Đăng nhập vai trò Giáo viên (Cô Đặng Loan)"
+                title="Đăng nhập vai trò Giáo viên (Cô Đặng Hoàng Loan)"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-                <span>GV: Cô Loan</span>
+                <span>GV: Cô Đặng Hoàng Loan</span>
               </button>
               <button
                 type="button"
                 onClick={handleQuickLoginStudent}
                 className="px-2.5 py-1 rounded-md border border-slate-200/90 bg-slate-50 hover:bg-sky-50 hover:border-sky-300 text-slate-700 hover:text-sky-900 transition-all text-[11px] font-medium flex items-center gap-1.5 shadow-2xs"
-                title="Đăng nhập vai trò Học sinh (Bùi Hà My)"
+                title="Đăng nhập vai trò Học sinh (Đỗ Đăng An)"
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0"></span>
-                <span>HS: Hà My</span>
+                <span>HS: Đỗ Đăng An</span>
               </button>
             </div>
 

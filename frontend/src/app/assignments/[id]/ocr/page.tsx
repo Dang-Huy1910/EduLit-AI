@@ -27,8 +27,8 @@ export default function OcrVerificationPage() {
   const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
   const submission = getStudentSubmission(assignmentId, currentUser.id);
 
-  // Fallback to Bùi Hà My's manifest if submission in memory hasn't been created yet
-  const manifestData = SUBMISSION_MANIFEST[currentUser.id] || SUBMISSION_MANIFEST['user-student-48'];
+  // Fallback to Đỗ Đăng An's manifest if submission in memory hasn't been created yet
+  const manifestData = SUBMISSION_MANIFEST[currentUser.id] || SUBMISSION_MANIFEST['user-student-11a14-001'];
 
   const pages = (submission?.pages && submission.pages.length > 0
     ? submission.pages.map((p, idx) => ({
@@ -97,7 +97,7 @@ export default function OcrVerificationPage() {
                 Bước 4: Kiểm tra &amp; Đối chiếu OCR
               </span>
               <span className="text-xs text-on-surface-variant font-mono">
-                Học sinh: {currentUser.name} ({currentUser.code || 'VN-12A1-048'})
+                Học sinh: {currentUser.name} ({currentUser.code || 'VN-11A14-001'})
               </span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">
@@ -314,7 +314,7 @@ export default function OcrVerificationPage() {
             {/* Bottom Confirm Action */}
             <div className="p-3.5 border-t border-outline-variant/20 bg-surface-container-low/50 rounded-b-xl flex items-center justify-between text-xs">
               <span className="text-on-surface-variant text-[11px]">
-                Đã kiểm tra kỹ 2 trang? Bấm chuyển để xem báo cáo Rubric.
+                Đã đối chiếu kỹ các trang bài làm ({pages.length} trang)? Bấm chuyển để xem kết quả đánh giá Rubric.
               </span>
 
               <button

@@ -107,7 +107,7 @@ export default function AssignmentEditorPage() {
       status: 'published',
       statusLabel: 'Đang mở nộp bài',
     });
-    addToast(`Đã áp dụng ${currentRubric.shortTitle || currentRubric.name} và giao đề "${title}" thành công cho Lớp 12A1!`, 'success');
+    addToast(`Đã áp dụng ${currentRubric.shortTitle || currentRubric.name} và giao đề "${title}" thành công cho Lớp 11A14!`, 'success');
     router.push('/assignments');
   };
 
@@ -177,7 +177,7 @@ export default function AssignmentEditorPage() {
               className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>Xác nhận Rubric &amp; Giao bài cho Lớp 12A1</span>
+              <span>Xác nhận Rubric &amp; Giao bài cho Lớp 11A14</span>
             </button>
           </div>
         </div>
@@ -191,7 +191,7 @@ export default function AssignmentEditorPage() {
                 Quy trình demo: Giáo viên khởi tạo và giao đề bài mới
               </p>
               <p className="text-on-surface-variant leading-relaxed">
-                Hệ thống đã nạp sẵn ngữ liệu bài thơ <strong>&quot;Màu tự do của đất&quot; (Trần Quang Quý)</strong> và hướng dẫn chấm từ file DOCX gốc. Cô giáo chỉ cần chọn Barem phù hợp (Chuẩn 4 tiêu chí hoặc Năng lực sáng tạo 5 tiêu chí), tinh chỉnh trọng số nếu muốn, rồi bấm <strong>&quot;Xác nhận Rubric &amp; Giao bài cho Lớp 12A1&quot;</strong>.
+                Hệ thống đã nạp sẵn ngữ liệu bài thơ <strong>&quot;Màu tự do của đất&quot; (Trần Quang Quý)</strong> và hướng dẫn chấm từ file DOCX gốc. Cô giáo chỉ cần chọn Barem phù hợp (Chuẩn 4 tiêu chí hoặc Năng lực sáng tạo 5 tiêu chí), tinh chỉnh trọng số nếu muốn, rồi bấm <strong>&quot;Xác nhận Rubric &amp; Giao bài cho Lớp 11A14&quot;</strong>.
               </p>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function AssignmentEditorPage() {
                   <span className="material-symbols-outlined text-sm">edit_document</span>
                   1. Thông tin đề bài &amp; Yêu cầu sư phạm
                 </span>
-                <span className="text-xs text-on-surface-variant font-medium">Khối 12 THPT Đan Phượng</span>
+                <span className="text-xs text-on-surface-variant font-medium">Khối 11 THPT Đan Phượng</span>
               </div>
 
               <div>
@@ -235,7 +235,7 @@ export default function AssignmentEditorPage() {
                   <input
                     type="text"
                     disabled
-                    value="Lớp 12A1 • THPT Đan Phượng (40 HS)"
+                    value="Lớp 11A14 • THPT Đan Phượng (41 HS)"
                     className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-low text-on-surface-variant"
                   />
                 </div>
@@ -650,7 +650,7 @@ export default function AssignmentEditorPage() {
                   className="w-full py-2.5 bg-primary-container text-on-primary-container font-bold text-xs rounded-lg hover:brightness-95 transition-all shadow-sm flex items-center justify-center gap-1.5"
                 >
                   <span className="material-symbols-outlined text-base">send</span>
-                  <span>Xác nhận &amp; Giao bài cho Lớp 12A1</span>
+                  <span>Xác nhận &amp; Giao bài cho Lớp 11A14</span>
                 </button>
               </div>
             </div>

@@ -7,6 +7,7 @@ import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { SUBMISSION_MANIFEST } from '@/lib/mock/submissionsManifest';
 
 function compressImage(file: File): Promise<{ dataUrl: string; sizeMb: string }> {
   return new Promise((resolve) => {
@@ -63,12 +64,14 @@ export default function SubmitPhotosPage() {
   const {
     assignments,
     uploadedPages,
+    loadStudentPages,
     loadDemoBuiHaMyPages,
     addCustomUploadedPage,
     removeUploadedPage,
     reorderUploadedPages,
     submitHandwrittenEssay,
     addToast,
+    currentUser,
   } = useAppStore();
 
   const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
@@ -96,9 +99,9 @@ export default function SubmitPhotosPage() {
   // Auto-load student scanned pages if empty
   useEffect(() => {
     if (uploadedPages.length === 0) {
-      loadDemoBuiHaMyPages();
+      loadStudentPages(assignmentId, currentUser.id);
     }
-  }, [uploadedPages.length, loadDemoBuiHaMyPages]);
+  }, [uploadedPages.length, loadStudentPages, assignmentId, currentUser.id]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -129,8 +132,9 @@ export default function SubmitPhotosPage() {
   };
 
   const handleLoadDemo = () => {
-    loadDemoBuiHaMyPages();
-    addToast('Đã đồng bộ 2 trang bài viết tay từ ứng dụng quét!', 'success');
+    loadStudentPages(assignmentId, currentUser.id);
+    const count = (SUBMISSION_MANIFEST[currentUser.id] || SUBMISSION_MANIFEST['user-student-11a14-001'])?.pages?.length || 2;
+    addToast(`Đã đồng bộ ${count} trang bài viết tay của ${currentUser.name || 'học sinh'} từ ứng dụng quét!`, 'success');
   };
 
   const handleSubmit = () => {
@@ -198,7 +202,7 @@ export default function SubmitPhotosPage() {
                   Tải lên trang bài viết tay từ thiết bị
                 </h3>
                 <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                  Đề bài yêu cầu bài viết khoảng 600 chữ (tương đương 2 trang viết tay). Chụp ảnh đủ sáng, giữ phẳng trang giấy và rõ chữ.
+                  Đề bài yêu cầu bài viết khoảng 600 chữ (tương đương 1–4 trang viết tay tuỳ nét chữ). Chụp ảnh đủ sáng, giữ phẳng trang giấy và rõ chữ.
                 </p>
               </div>
 
@@ -227,7 +231,7 @@ export default function SubmitPhotosPage() {
                   className="w-full py-2.5 px-4 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold rounded-xl border border-outline-variant/40 flex items-center justify-center gap-2 transition-all"
                 >
                   <span className="material-symbols-outlined text-base text-secondary">sync</span>
-                  <span>Đồng bộ từ camera / EduLit Scanner (2 trang)</span>
+                  <span>Đồng bộ từ camera / EduLit Scanner ({currentUser.name || 'Học sinh'})</span>
                 </button>
               </div>
 
@@ -250,10 +254,10 @@ export default function SubmitPhotosPage() {
                 <span>Nhắc nhở trước khi nộp bài:</span>
               </span>
               <ul className="space-y-1 text-on-surface-variant text-[11px]">
-                <li>✓ Đúng thứ tự trang (Trang 1: Mở bài và khổ 1-2; Trang 2: Khổ 3-4 và Liên hệ).</li>
+                <li>✓ Đúng thứ tự trang bài làm (đã đánh số trang hoặc theo mạch triển khai).</li>
                 <li>✓ Đã có phân tích nghịch lí &ldquo;không thoát ly bùn đất&rdquo;.</li>
-                <li>✓ Đã có dẫn chứng liên hệ tác phẩm ngoài (Bếp lửa / Quê hương...).</li>
-                <li>✓ Dung lượng bài viết tay tương ứng khoảng 600 chữ.</li>
+                <li>✓ Đã có dẫn chứng liên hệ tác phẩm ngoài (Đồng chí / Quê hương / Bếp lửa...).</li>
+                <li>✓ Dung lượng bài viết tay tương ứng khoảng 600 chữ (1–4 trang).</li>
               </ul>
             </div>
           </div>
@@ -264,12 +268,12 @@ export default function SubmitPhotosPage() {
               <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-4">
                 <div>
                   <h3 className="font-bold text-sm text-on-surface font-merriweather">
-                    Danh sách trang đã nộp ({uploadedPages.length} trang)
+                    Danh sách trang đã tải lên ({uploadedPages.length} trang)
                   </h3>
                   <span className="text-[11px] text-on-surface-variant">
-                    {uploadedPages.length === 2
-                      ? 'Đủ 2 trang theo đúng quy định đề bài.'
-                      : 'Cần nộp đủ 2 trang theo thứ tự.'}
+                    {uploadedPages.length > 0
+                      ? `Đã nạp ${uploadedPages.length} trang bài làm, sẵn sàng đối chiếu OCR.`
+                      : 'Vui lòng chọn ảnh bài làm hoặc bấm đồng bộ từ máy quét (hỗ trợ 1–4 trang).'}
                   </span>
                 </div>
 

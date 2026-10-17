@@ -22,7 +22,7 @@ export default function TeacherStudentResultPage() {
       breadcrumb={
         <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
           <Link href="/reports" className="hover:text-primary">
-            Báo cáo lớp 12A1
+            Báo cáo lớp 11A14
           </Link>
           <span className="text-outline-variant">/</span>
           {submission ? (

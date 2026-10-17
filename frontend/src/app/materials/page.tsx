@@ -60,7 +60,7 @@ export default function MaterialsPage() {
         addMaterial({
           title: newTitle,
           purpose: newPurpose,
-          classId: '12A1',
+          classId: '11A14',
           status: 'FAILED',
           errorMessage: 'Quét scan mờ, văn bản bị đứt nét không thể bóc tách cấu trúc.',
         });
@@ -69,9 +69,9 @@ export default function MaterialsPage() {
         addMaterial({
           title: newTitle,
           purpose: newPurpose,
-          classId: '12A1',
+          classId: '11A14',
           status: 'READY',
-          excerpt: pastedText || '“Học liệu mới đã được chuẩn hóa ngữ nghĩa và sẵn sàng liên kết với các bài viết của khối 12.”',
+          excerpt: pastedText || '“Học liệu mới đã được chuẩn hóa ngữ nghĩa và sẵn sàng liên kết với các bài viết của khối 11.”',
         });
         addToast('Bóc tách học liệu thành công! Trạng thái: Sẵn sàng.', 'success');
       }
@@ -463,7 +463,7 @@ export default function MaterialsPage() {
                   <input
                     type="text"
                     disabled
-                    value="Lớp 12A1 • THPT Đan Phượng"
+                    value="Lớp 11A14 • THPT Đan Phượng (41 HS)"
                     className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-surface-container-low text-on-surface-variant"
                   />
                 </div>

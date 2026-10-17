@@ -206,7 +206,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             {breadcrumb || (
               <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px] text-outline">school</span>
-                <span>Lớp 12A1 • THPT Đan Phượng</span>
+                <span>Lớp 11A14 • THPT Đan Phượng</span>
                 <span className="text-outline-variant">/</span>
                 <span className="text-on-surface font-semibold">Nghị luận xã hội GDPT 2018</span>
               </div>

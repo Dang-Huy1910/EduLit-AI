@@ -67,7 +67,7 @@ export default function TeacherAssignmentsView() {
             <div>
               <span className="text-xs text-on-surface-variant font-medium">Lớp phụ trách</span>
               <div className="text-base font-bold text-on-surface mt-0.5">
-                Lớp 12A1 • THPT Đan Phượng (40 HS)
+                Lớp 11A14 • THPT Đan Phượng (41 HS)
               </div>
               <span className="text-[11px] text-secondary font-semibold">Học kỳ I • Năm học 2026-2027</span>
             </div>
@@ -83,7 +83,7 @@ export default function TeacherAssignmentsView() {
                 {hasCentralAssignment ? '01 bài đang mở nộp' : '02 bài đã hoàn thành'}
               </div>
               <span className="text-[11px] text-tertiary font-semibold">
-                {hasCentralAssignment ? 'Lớp 12A1 đang làm bài' : '40/40 học sinh đã nộp'}
+                {hasCentralAssignment ? 'Lớp 11A14 đang làm bài' : '41/41 học sinh đã nộp'}
               </span>
             </div>
             <div className="w-10 h-10 rounded-full bg-tertiary-container/30 text-tertiary flex items-center justify-center font-bold text-xs">
@@ -260,7 +260,7 @@ export default function TeacherAssignmentsView() {
                     <div>
                       <span className="text-[10px] text-outline block">Bài đã chấm:</span>
                       <span className="font-semibold text-on-surface">
-                        {assignment.assessedSubmissions}/{assignment.totalSubmissions || 40}
+                        {assignment.assessedSubmissions}/{assignment.totalSubmissions || 41}
                       </span>
                     </div>
                   </div>
