@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -117,32 +117,48 @@ class Settings(BaseSettings):
         return origin
 
     def _to_async_url(self, url: str) -> str:
-        if url.startswith("postgresql+asyncpg://"):
-            res = url
-        elif url.startswith("postgresql://"):
-            res = "postgresql+asyncpg://" + url[len("postgresql://") :]
-        elif url.startswith("postgres://"):
-            res = "postgresql+asyncpg://" + url[len("postgres://") :]
-        else:
-            res = url
-        if "sslmode=" in res:
-            res = res.replace("sslmode=", "ssl=")
-        return res
+        parts = urlsplit(url)
+        scheme = parts.scheme
+        if scheme in ("postgresql", "postgres"):
+            scheme = "postgresql+asyncpg"
+        elif scheme == "postgresql+asyncpg":
+            pass
+        elif scheme.startswith("postgresql+"):
+            scheme = "postgresql+asyncpg"
+
+        query_params = parse_qsl(parts.query)
+        cleaned_params = []
+        for k, v in query_params:
+            if k in ("channel_binding", "gssencmode"):
+                continue
+            if k == "sslmode":
+                cleaned_params.append(("ssl", "require" if v != "disable" else "disable"))
+            elif k == "ssl":
+                cleaned_params.append((k, v))
+            else:
+                cleaned_params.append((k, v))
+
+        new_query = urlencode(cleaned_params)
+        return urlunsplit((scheme, parts.netloc, parts.path, new_query, parts.fragment))
 
     def _to_sync_url(self, url: str) -> str:
-        if url.startswith("postgresql+psycopg2://"):
-            res = url
-        elif url.startswith("postgresql+asyncpg://"):
-            res = "postgresql+psycopg2://" + url[len("postgresql+asyncpg://") :]
-        elif url.startswith("postgresql://"):
-            res = "postgresql+psycopg2://" + url[len("postgresql://") :]
-        elif url.startswith("postgres://"):
-            res = "postgresql+psycopg2://" + url[len("postgres://") :]
-        else:
-            res = url
-        if "ssl=" in res and "sslmode=" not in res:
-            res = res.replace("ssl=", "sslmode=")
-        return res
+        parts = urlsplit(url)
+        scheme = parts.scheme
+        if scheme in ("postgresql", "postgres", "postgresql+asyncpg"):
+            scheme = "postgresql+psycopg2"
+        elif scheme.startswith("postgresql+"):
+            scheme = "postgresql+psycopg2"
+
+        query_params = parse_qsl(parts.query)
+        cleaned_params = []
+        for k, v in query_params:
+            if k == "ssl" and "sslmode" not in [pk for pk, _ in query_params]:
+                cleaned_params.append(("sslmode", v))
+            else:
+                cleaned_params.append((k, v))
+
+        new_query = urlencode(cleaned_params)
+        return urlunsplit((scheme, parts.netloc, parts.path, new_query, parts.fragment))
 
     @property
     def async_database_url(self) -> str:
