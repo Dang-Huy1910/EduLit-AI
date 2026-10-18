@@ -87,7 +87,7 @@ Bắt buộc: `APP_ENV=production`, `APP_ORIGIN` HTTPS, SMTP thật, `COOKIE_SEC
 
 Triển khai Socratic Writing Scaffold Agent (FR-06 đến FR-10) trên Python backend.
 
-OpenAI dùng Responses API của SDK (`responses.parse` + `text_format`). Retry hạ tầng do SDK (`AI_MAX_RETRIES`). Prompt nạp từ package `app.ai.prompts.socratic` theo `SOCRATIC_PROMPT_VERSION` (không phụ thuộc cwd).
+OpenAI dùng Responses API của SDK (`responses.parse` + `text_format`). Retry hạ tầng do SDK (`AI_MAX_RETRIES`). Prompt chính thức nằm ở `prompts/socratic/`; build đóng gói vào `app.ai.prompts.socratic` theo `SOCRATIC_PROMPT_VERSION` (không phụ thuộc cwd).
 
 ### Cấu hình
 
@@ -105,7 +105,7 @@ SOCRATIC_PROMPT_VERSION=v1
 
 `AI_MODEL` bắt buộc với openai/gemini. Thiếu khóa hoặc model → HTTP 503 `AI_UNAVAILABLE`, không fallback giả thành công.
 
-Migration: `0002_socratic_schema` (đã có) rồi `0003_socratic_reservation_access` (reservation, assignment_access, outline constraints). Không tự chạy trên DB development/production trong test.
+Migration: `0002_socratic_schema`, `0003_socratic_reservation_access`, rồi `0004_socratic_outline_backfill` (backfill `outline_version`, chuẩn hoá ACCEPTED cũ). Không tự chạy trên DB development/production trong test.
 
 ### Seed demo (development/test)
 

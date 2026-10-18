@@ -40,6 +40,11 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.cmdclass]
+build_py = "_prompt_build.build_py"
+sdist = "_prompt_build.sdist"
+editable_wheel = "_prompt_build.editable_wheel"
+
 [tool.setuptools.package-data]
 "app.ai.prompts" = ["socratic/*.md"]
 "app.ai.prompts.socratic" = ["*.md"]

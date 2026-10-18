@@ -282,30 +282,46 @@ def _as_state(value: SocraticGraphState | dict[str, Any]) -> SocraticGraphState:
 
 
 def build_workflow(ai_port: AiPort):
-    """Linear graph: pre_guardrail → call_ai → post_guardrail.
+    """StateGraph: pre_guardrail → call_ai → post_guardrail, with one correction.
 
-    Retry is NOT encoded as an unbounded cycle. `run_turn` drives at most
-    one correction call in Python.
+    A PENDING post-guardrail routes back to call_ai once. The second
+    post_guardrail either validates or falls back. Recursion limit is a
+    safety cap, not the retry mechanism.
     """
-    from functools import partial
-
     from langgraph.graph import END, StateGraph
 
+    async def call_ai_node(state: SocraticGraphState | dict[str, Any]) -> SocraticGraphState:
+        return await call_ai(_as_state(state), ai_port)
+
+    def pre_node(state: SocraticGraphState | dict[str, Any]) -> SocraticGraphState:
+        return pre_guardrail(_as_state(state))
+
+    def post_node(state: SocraticGraphState | dict[str, Any]) -> SocraticGraphState:
+        return post_guardrail(_as_state(state))
+
     workflow = StateGraph(SocraticGraphState)
-    workflow.add_node("pre_guardrail", pre_guardrail)
-    workflow.add_node("call_ai", partial(call_ai, ai_port=ai_port))
-    workflow.add_node("post_guardrail", post_guardrail)
+    workflow.add_node("pre_guardrail", pre_node)
+    workflow.add_node("call_ai", call_ai_node)
+    workflow.add_node("post_guardrail", post_node)
     workflow.set_entry_point("pre_guardrail")
 
-    def after_pre(state: SocraticGraphState) -> str:
+    def after_pre(state: SocraticGraphState | dict[str, Any]) -> str:
         current = _as_state(state)
         if current.response_status == "FALLBACK":
             return END
         return "call_ai"
 
+    def after_post(state: SocraticGraphState | dict[str, Any]) -> str:
+        current = _as_state(state)
+        if current.response_status == "PENDING":
+            return "call_ai"
+        return END
+
     workflow.add_conditional_edges("pre_guardrail", after_pre, {"call_ai": "call_ai", END: END})
     workflow.add_edge("call_ai", "post_guardrail")
-    workflow.add_edge("post_guardrail", END)
+    workflow.add_conditional_edges(
+        "post_guardrail", after_post, {"call_ai": "call_ai", END: END}
+    )
     return workflow.compile()
 
 
@@ -368,18 +384,10 @@ async def run_turn(
         max_output_tokens=max_output_tokens,
     )
 
-    state = pre_guardrail(state)
-    if state.response_status == "FALLBACK":
-        return _to_result(state, ai_port)
-
+    graph = build_workflow(ai_port)
     try:
-        for attempt in range(MAX_MODEL_ATTEMPTS):
-            state = await call_ai(state, ai_port)
-            state = post_guardrail(state)
-            if state.response_status in {"VALIDATED", "FALLBACK"}:
-                break
-            if attempt == 0 and state.response_status == "PENDING":
-                continue
+        final = await graph.ainvoke(state, {"recursion_limit": 8})
+        state = _as_state(final)
         if state.response_status == "PENDING":
             _apply_fallback(state)
         return _to_result(state, ai_port)

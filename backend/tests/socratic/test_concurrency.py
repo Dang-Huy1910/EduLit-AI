@@ -10,11 +10,22 @@ import pytest
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.adapters import FakeAiAdapter
+from app.ai.adapters import AiUnavailableError, FakeAiAdapter
 from app.core.http import utcnow
-from app.db.models import OutlineRevision, OutlineRevisionStatus, SocraticSession
+from app.db.models import (
+    IdempotencyRecord,
+    IdempotencyState,
+    OutlineRevision,
+    OutlineRevisionStatus,
+    SocraticSession,
+    SocraticState,
+)
 from app.db.session import get_session_factory
-from app.services.socratic_service import ConflictError, SocraticService
+from app.services.socratic_service import (
+    AiUnavailableServiceError,
+    ConflictError,
+    SocraticService,
+)
 from tests.socratic.test_service import VALID_AI
 
 
@@ -160,3 +171,116 @@ async def test_concurrent_outline_same_expected_version_one_wins(
         )
     ).scalars().all()
     assert len(accepted) == 1
+
+
+@pytest.mark.asyncio
+async def test_stale_worker_fail_does_not_flip_winner_completed(
+    db_session: AsyncSession, student_user: dict, published_assignment: dict
+) -> None:
+    factory = get_session_factory()
+    setup = SocraticService(db_session, ai_port=FakeAiAdapter())
+    session = await setup.create_session(student_user["user"], published_assignment["code"])
+    await db_session.commit()
+
+    stale_ai = FakeAiAdapter()
+    stale_ai.hold_before_generate = asyncio.Event()
+    stale_ai.release_generate = asyncio.Event()
+    stale_ai.set_fail_next(AiUnavailableError)
+    winner_ai = FakeAiAdapter()
+    winner_ai.add_response(VALID_AI)
+    key = "shared-lease-key"
+    payload = "cùng một lượt"
+
+    async with factory() as s1, factory() as s2:
+        stale = SocraticService(s1, ai_port=stale_ai)
+        winner = SocraticService(s2, ai_port=winner_ai)
+        t_stale = asyncio.create_task(
+            stale.process_turn(
+                session.id, student_user["user"], payload, idempotency_key=key
+            )
+        )
+        await asyncio.wait_for(stale_ai.hold_before_generate.wait(), timeout=5)
+        await s2.execute(
+            update(SocraticSession)
+            .where(SocraticSession.id == session.id)
+            .values(reservation_expires_at=utcnow() - timedelta(seconds=5))
+        )
+        await s2.commit()
+        msg, _ = await winner.process_turn(
+            session.id, student_user["user"], payload, idempotency_key=key
+        )
+        stale_ai.release_generate.set()
+        with pytest.raises(AiUnavailableServiceError):
+            await t_stale
+        assert msg.content
+        assert winner_ai.call_count == 1
+
+    record = (
+        await db_session.execute(
+            select(IdempotencyRecord).where(
+                IdempotencyRecord.user_id == student_user["id"],
+                IdempotencyRecord.resource_id == msg.id,
+            )
+        )
+    ).scalar_one()
+    assert record.state == IdempotencyState.COMPLETED
+
+    replay_ai = FakeAiAdapter()
+    replay_ai.add_response(VALID_AI)
+    async with factory() as s3:
+        replay = SocraticService(s3, ai_port=replay_ai)
+        msg2, _ = await replay.process_turn(
+            session.id, student_user["user"], payload, idempotency_key=key
+        )
+        assert msg2.id == msg.id
+        assert replay_ai.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_review_conflicts_when_outline_updated_concurrently(
+    db_session: AsyncSession, student_user: dict, published_assignment: dict
+) -> None:
+    factory = get_session_factory()
+    setup = SocraticService(db_session, ai_port=FakeAiAdapter())
+    session = await setup.create_session(student_user["user"], published_assignment["code"])
+    session.state = SocraticState.OUTLINE
+    await db_session.commit()
+    rev = await setup.update_outline(
+        session.id,
+        student_user["user"],
+        {"thesis": "Luận đề cũ", "sections": [{"title": "Mở"}]},
+        0,
+    )
+
+    async with factory() as s1, factory() as s2:
+        reviewer = SocraticService(s1, ai_port=FakeAiAdapter())
+        reviewer.after_review_load = asyncio.Event()
+        reviewer.hold_review = asyncio.Event()
+        t_review = asyncio.create_task(
+            reviewer.review_outline(session.id, student_user["user"], rev.id)
+        )
+        await asyncio.wait_for(reviewer.after_review_load.wait(), timeout=5)
+        editor = SocraticService(s2, ai_port=FakeAiAdapter())
+        await editor.update_outline(
+            session.id,
+            student_user["user"],
+            {"thesis": "Luận đề mới", "sections": [{"title": "Mở"}]},
+            expected_version=1,
+        )
+        reviewer.hold_review.set()
+        with pytest.raises(ConflictError) as exc:
+            await t_review
+        assert exc.value.code == "OUTLINE_NOT_CURRENT"
+
+    await db_session.refresh(session)
+    assert session.outline_version == 2
+    assert session.state != SocraticState.REVIEW
+    current = (
+        await db_session.execute(
+            select(OutlineRevision).where(
+                OutlineRevision.session_id == session.id,
+                OutlineRevision.revision == 2,
+            )
+        )
+    ).scalar_one()
+    assert current.content["thesis"] == "Luận đề mới"

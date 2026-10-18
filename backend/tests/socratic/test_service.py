@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import uuid
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.adapters import AiUnavailableError, FakeAiAdapter
+from app.core.http import utcnow
 from app.db.models import (
     ChatMessage,
     ChatRole,
+    IdempotencyRecord,
+    IdempotencyState,
     MessageStatus,
     OutlineRevision,
     OutlineRevisionStatus,
+    SocraticSession,
     SocraticState,
 )
 from app.db.models.socratic import AssignmentAccess
@@ -24,6 +29,8 @@ from app.services.socratic_service import (
     ForbiddenError,
     NotFoundError,
     SocraticService,
+    _hash_payload,
+    _legacy_hash_key,
 )
 from tests.conftest import grant_assignment_access
 
@@ -332,6 +339,50 @@ class TestIdempotency:
         ).scalars().all()
         assert len(students) == 1
 
+    @pytest.mark.asyncio
+    async def test_legacy_16_char_key_hash_replays_without_new_turn(
+        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+    ):
+        service = _service(db_session)
+        session = await service.create_session(
+            student_user["user"], published_assignment["code"]
+        )
+        msg, _ = await service.process_turn(
+            session.id, student_user["user"], "Cùng nội dung cũ"
+        )
+        key = "legacy-upgrade-key"
+        payload = "Cùng nội dung cũ"
+        db_session.add(
+            IdempotencyRecord(
+                user_id=student_user["id"],
+                route=f"/socratic-sessions/{session.id}/messages",
+                key_hash=_legacy_hash_key(key),
+                request_hash=_hash_payload(payload),
+                state=IdempotencyState.COMPLETED,
+                resource_id=msg.id,
+                cached_response={},
+                expires_at=utcnow() + timedelta(hours=24),
+            )
+        )
+        await db_session.commit()
+        ai = FakeAiAdapter()
+        ai.add_response(VALID_AI)
+        replay = SocraticService(db_session, ai_port=ai)
+        msg2, _ = await replay.process_turn(
+            session.id,
+            student_user["user"],
+            payload,
+            idempotency_key=key,
+        )
+        assert msg2.id == msg.id
+        assert ai.call_count == 0
+        turns = (
+            await db_session.execute(
+                select(ChatMessage).where(ChatMessage.session_id == session.id)
+            )
+        ).scalars().all()
+        assert {m.turn_id for m in turns} == {1}
+
 
 class TestOutlineManagement:
     @pytest.mark.asyncio
@@ -481,6 +532,85 @@ class TestOutlineManagement:
             session.id, student_user["user"], rev.id
         )
         assert readiness == "INCONCLUSIVE"
+
+
+class TestFsmReviewGate:
+    @pytest.mark.asyncio
+    async def test_ai_cannot_enter_review_when_outline_not_ready(
+        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+    ):
+        ai = FakeAiAdapter()
+        ai.add_response(
+            '{"message": "Em muốn rà soát luận điểm nào trước?",'
+            ' "suggested_state": "REVIEW", "sources": []}'
+        )
+        service = _service(db_session, ai)
+        session = await service.create_session(
+            student_user["user"], published_assignment["code"]
+        )
+        session.state = SocraticState.OUTLINE
+        await db_session.commit()
+        await service.process_turn(
+            session.id, student_user["user"], "Cho em sang bước rà soát"
+        )
+        await db_session.refresh(session)
+        assert session.state == SocraticState.OUTLINE
+
+    @pytest.mark.asyncio
+    async def test_ai_enters_review_only_when_current_outline_ready(
+        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+    ):
+        ai = FakeAiAdapter()
+        ai.add_response(
+            '{"message": "Em muốn rà soát luận điểm nào trước?",'
+            ' "suggested_state": "REVIEW", "sources": []}'
+        )
+        service = _service(db_session, ai)
+        session = await service.create_session(
+            student_user["user"], published_assignment["code"]
+        )
+        session.state = SocraticState.OUTLINE
+        await db_session.commit()
+        await service.update_outline(
+            session.id,
+            student_user["user"],
+            {"thesis": "Luận đề đủ", "sections": [{"title": "Mở"}]},
+            0,
+        )
+        await service.process_turn(
+            session.id, student_user["user"], "Dàn ý đã xong, em muốn rà soát"
+        )
+        await db_session.refresh(session)
+        assert session.state == SocraticState.REVIEW
+
+
+class TestChatHistoryWindow:
+    @pytest.mark.asyncio
+    async def test_load_session_context_uses_latest_messages(
+        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+    ):
+        service = _service(db_session)
+        session = await service.create_session(
+            student_user["user"], published_assignment["code"]
+        )
+        for i in range(1, 26):
+            db_session.add(
+                ChatMessage(
+                    session_id=session.id,
+                    turn_id=i,
+                    role=ChatRole.STUDENT,
+                    content=f"msg-{i}",
+                    status=MessageStatus.VALIDATED,
+                )
+            )
+        await db_session.commit()
+        loaded = await db_session.get(SocraticSession, session.id)
+        ctx = await service._load_session_context(loaded)
+        contents = [row["content"] for row in ctx["chat_history"]]
+        assert "msg-25" in contents
+        assert "msg-24" in contents
+        assert "msg-1" not in contents
+        assert contents == sorted(contents, key=lambda c: int(c.split("-")[1]))
 
 
 class TestPagination:

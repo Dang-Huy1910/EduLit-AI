@@ -1,8 +1,9 @@
-"""Load versioned Socratic prompt assets from the installed package.
+"""Load versioned Socratic prompt assets from one official source.
 
 Canonical authoring copies live in repository `prompts/socratic/`.
-Runtime loading uses package data (`app.ai.prompts`) via importlib.resources
-so prompts work after install, outside the repository cwd.
+Build copies those files into package data (`app.ai.prompts.socratic`).
+Runtime prefers the canonical file when the source tree is present, and
+falls back to importlib.resources so a wheel works outside the repo cwd.
 """
 
 from __future__ import annotations
@@ -11,9 +12,11 @@ import hashlib
 import re
 from dataclasses import dataclass
 from importlib import resources
+from pathlib import Path
 
 PROMPT_PACKAGE = "app.ai.prompts.socratic"
 SOCRATIC_SCHEMA_VERSION = "socratic_output.v1"
+CANONICAL_DIRNAME = Path("prompts") / "socratic"
 
 _VERSION_RE = re.compile(r"^v?\d+(\.\d+)*$")
 
@@ -54,30 +57,48 @@ def _filename_for(version: str) -> str:
     return f"system.{version}.md"
 
 
-def load_socratic_prompt(version: str) -> PromptAsset:
-    """Load the Socratic system prompt for the configured version.
+def _canonical_file(filename: str) -> Path | None:
+    """Return the repo canonical prompt when this module lives in a checkout.
 
-    The configured version selects the packaged file. A missing v2 file is
-    an error; v1 is never silently substituted.
+    `backend/app/ai/prompt_assets.py` → repo root is parents[3].
+    A wheel install has no `prompts/socratic` next to that path.
     """
-    normalized = _normalize_version(version)
-    filename = _filename_for(normalized)
+    repo_root = Path(__file__).resolve().parents[3]
+    candidate = repo_root / CANONICAL_DIRNAME / filename
+    if candidate.is_file():
+        return candidate
+    return None
+
+
+def _packaged_bytes(filename: str) -> bytes | None:
     try:
         package = resources.files(PROMPT_PACKAGE)
         asset = package.joinpath(filename)
-        if not asset.is_file():
-            raise PromptAssetError(
-                version,
-                f"asset {filename} is not packaged; available versions must match SOCRATIC_PROMPT_VERSION",
-            )
-        data = asset.read_bytes()
-    except PromptAssetError:
-        raise
-    except Exception as exc:
+        if asset.is_file():
+            return asset.read_bytes()
+    except (FileNotFoundError, ModuleNotFoundError, NotADirectoryError, OSError):
+        return None
+    return None
+
+
+def load_socratic_prompt(version: str) -> PromptAsset:
+    """Load the Socratic system prompt for the configured version.
+
+    The configured version selects the file. A missing v2 file is an
+    error; v1 is never silently substituted.
+    """
+    normalized = _normalize_version(version)
+    filename = _filename_for(normalized)
+    canonical = _canonical_file(filename)
+    if canonical is not None:
+        data = canonical.read_bytes()
+    else:
+        data = _packaged_bytes(filename)
+    if data is None:
         raise PromptAssetError(
             version,
-            f"cannot load packaged prompt {filename} via importlib.resources",
-        ) from exc
+            f"asset {filename} is not packaged; available versions must match SOCRATIC_PROMPT_VERSION",
+        )
 
     text = data.decode("utf-8")
     digest = hashlib.sha256(data).hexdigest()

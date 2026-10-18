@@ -80,7 +80,21 @@ class AiUnavailableServiceError(SocraticServiceError):
 
 
 def _hash_key(key: str) -> str:
+    """Current idempotency key digest (32 hex chars)."""
     return hashlib.sha256(key.encode()).hexdigest()[:32]
+
+
+def _legacy_hash_key(key: str) -> str:
+    """Pre-upgrade idempotency key digest (16 hex chars)."""
+    return hashlib.sha256(key.encode()).hexdigest()[:16]
+
+
+def _key_hashes(key: str) -> tuple[str, ...]:
+    modern = _hash_key(key)
+    legacy = _legacy_hash_key(key)
+    if modern == legacy:
+        return (modern,)
+    return (modern, legacy)
 
 
 def _hash_payload(payload: str) -> str:
@@ -126,6 +140,9 @@ class SocraticService:
         self.db = db
         self.settings = settings or get_settings()
         self._ai_port = ai_port
+        # Optional test hooks for review/outline races (Events).
+        self.after_review_load: Any = None
+        self.hold_review: Any = None
 
     def _ensure_ai_port(self) -> AiPort:
         if self._ai_port is None:
@@ -522,14 +539,26 @@ class SocraticService:
     async def _get_idempotency_row(
         self, user_id: uuid.UUID, session_id: uuid.UUID, key: str
     ) -> IdempotencyRecord | None:
+        hashes = _key_hashes(key)
         result = await self.db.execute(
             select(IdempotencyRecord).where(
                 IdempotencyRecord.user_id == user_id,
                 IdempotencyRecord.route == self._route(session_id),
-                IdempotencyRecord.key_hash == _hash_key(key),
+                IdempotencyRecord.key_hash.in_(hashes),
             )
         )
-        return result.scalar_one_or_none()
+        rows = list(result.scalars().all())
+        if not rows:
+            return None
+        modern = _hash_key(key)
+
+        def _rank(row: IdempotencyRecord) -> tuple[int, int]:
+            completed = 1 if row.state == IdempotencyState.COMPLETED else 0
+            current_hash = 1 if row.key_hash == modern else 0
+            return (completed, current_hash)
+
+        rows.sort(key=_rank, reverse=True)
+        return rows[0]
 
     async def _upsert_idempotency_processing(
         self,
@@ -635,7 +664,7 @@ class SocraticService:
         if self.db.in_transaction():
             await self.db.rollback()
         now = utcnow()
-        await self.db.execute(
+        claimed = await self.db.execute(
             update(SocraticSession)
             .where(
                 SocraticSession.id == session_id,
@@ -647,11 +676,16 @@ class SocraticService:
                 processing_turn=None,
                 updated_at=now,
             )
+            .returning(SocraticSession.id)
         )
-        if idempotency_id is not None:
+        still_holds_lease = claimed.one_or_none() is not None
+        if still_holds_lease and idempotency_id is not None:
             await self.db.execute(
                 update(IdempotencyRecord)
-                .where(IdempotencyRecord.id == idempotency_id)
+                .where(
+                    IdempotencyRecord.id == idempotency_id,
+                    IdempotencyRecord.state == IdempotencyState.PROCESSING,
+                )
                 .values(state=IdempotencyState.FAILED, updated_at=now)
             )
         await self.db.commit()
@@ -761,6 +795,18 @@ class SocraticService:
         last_turn = result.scalar_one_or_none()
         return int(last_turn or 0) + 1
 
+    async def _current_outline_content(self, session: SocraticSession) -> dict[str, Any] | None:
+        if session.outline_version == 0:
+            return None
+        result = await self.db.execute(
+            select(OutlineRevision).where(
+                OutlineRevision.session_id == session.id,
+                OutlineRevision.revision == session.outline_version,
+            )
+        )
+        row = result.scalar_one_or_none()
+        return row.content if row is not None else None
+
     async def _try_transition_state(self, session: SocraticSession, new_state: str) -> bool:
         valid_transitions = {
             SocraticState.INIT: [SocraticState.THESIS],
@@ -772,10 +818,26 @@ class SocraticService:
             target = SocraticState(new_state)
         except ValueError:
             return False
-        if target in valid_transitions.get(session.state, []):
-            session.state = target
-            return True
-        return False
+        if target not in valid_transitions.get(session.state, []):
+            return False
+        if target == SocraticState.REVIEW:
+            outline = await self._current_outline_content(session)
+            assignment = session.assignment_revision
+            if assignment is None:
+                assignment = await self.db.get(
+                    AssignmentRevision, session.assignment_revision_id
+                )
+            policy = (assignment.readiness_policy if assignment is not None else None) or {}
+            readiness = evaluate_readiness(outline, policy)
+            if readiness != "READY":
+                logger.info(
+                    "reject REVIEW transition session_id=%s readiness=%s",
+                    session.id,
+                    readiness,
+                )
+                return False
+        session.state = target
+        return True
 
     async def _load_session_context(
         self, session: SocraticSession, exclude_turn_id: int | None = None
@@ -804,11 +866,19 @@ class SocraticService:
         if exclude_turn_id is not None:
             history_q = history_q.where(ChatMessage.turn_id != exclude_turn_id)
         history_q = history_q.order_by(
-            ChatMessage.turn_id.asc(),
-            case((ChatMessage.role == ChatRole.STUDENT, 0), else_=1),
-            ChatMessage.created_at.asc(),
+            ChatMessage.turn_id.desc(),
+            ChatMessage.created_at.desc(),
+            ChatMessage.id.desc(),
         ).limit(20)
         chat_history = list((await self.db.execute(history_q)).scalars().all())
+        chat_history.sort(
+            key=lambda m: (
+                m.turn_id,
+                0 if m.role == ChatRole.STUDENT else 1,
+                m.created_at,
+                m.id,
+            )
+        )
         return {
             "rubric": revision.rubric or {},
             "context_chunks": revision.context_chunks or [],
@@ -931,14 +1001,50 @@ class SocraticService:
                 "OUTLINE_SUPERSEDED",
             )
 
+        if self.after_review_load is not None:
+            self.after_review_load.set()
+        if self.hold_review is not None:
+            await self.hold_review.wait()
+
+        now = utcnow()
         policy = session.assignment_revision.readiness_policy or {}
         readiness = evaluate_readiness(revision.content, policy)
+        values: dict[str, Any] = {"updated_at": now}
+        if readiness == "READY" and session.state in {
+            SocraticState.OUTLINE,
+            SocraticState.THESIS,
+        }:
+            values["state"] = SocraticState.REVIEW
+            values["version"] = SocraticSession.version + 1
+
+        cas = await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.outline_version == revision.revision,
+            )
+            .values(**values)
+            .returning(SocraticSession.id)
+        )
+        if cas.one_or_none() is None:
+            raise ConflictError(
+                "Outline changed during review",
+                "OUTLINE_NOT_CURRENT",
+            )
         if revision.review_status != OutlineRevisionStatus.ACCEPTED:
-            revision.review_status = OutlineRevisionStatus.ACCEPTED
-        if readiness == "READY" and session.state in {SocraticState.OUTLINE, SocraticState.THESIS}:
-            session.state = SocraticState.REVIEW
-            session.version += 1
-        session.updated_at = utcnow()
+            still_current = await self.db.execute(
+                select(OutlineRevision).where(
+                    OutlineRevision.id == revision.id,
+                    OutlineRevision.review_status != OutlineRevisionStatus.SUPERSEDED,
+                )
+            )
+            current_row = still_current.scalar_one_or_none()
+            if current_row is None:
+                raise ConflictError(
+                    "Outline changed during review",
+                    "OUTLINE_NOT_CURRENT",
+                )
+            current_row.review_status = OutlineRevisionStatus.ACCEPTED
         await self.db.commit()
         await self.db.refresh(revision)
         return revision, readiness

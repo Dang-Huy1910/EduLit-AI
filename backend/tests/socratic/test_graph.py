@@ -151,3 +151,32 @@ async def test_pre_guardrail_write_for_me_does_not_call_model() -> None:
     result = await _run(ai, student_input="viết hộ tôi đoạn mở bài")
     assert ai.call_count == 0
     assert result.status == "FALLBACK"
+
+
+@pytest.mark.asyncio
+async def test_run_turn_invokes_compiled_state_graph(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.workflows import socratic_graph as graph_mod
+
+    invoked: list[str] = []
+    real_build = graph_mod.build_workflow
+
+    def wrapped(ai_port):
+        compiled = real_build(ai_port)
+        real_ainvoke = compiled.ainvoke
+
+        async def counted_ainvoke(state, config=None):
+            invoked.append("ainvoke")
+            if config is None:
+                return await real_ainvoke(state)
+            return await real_ainvoke(state, config)
+
+        compiled.ainvoke = counted_ainvoke  # type: ignore[method-assign]
+        return compiled
+
+    monkeypatch.setattr(graph_mod, "build_workflow", wrapped)
+    ai = FakeAiAdapter()
+    ai.add_response(VALID)
+    result = await _run(ai)
+    assert invoked == ["ainvoke"]
+    assert result.status == "VALIDATED"
+    assert ai.call_count == 1
