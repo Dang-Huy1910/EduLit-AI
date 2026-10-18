@@ -42,8 +42,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       const dest = user?.role === 'TEACHER' ? '/assignments' : '/assignments';
       router.replace(dest);
     }
-    if (status === 'unauthenticated' && !isPublicAuth && pathname !== '/') {
-      const returnTo = isSafeReturnTo(pathname) ? `?returnTo=${encodeURIComponent(pathname)}` : '';
+    if (status === 'unauthenticated' && !isPublicAuth) {
+      const returnTo = pathname !== '/' && isSafeReturnTo(pathname) ? `?returnTo=${encodeURIComponent(pathname)}` : '';
       router.replace(`/login${returnTo}`);
     }
   }, [status, pathname, isPublicAuth, router, user]);
