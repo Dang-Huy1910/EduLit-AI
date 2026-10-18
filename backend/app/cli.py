@@ -104,6 +104,108 @@ async def cleanup_expired(settings: Settings) -> None:
         )
 
 
+async def seed_demo(settings: Settings) -> None:
+    from app.db.models.socratic import AssignmentRevision
+
+    factory = _session_factory(settings)
+    async with factory() as session:
+        # 1. Bootstrap teacher
+        await bootstrap_teacher(settings, reset_password=False)
+
+        # 2. Seed student
+        student_login = "nguyen.van.an"
+        student_email = "nguyen.van.an@thptdanphuong.edu.vn"
+        student_pw = "HocSinh@2024"
+        res = await session.execute(select(User).where(User.login_id == student_login))
+        student = res.scalar_one_or_none()
+        if student is None:
+            student = User(
+                login_id=student_login,
+                email=student_email,
+                display_name="Nguyễn Văn An (12A1)",
+                password_hash=await hash_password(student_pw),
+                role=UserRole.STUDENT,
+                status=UserStatus.ACTIVE,
+                email_verified_at=utcnow(),
+            )
+            session.add(student)
+            print(f"Created student {student_login} <{student_email}> / password: {student_pw}")
+        else:
+            student.email_verified_at = student.email_verified_at or utcnow()
+            student.status = UserStatus.ACTIVE
+            student.role = UserRole.STUDENT
+            print(f"Student {student_login} already exists; updated active/verified status.")
+
+        # 3. Seed assignment
+        code = "VAN12-NLXH-SOC"
+        res = await session.execute(
+            select(AssignmentRevision).where(AssignmentRevision.code == code)
+        )
+        assignment = res.scalar_one_or_none()
+        if assignment is None:
+            assignment = AssignmentRevision(
+                code=code,
+                title="Nghị luận xã hội về bản lĩnh của người trẻ trong thời đại số",
+                genre="NLXH",
+                status="PUBLISHED",
+                instructions={
+                    "topic": "Bàn về bản lĩnh của thế hệ trẻ khi đối mặt với thách thức và cơ hội trong kỷ nguyên số",
+                    "genre": "Nghị luận xã hội",
+                    "word_count_target": "khoảng 600 chữ",
+                    "requirements": [
+                        "Xác định rõ vấn đề nghị luận và lập trường cá nhân",
+                        "Triển khai ít nhất 2 luận điểm trọng tâm với dẫn chứng xác thực",
+                        "Phản biện hoặc mở rộng góc nhìn",
+                        "Rút ra bài học nhận thức và hành động thực tiễn",
+                    ],
+                },
+                rubric={
+                    "criteria": [
+                        {
+                            "id": "C1",
+                            "name": "Xác định vấn đề",
+                            "description": "Xác định đúng và trúng vấn đề nghị luận, thể hiện rõ quan điểm",
+                        },
+                        {
+                            "id": "C2",
+                            "name": "Hệ thống luận điểm",
+                            "description": "Luận điểm rõ ràng, lập luận chặt chẽ, mạch lạc",
+                        },
+                        {
+                            "id": "C3",
+                            "name": "Dẫn chứng thực tế",
+                            "description": "Dẫn chứng tiêu biểu, cập nhật, phân tích thuyết phục",
+                        },
+                        {
+                            "id": "C4",
+                            "name": "Bài học và hành động",
+                            "description": "Rút ra bài học sâu sắc, có tính khả thi và định hướng tích cực",
+                        },
+                    ]
+                },
+                context_chunks=[
+                    {
+                        "id": "chunk-1",
+                        "title": "Bản lĩnh trong kỷ nguyên số",
+                        "text": "Thời đại công nghệ số mang đến cơ hội tiếp cận tri thức vô tận nhưng cũng đi kèm nguy cơ phân tâm, mất định hướng và áp lực đồng trang lứa trên mạng xã hội.",
+                    },
+                    {
+                        "id": "chunk-2",
+                        "title": "Tự chủ tư duy và đạo đức công nghệ",
+                        "text": "Bản lĩnh của người trẻ không chỉ là dám dấn thân mà còn là biết chọn lọc thông tin, giữ vững giá trị nhân văn và không bị lệ thuộc vào thuật toán hay ý kiến đám đông.",
+                    },
+                ],
+            )
+            session.add(assignment)
+            print(f"Created assignment {code}: {assignment.title}")
+        else:
+            assignment.status = "PUBLISHED"
+            print(f"Assignment {code} already exists; status set to PUBLISHED.")
+
+        await session.commit()
+        print("Seed demo data successfully completed!")
+
+
 def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(prog="edulit-auth")
@@ -115,6 +217,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     reset.add_argument("--i-understand", action="store_true", required=True)
     sub.add_parser("cleanup-expired", help="Delete expired sessions, tokens, and rate-limit buckets.")
+    sub.add_parser("seed-demo", help="Seed demo teacher, student (nguyen.van.an), and assignment (VAN12-NLXH-SOC).")
     args = parser.parse_args(argv)
     settings = get_settings()
 
@@ -124,6 +227,8 @@ def main(argv: list[str] | None = None) -> None:
         asyncio.run(bootstrap_teacher(settings, reset_password=True))
     elif args.command == "cleanup-expired":
         asyncio.run(cleanup_expired(settings))
+    elif args.command == "seed-demo":
+        asyncio.run(seed_demo(settings))
     else:
         parser.error("unknown command")
 

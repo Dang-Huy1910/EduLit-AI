@@ -56,6 +56,19 @@ class Settings(BaseSettings):
     GMAIL_WEBHOOK_URL: str = ""
     AUTO_VERIFY_STUDENT: bool = False
 
+    # ── AI Configuration ───────────────────────────────────────────────────────
+    # Provider: openai | gemini | fake
+    AI_PROVIDER: str = "openai"
+    # Model name (must be set by user for the selected provider)
+    AI_MODEL: str = ""
+    OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    AI_TIMEOUT_SECONDS: float = 30.0
+    AI_MAX_OUTPUT_TOKENS: int = 512
+    AI_MAX_RETRIES: int = 2
+    # Prompt version for Socratic agent
+    SOCRATIC_PROMPT_VERSION: str = "v1"
+
     BOOTSTRAP_TEACHER_LOGIN_ID: str = "dang.loan"
     BOOTSTRAP_TEACHER_EMAIL: str = "dang.loan@thptdanphuong.edu.vn"
     BOOTSTRAP_TEACHER_DISPLAY_NAME: str = "Cô Đặng Loan"

@@ -15,6 +15,7 @@ from app.core.errors import ERROR_MESSAGES, ApiHttpException, error_body
 from app.core.http import SENSITIVE_FIELDS
 from app.db.session import close_db
 from app.identity.router import router as auth_router
+from app.api.routers.socratic import router as socratic_router
 
 logger = logging.getLogger("edulit.api")
 
@@ -49,8 +50,8 @@ def create_app() -> FastAPI:
         allow_origins=settings.allowed_origins,
         allow_origin_regex=r"^https://.*\.vercel\.app$",
         allow_credentials=True,
-        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "X-Edulit-CSRF", "Accept"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "X-Edulit-CSRF", "Accept", "Idempotency-Key"],
         max_age=600,
     )
 
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
         return {"ok": True}
 
     app.include_router(auth_router, prefix="/api")
+    app.include_router(socratic_router, prefix="/api")
     return app
 
 

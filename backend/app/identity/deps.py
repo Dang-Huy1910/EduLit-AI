@@ -34,7 +34,11 @@ def get_auth_service(
 async def get_session_context(
     request: Request,
     settings: Annotated[Settings, Depends(get_settings)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> SessionContext:
     raw = request.cookies.get(settings.SESSION_COOKIE_NAME)
-    return await service.authenticate(raw)
+    ctx = await service.authenticate(raw)
+    # Attach the DB session for use by downstream dependencies
+    ctx.db = db
+    return ctx

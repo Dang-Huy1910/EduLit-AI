@@ -35,6 +35,12 @@ os.environ["RATE_LIMIT_REGISTER_IP_MAX"] = "30"
 os.environ["RATE_LIMIT_EMAIL_IP_MAX"] = "20"
 os.environ["RATE_LIMIT_EMAIL_ACCOUNT_MAX"] = "10"
 
+# AI settings for Socratic tests
+os.environ["AI_PROVIDER"] = "fake"
+os.environ["AI_MODEL"] = "fake-model"
+os.environ["OPENAI_API_KEY"] = "test-key-for-fake"
+os.environ["GEMINI_API_KEY"] = "test-key-for-fake"
+
 from alembic import command
 from alembic.config import Config
 
@@ -96,13 +102,23 @@ async def db_engine() -> AsyncIterator[None]:
     async with factory() as session:
         await session.execute(
             text(
-                "TRUNCATE rate_limit_buckets, auth_tokens, auth_sessions, users "
-                "RESTART IDENTITY CASCADE"
+                "TRUNCATE rate_limit_buckets, auth_tokens, auth_sessions, users, "
+                "idempotency_records, outline_revisions, chat_messages, socratic_sessions, "
+                "assignment_access, assignment_revisions RESTART IDENTITY CASCADE"
             )
         )
         await session.commit()
     yield
     await close_db()
+
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncIterator[AsyncSession]:
+    """Provide a database session for Socratic tests."""
+    factory = get_session_factory()
+    async with factory() as session:
+        yield session
+        await session.rollback()
 
 
 @pytest.fixture
@@ -160,3 +176,136 @@ def extract_token(email_adapter: CapturingEmailAdapter) -> str:
     marker = "#token="
     assert marker in body
     return body.split(marker, 1)[1].split()[0].strip()
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Socratic Test Fixtures
+# ─────────────────────────────────────────────────────────────────────────
+
+import uuid
+from app.ai.adapters import FakeAiAdapter
+from app.core.passwords import hash_password_sync
+from app.db.models.socratic import AssignmentAccess, AssignmentRevision
+
+
+async def grant_assignment_access(
+    db_session: AsyncSession, assignment_id, student_id
+) -> AssignmentAccess:
+    access = AssignmentAccess(
+        assignment_revision_id=assignment_id,
+        student_id=student_id,
+    )
+    db_session.add(access)
+    await db_session.commit()
+    await db_session.refresh(access)
+    return access
+
+
+@pytest_asyncio.fixture
+async def fake_ai() -> FakeAiAdapter:
+    """Provide a Fake AI adapter for testing."""
+    return FakeAiAdapter()
+
+
+@pytest_asyncio.fixture
+async def student_user(db_session: AsyncSession) -> dict:
+    """Create a student user in the database."""
+    from app.db.models import User, UserRole
+
+    user = User(
+        login_id=f"hs_{uuid.uuid4().hex[:8]}",
+        email=f"hs_{uuid.uuid4().hex[:8]}@test.local",
+        display_name="Test Student",
+        password_hash=hash_password_sync("testpassword123"),
+        role=UserRole.STUDENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return {
+        "user": user,
+        "id": user.id,
+        "email": user.email,
+        "login_id": user.login_id,
+    }
+
+
+@pytest_asyncio.fixture
+async def published_assignment(db_session: AsyncSession, student_user: dict) -> dict:
+    """Create a published assignment and grant the default student access."""
+    assignment = AssignmentRevision(
+        code=f"TEST_{uuid.uuid4().hex[:8]}",
+        title="Test Nghị luận xã hội",
+        genre="nghi_luan_xa_hoi",
+        instructions={"task": "Viết bài nghị luận 600-700 từ"},
+        rubric={
+            "criteria": [
+                {"id": "C1", "name": "Bố cục", "weight": 2.0},
+                {"id": "C2", "name": "Luận điểm", "weight": 4.0},
+            ]
+        },
+        context_chunks=[
+            {"chunk_id": "chunk_1", "text": "Nội dung mẫu về ý chí vượt khó..."}
+        ],
+        status="PUBLISHED",
+        readiness_policy={
+            "requiredContentKeys": ["thesis"],
+            "minSections": 1,
+        },
+    )
+    db_session.add(assignment)
+    await db_session.commit()
+    await db_session.refresh(assignment)
+    await grant_assignment_access(db_session, assignment.id, student_user["id"])
+    return {
+        "assignment": assignment,
+        "id": assignment.id,
+        "code": assignment.code,
+    }
+
+
+@pytest_asyncio.fixture
+async def closed_assignment(db_session: AsyncSession, student_user: dict) -> dict:
+    assignment = AssignmentRevision(
+        code=f"CLOSED_{uuid.uuid4().hex[:8]}",
+        title="Closed Assignment",
+        genre="nghi_luan_xa_hoi",
+        instructions={"task": "Test"},
+        rubric={},
+        context_chunks=[],
+        status="CLOSED",
+        readiness_policy={},
+    )
+    db_session.add(assignment)
+    await db_session.commit()
+    await db_session.refresh(assignment)
+    await grant_assignment_access(db_session, assignment.id, student_user["id"])
+    return {
+        "assignment": assignment,
+        "id": assignment.id,
+        "code": assignment.code,
+    }
+
+
+@pytest_asyncio.fixture
+async def draft_assignment(db_session: AsyncSession) -> dict:
+    """Create a draft assignment for testing."""
+    from app.db.models import AssignmentRevision
+
+    assignment = AssignmentRevision(
+        code=f"DRAFT_{uuid.uuid4().hex[:8]}",
+        title="Draft Assignment",
+        genre="nghi_luan_xa_hoi",
+        instructions={"task": "Test"},
+        rubric={},
+        context_chunks=[],
+        status="DRAFT",
+    )
+    db_session.add(assignment)
+    await db_session.commit()
+    await db_session.refresh(assignment)
+    return {
+        "assignment": assignment,
+        "id": assignment.id,
+        "code": assignment.code,
+    }

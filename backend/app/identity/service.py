@@ -55,6 +55,7 @@ class SessionContext:
     user: User
     session: AuthSession
     raw_token: str
+    db: AsyncSession | None = None
 
 
 class AuthService:

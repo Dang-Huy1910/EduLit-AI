@@ -44,6 +44,7 @@ ERROR_MESSAGES: dict[str, str] = {
     "SESSION_NOT_FOUND": "Không tìm thấy phiên đăng nhập.",
     "NOT_FOUND": "Không tìm thấy tài nguyên.",
     "INTERNAL": "Hệ thống gặp sự cố. Vui lòng thử lại sau.",
+    "AI_UNAVAILABLE": "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau.",
 }
 
 

@@ -82,3 +82,97 @@ docker compose -f infra/docker/compose.auth.yml exec api python -m app.cli boots
 ## Production
 
 Bắt buộc: `APP_ENV=production`, `APP_ORIGIN` HTTPS, SMTP thật, `COOKIE_SECURE`, `BOOTSTRAP_TEACHER_PASSWORD` khác mật khẩu prototype. Thiếu một trong các mục này thì process không khởi động. Không có demo-login.
+
+## Socratic AI Agent
+
+Triển khai Socratic Writing Scaffold Agent (FR-06 đến FR-10) trên Python backend.
+
+OpenAI dùng Responses API của SDK (`responses.parse` + `text_format`). Retry hạ tầng do SDK (`AI_MAX_RETRIES`). Prompt nạp từ package `app.ai.prompts.socratic` theo `SOCRATIC_PROMPT_VERSION` (không phụ thuộc cwd).
+
+### Cấu hình
+
+Trong `backend/.env` (không commit khóa thật):
+
+```bash
+AI_PROVIDER=openai
+AI_MODEL=gpt-4o-mini
+OPENAI_API_KEY=
+AI_TIMEOUT_SECONDS=30
+AI_MAX_OUTPUT_TOKENS=512
+AI_MAX_RETRIES=2
+SOCRATIC_PROMPT_VERSION=v1
+```
+
+`AI_MODEL` bắt buộc với openai/gemini. Thiếu khóa hoặc model → HTTP 503 `AI_UNAVAILABLE`, không fallback giả thành công.
+
+Migration: `0002_socratic_schema` (đã có) rồi `0003_socratic_reservation_access` (reservation, assignment_access, outline constraints). Không tự chạy trên DB development/production trong test.
+
+### Seed demo (development/test)
+
+```bash
+cd backend
+uv run python scripts/seed_demo.py
+```
+
+Tạo giáo viên `dang.loan`, học sinh `nguyen.van.an`, đề `VAN12-NLXH-SOC` và **cấp assignment_access**. Mã đề chỉ để tra cứu, không phải quyền truy cập.
+
+### API Endpoints
+
+```
+POST /api/socratic-sessions                 # Tạo session (cần được giao đề)
+GET  /api/socratic-sessions                 # Danh sách session còn quyền
+GET  /api/socratic-sessions/{id}            # Session + current outline + readiness
+GET  /api/socratic-sessions/{id}/outline    # Outline hiện hành
+GET  /api/socratic-sessions/{id}/messages   # Student + assistant VALIDATED/FALLBACK; paginate theo turn
+POST /api/socratic-sessions/{id}/messages   # Gửi tin; Idempotency-Key
+PUT  /api/socratic-sessions/{id}/outline    # expectedVersion bắt buộc (0 khi tạo lần đầu)
+POST /api/socratic-sessions/{id}/review     # Chỉ revision hiện hành
+```
+
+Mutation cần cookie phiên, `Origin` hợp lệ, `X-Edulit-CSRF: 1`, `Content-Type: application/json`. GET không cần CSRF.
+
+Idempotency (cùng key): COMPLETED replay; PROCESSING + lease còn hạn → 409 `IDEMPOTENCY_IN_PROGRESS`; FAILED hoặc lease hết hạn → retry cùng logical turn, không tạo thêm student message; khác payload → 409. Record hết `expires_at` (TTL 24h) được tái sử dụng tại chỗ.
+
+### Kiểm thử
+
+```bash
+cd backend
+export DATABASE_URL_TEST=postgresql://edulit:edulit_dev@localhost:5433/edulit_auth_test
+uv run pytest
+uv run pytest tests/socratic/ -v
+```
+
+Không gọi OpenAI thật. Suite dùng `AI_PROVIDER=fake` và MockTransport cho SDK.
+
+### Smoke test sau khi điền model/key
+
+```bash
+cd backend
+# .env đã có OPENAI_API_KEY và AI_MODEL
+uv run python -c "
+import asyncio
+from app.ai.adapters import create_ai_adapter
+from app.ai.schemas import SocraticOutput
+from app.config import get_settings
+
+async def main():
+    settings = get_settings()
+    adapter = create_ai_adapter(settings)
+    result = await adapter.generate(
+        'Em đang nghĩ gì về luận điểm trung tâm của đề?',
+        system_prompt='Trả JSON SocraticOutput, tối đa 4 câu, kết thúc bằng câu hỏi.',
+        structured_output=SocraticOutput,
+        max_tokens=settings.AI_MAX_OUTPUT_TOKENS,
+    )
+    print(type(result.content).__name__, adapter.model_name)
+    await adapter.close()
+
+asyncio.run(main())
+"
+```
+
+### Headers quan trọng
+
+- **CSRF**: `X-Edulit-CSRF: 1` (mutation)
+- **Idempotency**: `Idempotency-Key` (POST /messages)
+- **Expected Version**: `expectedVersion` bắt buộc (PUT /outline); lần đầu = 0

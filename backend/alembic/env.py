@@ -7,7 +7,18 @@ from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
 from app.db.base import Base
-from app.db.models import AuthSession, AuthToken, RateLimitBucket, User  # noqa: F401
+from app.db.models import (  # noqa: F401
+    AssignmentAccess,
+    AssignmentRevision,
+    AuthSession,
+    AuthToken,
+    ChatMessage,
+    IdempotencyRecord,
+    OutlineRevision,
+    RateLimitBucket,
+    SocraticSession,
+    User,
+)
 
 config = context.config
 if config.config_file_name is not None:
