@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 
@@ -22,12 +23,12 @@ export default function StudentShell({
   const router = useRouter();
   const {
     currentUser,
-    logout,
     resetDemoState,
     addToast,
     sidebarCollapsed,
     toggleSidebar,
   } = useAppStore();
+  const authLogout = useAuthStore((s) => s.logout);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const studentNavItems = [
@@ -55,10 +56,13 @@ export default function StudentShell({
     },
   ];
 
-  const handleLogout = () => {
-    logout();
-    addToast('Đã đăng xuất khỏi hệ thống EduLit.', 'info');
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await authLogout();
+      router.push('/login');
+    } catch {
+      addToast('Không đăng xuất được vì mất kết nối. Hãy thử lại.', 'error');
+    }
   };
 
   const handleResetDemo = () => {
@@ -90,7 +94,7 @@ export default function StudentShell({
         </div>
         <div className="flex items-center gap-2">
           <span className="font-caption text-secondary bg-secondary-fixed/50 px-2.5 py-0.5 rounded-full text-xs font-semibold">
-            {currentUser.name || 'Đỗ Đăng An'}
+            {currentUser?.name || 'Học sinh'}
           </span>
         </div>
       </div>
@@ -278,7 +282,7 @@ export default function StudentShell({
             </div>
             <span className="font-caption text-xs bg-secondary-fixed/50 text-secondary px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-              <span>Học sinh: {currentUser.name || 'Đỗ Đăng An'}</span>
+              <span>Học sinh: {currentUser?.name || 'Học sinh'}</span>
             </span>
           </div>
 
@@ -300,17 +304,21 @@ export default function StudentShell({
             <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
               <div className="text-right">
                 <div className="font-label-md text-sm text-on-surface font-semibold">
-                  {currentUser.name || 'Đỗ Đăng An'}
+                  {currentUser?.name || 'Học sinh'}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
-                  {currentUser.classId ? `Lớp ${currentUser.classId}` : 'Lớp 11A14'} • THPT Đan Phượng
+                  {currentUser?.classId ? `Lớp ${currentUser.classId}` : 'Lớp 11A14'} • THPT Đan Phượng
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs ring-2 ring-secondary-container/40">
-                {currentUser.avatarInitials || 'ĐA'}
-              </div>
+              <Link
+                href="/account/security"
+                title="Bảo mật tài khoản"
+                className="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-xs ring-2 ring-secondary-container/40"
+              >
+                {currentUser?.avatarInitials || 'HS'}
+              </Link>
               <button
-                onClick={handleLogout}
+                onClick={() => void handleLogout()}
                 title="Đăng xuất"
                 className="ml-2 p-1 text-on-surface-variant hover:text-error transition-colors"
               >

@@ -14,4 +14,4 @@ Worker phải thường trú để nhận job; không xử lý lâu bên trong N
 
 Chỉ commit template và cấu hình không chứa secret. Credentials và giá trị cấu hình nhạy cảm được cấp qua môi trường triển khai. Tài liệu vận hành nằm trong `docs/deployment/`; lệnh hỗ trợ bảo trì nằm trong `scripts/maintenance/`.
 
-Hiện chưa có container, dịch vụ, tài nguyên cloud hoặc môi trường được triển khai.
+Compose xác thực local: [`docker/compose.auth.yml`](docker/compose.auth.yml) (PostgreSQL, Mailpit, API Python, frontend). Không dùng làm cấu hình production. Hướng dẫn: [python-auth-handoff](../docs/development/python-auth-handoff.md).

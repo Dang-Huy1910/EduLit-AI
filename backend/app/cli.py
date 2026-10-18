@@ -1,0 +1,132 @@
+from __future__ import annotations
+
+import argparse
+import asyncio
+import logging
+import sys
+from datetime import timedelta
+
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.config import LOCAL_PROTOTYPE_TEACHER_PASSWORD, Settings, get_settings
+from app.core.http import utcnow
+from app.core.passwords import hash_password
+from app.db.models import AuthSession, AuthToken, RateLimitBucket, User, UserRole, UserStatus
+from app.identity.domain import normalize_email, normalize_login_id
+
+logger = logging.getLogger("edulit.cli")
+
+
+def _session_factory(settings: Settings) -> async_sessionmaker[AsyncSession]:
+    engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
+    return async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def bootstrap_teacher(settings: Settings, *, reset_password: bool = False) -> None:
+    login_id = normalize_login_id(settings.BOOTSTRAP_TEACHER_LOGIN_ID)
+    email = normalize_email(settings.BOOTSTRAP_TEACHER_EMAIL)
+    display_name = settings.BOOTSTRAP_TEACHER_DISPLAY_NAME.strip() or "Cô Đặng Loan"
+    password = settings.BOOTSTRAP_TEACHER_PASSWORD or LOCAL_PROTOTYPE_TEACHER_PASSWORD
+    if settings.is_production and password == LOCAL_PROTOTYPE_TEACHER_PASSWORD:
+        raise SystemExit("Production rejects the prototype teacher password.")
+
+    factory = _session_factory(settings)
+    async with factory() as session:
+        result = await session.execute(select(User).where(User.login_id == login_id))
+        existing = result.scalar_one_or_none()
+        if existing is None:
+            user = User(
+                login_id=login_id,
+                email=email,
+                display_name=display_name,
+                password_hash=await hash_password(password),
+                role=UserRole.TEACHER,
+                status=UserStatus.ACTIVE,
+                email_verified_at=utcnow(),
+            )
+            session.add(user)
+            await session.commit()
+            print(f"Created teacher {login_id} <{email}> (operator-provisioned, marked verified).")
+            return
+
+        changed = False
+        if existing.role != UserRole.TEACHER:
+            existing.role = UserRole.TEACHER
+            changed = True
+        if existing.email_verified_at is None:
+            existing.email_verified_at = utcnow()
+            changed = True
+        if existing.status != UserStatus.ACTIVE:
+            existing.status = UserStatus.ACTIVE
+            changed = True
+        if reset_password:
+            existing.password_hash = await hash_password(password)
+            existing.credentials_version = existing.credentials_version + 1
+            existing.updated_at = utcnow()
+            await session.execute(
+                AuthSession.__table__.update()
+                .where(AuthSession.user_id == existing.id, AuthSession.revoked_at.is_(None))
+                .values(revoked_at=utcnow())
+            )
+            changed = True
+            print(f"Reset password for teacher {login_id}. Existing sessions revoked.")
+        if changed:
+            await session.commit()
+            print(f"Teacher {login_id} already existed; applied operator-safe updates only.")
+        else:
+            await session.rollback()
+            print(f"Teacher {login_id} already exists; password and UUID left unchanged.")
+
+
+async def cleanup_expired(settings: Settings) -> None:
+    factory = _session_factory(settings)
+    now = utcnow()
+    cutoff = now - timedelta(days=7)
+    async with factory() as session:
+        sessions = await session.execute(
+            delete(AuthSession).where(
+                (AuthSession.expires_at < now) | (AuthSession.revoked_at.is_not(None) & (AuthSession.revoked_at < cutoff))
+            )
+        )
+        tokens = await session.execute(
+            delete(AuthToken).where(
+                (AuthToken.expires_at < now)
+                | (AuthToken.used_at.is_not(None) & (AuthToken.used_at < cutoff))
+                | (AuthToken.revoked_at.is_not(None) & (AuthToken.revoked_at < cutoff))
+            )
+        )
+        buckets = await session.execute(delete(RateLimitBucket).where(RateLimitBucket.reset_at < now))
+        await session.commit()
+        print(
+            f"Cleanup removed sessions={sessions.rowcount} tokens={tokens.rowcount} "
+            f"rate_limit_buckets={buckets.rowcount}"
+        )
+
+
+def main(argv: list[str] | None = None) -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    parser = argparse.ArgumentParser(prog="edulit-auth")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("bootstrap-teacher", help="Create the prototype teacher if missing (idempotent).")
+    reset = sub.add_parser(
+        "reset-teacher-password",
+        help="Operator-only: set teacher password from BOOTSTRAP_TEACHER_PASSWORD and revoke sessions.",
+    )
+    reset.add_argument("--i-understand", action="store_true", required=True)
+    sub.add_parser("cleanup-expired", help="Delete expired sessions, tokens, and rate-limit buckets.")
+    args = parser.parse_args(argv)
+    settings = get_settings()
+
+    if args.command == "bootstrap-teacher":
+        asyncio.run(bootstrap_teacher(settings, reset_password=False))
+    elif args.command == "reset-teacher-password":
+        asyncio.run(bootstrap_teacher(settings, reset_password=True))
+    elif args.command == "cleanup-expired":
+        asyncio.run(cleanup_expired(settings))
+    else:
+        parser.error("unknown command")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

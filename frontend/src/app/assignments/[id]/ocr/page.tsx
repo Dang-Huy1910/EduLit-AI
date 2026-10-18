@@ -25,10 +25,12 @@ export default function OcrVerificationPage() {
   } = useAppStore();
 
   const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
-  const submission = getStudentSubmission(assignmentId, currentUser.id);
+  const submission = currentUser ? getStudentSubmission(assignmentId, currentUser.id) : undefined;
 
   // Fallback to Đỗ Đăng An's manifest if submission in memory hasn't been created yet
-  const manifestData = SUBMISSION_MANIFEST[currentUser.id] || SUBMISSION_MANIFEST['user-student-11a14-001'];
+  const manifestData = currentUser
+    ? SUBMISSION_MANIFEST[currentUser.id] || SUBMISSION_MANIFEST['user-student-11a14-001']
+    : SUBMISSION_MANIFEST['user-student-11a14-001'];
 
   const pages = (submission?.pages && submission.pages.length > 0
     ? submission.pages.map((p, idx) => ({
@@ -97,7 +99,7 @@ export default function OcrVerificationPage() {
                 Bước 4: Kiểm tra &amp; Đối chiếu OCR
               </span>
               <span className="text-xs text-on-surface-variant font-mono">
-                Học sinh: {currentUser.name} ({currentUser.code || 'VN-11A14-001'})
+                Học sinh: {currentUser?.name || 'Đỗ Đăng An'} ({currentUser?.code || 'VN-11A14-001'})
               </span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">

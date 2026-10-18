@@ -1,0 +1,6 @@
+Alembic migrations for the EduLit-AI identity schema only.
+Run from `backend/`:
+
+```bash
+uv run alembic upgrade head
+```

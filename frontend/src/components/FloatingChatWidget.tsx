@@ -15,7 +15,7 @@ interface QuickMessage {
 export default function FloatingChatWidget() {
   const pathname = usePathname();
   const { currentUser, addToast } = useAppStore();
-  const isTeacher = currentUser.role === 'teacher';
+  const isTeacher = currentUser?.role === 'teacher';
 
   // Do not render floating widget on full chatbot page
   if (pathname === '/chatbot') {
@@ -177,7 +177,7 @@ export default function FloatingChatWidget() {
         timestamp: 'Vừa xong',
       },
     ]);
-  }, [currentUser.role, currentUser.name, isTeacher]);
+  }, [currentUser?.role, currentUser?.name, isTeacher]);
 
   // Scroll to bottom when new messages arrive
   useEffect(() => {

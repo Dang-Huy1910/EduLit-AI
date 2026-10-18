@@ -1,0 +1,27 @@
+FROM node:20-bookworm-slim AS deps
+WORKDIR /src
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+FROM node:20-bookworm-slim AS builder
+WORKDIR /src
+COPY --from=deps /src/node_modules ./node_modules
+COPY frontend ./
+ARG NEXT_PUBLIC_APP_ORIGIN=http://localhost:3000
+ARG API_PROXY_TARGET=http://api:4000
+ENV NEXT_PUBLIC_APP_ORIGIN=$NEXT_PUBLIC_APP_ORIGIN \
+    API_PROXY_TARGET=$API_PROXY_TARGET \
+    NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+RUN useradd --create-home --uid 10001 edulit
+COPY --from=builder /src/.next/standalone ./
+COPY --from=builder /src/.next/static ./.next/static
+COPY --from=builder /src/public ./public
+USER edulit
+EXPOSE 3000
+HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD node -e "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "server.js"]

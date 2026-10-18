@@ -50,10 +50,11 @@ export interface ToastMessage {
 export type DemoMilestone = 'start' | 'complete';
 
 interface AppState {
-  // Session
-  currentUser: User;
+  // Session — identity source of truth is GET /api/auth/me via auth-store.
+  currentUser: User | null;
   setRole: (role: Role) => void;
   setUser: (user: User) => void;
+  clearAuthUser: () => void;
   switchDemoUser: (userId: string) => void;
   logout: () => void;
 
@@ -177,16 +178,17 @@ let activeAiResponseTimeout: NodeJS.Timeout | null = null;
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // Session: default to Đỗ Đăng An
-      currentUser: DEMO_STUDENTS[0],
+      // Session
+      currentUser: null,
       setRole: (role: Role) => {
         if (role === 'teacher') {
           set({ currentUser: DEMO_TEACHER });
         } else {
-          set({ currentUser: DEMO_STUDENTS[0] }); // Đỗ Đăng An
+          set({ currentUser: DEMO_STUDENTS[0] });
         }
       },
       setUser: (user: User) => set({ currentUser: user }),
+      clearAuthUser: () => set({ currentUser: null }),
       switchDemoUser: (userId: string) => {
         if (userId === DEMO_TEACHER.id) {
           set({ currentUser: DEMO_TEACHER });
@@ -198,7 +200,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       logout: () => {
-        set({ currentUser: DEMO_STUDENTS[0] });
+        set({ currentUser: null });
       },
 
       // Sidebar Layout
@@ -313,9 +315,9 @@ export const useAppStore = create<AppState>()(
           }
         }
 
-        const roleToSet = targetRole || get().currentUser?.role || 'student';
+        const currentUser = get().currentUser;
         set({
-          currentUser: roleToSet === 'teacher' ? DEMO_TEACHER : DEMO_STUDENTS[0],
+          currentUser,
           demoMilestone: 'start',
           isAiResponding: false,
           assignments: [...INITIAL_ASSIGNMENTS],
@@ -668,9 +670,9 @@ export const useAppStore = create<AppState>()(
 
       submitHandwrittenEssay: (assignmentId) => {
         const { uploadedPages, currentUser } = get();
-        const studentId = currentUser.id || 'user-student-11a14-001';
-        const studentName = currentUser.name || 'Đỗ Đăng An';
-        const studentCode = currentUser.code || 'VN-11A14-001';
+        const studentId = currentUser?.id || 'user-student-11a14-001';
+        const studentName = currentUser?.name || 'Đỗ Đăng An';
+        const studentCode = currentUser?.code || 'VN-11A14-001';
         const submissionId = `sub-${studentId}`;
 
         const defaultManifest =
@@ -788,7 +790,6 @@ export const useAppStore = create<AppState>()(
         },
       })),
       partialize: (state) => ({
-        currentUser: state.currentUser,
         sidebarCollapsed: state.sidebarCollapsed,
         demoMilestone: state.demoMilestone,
         assignments: state.assignments,

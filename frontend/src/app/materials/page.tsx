@@ -17,7 +17,7 @@ export default function MaterialsPage() {
     setActiveRubricById,
   } = useAppStore();
 
-  const isTeacher = currentUser.role === 'teacher';
+  const isTeacher = currentUser?.role === 'teacher';
 
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>(materials[0]?.id || 'mat-ngulieu-mau-tu-do-dat');
   const [searchQuery, setSearchQuery] = useState('');

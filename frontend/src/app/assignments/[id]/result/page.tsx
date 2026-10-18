@@ -21,7 +21,7 @@ export default function StudentResultPage() {
       <EvaluationResultView
         viewMode="student"
         assignmentId={assignmentId}
-        studentId={currentUser.id}
+        studentId={currentUser?.id || ''}
       />
     </StudentShell>
   );
