@@ -118,23 +118,31 @@ class Settings(BaseSettings):
 
     def _to_async_url(self, url: str) -> str:
         if url.startswith("postgresql+asyncpg://"):
-            return url
-        if url.startswith("postgresql://"):
-            return "postgresql+asyncpg://" + url[len("postgresql://") :]
-        if url.startswith("postgres://"):
-            return "postgresql+asyncpg://" + url[len("postgres://") :]
-        return url
+            res = url
+        elif url.startswith("postgresql://"):
+            res = "postgresql+asyncpg://" + url[len("postgresql://") :]
+        elif url.startswith("postgres://"):
+            res = "postgresql+asyncpg://" + url[len("postgres://") :]
+        else:
+            res = url
+        if "sslmode=" in res:
+            res = res.replace("sslmode=", "ssl=")
+        return res
 
     def _to_sync_url(self, url: str) -> str:
         if url.startswith("postgresql+psycopg2://"):
-            return url
-        if url.startswith("postgresql+asyncpg://"):
-            return "postgresql+psycopg2://" + url[len("postgresql+asyncpg://") :]
-        if url.startswith("postgresql://"):
-            return "postgresql+psycopg2://" + url[len("postgresql://") :]
-        if url.startswith("postgres://"):
-            return "postgresql+psycopg2://" + url[len("postgres://") :]
-        return url
+            res = url
+        elif url.startswith("postgresql+asyncpg://"):
+            res = "postgresql+psycopg2://" + url[len("postgresql+asyncpg://") :]
+        elif url.startswith("postgresql://"):
+            res = "postgresql+psycopg2://" + url[len("postgresql://") :]
+        elif url.startswith("postgres://"):
+            res = "postgresql+psycopg2://" + url[len("postgres://") :]
+        else:
+            res = url
+        if "ssl=" in res and "sslmode=" not in res:
+            res = res.replace("ssl=", "sslmode=")
+        return res
 
     @property
     def async_database_url(self) -> str:
