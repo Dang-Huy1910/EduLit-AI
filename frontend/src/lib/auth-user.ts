@@ -18,20 +18,22 @@ export function mapPublicUser(user: PublicUser): User {
     role,
     email: user.email,
     school: 'THPT Đan Phượng',
-    classId: isTeacherPersona ? '12A1' : undefined,
-    code: user.loginId,
+    classId: isTeacherPersona ? '12A1' : '11A14',
+    code: isTeacherPersona ? 'GV-VAN-01' : (user.loginId || 'VN-11A14-001'),
     avatarInitials: initialsFromName(user.displayName),
   };
 }
 
 export function isPrototypeStudent(user: User | null | undefined): boolean {
   if (!user || user.role !== 'student') return false;
-  return DEMO_STUDENTS.some((item) => item.id === user.id);
+  // All authenticated student accounts inherit the student An persona mock environment
+  return true;
 }
 
 export function isPrototypeTeacher(user: User | null | undefined): boolean {
   if (!user || user.role !== 'teacher') return false;
-  return user.id === DEMO_TEACHER.id;
+  // All authenticated teacher accounts inherit the teacher mock workspace
+  return true;
 }
 
 export function uiRoleFromAuth(role: PublicUser['role']): Role {

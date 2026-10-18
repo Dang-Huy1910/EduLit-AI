@@ -40,9 +40,7 @@ export default function StudentAssignmentsView() {
 
   // Divide assignments into todo and submitted dynamically
   const liveStudent = !isPrototypeStudent(currentUser);
-  const publishedAssignments = liveStudent
-    ? []
-    : assignments.filter((a) => a.status === 'published');
+  const publishedAssignments = assignments.filter((a) => a.status === 'published');
   const todoAssignments = publishedAssignments.filter((a) => !submittedAssignmentIds.includes(a.id));
   const submittedAssignments = publishedAssignments.filter((a) => submittedAssignmentIds.includes(a.id));
 

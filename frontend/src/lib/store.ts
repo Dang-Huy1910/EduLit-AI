@@ -438,8 +438,13 @@ export const useAppStore = create<AppState>()(
 
       getStudentSubmission: (assignmentId: string, studentId: string) => {
         const list = Object.values(get().submissions);
-        return list.find(
+        const exact = list.find(
           (sub) => sub.assignmentId === assignmentId && sub.studentId === studentId
+        );
+        if (exact) return exact;
+        // Fallback to student An's mock submission for any student in demo
+        return list.find(
+          (sub) => sub.assignmentId === assignmentId && sub.studentId === 'user-student-11a14-001'
         );
       },
 
