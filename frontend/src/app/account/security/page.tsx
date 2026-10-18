@@ -44,8 +44,8 @@ export default function AccountSecurityPage() {
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (saving) return;
-    if (newPassword.length < 15) {
-      addToast('Mật khẩu mới phải từ 15 ký tự.', 'warning');
+    if (newPassword.length < 6) {
+      addToast('Mật khẩu mới phải từ 6 ký tự.', 'warning');
       return;
     }
     if (newPassword !== confirm) {

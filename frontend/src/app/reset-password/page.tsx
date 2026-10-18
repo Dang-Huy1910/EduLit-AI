@@ -26,8 +26,8 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading || !token) return;
-    if (password.length < 15) {
-      setError('Mật khẩu mới phải từ 15 đến 128 ký tự.');
+    if (password.length < 6) {
+      setError('Mật khẩu mới phải từ 6 đến 128 ký tự.');
       return;
     }
     if (password !== confirm) {

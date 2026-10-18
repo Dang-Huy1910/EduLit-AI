@@ -27,7 +27,7 @@ export default function RegisterPage() {
     if (loginId.trim().length < 3) fields.loginId = 'Tên đăng nhập 3–64 ký tự.';
     if (!email.includes('@')) fields.email = 'Email không hợp lệ.';
     if (displayName.trim().length < 2) fields.displayName = 'Họ tên phải từ 2 ký tự.';
-    if (password.length < 15) fields.password = 'Mật khẩu mới phải từ 15 đến 128 ký tự.';
+    if (password.length < 6) fields.password = 'Mật khẩu mới phải từ 6 đến 128 ký tự.';
     if (password !== confirm) fields.confirm = 'Nhập lại mật khẩu chưa khớp.';
     setFieldErrors(fields);
     if (Object.keys(fields).length) return;
@@ -112,7 +112,7 @@ export default function RegisterPage() {
           </div>
           <PasswordField
             id="password"
-            label="Mật khẩu (từ 15 ký tự)"
+            label="Mật khẩu (từ 6 ký tự)"
             value={password}
             onChange={setPassword}
             autoComplete="new-password"

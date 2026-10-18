@@ -37,7 +37,7 @@ def test_new_password_length_and_no_strip() -> None:
     assert len(raw) >= 15
     assert validate_new_password(raw) == raw
     with pytest.raises(ApiHttpException):
-        validate_new_password("short-password")
+        validate_new_password("12345")
 
 
 def test_password_hash_roundtrip() -> None:

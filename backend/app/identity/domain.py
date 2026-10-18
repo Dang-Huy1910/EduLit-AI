@@ -8,7 +8,7 @@ from email_validator import EmailNotValidError, validate_email
 from app.core.errors import ERROR_MESSAGES, ApiHttpException
 
 LOGIN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
-PASSWORD_MIN_NEW = 15
+PASSWORD_MIN_NEW = 6
 PASSWORD_MAX = 128
 DISPLAY_NAME_MIN = 2
 DISPLAY_NAME_MAX = 100
@@ -88,7 +88,7 @@ def validate_new_password(password: str) -> str:
             400,
             "VALIDATION",
             ERROR_MESSAGES["VALIDATION"],
-            fields={"password": "Mật khẩu mới phải từ 15 đến 128 ký tự."},
+            fields={"password": "Mật khẩu mới phải từ 6 đến 128 ký tự."},
         )
     if any(unicodedata.category(ch) in {"Cc", "Cs"} for ch in password):
         raise ApiHttpException(
