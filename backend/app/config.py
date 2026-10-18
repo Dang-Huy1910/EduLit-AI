@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     SMTP_RETRIES: int = 1
     RESEND_API_KEY: str = ""
     BREVO_API_KEY: str = ""
+    GMAIL_WEBHOOK_URL: str = ""
     AUTO_VERIFY_STUDENT: bool = False
 
     BOOTSTRAP_TEACHER_LOGIN_ID: str = "dang.loan"
@@ -224,7 +225,12 @@ class Settings(BaseSettings):
             raise RuntimeError("APP_ORIGIN must use https in production")
         if not self.is_cookie_secure:
             raise RuntimeError("COOKIE_SECURE must be true in production")
-        if not self.RESEND_API_KEY and not self.BREVO_API_KEY and not self.AUTO_VERIFY_STUDENT:
+        if (
+            not self.RESEND_API_KEY
+            and not self.BREVO_API_KEY
+            and not self.GMAIL_WEBHOOK_URL
+            and not self.AUTO_VERIFY_STUDENT
+        ):
             if not self.SMTP_HOST.strip() or self.SMTP_HOST.strip() in {"127.0.0.1", "localhost"}:
                 raise RuntimeError("Production SMTP_HOST must be a real provider, not a local sink")
             if not self.SMTP_FROM.strip() or "localhost" in self.SMTP_FROM.lower():

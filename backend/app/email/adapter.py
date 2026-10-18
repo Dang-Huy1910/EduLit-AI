@@ -24,6 +24,26 @@ class EmailAdapter:
             message.text_body,
         )
 
+        if self.settings.GMAIL_WEBHOOK_URL:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    res = await client.post(
+                        self.settings.GMAIL_WEBHOOK_URL,
+                        json={
+                            "to": to_address,
+                            "subject": message.subject,
+                            "html": message.html_body,
+                            "text": message.text_body,
+                        },
+                    )
+                    if res.status_code in (200, 201, 302):
+                        logger.info("email_sent_via_gmail_webhook to=%s", to_address)
+                        return
+                    logger.warning("gmail_webhook_send_failed status=%s response=%s", res.status_code, res.text)
+            except Exception:
+                logger.exception("gmail_webhook_exception to=%s", to_address)
+
         if self.settings.RESEND_API_KEY:
             try:
                 import httpx
