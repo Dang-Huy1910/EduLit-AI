@@ -71,7 +71,7 @@ class AuthService:
 
     def _app_url(self, path: str, raw_token: str) -> str:
         origin = self.settings.normalized_origin
-        return f"{origin}{path}#token={raw_token}"
+        return f"{origin}{path}?token={raw_token}#token={raw_token}"
 
     def _teacher_login_ids(self) -> set[str]:
         return {self.settings.BOOTSTRAP_TEACHER_LOGIN_ID.strip().lower()}
@@ -116,6 +116,26 @@ class AuthService:
 
         existing_email = await self.repo.get_user_by_email(email)
         if existing_email is not None:
+            if existing_email.email_verified_at is None:
+                existing_email.display_name = display_name
+                await self.repo.revoke_unused_tokens(existing_email.id, AuthTokenPurpose.EMAIL_VERIFICATION)
+                raw_token = generate_raw_token()
+                await self.repo.add_token(
+                    AuthToken(
+                        user_id=existing_email.id,
+                        purpose=AuthTokenPurpose.EMAIL_VERIFICATION,
+                        token_hash=hash_token(raw_token),
+                        expires_at=utcnow()
+                        + timedelta(seconds=self.settings.EMAIL_VERIFICATION_TTL_SECONDS),
+                    )
+                )
+                await self.session.commit()
+                verification_link = self._app_url("/verify-email", raw_token)
+                await self._dispatch_email(
+                    email,
+                    verification_email(display_name, verification_link),
+                )
+                return {"status": "verification_required", "message": REGISTER_NEUTRAL}
             await self.session.commit()
             return {"status": "verification_required", "message": REGISTER_NEUTRAL}
 

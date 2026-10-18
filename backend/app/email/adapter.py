@@ -35,6 +35,8 @@ class EmailAdapter:
                             "subject": message.subject,
                             "html": message.html_body,
                             "text": message.text_body,
+                            "html_body": message.html_body,
+                            "text_body": message.text_body,
                         },
                     )
                     if res.status_code in (200, 201, 302):
