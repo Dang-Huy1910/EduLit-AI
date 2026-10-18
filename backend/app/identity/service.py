@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from dataclasses import dataclass
@@ -81,6 +82,12 @@ class AuthService:
         except Exception:
             logger.exception("email_delivery_failed to_domain=%s", to_address.split("@")[-1])
 
+    async def _dispatch_email(self, to_address: str, message) -> None:
+        if self.settings.is_test:
+            await self._send_email_safely(to_address, message)
+        else:
+            asyncio.create_task(self._send_email_safely(to_address, message))
+
     async def register(
         self,
         *,
@@ -112,6 +119,8 @@ class AuthService:
             await self.session.commit()
             return {"status": "verification_required", "message": REGISTER_NEUTRAL}
 
+        auto_verify = self.settings.AUTO_VERIFY_STUDENT
+        email_verified_at = utcnow() if auto_verify else None
         password_hash = await hash_password(password)
         user = User(
             login_id=login_id,
@@ -120,7 +129,7 @@ class AuthService:
             password_hash=password_hash,
             role=UserRole.STUDENT,
             status=UserStatus.ACTIVE,
-            email_verified_at=None,
+            email_verified_at=email_verified_at,
         )
         try:
             await self.repo.add_user(user)
@@ -139,9 +148,15 @@ class AuthService:
             await self.session.rollback()
             return await self._register_integrity_conflict(exc, login_id, email)
 
-        await self._send_email_safely(
+        verification_link = self._app_url("/verify-email", raw_token)
+        logger.info("VERIFICATION_LINK to=%s link=%s", email, verification_link)
+
+        if auto_verify:
+            return {"status": "success", "message": "Đăng ký thành công! Bạn có thể đăng nhập ngay."}
+
+        await self._dispatch_email(
             email,
-            verification_email(display_name, self._app_url("/verify-email", raw_token)),
+            verification_email(display_name, verification_link),
         )
         return {"status": "verification_required", "message": REGISTER_NEUTRAL}
 
@@ -222,7 +237,7 @@ class AuthService:
             )
         )
         await self.session.commit()
-        await self._send_email_safely(
+        await self._dispatch_email(
             user.email,
             verification_email(user.display_name, self._app_url("/verify-email", raw_token)),
         )
@@ -405,7 +420,7 @@ class AuthService:
             )
         )
         await self.session.commit()
-        await self._send_email_safely(
+        await self._dispatch_email(
             user.email,
             password_reset_email(user.display_name, self._app_url("/reset-password", raw_token)),
         )
@@ -438,7 +453,7 @@ class AuthService:
         await self.repo.revoke_all_sessions(user.id)
         await self.repo.revoke_unused_tokens(user.id, AuthTokenPurpose.PASSWORD_RESET)
         await self.session.commit()
-        await self._send_email_safely(user.email, password_changed_email(user.display_name))
+        await self._dispatch_email(user.email, password_changed_email(user.display_name))
         return {"message": "Mật khẩu đã được đặt lại. Hãy đăng nhập bằng mật khẩu mới."}
 
     async def change_password(
@@ -461,7 +476,7 @@ class AuthService:
             raise ApiHttpException(401, "AUTH_INVALID", ERROR_MESSAGES["AUTH_INVALID"])
         await self.repo.revoke_all_sessions(ctx.user.id)
         await self.session.commit()
-        await self._send_email_safely(ctx.user.email, password_changed_email(ctx.user.display_name))
+        await self._dispatch_email(ctx.user.email, password_changed_email(ctx.user.display_name))
         return {"message": "Mật khẩu đã được đổi. Hãy đăng nhập lại."}
 
     async def list_sessions(self, ctx: SessionContext) -> dict:

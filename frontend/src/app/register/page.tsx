@@ -34,13 +34,17 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await authClient.register({
+      const res = await authClient.register({
         loginId: loginId.trim(),
         email: email.trim(),
         displayName: displayName.trim(),
         password,
       });
-      router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+      if ((res as { status?: string }).status === 'success') {
+        router.push('/login?registered=1');
+      } else {
+        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
+      }
     } catch (err) {
       if (err instanceof AuthApiError) {
         setFormError(err.message);
@@ -129,9 +133,12 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 rounded-lg bg-secondary text-white font-bold text-xs hover:bg-secondary/90 disabled:opacity-50"
+            className="w-full py-2.5 px-4 rounded-lg bg-secondary text-white font-bold text-xs hover:bg-secondary/90 disabled:opacity-50 flex items-center justify-center gap-2 transition-opacity"
           >
-            {loading ? 'Đang gửi...' : 'Tạo tài khoản học sinh'}
+            {loading && (
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            )}
+            {loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản học sinh'}
           </button>
         </form>
         <p className="mt-4 text-[11px] text-slate-600">

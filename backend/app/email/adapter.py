@@ -17,6 +17,74 @@ class EmailAdapter:
         self.settings = settings
 
     async def send(self, to_address: str, message: EmailMessage) -> None:
+        logger.info(
+            "EMAIL_OUTBOX to=%s subject='%s'\nBody:\n%s",
+            to_address,
+            message.subject,
+            message.text_body,
+        )
+
+        if self.settings.RESEND_API_KEY:
+            try:
+                import httpx
+                resend_from = "EduLit-AI <onboarding@resend.dev>"
+                if (
+                    self.settings.SMTP_FROM
+                    and "@gmail.com" not in self.settings.SMTP_FROM
+                    and "localhost" not in self.settings.SMTP_FROM
+                ):
+                    resend_from = self.settings.SMTP_FROM
+
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    res = await client.post(
+                        "https://api.resend.com/emails",
+                        headers={"Authorization": f"Bearer {self.settings.RESEND_API_KEY}"},
+                        json={
+                            "from": resend_from,
+                            "to": [to_address],
+                            "subject": message.subject,
+                            "html": message.html_body,
+                            "text": message.text_body,
+                        },
+                    )
+                    if res.status_code in (200, 201):
+                        logger.info("email_sent_via_resend to=%s", to_address)
+                        return
+                    logger.warning("resend_send_failed status=%s response=%s", res.status_code, res.text)
+            except Exception:
+                logger.exception("resend_exception to=%s", to_address)
+
+        if self.settings.BREVO_API_KEY:
+            try:
+                from email.utils import parseaddr
+                import httpx
+                sender_name, sender_email = parseaddr(self.settings.SMTP_FROM)
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    res = await client.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={
+                            "api-key": self.settings.BREVO_API_KEY,
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                        json={
+                            "sender": {
+                                "name": sender_name or "EduLit-AI",
+                                "email": sender_email or self.settings.SMTP_USERNAME or "noreply@edulit.ai",
+                            },
+                            "to": [{"email": to_address}],
+                            "subject": message.subject,
+                            "htmlContent": message.html_body,
+                            "textContent": message.text_body,
+                        },
+                    )
+                    if res.status_code in (200, 201):
+                        logger.info("email_sent_via_brevo to=%s", to_address)
+                        return
+                    logger.warning("brevo_send_failed status=%s response=%s", res.status_code, res.text)
+            except Exception:
+                logger.exception("brevo_exception to=%s", to_address)
+
         mime = MimeEmail()
         mime["From"] = self.settings.SMTP_FROM
         mime["To"] = to_address

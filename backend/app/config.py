@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     SMTP_FROM: str = "EduLit-AI <noreply@localhost>"
     SMTP_TIMEOUT_SECONDS: float = 8.0
     SMTP_RETRIES: int = 1
+    RESEND_API_KEY: str = ""
+    BREVO_API_KEY: str = ""
+    AUTO_VERIFY_STUDENT: bool = False
 
     BOOTSTRAP_TEACHER_LOGIN_ID: str = "dang.loan"
     BOOTSTRAP_TEACHER_EMAIL: str = "dang.loan@thptdanphuong.edu.vn"
@@ -221,10 +224,11 @@ class Settings(BaseSettings):
             raise RuntimeError("APP_ORIGIN must use https in production")
         if not self.is_cookie_secure:
             raise RuntimeError("COOKIE_SECURE must be true in production")
-        if not self.SMTP_HOST.strip() or self.SMTP_HOST.strip() in {"127.0.0.1", "localhost"}:
-            raise RuntimeError("Production SMTP_HOST must be a real provider, not a local sink")
-        if not self.SMTP_FROM.strip() or "localhost" in self.SMTP_FROM.lower():
-            raise RuntimeError("Production SMTP_FROM must be a real mailbox")
+        if not self.RESEND_API_KEY and not self.BREVO_API_KEY and not self.AUTO_VERIFY_STUDENT:
+            if not self.SMTP_HOST.strip() or self.SMTP_HOST.strip() in {"127.0.0.1", "localhost"}:
+                raise RuntimeError("Production SMTP_HOST must be a real provider, not a local sink")
+            if not self.SMTP_FROM.strip() or "localhost" in self.SMTP_FROM.lower():
+                raise RuntimeError("Production SMTP_FROM must be a real mailbox")
         password = self.BOOTSTRAP_TEACHER_PASSWORD
         if not password or password == LOCAL_PROTOTYPE_TEACHER_PASSWORD:
             raise RuntimeError(
