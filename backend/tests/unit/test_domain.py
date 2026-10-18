@@ -75,3 +75,23 @@ def test_test_database_url_required() -> None:
     s = Settings(APP_ENV="test", DATABASE_URL_TEST=None, DATABASE_URL="postgresql://x")
     with pytest.raises(RuntimeError, match="DATABASE_URL_TEST"):
         s.require_test_database_url()
+
+
+def test_origin_allowed() -> None:
+    s = Settings(
+        APP_ENV="production",
+        APP_ORIGIN="https://edulit-ai.vercel.app,http://localhost:3000",
+        DATABASE_URL="postgresql://u:p@db/edulit",
+        SMTP_HOST="smtp.example",
+        SMTP_FROM="EduLit <noreply@example.com>",
+        COOKIE_SECURE=True,
+        BOOTSTRAP_TEACHER_PASSWORD="a-unique-operator-secret-99",
+    )
+    assert s.is_origin_allowed("https://edulit-ai.vercel.app")
+    assert s.is_origin_allowed("https://edulit-ai-git-main-danghuys-projects.vercel.app")
+    assert s.is_origin_allowed("https://my-preview-app.vercel.app")
+    assert s.is_origin_allowed("http://localhost:3000")
+    assert not s.is_origin_allowed("https://evil.com")
+    assert not s.is_origin_allowed("null")
+    assert not s.is_origin_allowed("")
+

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from fastapi import Request, Response
 
@@ -46,8 +47,14 @@ async def verify_mutation_guards(request: Request, settings: Settings) -> None:
         return
 
     origin = request.headers.get("origin")
-    expected = settings.normalized_origin
-    if not origin or origin == "null" or origin.rstrip("/") != expected:
+    if not origin or origin == "null":
+        referer = request.headers.get("referer")
+        if referer:
+            parsed_ref = urlparse(referer)
+            if parsed_ref.scheme and parsed_ref.netloc:
+                origin = f"{parsed_ref.scheme}://{parsed_ref.netloc}"
+
+    if not origin or origin == "null" or not settings.is_origin_allowed(origin):
         raise ApiHttpException(403, "CSRF_ORIGIN", ERROR_MESSAGES["CSRF_ORIGIN"])
 
     csrf = request.headers.get(CSRF_HEADER, "")

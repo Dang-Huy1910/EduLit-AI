@@ -106,15 +106,38 @@ class Settings(BaseSettings):
         return frozenset(values)
 
     @property
+    def allowed_origins(self) -> list[str]:
+        raw_list = [part.strip().rstrip("/") for part in self.APP_ORIGIN.split(",") if part.strip()]
+        cleaned: list[str] = []
+        for raw in raw_list:
+            parsed = urlparse(raw)
+            if parsed.scheme and parsed.netloc:
+                cleaned.append(f"{parsed.scheme}://{parsed.netloc}")
+            else:
+                cleaned.append(raw)
+        return cleaned or ["http://localhost:3000"]
+
+    @property
     def normalized_origin(self) -> str:
-        origin = self.APP_ORIGIN.strip().rstrip("/")
-        parsed = urlparse(origin)
-        if not parsed.scheme or not parsed.netloc:
-            raise ValueError("APP_ORIGIN must be an absolute origin such as http://localhost:3000")
-        rebuilt = f"{parsed.scheme}://{parsed.netloc}"
-        if rebuilt != origin:
-            raise ValueError("APP_ORIGIN must be an exact origin without path or trailing slash")
-        return origin
+        for origin in self.allowed_origins:
+            if origin.startswith("https://"):
+                return origin
+        return self.allowed_origins[0]
+
+    def is_origin_allowed(self, origin: str) -> bool:
+        if not origin or origin == "null":
+            return False
+        cleaned = origin.strip().rstrip("/")
+        if cleaned in self.allowed_origins:
+            return True
+        parsed = urlparse(cleaned)
+        if parsed.scheme == "https" and parsed.netloc and (
+            parsed.netloc == "vercel.app" or parsed.netloc.endswith(".vercel.app")
+        ):
+            return True
+        if parsed.hostname in {"localhost", "127.0.0.1"}:
+            return True
+        return False
 
     def _to_async_url(self, url: str) -> str:
         parts = urlsplit(url)
