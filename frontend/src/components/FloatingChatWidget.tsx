@@ -159,7 +159,7 @@ export default function FloatingChatWidget() {
     sender: 'ai',
     text: isTeacher
       ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích tiến độ chấm bài Lớp 11A14 hay phương pháp gợi mở Socratic ạ?`
-      : `Chào bạn ${currentUser.name || 'Đỗ Đăng An'}! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ tác phẩm ngoài hôm nay?`,
+      : `Chào bạn ${currentUser?.name || 'Đỗ Đăng An'}! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ tác phẩm ngoài hôm nay?`,
     timestamp: 'Vừa xong',
   };
 
@@ -173,7 +173,7 @@ export default function FloatingChatWidget() {
         sender: 'ai',
         text: isTeacher
           ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
-          : `Chào bạn ${currentUser.name || 'Đỗ Đăng An'}! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
+          : `Chào bạn ${currentUser?.name || 'Đỗ Đăng An'}! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
         timestamp: 'Vừa xong',
       },
     ]);
@@ -296,7 +296,7 @@ export default function FloatingChatWidget() {
                   </span>
                 </div>
                 <p className="text-[10px] text-white/80 mt-0.5">
-                  {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : `Đồng hành cùng ${currentUser.name || 'Đỗ Đăng An'}`}
+                  {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : `Đồng hành cùng ${currentUser?.name || 'Đỗ Đăng An'}`}
                 </p>
               </div>
             </div>

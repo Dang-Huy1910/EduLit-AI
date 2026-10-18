@@ -98,9 +98,9 @@ export default function SubmitPhotosPage() {
   // Auto-load student scanned pages if empty
   useEffect(() => {
     if (uploadedPages.length === 0) {
-      loadStudentPages(assignmentId, currentUser.id);
+      loadStudentPages(assignmentId, currentUser?.id || 'user-student-11a14-001');
     }
-  }, [uploadedPages.length, loadStudentPages, assignmentId, currentUser.id]);
+  }, [uploadedPages.length, loadStudentPages, assignmentId, currentUser?.id]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -131,9 +131,10 @@ export default function SubmitPhotosPage() {
   };
 
   const handleLoadDemo = () => {
-    loadStudentPages(assignmentId, currentUser.id);
-    const count = (SUBMISSION_MANIFEST[currentUser.id] || SUBMISSION_MANIFEST['user-student-11a14-001'])?.pages?.length || 2;
-    addToast(`Đã đồng bộ ${count} trang bài viết tay của ${currentUser.name || 'học sinh'} từ ứng dụng quét!`, 'success');
+    const studentId = currentUser?.id || 'user-student-11a14-001';
+    loadStudentPages(assignmentId, studentId);
+    const count = (SUBMISSION_MANIFEST[studentId] || SUBMISSION_MANIFEST['user-student-11a14-001'])?.pages?.length || 2;
+    addToast(`Đã đồng bộ ${count} trang bài viết tay của ${currentUser?.name || 'học sinh'} từ ứng dụng quét!`, 'success');
   };
 
   const handleSubmit = () => {
@@ -230,7 +231,7 @@ export default function SubmitPhotosPage() {
                   className="w-full py-2.5 px-4 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold rounded-xl border border-outline-variant/40 flex items-center justify-center gap-2 transition-all"
                 >
                   <span className="material-symbols-outlined text-base text-secondary">sync</span>
-                  <span>Đồng bộ từ camera / EduLit Scanner ({currentUser.name || 'Học sinh'})</span>
+                  <span>Đồng bộ từ camera / EduLit Scanner ({currentUser?.name || 'Học sinh'})</span>
                 </button>
               </div>
 
