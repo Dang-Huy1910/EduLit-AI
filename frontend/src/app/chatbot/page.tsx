@@ -30,7 +30,7 @@ export default function ChatbotPage() {
   const router = useRouter();
   const { currentUser, addToast } = useAppStore();
 
-  const isTeacher = currentUser.role === 'teacher';
+  const isTeacher = currentUser?.role === 'teacher';
 
   const [activeSessionId, setActiveSessionId] = useState('session-1');
   const [inputMessage, setInputMessage] = useState('');
@@ -129,7 +129,7 @@ export default function ChatbotPage() {
   useEffect(() => {
     setSessions(initialSessions);
     setMessages(initialMessages);
-  }, [currentUser.role]);
+  }, [currentUser?.role]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -485,7 +485,7 @@ export default function ChatbotPage() {
                     {/* User Avatar */}
                     {msg.sender === 'user' && (
                       <div className="w-8 h-8 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shrink-0 shadow-xs mt-0.5">
-                        {currentUser.avatarInitials}
+                        {currentUser?.avatarInitials}
                       </div>
                     )}
                   </div>

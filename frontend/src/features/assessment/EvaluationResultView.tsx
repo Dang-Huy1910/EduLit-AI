@@ -30,7 +30,7 @@ export default function EvaluationResultView({
     addToast,
   } = useAppStore();
 
-  const targetStudentId = studentId || currentUser.id;
+  const targetStudentId = studentId || currentUser?.id || '';
   const assignment = assignments.find((a) => a.id === assignmentId) || assignments[0];
   const submission = getStudentSubmission(assignmentId, targetStudentId);
 

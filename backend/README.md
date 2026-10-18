@@ -1,55 +1,84 @@
-# Backend API
+# Backend — xác thực EduLit-AI
 
-Backend đích dùng **NestJS/TypeScript**, tổ chức theo modular monolith, với hai tiến trình API và worker dùng chung codebase. PostgreSQL 17/Prisma giữ dữ liệu, pg-boss chạy tác vụ nền, SDK `@google/genai` gọi **`gemini-2.5-flash`**. Chưa có backend thực thi, dependency hoặc migration.
+API đang chạy trên nhánh này là **Python 3.12 + FastAPI** cho tài khoản và phiên. Khung thư mục NestJS/TypeScript còn lại là vị trí dự kiến cho nghiệp vụ khác, chưa phải API xác thực.
 
-Đọc [kiến trúc và công nghệ](../docs/architecture/system-design.md), [mô hình dữ liệu](../docs/architecture/data-model.md), [pipeline Gemini](../docs/architecture/gemini-pipeline.md) và [API design](../docs/api/api-design.md). Module giữ quyền sở hữu nghiệp vụ; hạ tầng và tác vụ nền dùng lại các use case của module.
+Học sinh tự đăng ký và phải xác minh email. Giáo viên dùng tài khoản prototype được bootstrap vào PostgreSQL (`dang.loan` / Cô Đặng Loan), không có đăng ký giáo viên công khai.
 
-| Thư mục | Trách nhiệm |
-| --- | --- |
-| `src/modules/grounding/` | Nhập học liệu, parsing/chunking, quản lý rubric và cung cấp ngữ cảnh theo đề |
-| `src/modules/socratic/` | Phiên hướng dẫn, FSM lập dàn ý, guardrail và rà soát dàn ý |
-| `src/modules/assessment/` | Bài nộp, xử lý ảnh, điều phối OCR, đánh giá và kiểm tra điểm |
-| `src/modules/analytics/` | Tổng hợp lớp/khối, heatmap, chênh lệch mục tiêu và kiến nghị sư phạm |
-| `src/modules/identity/` | Vị trí dự kiến cho xác thực và phân quyền |
-| `src/modules/classrooms/` | Vị trí dự kiến cho lớp học và thành viên |
-| `src/modules/assignments/` | Vị trí dự kiến cho bài tập, mã đề và liên kết rubric |
-| `src/modules/writing-profile/` | Observations có bằng chứng, profile snapshots và tiến bộ theo thể loại |
-| `src/core/` | Cấu hình, chuẩn lỗi và các thành phần nền tảng dùng chung |
-| `src/infrastructure/ai/` | Gemini adapter, structured outputs, budget/quota/usage và timeout |
-| `src/infrastructure/vision/` | Vision transcription port; dùng Gemini 2.5 Flash, tách lượt OCR/chấm |
-| `src/infrastructure/database/` | Prisma client và transaction PostgreSQL |
-| `src/infrastructure/storage/` | Local private/GCS adapters, kiểm soát truy cập và lifecycle |
-| `src/infrastructure/queue/` | pg-boss adapter; outbox dispatcher và idempotent consumers |
-| `src/jobs/` | Điểm vào tác vụ nền, gọi use case của module |
-| `prisma/schema.prisma`, `prisma/migrations/` | Vị trí đích cho schema và migrations; chưa tạo |
-| `tests/unit/` | Kiểm thử quy tắc nghiệp vụ độc lập |
-| `tests/integration/` | Kiểm thử API và tích hợp hạ tầng |
+## Chạy local (copy/paste)
 
-Các vị trí đã chuẩn bị cho luồng tài liệu và chatbot:
+Cần PostgreSQL (mặc định `localhost:5433` như stack hiện có) và Mailpit cho SMTP sink.
 
-| Thư mục | Trách nhiệm dự kiến |
-| --- | --- |
-| `src/modules/grounding/application/ingestion/` | Điều phối tiếp nhận, parsing, chunking và lưu metadata học liệu |
-| `src/modules/grounding/application/retrieval/` | Chọn ngữ cảnh từ học liệu đã xử lý, theo đề bài và phạm vi truy cập |
-| `src/modules/grounding/application/rubrics/` | Trích xuất, kiểm tra và cung cấp rubric tương ứng |
-| `src/modules/socratic/application/conversations/` | Điều phối lượt chat, lịch sử phiên và tiến trình FSM |
-| `src/modules/socratic/application/guardrails/` | Áp dụng quy tắc hỏi gợi mở, giới hạn phản hồi và từ chối viết hộ |
-| `src/jobs/ingestion/` | Điểm vào tác vụ xử lý tài liệu nền khi cần |
+```bash
+# 1) Tạo database (Postgres 17 đang chạy trên :5433)
+docker exec edulit-postgres-1 psql -U edulit -d postgres -c "CREATE DATABASE edulit_auth;"
+docker exec edulit-postgres-1 psql -U edulit -d postgres -c "CREATE DATABASE edulit_auth_test;"
 
-Đây là khung trách nhiệm, chưa có pipeline thực thi. Xem [luồng học liệu và chatbot](../docs/architecture/knowledge-and-chatbot.md) để hiểu cách phối hợp và các điểm cần chốt.
+# 2) SMTP sink
+docker run --rm -d --name mailpit-dev -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.21
 
-Khi triển khai một module, nhóm mã theo các trách nhiệm sau, với tên file phù hợp ngôn ngữ/framework được chọn:
+# 3) Cấu hình và phụ thuộc
+cd backend
+cp .env.example .env
+uv sync --extra dev
 
-```text
-modules/<module>/
-├── domain/          # Thực thể, giá trị và quy tắc nghiệp vụ
-├── application/     # Use case và interface cho dịch vụ phụ thuộc
-├── presentation/    # Route/controller và ánh xạ đầu vào, đầu ra
-└── persistence/     # Repository cụ thể thuộc module, nếu cần
+# 4) Migration + giáo viên bootstrap (idempotent, không ghi đè mật khẩu đã đổi)
+uv run alembic upgrade head
+uv run python -m app.cli bootstrap-teacher
+
+# 5) API
+uv run uvicorn app.main:app --reload --port 4000
 ```
 
-Đây là hướng dẫn mở rộng; hiện chỉ có một số thư mục `application` được chuẩn bị cho luồng tài liệu và chatbot. Các phần còn lại được tạo khi triển khai mã. `domain` giữ độc lập với HTTP, ORM và SDK nhà cung cấp; các adapter phụ thuộc interface của tầng ứng dụng. Module trao đổi qua interface/use case rõ ràng, giữ thao tác dữ liệu trong module sở hữu.
+Kiểm tra: `GET http://localhost:4000/api/health` → `{"ok":true}`.
 
-Tác vụ OCR/chấm có thể chạy từ `src/jobs` trong tiến trình riêng khi cần. Backend và tiến trình nền dùng cùng mã nghiệp vụ; chỉ bổ sung ứng dụng worker riêng khi yêu cầu triển khai thực tế làm điều đó cần thiết.
+Frontend (cửa khác):
 
-MVP sẽ có `src/main.ts` cho API và `src/worker.ts` cho worker; các entrypoint này chưa được tạo. [.env.example](.env.example) hiện là template thiết kế, chưa được config loader đọc. Không có lệnh chạy backend tại thời điểm này; scaffold và lệnh thực tế nằm trong milestone M1 của [lộ trình](../docs/development/implementation-roadmap.md).
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+Mở `http://localhost:3000`. Next.js rewrite `/api/*` tới `http://localhost:4000`. Cookie phiên `edulit_session` (HttpOnly, SameSite=Lax).
+
+## Kiểm thử
+
+```bash
+cd backend
+export DATABASE_URL_TEST=postgresql://edulit:edulit_dev@localhost:5433/edulit_auth_test
+uv run pytest
+```
+
+Thiếu `DATABASE_URL_TEST` thì pytest dừng, không dùng database dev.
+
+## CLI vận hành
+
+```bash
+uv run python -m app.cli bootstrap-teacher
+uv run python -m app.cli reset-teacher-password --i-understand
+uv run python -m app.cli cleanup-expired
+```
+
+`reset-teacher-password` chỉ dành người vận hành; thu hồi mọi phiên của giáo viên.
+
+## Compose đầy đủ
+
+Từ thư mục repository:
+
+```bash
+docker compose -f infra/docker/compose.auth.yml up --build
+```
+
+Gồm PostgreSQL (host `5434`), Mailpit (`1025`/`8025`), API (`4000`), frontend (`3000`). Không đặt `container_name` cố định.
+
+Trước khi container API nhận request, chạy migration và bootstrap từ image hoặc host:
+
+```bash
+docker compose -f infra/docker/compose.auth.yml exec api alembic upgrade head
+docker compose -f infra/docker/compose.auth.yml exec api python -m app.cli bootstrap-teacher
+```
+
+## Production
+
+Bắt buộc: `APP_ENV=production`, `APP_ORIGIN` HTTPS, SMTP thật, `COOKIE_SECURE`, `BOOTSTRAP_TEACHER_PASSWORD` khác mật khẩu prototype. Thiếu một trong các mục này thì process không khởi động. Không có demo-login.

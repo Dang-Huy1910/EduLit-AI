@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
 import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { isPrototypeStudent } from '@/lib/auth-user';
 
 export default function StudentAssignmentsView() {
   const router = useRouter();
@@ -37,7 +38,10 @@ export default function StudentAssignmentsView() {
   };
 
   // Divide assignments into todo and submitted dynamically
-  const publishedAssignments = assignments.filter((a) => a.status === 'published');
+  const liveStudent = !isPrototypeStudent(currentUser);
+  const publishedAssignments = liveStudent
+    ? []
+    : assignments.filter((a) => a.status === 'published');
   const todoAssignments = publishedAssignments.filter((a) => !submittedAssignmentIds.includes(a.id));
   const submittedAssignments = publishedAssignments.filter((a) => submittedAssignmentIds.includes(a.id));
 
@@ -63,7 +67,8 @@ export default function StudentAssignmentsView() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2 py-0.5 rounded-full">
-                Học sinh Bùi Hà My (Lớp 12A1)
+                Học sinh {currentUser?.name || ''}
+                {currentUser?.classId ? ` (Lớp ${currentUser.classId})` : ''}
               </span>
               <span className="text-xs bg-surface-container text-on-surface-variant font-medium px-2 py-0.5 rounded-full">
                 Học kỳ I • Năm học 2026 - 2027
@@ -114,7 +119,7 @@ export default function StudentAssignmentsView() {
         </div>
 
         {/* Learning Metrics Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {!liveStudent && <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
             <span className="text-xs text-on-surface-variant block">Bài tập cần làm</span>
             <span className="text-xl font-bold text-on-surface font-merriweather">
@@ -154,10 +159,10 @@ export default function StudentAssignmentsView() {
               {submittedAssignments.length > 0 ? 'Mức Giỏi (Tích lũy tốt)' : 'Chờ làm bài'}
             </span>
           </div>
-        </div>
+        </div>}
 
         {/* Tab & Demo Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        {!liveStudent && <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <div className="flex items-center gap-2 border-b border-outline-variant/30 pb-1">
             <button
               onClick={() => setActiveTab('todo')}
@@ -180,10 +185,22 @@ export default function StudentAssignmentsView() {
               Bài đã nộp &amp; Lịch sử chấm ({submittedAssignments.length})
             </button>
           </div>
-        </div>
+        </div>}
+
+        {liveStudent && (
+          <div className="bg-surface-container-lowest rounded-xl p-10 text-center border border-outline-variant/30 shadow-sm">
+            <div className="w-14 h-14 rounded-full bg-secondary-container/40 flex items-center justify-center text-secondary mx-auto mb-3">
+              <span className="material-symbols-outlined text-3xl">waving_hand</span>
+            </div>
+            <h3 className="text-base font-bold text-on-surface mb-1">Chào mừng {currentUser?.name || 'em'} đến EduLit-AI</h3>
+            <p className="text-xs text-on-surface-variant mb-2 leading-relaxed max-w-lg mx-auto">
+              Tài khoản mới chưa được gán lớp hay bài tập. Khi giáo viên giao đề, bài sẽ xuất hiện tại đây. Các chức năng OCR, chấm bài và Socratic sẽ mở khi có dữ liệu thật.
+            </p>
+          </div>
+        )}
 
         {/* Content by Tab */}
-        {showEmptyState ? (
+        {liveStudent ? null : showEmptyState ? (
           <div className="bg-surface-container-lowest rounded-xl p-12 text-center border border-outline-variant/30 shadow-sm max-w-md mx-auto my-6">
             <div className="w-14 h-14 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface-variant mx-auto mb-3">
               <span className="material-symbols-outlined text-3xl">task_alt</span>

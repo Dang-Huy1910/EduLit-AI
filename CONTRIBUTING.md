@@ -4,7 +4,7 @@
 
 Đọc [SRS](SRS.md) và [cấu trúc dự án](docs/architecture/project-structure.md). Khi một thay đổi giải quyết yêu cầu cụ thể, ghi mã `FR`, `BR`, `NFR` hoặc `AC` liên quan trong mô tả thay đổi.
 
-Stack MVP đã được chọn trong [ADR-0001](docs/architecture/decisions/0001-mvp-stack.md): Next.js hiện có, NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và Gemini 2.5 Flash. Dùng npm; khóa runtime và dependency khi scaffold backend. Đọc [system design](docs/architecture/system-design.md) và [lộ trình](docs/development/implementation-roadmap.md) trước khi bổ sung manifest, lockfile và lệnh thực thi.
+Stack giao diện vẫn là Next.js. Phần tài khoản trên `feat/python-auth` dùng Python/FastAPI theo [ADR-0002](docs/architecture/decisions/0002-python-auth.md); ADR-0001 mô tả NestJS cho các phân hệ khác khi được triển khai. Backend Python khóa bằng `uv.lock`; frontend khóa bằng `package-lock.json`.
 
 ## Tổ chức mã
 

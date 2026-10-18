@@ -51,10 +51,11 @@ export interface ToastMessage {
 export type DemoMilestone = 'start' | 'complete';
 
 interface AppState {
-  // Session
-  currentUser: User;
+  // Session — identity source of truth is GET /api/auth/me via auth-store.
+  currentUser: User | null;
   setRole: (role: Role) => void;
   setUser: (user: User) => void;
+  clearAuthUser: () => void;
   switchDemoUser: (userId: string) => void;
   logout: () => void;
 
@@ -174,15 +175,16 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       // Session
-      currentUser: DEMO_TEACHER,
+      currentUser: null,
       setRole: (role: Role) => {
         if (role === 'teacher') {
           set({ currentUser: DEMO_TEACHER });
         } else {
-          set({ currentUser: DEMO_STUDENTS[0] }); // Bùi Hà My
+          set({ currentUser: DEMO_STUDENTS[0] });
         }
       },
       setUser: (user: User) => set({ currentUser: user }),
+      clearAuthUser: () => set({ currentUser: null }),
       switchDemoUser: (userId: string) => {
         if (userId === DEMO_TEACHER.id) {
           set({ currentUser: DEMO_TEACHER });
@@ -194,7 +196,7 @@ export const useAppStore = create<AppState>()(
         }
       },
       logout: () => {
-        set({ currentUser: DEMO_TEACHER });
+        set({ currentUser: null });
       },
 
       // Sidebar Layout
@@ -285,9 +287,9 @@ export const useAppStore = create<AppState>()(
           localStorage.removeItem('edulit-app-v1');
         }
 
-        const currentRole = get().currentUser?.role || 'teacher';
+        const currentUser = get().currentUser;
         set({
-          currentUser: currentRole === 'student' ? DEMO_STUDENTS[0] : DEMO_TEACHER,
+          currentUser,
           demoMilestone: 'start',
           isAiResponding: false,
           assignments: [...INITIAL_ASSIGNMENTS],
@@ -634,6 +636,7 @@ export const useAppStore = create<AppState>()(
 
       submitHandwrittenEssay: (assignmentId) => {
         const { uploadedPages, submissions, currentUser } = get();
+        if (!currentUser) return;
         const studentId = currentUser.id;
         const studentName = currentUser.name;
         const studentCode = currentUser.code || 'VN-12A1-048';
@@ -750,7 +753,6 @@ export const useAppStore = create<AppState>()(
         },
       })),
       partialize: (state) => ({
-        currentUser: state.currentUser,
         sidebarCollapsed: state.sidebarCollapsed,
         demoMilestone: state.demoMilestone,
         assignments: state.assignments,

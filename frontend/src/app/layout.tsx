@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { Inter, Merriweather } from 'next/font/google';
+import AuthGate from '@/components/AuthGate';
 import '@/styles/globals.css';
 
 const inter = Inter({
@@ -29,7 +31,9 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${inter.variable} ${merriweather.variable}`} suppressHydrationWarning>
       <body className="bg-surface text-on-surface font-body-md antialiased min-h-screen" suppressHydrationWarning>
-        {children}
+        <Suspense fallback={null}>
+          <AuthGate>{children}</AuthGate>
+        </Suspense>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
+import { useAuthStore } from '@/lib/auth-store';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 
@@ -17,12 +18,12 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
   const router = useRouter();
   const {
     currentUser,
-    logout,
     resetDemoState,
     addToast,
     sidebarCollapsed,
     toggleSidebar,
   } = useAppStore();
+  const authLogout = useAuthStore((s) => s.logout);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -33,9 +34,13 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
     { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot', icon: 'smart_toy', badge: 'GPT' },
   ];
 
-  const handleLogout = () => {
-    logout();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await authLogout();
+      router.push('/login');
+    } catch {
+      addToast('Không đăng xuất được vì mất kết nối. Hãy thử lại.', 'error');
+    }
   };
 
   return (
@@ -235,17 +240,21 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
               <div className="text-right">
                 <div className="font-label-md text-sm text-on-surface font-semibold">
-                  {currentUser.name}
+                  {currentUser?.name || 'Giáo viên'}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
                   GV Ngữ văn • THPT Đan Phượng
                 </div>
               </div>
-              <div className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs ring-2 ring-primary-container/40">
-                {currentUser.avatarInitials || 'ĐL'}
-              </div>
+              <Link
+                href="/account/security"
+                title="Bảo mật tài khoản"
+                className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs ring-2 ring-primary-container/40"
+              >
+                {currentUser?.avatarInitials || 'GV'}
+              </Link>
               <button
-                onClick={handleLogout}
+                onClick={() => void handleLogout()}
                 title="Đăng xuất"
                 className="ml-2 p-1 text-on-surface-variant hover:text-error transition-colors"
               >

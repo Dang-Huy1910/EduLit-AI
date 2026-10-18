@@ -5,7 +5,7 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
-**Trạng thái triển khai:** Giao diện hiện chạy bằng dữ liệu giả lập. Kiến trúc MVP đã được thiết kế với **Next.js + NestJS + PostgreSQL + Gemini 2.5 Flash**; backend, worker và AI thật chưa được triển khai. Bắt đầu từ [kiến trúc và công nghệ](docs/architecture/system-design.md), [mô hình dữ liệu](docs/architecture/data-model.md) và [lộ trình triển khai](docs/development/implementation-roadmap.md).
+**Trạng thái triển khai:** Giao diện prototype trên `main` chạy mock. Nhánh `feat/python-auth` bổ sung **FastAPI + PostgreSQL** cho tài khoản thật (học sinh tự đăng ký, giáo viên bootstrap). AI/OCR/lớp học chưa thuộc nhánh này. Xem [ADR-0002](docs/architecture/decisions/0002-python-auth.md) và [handoff auth](docs/development/python-auth-handoff.md).
 
 ---
 
