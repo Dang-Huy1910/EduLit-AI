@@ -118,6 +118,18 @@ async def publish_teacher_assignment(
         _raise(exc)
 
 
+@teacher_router.post("/{assignment_id}/outline-prep/retry")
+async def retry_failed_outline_preps(
+    assignment_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[AssignmentService, Depends(get_assignment_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.retry_failed_outline_preps(teacher, assignment_id)
+    except CatalogError as exc:
+        _raise(exc)
+
+
 @teacher_router.post("/{assignment_id}/save-as-rubric", status_code=status.HTTP_201_CREATED)
 async def save_as_rubric(
     assignment_id: uuid.UUID,

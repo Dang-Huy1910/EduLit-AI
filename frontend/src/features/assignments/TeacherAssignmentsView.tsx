@@ -16,6 +16,7 @@ export default function TeacherAssignmentsView() {
   const [classroomId, setClassroomId] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'PUBLISHED' | 'DRAFT'>('all');
   const [loading, setLoading] = useState(true);
+  const [retryingId, setRetryingId] = useState('');
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +36,17 @@ export default function TeacherAssignmentsView() {
     })();
   }, [addToast]);
 
+  const hasActivePrep = assignments.some(
+    (item) => (item.outlinePrep?.queued ?? 0) + (item.outlinePrep?.processing ?? 0) > 0
+  );
+  useEffect(() => {
+    if (!hasActivePrep) return;
+    const timer = window.setInterval(() => {
+      void catalogApi.listTeacherAssignments().then((res) => setAssignments(res.items)).catch(() => undefined);
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [hasActivePrep]);
+
   const selectedClassroom = classrooms.find((item) => item.id === classroomId);
   const filtered = assignments.filter((item) => {
     if (classroomId && item.classroomId && item.classroomId !== classroomId) return false;
@@ -44,6 +56,25 @@ export default function TeacherAssignmentsView() {
   const publishedCount = assignments.filter((item) => item.status === 'PUBLISHED').length;
   const draftCount = assignments.filter((item) => item.status === 'DRAFT').length;
   const createHref = pickPromptHref({ classroomId });
+
+  const handleRetryOutlinePreps = async (assignmentId: string) => {
+    setRetryingId(assignmentId);
+    try {
+      const updated = await catalogApi.retryFailedOutlinePreps(assignmentId);
+      setAssignments((current) => current.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)));
+      const retried = updated.retried ?? 0;
+      addToast(
+        retried > 0
+          ? `Đã đưa ${retried} dàn ý lỗi hoặc cần làm rõ vào hàng đợi để soạn lại.`
+          : 'Không có dàn ý lỗi hoặc cần làm rõ để thử lại.',
+        retried > 0 ? 'success' : 'info'
+      );
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không thử lại được dàn ý lỗi.', 'error');
+    } finally {
+      setRetryingId('');
+    }
+  };
 
   return (
     <TeacherShell>
@@ -163,6 +194,26 @@ export default function TeacherAssignmentsView() {
                   <p className="text-xs text-on-surface-variant line-clamp-2 mb-4">
                     {assignment.sourcePromptTitle || assignment.extraInstructions}
                   </p>
+                  {assignment.status === 'PUBLISHED' && assignment.outlinePrep && assignment.outlinePrep.total > 0 && (
+                    <div className="mb-3 p-2.5 rounded-lg bg-secondary/5 border border-secondary/15 text-xs">
+                      <p className="font-semibold text-on-surface">
+                        Đã sẵn sàng {assignment.outlinePrep.ready}/{assignment.outlinePrep.total} học sinh
+                      </p>
+                      {assignment.outlinePrep.failed > 0 && (
+                        <p className="text-error mt-0.5">{assignment.outlinePrep.failed} trường hợp thất bại</p>
+                      )}
+                      {(assignment.outlinePrep.needsClarification ?? 0) > 0 && (
+                        <p className="text-amber-800 dark:text-amber-400 mt-0.5">
+                          {assignment.outlinePrep.needsClarification} trường hợp cần làm rõ đề hoặc ngữ liệu
+                        </p>
+                      )}
+                      {assignment.outlinePrep.queued + assignment.outlinePrep.processing > 0 && (
+                        <p className="text-on-surface-variant mt-0.5">
+                          Đang soạn {assignment.outlinePrep.queued + assignment.outlinePrep.processing} dàn ý
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-2 text-xs p-2.5 bg-surface-container-low/40 rounded-lg">
                     <div>
                       <span className="text-[10px] text-outline block">Mã truy cập</span>
@@ -185,6 +236,18 @@ export default function TeacherAssignmentsView() {
                   >
                     {assignment.status === 'DRAFT' ? 'Tiếp tục soạn đề' : 'Chi tiết đề & Rubric'}
                   </Link>
+                  {assignment.status === 'PUBLISHED' &&
+                    ((assignment.outlinePrep?.failed ?? 0) > 0 ||
+                      (assignment.outlinePrep?.needsClarification ?? 0) > 0) && (
+                    <button
+                      type="button"
+                      onClick={() => void handleRetryOutlinePreps(assignment.id)}
+                      disabled={retryingId === assignment.id}
+                      className="px-3 py-1.5 rounded-lg border border-error/30 text-error text-xs font-semibold disabled:opacity-50"
+                    >
+                      {retryingId === assignment.id ? 'Đang thử lại...' : 'Thử lại dàn ý lỗi / cần làm rõ'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

@@ -239,13 +239,15 @@ def _apply_fallback(state: SocraticGraphState, message: str | None = None) -> No
     state.error = ""
 
 
-def _sources_as_dicts(sources: list[SourceReference] | list[dict]) -> list[dict]:
+def _sources_as_dicts(sources: list[SourceReference] | list[dict] | list[Any]) -> list[dict]:
     result: list[dict] = []
     for item in sources:
         if isinstance(item, SourceReference):
             result.append(item.model_dump())
         elif isinstance(item, dict):
             result.append(item)
+        elif hasattr(item, "model_dump"):
+            result.append(item.model_dump())
     return result
 
 

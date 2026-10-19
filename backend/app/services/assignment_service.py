@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import DomainError, ERROR_MESSAGES
 from app.core.http import utcnow
+from app.config import get_settings
 from app.db.models import (
     Assignment,
     AssignmentAccess,
@@ -25,6 +26,7 @@ from app.db.models import (
     UserRole,
     UserStatus,
 )
+import app.services.outline_prep as outline_prep_service
 from app.services.catalog_errors import CatalogError
 from app.services.catalog_service import (
     CatalogService,
@@ -130,7 +132,18 @@ class AssignmentService:
             .where(Assignment.teacher_id == teacher.id)
             .order_by(Assignment.updated_at.desc())
         )
-        return [await self._teacher_dict(row) for row in result.scalars().all()]
+        rows = list(result.scalars().all())
+        revision_ids = [row.published_revision_id for row in rows if row.published_revision_id]
+        counts = await outline_prep_service.counts_for_revisions(self.session, revision_ids)
+        return [
+            await self._teacher_dict(
+                row,
+                outline_prep=counts.get(row.published_revision_id)
+                if row.published_revision_id
+                else outline_prep_service.empty_prep_counts(),
+            )
+            for row in rows
+        ]
 
     async def get_teacher_assignment(self, teacher: User, assignment_id: uuid.UUID) -> dict[str, Any]:
         _require_teacher(teacher)
@@ -350,6 +363,13 @@ class AssignmentService:
             elif access.revoked_at is not None:
                 access.revoked_at = None
 
+        await outline_prep_service.enqueue_for_students(
+            self.session,
+            revision_id=revision.id,
+            student_ids=recipients,
+            max_attempts=get_settings().OUTLINE_PREP_MAX_ATTEMPTS,
+        )
+
         assignment.status = "PUBLISHED"
         assignment.published_revision_id = revision.id
         assignment.published_at = utcnow()
@@ -527,7 +547,10 @@ class AssignmentService:
 
         allowed = classroom_student_ids if assignment.classroom_id else await self._teacher_scope_student_ids(teacher)
         recipients: list[uuid.UUID] = []
+        seen: set[uuid.UUID] = set()
         for student_id in requested:
+            if student_id in seen:
+                continue
             if student_id not in allowed:
                 if assignment.classroom_id:
                     raise CatalogError(
@@ -541,6 +564,7 @@ class AssignmentService:
                     "Học sinh được chọn phải thuộc phạm vi lớp của giáo viên.",
                 )
             await self._validate_student_recipient(student_id)
+            seen.add(student_id)
             recipients.append(student_id)
         return recipients
 
@@ -595,7 +619,28 @@ class AssignmentService:
             material["chunks"] = rewritten
         return chunks
 
-    async def _teacher_dict(self, assignment: Assignment, *, full: bool = False) -> dict[str, Any]:
+    async def retry_failed_outline_preps(self, teacher: User, assignment_id: uuid.UUID) -> dict[str, Any]:
+        _require_teacher(teacher)
+        assignment = await self._owned_assignment(teacher, assignment_id)
+        if not assignment.published_revision_id:
+            raise CatalogError(409, "ASSIGNMENT_STATUS", "Bài tập chưa được giao nên chưa có dàn ý để thử lại.")
+        retried = await outline_prep_service.requeue_failed_for_revision(
+            self.session,
+            revision_id=assignment.published_revision_id,
+            max_attempts=get_settings().OUTLINE_PREP_MAX_ATTEMPTS,
+        )
+        await self.session.commit()
+        payload = await self._teacher_dict(assignment, full=True)
+        payload["retried"] = retried
+        return payload
+
+    async def _teacher_dict(
+        self,
+        assignment: Assignment,
+        *,
+        full: bool = False,
+        outline_prep: dict[str, int] | None = None,
+    ) -> dict[str, Any]:
         classroom = None
         if assignment.classroom_id:
             classroom = await self.session.get(Classroom, assignment.classroom_id)
@@ -636,6 +681,11 @@ class AssignmentService:
             else None,
             "updatedAt": assignment.updated_at.isoformat() if assignment.updated_at else None,
         }
+        if outline_prep is None and assignment.published_revision_id:
+            outline_prep = await outline_prep_service.counts_for_revision(
+                self.session, assignment.published_revision_id
+            )
+        payload["outlinePrep"] = outline_prep or outline_prep_service.empty_prep_counts()
         if full:
             payload["assignmentRubric"] = assignment.assignment_rubric
             payload["assignToWholeClass"] = whole_class

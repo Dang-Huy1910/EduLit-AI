@@ -43,6 +43,7 @@ export default function SocraticChatPage() {
     outlineConflict,
     isInitializingOutline,
     outlineInitFailed,
+    outlineInitStatus,
     error,
     errorCode,
     selectedPoint,
@@ -377,7 +378,7 @@ export default function SocraticChatPage() {
                 <div className="flex items-center justify-center h-full text-xs text-on-surface-variant">
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
-                    <span>Đang soạn dàn ý gợi ý theo đề...</span>
+                    <span>Đang chuẩn bị dàn ý gợi ý cho em...</span>
                   </div>
                 </div>
               ) : isLoading ? (
@@ -631,10 +632,31 @@ export default function SocraticChatPage() {
             {isInitializingOutline && (
               <div className="mx-3.5 mt-3 p-3 bg-secondary/5 border border-secondary/20 rounded-xl text-xs flex items-center gap-2 text-on-surface-variant">
                 <span className="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin shrink-0"></span>
-                <span>Đang soạn dàn ý gợi ý theo đề, ngữ liệu và rubric...</span>
+                <span>Đang chuẩn bị dàn ý gợi ý theo đề, ngữ liệu và rubric. Em chờ trong lúc hệ thống soạn riêng cho em...</span>
               </div>
             )}
-            {outlineInitFailed && !isInitializingOutline && (
+            {outlineInitStatus === 'NEEDS_CLARIFICATION' && !isInitializingOutline && (
+              <div className="mx-3.5 mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs space-y-2">
+                <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-400">
+                  <span className="material-symbols-outlined text-sm">help</span>
+                  <span>Cần làm rõ đề hoặc ngữ liệu</span>
+                </div>
+                <p className="text-[11px] text-on-surface leading-relaxed">
+                  {error || 'Đề, ngữ liệu hoặc yêu cầu viết chưa đủ để soạn dàn ý trung thực.'}
+                </p>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  Em có thể trả lời câu hỏi đó trong khung chat, hoặc nhờ giáo viên bổ sung đề/ngữ liệu rồi bấm Thử lại. Hệ thống không tự soạn lại khi thông tin vẫn thiếu.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => ensureOutlineInit(true)}
+                  className="px-2.5 py-1 bg-primary text-white rounded text-[11px] font-semibold"
+                >
+                  Thử lại sau khi đã bổ sung
+                </button>
+              </div>
+            )}
+            {outlineInitFailed && !isInitializingOutline && outlineInitStatus !== 'NEEDS_CLARIFICATION' && (
               <div className="mx-3.5 mt-3 p-3 bg-error/5 border border-error/20 rounded-xl text-xs space-y-2">
                 <p className="text-error font-semibold">
                   {error || 'Chưa tạo được dàn ý gợi ý lần này.'}

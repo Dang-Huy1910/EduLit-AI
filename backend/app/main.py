@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from collections.abc import AsyncGenerator
@@ -14,6 +15,7 @@ from app.config import get_settings
 from app.core.errors import ERROR_MESSAGES, ApiHttpException, error_body
 from app.core.http import SENSITIVE_FIELDS
 from app.db.session import close_db
+from app.workers.outline_prep import start_outline_prep_worker
 from app.identity.router import router as auth_router
 from app.api.routers.socratic import router as socratic_router
 from app.api.routers.catalog import router as catalog_router
@@ -34,9 +36,24 @@ def _configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     _configure_logging()
-    get_settings()
-    yield
-    await close_db()
+    settings = get_settings()
+    worker_task = None
+    stop_worker = None
+    if settings.OUTLINE_PREP_WORKER_ENABLED and not settings.is_test:
+        worker_task, stop_worker = start_outline_prep_worker(settings=settings)
+        logger.info("outline_prep worker attached to api process")
+    try:
+        yield
+    finally:
+        if stop_worker is not None:
+            stop_worker()
+        if worker_task is not None:
+            worker_task.cancel()
+            try:
+                await worker_task
+            except asyncio.CancelledError:
+                pass
+        await close_db()
 
 
 def create_app() -> FastAPI:

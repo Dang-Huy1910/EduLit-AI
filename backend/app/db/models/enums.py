@@ -55,6 +55,16 @@ class OutlineInitStatus(StrEnum):
     NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
 
 
+class OutlinePrepStatus(StrEnum):
+    """Per-student durable outline-prep job."""
+
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"
+    NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
+
+
 class IdempotencyState(StrEnum):
     """State of an idempotency record."""
     PROCESSING = "PROCESSING"

@@ -158,16 +158,18 @@ export interface SessionResponse {
   updatedAt: string;
   currentOutline?: OutlineResponse;
   readiness: 'READY' | 'NOT_READY' | 'INCONCLUSIVE';
-  outlineInitStatus?: 'NONE' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'NEEDS_CLARIFICATION' | string;
+  outlineInitStatus?: 'NONE' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'NEEDS_CLARIFICATION' | 'QUEUED' | 'READY' | string;
+  outlinePrepStatus?: 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED' | 'NEEDS_CLARIFICATION' | string | null;
 }
 
 export interface OutlineInitResponse {
-  status: 'NONE' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'NEEDS_CLARIFICATION' | string;
+  status: 'NONE' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'NEEDS_CLARIFICATION' | 'QUEUED' | 'READY' | string;
   outline: OutlineResponse | null;
   message?: string | null;
   sessionState: string;
   outlineVersion: number;
   readiness?: 'READY' | 'NOT_READY' | 'INCONCLUSIVE' | null;
+  outlinePrepStatus?: 'QUEUED' | 'PROCESSING' | 'READY' | 'FAILED' | 'NEEDS_CLARIFICATION' | string | null;
 }
 
 // Frontend UI types

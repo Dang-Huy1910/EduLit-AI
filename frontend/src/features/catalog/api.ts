@@ -41,6 +41,12 @@ export const catalogApi = {
     apiSend<TeacherAssignment>(`/api/teacher/assignments/${id}`, 'PATCH', body),
   publishAssignment: (id: string) =>
     apiSend<TeacherAssignment>(`/api/teacher/assignments/${id}/publish`, 'POST', {}),
+  retryFailedOutlinePreps: (id: string) =>
+    apiSend<TeacherAssignment & { retried: number }>(
+      `/api/teacher/assignments/${id}/outline-prep/retry`,
+      'POST',
+      {}
+    ),
   saveAsRubric: (id: string, body: unknown) =>
     apiSend<CatalogRubric>(`/api/teacher/assignments/${id}/save-as-rubric`, 'POST', body),
   listStudentAssignments: () => apiGet<{ items: StudentAssignment[] }>('/api/assignments'),

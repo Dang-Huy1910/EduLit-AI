@@ -218,6 +218,10 @@ def main(argv: list[str] | None = None) -> None:
     reset.add_argument("--i-understand", action="store_true", required=True)
     sub.add_parser("cleanup-expired", help="Delete expired sessions, tokens, and rate-limit buckets.")
     sub.add_parser("seed-demo", help="Seed demo teacher, student (nguyen.van.an), and assignment (VAN12-NLXH-SOC).")
+    sub.add_parser(
+        "outline-prep-worker",
+        help="Run the durable per-student outline-prep worker (resumes queued jobs after restart).",
+    )
     args = parser.parse_args(argv)
     settings = get_settings()
 
@@ -229,6 +233,10 @@ def main(argv: list[str] | None = None) -> None:
         asyncio.run(cleanup_expired(settings))
     elif args.command == "seed-demo":
         asyncio.run(seed_demo(settings))
+    elif args.command == "outline-prep-worker":
+        from app.workers.outline_prep import run_outline_prep_worker
+
+        asyncio.run(run_outline_prep_worker(settings=settings))
     else:
         parser.error("unknown command")
 

@@ -373,29 +373,64 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
     };
 
     try {
+      const statusOf = (status?: string | null) => (status || '').toUpperCase();
+      const isPreparing = (status?: string | null) => {
+        const value = statusOf(status);
+        return value === 'PROCESSING' || value === 'QUEUED';
+      };
+
       let result = await api.initOutline(startedSessionId, retry);
       if (!isCurrent()) return;
-      let attempts = 0;
-      while (
-        (result.status === 'PROCESSING' || !result.status) &&
-        attempts < 20 &&
-        isCurrent()
-      ) {
-        await sleep(750);
+      let delay = 1000;
+      let fromGet = false;
+      while (!result.outline && isCurrent()) {
+        const status = statusOf(result.status);
+        const shouldApply =
+          status === 'READY' || (status === 'NEEDS_CLARIFICATION' && fromGet);
+        if (shouldApply) {
+          fromGet = false;
+          try {
+            result = await api.initOutline(startedSessionId, false);
+          } catch (err) {
+            if (!isCurrent()) return;
+            const apiError = err instanceof SocraticApiError ? err : null;
+            if (
+              apiError?.code === ApiErrorCode.OUTLINE_INIT_IN_PROGRESS ||
+              apiError?.code === ApiErrorCode.NETWORK
+            ) {
+              await sleep(delay);
+              delay = Math.min(delay + 500, 4000);
+              continue;
+            }
+            throw err;
+          }
+          if (!isCurrent()) return;
+          if (result.outline) break;
+          if (statusOf(result.status) === 'NEEDS_CLARIFICATION') break;
+          await sleep(delay);
+          delay = Math.min(delay + 250, 4000);
+          continue;
+        }
+        if (!isPreparing(status)) break;
+        await sleep(delay);
         if (!isCurrent()) return;
         try {
-          result = await api.initOutline(startedSessionId, false);
+          result = await api.getOutlineInit(startedSessionId);
         } catch (err) {
           if (!isCurrent()) return;
           const apiError = err instanceof SocraticApiError ? err : null;
-          if (apiError?.code === ApiErrorCode.OUTLINE_INIT_IN_PROGRESS) {
-            attempts += 1;
+          if (
+            apiError?.code === ApiErrorCode.OUTLINE_INIT_IN_PROGRESS ||
+            apiError?.code === ApiErrorCode.NETWORK
+          ) {
+            delay = Math.min(delay + 500, 4000);
             continue;
           }
           throw err;
         }
         if (!isCurrent()) return;
-        attempts += 1;
+        fromGet = true;
+        delay = Math.min(delay + 250, 4000);
       }
 
       if (!isCurrent()) return;
@@ -413,14 +448,16 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
 
       if (!isCurrent()) return;
       const failed = result.status === 'FAILED';
+      const needsClarification = result.status === 'NEEDS_CLARIFICATION';
       set((state) => ({
         isInitializingOutline: false,
         outlineInitFailed: failed,
         outlineInitStatus: result.status,
         error: failed
           ? socraticStudentMessage(ApiErrorCode.AI_INVALID_OUTPUT, result.message || undefined)
-          : result.status === 'NEEDS_CLARIFICATION'
-            ? result.message || state.error
+          : needsClarification
+            ? result.message ||
+              'Đề, ngữ liệu hoặc yêu cầu viết chưa đủ để soạn dàn ý trung thực.'
             : state.error,
         errorCode: failed ? ApiErrorCode.AI_INVALID_OUTPUT : state.errorCode,
         session: state.session
@@ -440,26 +477,18 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
       if (!isCurrent()) return;
       const apiError = error instanceof SocraticApiError ? error : new SocraticApiError(0, 'UNKNOWN', String(error));
       if (apiError.code === ApiErrorCode.OUTLINE_INIT_IN_PROGRESS) {
-        for (let i = 0; i < 15; i += 1) {
-          if (!isCurrent()) return;
-          await sleep(750);
-          if (!isCurrent()) return;
-          try {
-            const session = await api.getSession(startedSessionId);
-            if (!isCurrent()) return;
-            if (session.currentOutline) {
-              adoptInitOutline(session.currentOutline, session.outlineInitStatus || 'COMPLETED', {
-                session,
-                outlineVersion: session.outlineVersion,
-              });
-              if (!isCurrent()) return;
-              await get().loadMessages(false);
-              return;
-            }
-          } catch {
-            // keep polling
-          }
-        }
+        set({
+          isInitializingOutline: true,
+          outlineInitFailed: false,
+          outlineInitStatus: 'PROCESSING',
+          error: null,
+          errorCode: null,
+        });
+        if (!isCurrent()) return;
+        await sleep(1500);
+        if (!isCurrent()) return;
+        await get().ensureOutlineInit(false);
+        return;
       }
       if (!isCurrent()) return;
       set({

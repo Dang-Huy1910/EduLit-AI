@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     AI_MAX_RETRIES: int = 2
     # Prompt version for Socratic agent
     SOCRATIC_PROMPT_VERSION: str = "v1"
+    OUTLINE_PREP_CONCURRENCY: int = 2
+    OUTLINE_PREP_LEASE_SECONDS: int = 300
+    OUTLINE_PREP_POLL_SECONDS: float = 2.0
+    OUTLINE_PREP_MAX_ATTEMPTS: int = 3
+    OUTLINE_PREP_WORKER_ENABLED: bool = True
     IMPORT_PROMPT_VERSION: str = "v1"
     IMPORT_MAX_BYTES: int = 8_000_000
     IMPORT_MAX_MARKDOWN_CHARS: int = 100_000

@@ -129,6 +129,7 @@ class SessionResponse(BaseModel):
     currentOutline: OutlineResponse | None = None
     readiness: str
     outlineInitStatus: str = "NONE"
+    outlinePrepStatus: str | None = None
 
 
 class OutlineInitResponse(BaseModel):
@@ -138,6 +139,7 @@ class OutlineInitResponse(BaseModel):
     sessionState: str
     outlineVersion: int
     readiness: str | None = None
+    outlinePrepStatus: str | None = None
 
 
 def _map_error(e: SocraticServiceError) -> None:
@@ -169,7 +171,14 @@ def _outline_response(revision, readiness: str | None = None) -> OutlineResponse
     )
 
 
-def _session_response(session, outline=None, readiness: str = "INCONCLUSIVE") -> SessionResponse:
+def _session_response(
+    session,
+    outline=None,
+    readiness: str = "INCONCLUSIVE",
+    *,
+    outline_init_status: str | None = None,
+    outline_prep_status: str | None = None,
+) -> SessionResponse:
     return SessionResponse(
         id=str(session.id),
         studentId=str(session.student_id),
@@ -182,7 +191,10 @@ def _session_response(session, outline=None, readiness: str = "INCONCLUSIVE") ->
         updatedAt=session.updated_at.isoformat(),
         currentOutline=_outline_response(outline, readiness) if outline else None,
         readiness=readiness,
-        outlineInitStatus=getattr(session, "outline_init_status", None) or "NONE",
+        outlineInitStatus=outline_init_status
+        or getattr(session, "outline_init_status", None)
+        or "NONE",
+        outlinePrepStatus=outline_prep_status,
     )
 
 
@@ -293,8 +305,15 @@ async def find_session_by_assignment(
             outline = await service.get_current_outline(session.id, student)
             policy = session.assignment_revision.readiness_policy or {}
             readiness = evaluate_readiness(outline.content if outline else None, policy)
+            prep = await service.get_outline_prep(session)
             return FindSessionResponse(
-                session=_session_response(session, outline, readiness),
+                session=_session_response(
+                    session,
+                    outline,
+                    readiness,
+                    outline_init_status=service.mapped_init_status(session, prep),
+                    outline_prep_status=prep.status if prep else None,
+                ),
                 exists=True,
             )
         return FindSessionResponse(session=None, exists=False)
@@ -314,7 +333,14 @@ async def get_session(
         outline = await service.get_current_outline(sid, student)
         policy = session.assignment_revision.readiness_policy or {}
         readiness = evaluate_readiness(outline.content if outline else None, policy)
-        return _session_response(session, outline, readiness)
+        prep = await service.get_outline_prep(session)
+        return _session_response(
+            session,
+            outline,
+            readiness,
+            outline_init_status=service.mapped_init_status(session, prep),
+            outline_prep_status=prep.status if prep else None,
+        )
     except ValueError:
         raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "INVALID_SESSION_ID", "Invalid session ID format")
     except SocraticServiceError as e:
@@ -395,6 +421,46 @@ async def send_message(
         _map_error(e)
 
 
+async def _outline_init_response(
+    service: SocraticService,
+    sid: uuid.UUID,
+    student,
+    outline,
+    status: str,
+    message: str | None,
+) -> OutlineInitResponse:
+    session = await service.get_session(sid, student)
+    policy = session.assignment_revision.readiness_policy or {}
+    readiness = evaluate_readiness(outline.content if outline else None, policy)
+    prep = await service.get_outline_prep(session)
+    outline_version = outline.revision if outline is not None else session.outline_version
+    return OutlineInitResponse(
+        status=status,
+        outline=_outline_response(outline, readiness) if outline else None,
+        message=message,
+        sessionState=session.state.value,
+        outlineVersion=outline_version,
+        readiness=readiness,
+        outlinePrepStatus=prep.status if prep else None,
+    )
+
+
+@router.get("/{session_id}/outline-init", response_model=OutlineInitResponse)
+async def get_outline_init(
+    session_id: str,
+    student: Annotated[User, Depends(get_authenticated_student)],
+    service: Annotated[SocraticService, Depends(get_socratic_service)],
+):
+    try:
+        sid = uuid.UUID(session_id)
+        outline, status, message = await service.read_outline_init(sid, student)
+        return await _outline_init_response(service, sid, student, outline, status, message)
+    except ValueError:
+        raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "INVALID_SESSION_ID", "Invalid session ID format")
+    except SocraticServiceError as e:
+        _map_error(e)
+
+
 @router.post("/{session_id}/outline-init", response_model=OutlineInitResponse)
 async def init_outline(
     session_id: str,
@@ -407,17 +473,7 @@ async def init_outline(
         outline, status, message = await service.ensure_initial_outline(
             sid, student, retry=retry
         )
-        session = await service.get_session(sid, student)
-        policy = session.assignment_revision.readiness_policy or {}
-        readiness = evaluate_readiness(outline.content if outline else None, policy)
-        return OutlineInitResponse(
-            status=status,
-            outline=_outline_response(outline, readiness) if outline else None,
-            message=message,
-            sessionState=session.state.value,
-            outlineVersion=session.outline_version,
-            readiness=readiness,
-        )
+        return await _outline_init_response(service, sid, student, outline, status, message)
     except ValueError:
         raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "INVALID_SESSION_ID", "Invalid session ID format")
     except SocraticServiceError as e:

@@ -124,6 +124,14 @@ export interface TeacherAssignment {
   recipientCount: number;
   publishedRevisionId: string | null;
   updatedAt: string | null;
+  outlinePrep?: {
+    total: number;
+    ready: number;
+    failed: number;
+    queued: number;
+    processing: number;
+    needsClarification: number;
+  };
   assignmentRubric?: CatalogRubric & { criteria: CatalogRubricCriterion[] };
   recipientStudentIds?: string[];
   assignToWholeClass?: boolean;

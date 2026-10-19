@@ -297,6 +297,15 @@ export async function initOutline(
   return handleResponse<OutlineInitResponse>(response);
 }
 
+export async function getOutlineInit(sessionId: string): Promise<OutlineInitResponse> {
+  const response = await safeFetch(`${API_BASE}/${sessionId}/outline-init`, {
+    method: 'GET',
+    headers: getHeaders(false),
+    credentials: 'include',
+  });
+  return handleResponse<OutlineInitResponse>(response);
+}
+
 export async function sendMessage(
   sessionId: string,
   content: string,

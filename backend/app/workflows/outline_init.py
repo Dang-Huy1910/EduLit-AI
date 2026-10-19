@@ -17,15 +17,19 @@ from app.ai.adapters import (
     AiUnavailableError,
 )
 from app.ai.prompt_assets import PromptAsset
-from app.ai.schemas import SOCRATIC_OUTLINE_INIT_SCHEMA_VERSION, SocraticOutlineInit
+from app.ai.schemas import (
+    OutlineSourceInit,
+    SOCRATIC_OUTLINE_INIT_SCHEMA_VERSION,
+    SocraticOutlineInit,
+)
 from app.workflows.guardrails import (
     build_source_alias_map,
     compact_log_reason,
     format_aliased_chunks,
-    normalize_cited_sources,
+    materialize_init_sources,
     normalize_outline_source_ids,
     resolve_source_id,
-    source_alias_retry_hint,
+    source_alias_init_retry_hint,
     validate_response,
     validate_sources,
     validate_structured_outline,
@@ -83,7 +87,8 @@ def _build_init_system_prompt(
     parts.append(
         "\n\nALIAS NGUỒN: Khi điền sources[].chunk_id và source_chunk_id, "
         f"sao chép đúng một trong các alias: {aliases}. "
-        "Không dùng UUID, không rút gọn thành chunk_2. "
+        "Chỉ chọn ID nguồn; hệ thống lấy trích đoạn nguyên văn từ đúng chunk. "
+        "Không bịa quote, không dùng UUID, không rút gọn thành chunk_2. "
         "Không đổi id ý (body-1) hay section_id (intro/body/conclusion)."
     )
     if instructions:
@@ -93,12 +98,25 @@ def _build_init_system_prompt(
     return "".join(parts)
 
 
-def _normalize_init_output(output: SocraticOutlineInit, alias_map) -> str:
-    """Rewrite AI citations to full chunk IDs. Does not touch point.id."""
-    normalized, err = normalize_cited_sources(output.sources, alias_map)
+def _normalize_init_output(
+    output: SocraticOutlineInit,
+    alias_map,
+    context_chunks: list[dict],
+) -> str:
+    """Map aliases to full IDs and fill quotes from the matching chunk.
+
+    Does not touch point.id. Fabricated quotes are dropped; the stored
+    quote is always a verbatim excerpt of the cited chunk.
+    """
+    materialized, err = materialize_init_sources(
+        output.sources, alias_map, context_chunks
+    )
     if err:
         return err
-    output.sources = list(normalized)
+    output.sources = [
+        OutlineSourceInit(chunk_id=item.chunk_id, quote=item.quote)
+        for item in materialized
+    ]
     for section in output.sections or []:
         for point in section.points or []:
             raw = point.source_chunk_id
@@ -174,7 +192,7 @@ async def run_outline_init(
         "Hãy soạn dàn ý gợi ý (mở/thân/kết, luận đề, luận điểm, gợi ý dẫn chứng). "
         "Ý ngắn, không viết đoạn văn mẫu."
     )
-    retry_hint = source_alias_retry_hint(alias_map)
+    retry_hint = source_alias_init_retry_hint(alias_map)
 
     last_error = ""
     last_stage = "generate"
@@ -229,7 +247,7 @@ async def run_outline_init(
                 ai_port=ai_port,
             )
 
-        norm_err = _normalize_init_output(output, alias_map)
+        norm_err = _normalize_init_output(output, alias_map, context_chunks)
         if norm_err:
             last_error = norm_err
             last_stage = "normalize_sources"
