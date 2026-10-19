@@ -71,3 +71,44 @@ export function apiSend<T>(path: string, method: string, body?: unknown): Promis
     body: JSON.stringify(body ?? {}),
   });
 }
+
+export function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  return apiRequest<T>(path, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'X-Edulit-CSRF': '1',
+    },
+    body: form,
+  });
+}
+
+function filenameFromDisposition(header: string | null): string {
+  if (!header) return 'tai-lieu';
+  const utf = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf?.[1]) {
+    try {
+      return decodeURIComponent(utf[1]);
+    } catch {
+      return utf[1];
+    }
+  }
+  const ascii = /filename="([^"]+)"/i.exec(header);
+  return ascii?.[1] || 'tai-lieu';
+}
+
+export async function apiBlob(path: string): Promise<{ blob: Blob; filename: string }> {
+  let response: Response;
+  try {
+    response = await fetch(apiUrl(path), { method: 'GET', credentials: 'include' });
+  } catch {
+    throw new AuthApiError(0, 'NETWORK', 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.');
+  }
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return {
+    blob: await response.blob(),
+    filename: filenameFromDisposition(response.headers.get('Content-Disposition')),
+  };
+}

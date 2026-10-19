@@ -1,11 +1,13 @@
-"""Teacher catalog HTTP API: chuyên đề, ngữ liệu, đề nguồn, barem, lớp."""
+"""Teacher catalog HTTP API: chuyên đề, ngữ liệu, đề nguồn, barem, lớp, import."""
 
 from __future__ import annotations
 
 import uuid
 from typing import Annotated, Any
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Body, Depends, File, Form, Query, UploadFile, status
+from fastapi.responses import Response
 
 from app.core.errors import ApiHttpException
 from app.db.models import User
@@ -13,6 +15,7 @@ from app.identity.deps import get_session_context, require_mutation_guards
 from app.identity.service import SessionContext
 from app.services.catalog_errors import CatalogError
 from app.services.catalog_service import CatalogService
+from app.services.document_import import DocumentImportService
 
 router = APIRouter(
     prefix="/teacher",
@@ -35,6 +38,17 @@ async def get_catalog_service(
     ctx: Annotated[SessionContext, Depends(get_session_context)],
 ) -> CatalogService:
     return CatalogService(ctx.db)
+
+
+async def get_import_service(
+    ctx: Annotated[SessionContext, Depends(get_session_context)],
+) -> DocumentImportService:
+    return DocumentImportService(ctx.db)
+
+
+def _content_disposition(filename: str) -> str:
+    ascii_name = filename.encode("ascii", "ignore").decode("ascii").replace('"', "").strip() or "tai-lieu"
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
 
 
 @router.get("/topics")
@@ -230,5 +244,117 @@ async def update_rubric(
 ) -> dict[str, Any]:
     try:
         return await service.update_rubric(teacher, rubric_id, body)
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@router.get("/documents")
+async def list_documents(
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+) -> dict[str, Any]:
+    return {"items": await service.list_documents(teacher)}
+
+
+@router.post("/documents", status_code=status.HTTP_201_CREATED)
+async def upload_document(
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+    file: Annotated[UploadFile, File()],
+    intent: Annotated[str, Form()] = "MIXED",
+    topicId: Annotated[str | None, Form()] = None,
+    gradeLevel: Annotated[int | None, Form()] = 11,
+    genre: Annotated[str | None, Form()] = "NLVH",
+) -> dict[str, Any]:
+    data = await file.read()
+    try:
+        return await service.upload(
+            teacher,
+            filename=file.filename or "tai-lieu",
+            data=data,
+            intent=intent,
+            topic_id=topicId,
+            grade_level=gradeLevel if gradeLevel is not None else 11,
+            genre=genre or "NLVH",
+        )
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@router.get("/documents/{document_id}")
+async def get_document(
+    document_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.get_document(teacher, document_id)
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@router.get("/documents/{document_id}/original")
+async def download_original(
+    document_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+) -> Response:
+    try:
+        data, filename, mime_type = await service.original_bytes(teacher, document_id)
+    except CatalogError as exc:
+        _raise(exc)
+        raise
+    return Response(
+        content=data,
+        media_type=mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": _content_disposition(filename),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )
+
+
+@router.post("/documents/{document_id}/analyze")
+async def analyze_document(
+    document_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+    body: Annotated[dict[str, Any] | None, Body()] = None,
+) -> dict[str, Any]:
+    payload = body or {}
+    try:
+        return await service.analyze(
+            teacher,
+            document_id,
+            expected_markdown_sha256=payload.get("expectedMarkdownSha256"),
+            markdown=payload.get("markdown"),
+        )
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@router.post("/documents/{document_id}/draft")
+async def save_document_draft(
+    document_id: uuid.UUID,
+    body: dict[str, Any],
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.save_draft(teacher, document_id, body)
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@router.post("/documents/{document_id}/confirm")
+async def confirm_document(
+    document_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+    body: Annotated[dict[str, Any] | None, Body()] = None,
+) -> dict[str, Any]:
+    try:
+        return await service.confirm(teacher, document_id, body)
     except CatalogError as exc:
         _raise(exc)

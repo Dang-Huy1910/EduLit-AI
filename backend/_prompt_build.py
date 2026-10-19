@@ -1,8 +1,8 @@
-"""Copy canonical `prompts/socratic/*.md` into the installable package at build.
+"""Copy canonical `prompts/<family>/*.md` into the installable package at build.
 
-The official source is the repository file `prompts/socratic/`. This hook
-runs during sdist/wheel/editable builds so a second copy is never edited
-by hand.
+Official sources live in repository `prompts/socratic/` and `prompts/catalog/`.
+This hook runs during sdist/wheel/editable builds so a second copy is never
+edited by hand.
 """
 
 from __future__ import annotations
@@ -11,16 +11,28 @@ import shutil
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parent
+PROMPT_FAMILIES = ("socratic", "catalog")
 CANONICAL_DIR = BACKEND_ROOT.parent / "prompts" / "socratic"
 PACKAGE_DIR = BACKEND_ROOT / "app" / "ai" / "prompts" / "socratic"
 
 
+def _canonical_dir(family: str) -> Path:
+    return BACKEND_ROOT.parent / "prompts" / family
+
+
+def _package_dir(family: str) -> Path:
+    return BACKEND_ROOT / "app" / "ai" / "prompts" / family
+
+
 def sync_prompt_assets() -> None:
-    if not CANONICAL_DIR.is_dir():
-        return
-    PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
-    for src in sorted(CANONICAL_DIR.glob("*.md")):
-        shutil.copy2(src, PACKAGE_DIR / src.name)
+    for family in PROMPT_FAMILIES:
+        canonical = _canonical_dir(family)
+        package = _package_dir(family)
+        if not canonical.is_dir():
+            continue
+        package.mkdir(parents=True, exist_ok=True)
+        for src in sorted(canonical.glob("*.md")):
+            shutil.copy2(src, package / src.name)
 
 
 try:

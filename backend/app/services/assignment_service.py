@@ -283,6 +283,7 @@ class AssignmentService:
             "sourcePromptId": str(prompt.id),
             "title": assignment.title,
             "writingTask": prompt.writing_task,
+            "writingTaskSummary": prompt.writing_task_summary,
             "extraInstructions": assignment.extra_instructions,
             "genre": prompt.genre,
             "gradeLevel": prompt.grade_level,
@@ -305,6 +306,7 @@ class AssignmentService:
             "topic": assignment.title,
             "genre": "Nghị luận văn học" if prompt.genre == "NLVH" else "Nghị luận xã hội",
             "writing_task": prompt.writing_task,
+            "writing_task_summary": prompt.writing_task_summary,
             "extra_instructions": assignment.extra_instructions,
             "requirements": [line.strip() for line in prompt.writing_task.splitlines() if line.strip()][:12],
         }
@@ -678,6 +680,9 @@ class AssignmentService:
             "status": "published",
             "dueAt": (revision.due_at.isoformat() if revision.due_at else snapshot.get("dueAt")),
             "writingTask": writing_task,
+            "writingTaskSummary": snapshot.get("writingTaskSummary")
+            or instructions.get("writing_task_summary")
+            or "",
             "extraInstructions": extra,
             "instructions": writing_task or extra or instructions.get("topic") or revision.title,
         }

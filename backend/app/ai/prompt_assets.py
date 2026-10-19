@@ -17,11 +17,22 @@ from pathlib import Path
 PROMPT_PACKAGE = "app.ai.prompts.socratic"
 SOCRATIC_SCHEMA_VERSION = "socratic_output.v1"
 OUTLINE_INIT_SCHEMA_VERSION = "socratic_outline_init.v1"
+DOCUMENT_ANALYSIS_SCHEMA_VERSION = "document_analysis.v1"
 CANONICAL_DIRNAME = Path("prompts") / "socratic"
+ALLOWED_FAMILIES = {"socratic", "catalog"}
 ALLOWED_KINDS = {"system", "outline-init"}
 KIND_SCHEMA_VERSION = {
     "system": SOCRATIC_SCHEMA_VERSION,
     "outline-init": OUTLINE_INIT_SCHEMA_VERSION,
+}
+FAMILY_KIND_SCHEMA = {
+    ("socratic", "system"): SOCRATIC_SCHEMA_VERSION,
+    ("socratic", "outline-init"): OUTLINE_INIT_SCHEMA_VERSION,
+    ("catalog", "document-extract"): DOCUMENT_ANALYSIS_SCHEMA_VERSION,
+}
+FAMILY_ALLOWED_KINDS = {
+    "socratic": {"system", "outline-init"},
+    "catalog": {"document-extract"},
 }
 
 _VERSION_RE = re.compile(r"^v?\d+(\.\d+)*$")
@@ -48,11 +59,11 @@ class PromptAsset:
 def _normalize_version(version: str) -> str:
     raw = (version or "").strip()
     if not raw:
-        raise PromptAssetError(version, "SOCRATIC_PROMPT_VERSION is empty")
+        raise PromptAssetError(version, "prompt version is empty")
     if not _VERSION_RE.match(raw):
         raise PromptAssetError(
             version,
-            "SOCRATIC_PROMPT_VERSION must look like v1 or 1.0",
+            "prompt version must look like v1 or 1.0",
         )
     if not raw.startswith("v"):
         return f"v{raw}"
@@ -63,22 +74,23 @@ def _filename_for(version: str, kind: str = "system") -> str:
     return f"{kind}.{version}.md"
 
 
-def _canonical_file(filename: str) -> Path | None:
+def _canonical_file(filename: str, family: str = "socratic") -> Path | None:
     """Return the repo canonical prompt when this module lives in a checkout.
 
     `backend/app/ai/prompt_assets.py` → repo root is parents[3].
-    A wheel install has no `prompts/socratic` next to that path.
+    A wheel install has no `prompts/<family>` next to that path.
     """
     repo_root = Path(__file__).resolve().parents[3]
-    candidate = repo_root / CANONICAL_DIRNAME / filename
+    candidate = repo_root / "prompts" / family / filename
     if candidate.is_file():
         return candidate
     return None
 
 
-def _packaged_bytes(filename: str) -> bytes | None:
+def _packaged_bytes(filename: str, family: str = "socratic") -> bytes | None:
+    package_name = f"app.ai.prompts.{family}"
     try:
-        package = resources.files(PROMPT_PACKAGE)
+        package = resources.files(package_name)
         asset = package.joinpath(filename)
         if asset.is_file():
             return asset.read_bytes()
@@ -87,28 +99,27 @@ def _packaged_bytes(filename: str) -> bytes | None:
     return None
 
 
-def load_socratic_prompt(version: str, kind: str = "system") -> PromptAsset:
-    """Load a Socratic prompt asset for the configured version.
-
-    `kind` is `system` (conversation) or `outline-init`. A missing v2 file
-    is an error; v1 is never silently substituted.
-    """
+def load_prompt_asset(family: str, version: str, kind: str) -> PromptAsset:
+    """Load a versioned prompt for a family (`socratic` or `catalog`)."""
+    family_key = (family or "").strip().lower()
+    if family_key not in ALLOWED_FAMILIES:
+        raise PromptAssetError(version, f"unknown prompt family '{family}'")
+    kind_key = (kind or "").strip().lower()
+    allowed = FAMILY_ALLOWED_KINDS.get(family_key, set())
+    if kind_key not in allowed:
+        raise PromptAssetError(version, f"unknown prompt kind '{kind}' for family '{family_key}'")
     normalized = _normalize_version(version)
-    kind_key = (kind or "system").strip().lower()
-    if kind_key not in ALLOWED_KINDS:
-        raise PromptAssetError(version, f"unknown prompt kind '{kind}'")
     filename = _filename_for(normalized, kind_key)
-    canonical = _canonical_file(filename)
+    canonical = _canonical_file(filename, family_key)
     if canonical is not None:
         data = canonical.read_bytes()
     else:
-        data = _packaged_bytes(filename)
+        data = _packaged_bytes(filename, family_key)
     if data is None:
         raise PromptAssetError(
             version,
-            f"asset {filename} is not packaged; available versions must match SOCRATIC_PROMPT_VERSION",
+            f"asset {family_key}/{filename} is not packaged",
         )
-
     text = data.decode("utf-8")
     digest = hashlib.sha256(data).hexdigest()
     return PromptAsset(
@@ -116,5 +127,14 @@ def load_socratic_prompt(version: str, kind: str = "system") -> PromptAsset:
         filename=filename,
         text=text,
         sha256=digest,
-        schema_version=KIND_SCHEMA_VERSION[kind_key],
+        schema_version=FAMILY_KIND_SCHEMA[(family_key, kind_key)],
     )
+
+
+def load_socratic_prompt(version: str, kind: str = "system") -> PromptAsset:
+    """Load a Socratic prompt asset for the configured version.
+
+    `kind` is `system` (conversation) or `outline-init`. A missing v2 file
+    is an error; v1 is never silently substituted.
+    """
+    return load_prompt_asset("socratic", version, kind)

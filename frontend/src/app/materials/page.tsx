@@ -2,12 +2,13 @@
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
+import ImportReview from '@/features/catalog/ImportReview';
 import {
   createAssignmentHref,
   loadAssignmentDraft,
@@ -21,6 +22,8 @@ import {
   CatalogPrompt,
   CatalogRubric,
   CatalogTopic,
+  IMPORT_DOCUMENT_LABEL,
+  IMPORT_FORMAT_HELP,
   MISSING_LABELS,
   PICK_PROMPT_NOTICE,
   RUBRIC_IMPORT_SUCCESS,
@@ -35,11 +38,13 @@ type ListItem =
 
 function MaterialsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { currentUser, addToast } = useAppStore();
   const isTeacher = currentUser?.role === 'teacher';
   const pickMode = searchParams.get('mode') === 'pick-prompt';
   const classroomId = searchParams.get('classroomId') || '';
   const assignmentId = searchParams.get('assignmentId') || '';
+  const importId = searchParams.get('importId') || '';
   const draftScope = { userId: currentUser?.id, assignmentId: assignmentId || 'new' };
 
   const [topics, setTopics] = useState<CatalogTopic[]>([]);
@@ -81,6 +86,13 @@ function MaterialsContent() {
   const [topicGenre, setTopicGenre] = useState('NLXH');
   const [rubricText, setRubricText] = useState('');
   const [rubricParseError, setRubricParseError] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importIntent, setImportIntent] = useState('MIXED');
+  const [importGrade, setImportGrade] = useState(11);
+  const [importGenre, setImportGenre] = useState('NLXH');
+  const [importTopicId, setImportTopicId] = useState('');
+  const [importError, setImportError] = useState('');
 
   const load = async () => {
     if (!isTeacher) {
@@ -248,6 +260,18 @@ function MaterialsContent() {
         </div>
         {isTeacher && !pickMode && (
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setImportFile(null);
+                setImportError('');
+                setImportIntent('MIXED');
+                setImportOpen(true);
+              }}
+              className="px-4 py-2 bg-primary-container text-on-primary-container font-semibold rounded-lg text-sm hover:brightness-95 flex items-center gap-2 shadow-sm"
+            >
+              <span className="material-symbols-outlined text-[18px]">upload_file</span>
+              {IMPORT_DOCUMENT_LABEL}
+            </button>
             <button
               onClick={() => {
                 setEditingId('');
@@ -485,6 +509,12 @@ function MaterialsContent() {
 
                 {selected.kind === 'prompt' && selectedPrompt && previewReady && (
                   <>
+                    {selectedPrompt.writingTaskSummary && (
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-outline block">Tóm tắt yêu cầu</span>
+                        <p className="text-sm leading-relaxed whitespace-pre-line">{selectedPrompt.writingTaskSummary}</p>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <span className="text-xs font-bold uppercase tracking-wider text-outline block">Yêu cầu viết</span>
                       <p className="text-sm leading-relaxed whitespace-pre-line">
@@ -646,7 +676,7 @@ function MaterialsContent() {
               placeholder="Dán toàn văn ngữ liệu. Hệ thống không giả lập phân tích file."
             />
             <p className="text-[11px] text-on-surface-variant">
-              Bản đầu hỗ trợ dán văn bản. Chưa xử lý PDF/DOCX nên không có nút tải file như đã hoạt động.
+              Có thể dán văn bản tại đây, hoặc dùng {IMPORT_DOCUMENT_LABEL} để tải DOCX/PDF/XLSX.
             </p>
             <ModalActions saving={saving} onCancel={() => setDrawer(null)} submitLabel={editingId ? 'Cập nhật ngữ liệu' : 'Lưu ngữ liệu'} />
           </form>
@@ -793,6 +823,105 @@ function MaterialsContent() {
             <ModalActions saving={saving} onCancel={() => setDrawer(null)} submitLabel="Lưu chuyên đề" />
           </form>
         </Modal>
+      )}
+
+      {importOpen && (
+        <Modal title={IMPORT_DOCUMENT_LABEL} onClose={() => setImportOpen(false)}>
+          <form
+            className="space-y-3 text-xs"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!importFile) {
+                setImportError('Hãy chọn file từ máy.');
+                return;
+              }
+              setSaving(true);
+              setImportError('');
+              const form = new FormData();
+              form.append('file', importFile);
+              form.append('intent', importIntent);
+              form.append('gradeLevel', String(importGrade));
+              form.append('genre', importGenre);
+              if (importTopicId) form.append('topicId', importTopicId);
+              try {
+                const created = await catalogApi.uploadDocument(form);
+                setImportOpen(false);
+                setImportFile(null);
+                addToast('Đã lưu file gốc. Hãy rà soát bản phân tích.', 'success');
+                router.replace(`/materials?importId=${created.id}`);
+              } catch (err) {
+                setImportError(err instanceof AuthApiError ? err.message : 'Không import được tài liệu.');
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            <p className="text-on-surface-variant">{IMPORT_FORMAT_HELP}</p>
+            <label className="block font-semibold">Loại tài liệu</label>
+            <select
+              value={importIntent}
+              onChange={(e) => setImportIntent(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant/60"
+            >
+              <option value="MATERIAL">Ngữ liệu</option>
+              <option value="PROMPT">Đề nguồn</option>
+              <option value="RUBRIC">Barem</option>
+              <option value="MIXED">Tài liệu tổng hợp</option>
+            </select>
+            <label className="block font-semibold">Khối lớp</label>
+            <select
+              value={importGrade}
+              onChange={(e) => setImportGrade(Number(e.target.value))}
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant/60"
+            >
+              <option value={10}>Khối 10</option>
+              <option value={11}>Khối 11</option>
+              <option value={12}>Khối 12</option>
+            </select>
+            <label className="block font-semibold">Dạng bài</label>
+            <select
+              value={importGenre}
+              onChange={(e) => setImportGenre(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant/60"
+            >
+              <option value="NLVH">NLVH</option>
+              <option value="NLXH">NLXH</option>
+            </select>
+            <label className="block font-semibold">Chuyên đề</label>
+            <select
+              value={importTopicId}
+              onChange={(e) => setImportTopicId(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant/60"
+            >
+              <option value="">Không gắn chuyên đề</option>
+              {topics.map((topic) => (
+                <option key={topic.id} value={topic.id}>
+                  {topic.title}
+                </option>
+              ))}
+            </select>
+            <input
+              type="file"
+              accept=".docx,.pdf,.txt,.md,.xlsx,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+            />
+            {importError && <p className="text-error">{importError}</p>}
+            <ModalActions saving={saving} onCancel={() => setImportOpen(false)} submitLabel="Tải lên và phân tích" />
+          </form>
+        </Modal>
+      )}
+
+      {importId && (
+        <ImportReview
+          documentId={importId}
+          topics={topics}
+          onClose={() => router.replace('/materials')}
+          onConfirmed={() => {
+            addToast('Đã lưu ngữ liệu/đề/barem vào kho. Barem chỉ chọn khi tạo bài tập.', 'success');
+            router.replace('/materials');
+            void load();
+          }}
+        />
       )}
 
       {drawer === 'rubric' && (

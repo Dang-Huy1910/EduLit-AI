@@ -59,6 +59,32 @@ def test_duplicate_criterion_id() -> None:
     assert exc.value.code == "RUBRIC_CRITERION"
 
 
+def test_vietnamese_decimal_comma_is_accepted() -> None:
+    payload = {
+        "title": "Barem thập phân Việt",
+        "maxScore": "10,0",
+        "scoreStep": "0,5",
+        "gradeLevel": 11,
+        "criteria": [
+            {
+                "id": "C1",
+                "name": "Nội dung",
+                "weight": "2,5",
+                "levels": [
+                    {"score": "0,0", "descriptor": "Chưa đạt"},
+                    {"score": "2,5", "descriptor": "Đạt"},
+                ],
+            },
+            {"id": "C2", "name": "Hình thức", "weight": "7,5"},
+        ],
+    }
+    result = validate_rubric_payload(payload)
+    assert result["maxScore"] == 10.0
+    assert result["criteria"][0]["weight"] == 2.5
+    assert result["criteria"][0]["levels"][0]["score"] == 0.0
+    assert result["scoreStep"] == 0.5
+
+
 def test_level_score_zero_is_allowed() -> None:
     payload = {
         "title": "Barem có mức 0",

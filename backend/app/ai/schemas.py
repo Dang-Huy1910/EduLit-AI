@@ -136,3 +136,90 @@ class SocraticOutlineInit(BaseModel):
     @classmethod
     def _coerce_sections(cls, value: object) -> object:
         return value or []
+
+
+DOCUMENT_ANALYSIS_SCHEMA_VERSION = "document_analysis.v1"
+DOCUMENT_EXTRACT_MARKER = "TÀI LIỆU MARKDOWN:"
+
+
+class DocumentConstraint(BaseModel):
+    kind: Literal["genre", "length", "audience", "evidence", "compare", "other"] = "other"
+    text: str = Field(..., min_length=1, max_length=500)
+    missing: bool = False
+
+
+class ExtractedMaterial(BaseModel):
+    id: str = Field(..., min_length=1, max_length=64)
+    title: str = Field(..., min_length=1, max_length=255)
+    author: str = Field(default="", max_length=255)
+    source_info: str = Field(default="", max_length=4000)
+    content: str = Field(default="", max_length=80_000)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ExtractedPrompt(BaseModel):
+    id: str = Field(..., min_length=1, max_length=64)
+    title: str = Field(..., min_length=1, max_length=255)
+    writing_task: str = Field(default="", max_length=80_000)
+    writing_task_summary: str = Field(default="", max_length=2000)
+    extra_guidance: str = Field(default="", max_length=8000)
+    genre: Literal["NLVH", "NLXH"] = "NLVH"
+    grade_level: int = 11
+    constraints: list[DocumentConstraint] = Field(default_factory=list)
+    linked_material_ids: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+    @field_validator("grade_level", mode="before")
+    @classmethod
+    def _grade(cls, value: object) -> int:
+        try:
+            grade = int(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return 11
+        return grade if grade in {10, 11, 12} else 11
+
+
+class ExtractedRubricLevel(BaseModel):
+    score: float
+    descriptor: str = ""
+
+
+class ExtractedRubricCriterion(BaseModel):
+    id: str = Field(..., min_length=1, max_length=64)
+    name: str = Field(..., min_length=1, max_length=255)
+    weight: float
+    guide_note: str = Field(default="", max_length=4000)
+    levels: list[ExtractedRubricLevel] = Field(default_factory=list)
+    required_elements: list[str] = Field(default_factory=list)
+    penalty_per_error: float | None = None
+    anti_patterns: list[str] = Field(default_factory=list)
+    ambiguous: bool = False
+
+
+class ExtractedRubric(BaseModel):
+    id: str = Field(..., min_length=1, max_length=64)
+    title: str = Field(..., min_length=1, max_length=255)
+    short_title: str = Field(default="", max_length=128)
+    description: str = Field(default="", max_length=4000)
+    max_score: float
+    score_step: float = 0.25
+    grade_level: int = 11
+    criteria: list[ExtractedRubricCriterion] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    ambiguous: bool = False
+
+
+class DocumentAnalysisResult(BaseModel):
+    """Structured extract of an imported teacher document. Not a Socratic turn."""
+
+    document_kind: Literal["MATERIAL", "PROMPT", "RUBRIC", "MIXED"] = "MIXED"
+    materials: list[ExtractedMaterial] = Field(default_factory=list)
+    prompts: list[ExtractedPrompt] = Field(default_factory=list)
+    rubrics: list[ExtractedRubric] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    missing: list[str] = Field(default_factory=list)
+
+    @field_validator("materials", "prompts", "rubrics", "warnings", "missing", mode="before")
+    @classmethod
+    def _coerce_lists(cls, value: object) -> object:
+        return value or []

@@ -10,7 +10,19 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -124,6 +136,9 @@ class Material(Base):
     source_info: Mapped[str] = mapped_column(Text, nullable=False, default="")
     grade_level: Mapped[int] = mapped_column(Integer, nullable=False, default=11)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="DRAFT")
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("teacher_documents.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -138,6 +153,7 @@ class Material(Base):
     __table_args__ = (
         Index("materials_owner_teacher_id_idx", "owner_teacher_id"),
         Index("materials_topic_id_idx", "topic_id"),
+        Index("materials_source_document_id_idx", "source_document_id"),
     )
 
 
@@ -209,10 +225,14 @@ class SourcePrompt(Base):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     writing_task: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    writing_task_summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
     extra_guidance: Mapped[str] = mapped_column(Text, nullable=False, default="")
     genre: Mapped[str] = mapped_column(String(32), nullable=False, default="NLVH")
     grade_level: Mapped[int] = mapped_column(Integer, nullable=False, default=11)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="DRAFT")
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("teacher_documents.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -227,6 +247,7 @@ class SourcePrompt(Base):
     __table_args__ = (
         Index("source_prompts_owner_teacher_id_idx", "owner_teacher_id"),
         Index("source_prompts_topic_id_idx", "topic_id"),
+        Index("source_prompts_source_document_id_idx", "source_document_id"),
     )
 
 
@@ -258,6 +279,9 @@ class Rubric(Base):
     short_title: Mapped[str] = mapped_column(String(128), nullable=False, default="")
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="READY")
+    source_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("teacher_documents.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -269,7 +293,10 @@ class Rubric(Base):
         "RubricVersion", back_populates="rubric", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (Index("rubrics_owner_teacher_id_idx", "owner_teacher_id"),)
+    __table_args__ = (
+        Index("rubrics_owner_teacher_id_idx", "owner_teacher_id"),
+        Index("rubrics_source_document_id_idx", "source_document_id"),
+    )
 
 
 class RubricVersion(Base):
@@ -358,3 +385,76 @@ class Assignment(Base):
         Index("assignments_source_prompt_id_idx", "source_prompt_id"),
         Index("assignments_status_idx", "status"),
     )
+
+
+class TeacherDocument(Base):
+    """Teacher-uploaded original file plus conversion/analysis draft.
+
+    Original bytes live in TeacherDocumentBlob and are never loaded here.
+    """
+
+    __tablename__ = "teacher_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    owner_teacher_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="UPLOADED")
+    intent: Mapped[str] = mapped_column(String(16), nullable=False, default="MIXED")
+    needs_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    conversion_warning: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    error_code: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    error_message: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    converted_markdown: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    teacher_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
+    converted_markdown_sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    teacher_markdown_sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    analysis_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    analysis_markdown_sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    teacher_draft_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    teacher_draft_markdown_sha256: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    selected_item_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    topic_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("topics.id", ondelete="SET NULL"), nullable=True
+    )
+    grade_level: Mapped[int] = mapped_column(Integer, nullable=False, default=11)
+    genre: Mapped[str] = mapped_column(String(32), nullable=False, default="NLVH")
+    created_material_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_prompt_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    created_rubric_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    converted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+    __table_args__ = (
+        Index("teacher_documents_owner_teacher_id_idx", "owner_teacher_id"),
+        Index("teacher_documents_status_idx", "status"),
+        Index("teacher_documents_sha256_idx", "sha256"),
+    )
+
+
+class TeacherDocumentBlob(Base):
+    """Original upload bytes. Query this table explicitly; never lazy-load."""
+
+    __tablename__ = "teacher_document_blobs"
+
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("teacher_documents.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    original_bytes: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)

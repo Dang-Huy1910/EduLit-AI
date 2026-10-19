@@ -28,7 +28,8 @@ from openai import (
 )
 from pydantic import BaseModel, ValidationError
 
-from app.ai.schemas import SocraticOutlineInit
+from app.ai.fake_document_extract import fake_document_analysis_json
+from app.ai.schemas import DocumentAnalysisResult, SocraticOutlineInit
 from app.config import Settings, get_settings
 
 logger = logging.getLogger("edulit.ai")
@@ -592,6 +593,10 @@ class FakeAiAdapter(AiPort):
             structured_output is SocraticOutlineInit
             or getattr(structured_output, "__name__", "") == "SocraticOutlineInit"
         )
+        wants_document = structured_output is not None and (
+            structured_output is DocumentAnalysisResult
+            or getattr(structured_output, "__name__", "") == "DocumentAnalysisResult"
+        )
         if wants_outline:
             if self.outline_responses:
                 content = self.outline_responses[
@@ -600,6 +605,8 @@ class FakeAiAdapter(AiPort):
                 self.outline_response_index += 1
             else:
                 content = _fake_outline_init_for_prompt(system_prompt, prompt)
+        elif wants_document and not self.responses:
+            content = fake_document_analysis_json(prompt)
         elif self.responses:
             content = self.responses[self.response_index % len(self.responses)]
             self.response_index += 1

@@ -22,6 +22,8 @@ dependencies = [
     "python-dotenv>=1.0.1,<2",
     "sqlalchemy[asyncio]>=2.0.36,<3",
     "uvicorn[standard]>=0.32.0,<1",
+    "markitdown[docx,pdf,xlsx]>=0.1.8,<0.2",
+    "python-multipart>=0.0.9,<0.1",
 ]
 
 [project.optional-dependencies]
@@ -46,8 +48,9 @@ sdist = "_prompt_build.sdist"
 editable_wheel = "_prompt_build.editable_wheel"
 
 [tool.setuptools.package-data]
-"app.ai.prompts" = ["socratic/*.md"]
+"app.ai.prompts" = ["socratic/*.md", "catalog/*.md"]
 "app.ai.prompts.socratic" = ["*.md"]
+"app.ai.prompts.catalog" = ["*.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

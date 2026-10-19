@@ -54,6 +54,12 @@ ERROR_MESSAGES: dict[str, str] = {
     "NEED_RECIPIENTS": "Cần chọn lớp hoặc học sinh nhận bài trước khi giao.",
     "RUBRIC_SHAPE": "Định dạng barem không hợp lệ.",
     "RUBRIC_WEIGHT_SUM": "Tổng điểm các tiêu chí phải bằng thang điểm của barem.",
+    "IMPORT_TYPE": "Định dạng file không được hỗ trợ. Dùng DOCX, PDF có chữ, TXT/Markdown hoặc XLSX.",
+    "IMPORT_TOO_LARGE": "File vượt quá dung lượng cho phép.",
+    "IMPORT_NEEDS_OCR": "PDF không có lớp văn bản đọc được. Giữ file gốc; thầy/cô hãy dùng bản chữ hoặc OCR sau.",
+    "IMPORT_STALE": "Phiên phân tích không khớp bản Markdown hiện tại. Hãy phân tích lại.",
+    "IMPORT_NOT_READY": "Tài liệu chưa sẵn sàng để lưu vào kho.",
+    "IMPORT_TIMEOUT": "Chuyển Markdown quá thời gian. File gốc vẫn còn.",
 }
 
 

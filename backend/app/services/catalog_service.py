@@ -362,7 +362,9 @@ class CatalogService:
         material = await self._owned_material(teacher, material_id)
         return await self._material_dict(material, full=True)
 
-    async def create_material(self, teacher: User, body: dict[str, Any]) -> dict[str, Any]:
+    async def create_material(
+        self, teacher: User, body: dict[str, Any], *, commit: bool = True
+    ) -> dict[str, Any]:
         _require_teacher(teacher)
         topic = await self._owned_topic(teacher, _optional_uuid(body.get("topicId")))
         title = _text(body.get("title"), "title")
@@ -380,6 +382,7 @@ class CatalogService:
             source_info=_text(body.get("sourceInfo") or body.get("source_info"), "sourceInfo", required=False, max_len=4000),
             grade_level=_grade(body.get("gradeLevel", 11)),
             status=status,
+            source_document_id=_optional_uuid(body.get("sourceDocumentId")),
             updated_at=_now(),
         )
         self.session.add(material)
@@ -403,8 +406,11 @@ class CatalogService:
                     sort_order=chunk["sort_order"],
                 )
             )
-        await self.session.commit()
-        return await self.get_material(teacher, material.id)
+        if commit:
+            await self.session.commit()
+            return await self.get_material(teacher, material.id)
+        await self.session.flush()
+        return await self._material_dict(material, full=True)
 
     async def update_material(
         self, teacher: User, material_id: uuid.UUID, body: dict[str, Any]
@@ -509,7 +515,9 @@ class CatalogService:
         prompt = await self._owned_prompt(teacher, prompt_id)
         return await self._prompt_dict(prompt, full=True)
 
-    async def create_prompt(self, teacher: User, body: dict[str, Any]) -> dict[str, Any]:
+    async def create_prompt(
+        self, teacher: User, body: dict[str, Any], *, commit: bool = True
+    ) -> dict[str, Any]:
         _require_teacher(teacher)
         topic = await self._owned_topic(teacher, _optional_uuid(body.get("topicId")))
         material_ids = _as_uuid_list(body.get("materialIds"), "materialIds")
@@ -518,10 +526,14 @@ class CatalogService:
             topic_id=topic.id if topic else None,
             title=_text(body.get("title"), "title"),
             writing_task=_text(body.get("writingTask"), "writingTask", required=False, max_len=MATERIAL_CONTENT_MAX),
+            writing_task_summary=_text(
+                body.get("writingTaskSummary"), "writingTaskSummary", required=False, max_len=2000
+            ),
             extra_guidance=_text(body.get("extraGuidance"), "extraGuidance", required=False, max_len=8000),
             genre=_genre(body.get("genre")),
             grade_level=_grade(body.get("gradeLevel", 11)),
             status="DRAFT",
+            source_document_id=_optional_uuid(body.get("sourceDocumentId")),
             updated_at=_now(),
         )
         self.session.add(prompt)
@@ -530,8 +542,11 @@ class CatalogService:
         ready_count = await self._ready_material_count(prompt)
         status, _missing = prompt_readiness(prompt.writing_task, ready_count)
         prompt.status = status
-        await self.session.commit()
-        return await self.get_prompt(teacher, prompt.id)
+        if commit:
+            await self.session.commit()
+            return await self.get_prompt(teacher, prompt.id)
+        await self.session.flush()
+        return await self._prompt_dict(prompt, full=True)
 
     async def update_prompt(
         self, teacher: User, prompt_id: uuid.UUID, body: dict[str, Any]
@@ -547,6 +562,10 @@ class CatalogService:
         if "extraGuidance" in body:
             prompt.extra_guidance = _text(
                 body.get("extraGuidance"), "extraGuidance", required=False, max_len=8000
+            )
+        if "writingTaskSummary" in body:
+            prompt.writing_task_summary = _text(
+                body.get("writingTaskSummary"), "writingTaskSummary", required=False, max_len=2000
             )
         if "genre" in body:
             prompt.genre = _genre(body.get("genre"))
@@ -603,7 +622,9 @@ class CatalogService:
         _require_teacher(teacher)
         return await self._rubric_dict(await self._owned_rubric(teacher, rubric_id), full=True)
 
-    async def create_rubric(self, teacher: User, body: dict[str, Any]) -> dict[str, Any]:
+    async def create_rubric(
+        self, teacher: User, body: dict[str, Any], *, commit: bool = True
+    ) -> dict[str, Any]:
         _require_teacher(teacher)
         try:
             canonical = validate_rubric_payload(body)
@@ -615,6 +636,7 @@ class CatalogService:
             short_title=canonical["shortTitle"],
             description=canonical["description"],
             status="READY",
+            source_document_id=_optional_uuid(body.get("sourceDocumentId")),
             updated_at=_now(),
         )
         self.session.add(rubric)
@@ -628,8 +650,11 @@ class CatalogService:
             status="APPROVED",
         )
         self.session.add(version)
-        await self.session.commit()
-        return await self.get_rubric(teacher, rubric.id)
+        if commit:
+            await self.session.commit()
+            return await self.get_rubric(teacher, rubric.id)
+        await self.session.flush()
+        return await self._rubric_dict(rubric, full=True)
 
     async def update_rubric(
         self, teacher: User, rubric_id: uuid.UUID, body: dict[str, Any]
@@ -690,6 +715,7 @@ class CatalogService:
             "author": material.author,
             "sourceInfo": material.source_info,
             "gradeLevel": material.grade_level,
+            "sourceDocumentId": str(material.source_document_id) if material.source_document_id else None,
             "topicId": str(material.topic_id) if material.topic_id else None,
             "status": status,
             "missing": missing,
@@ -726,7 +752,9 @@ class CatalogService:
             "kind": "prompt",
             "title": prompt.title,
             "writingTask": prompt.writing_task,
+            "writingTaskSummary": prompt.writing_task_summary,
             "extraGuidance": prompt.extra_guidance,
+            "sourceDocumentId": str(prompt.source_document_id) if prompt.source_document_id else None,
             "genre": prompt.genre,
             "gradeLevel": prompt.grade_level,
             "topicId": str(prompt.topic_id) if prompt.topic_id else None,
@@ -748,6 +776,7 @@ class CatalogService:
             "shortTitle": rubric.short_title or rubric.title,
             "description": rubric.description,
             "status": rubric.status,
+            "sourceDocumentId": str(rubric.source_document_id) if rubric.source_document_id else None,
             "version": latest.version if latest else 0,
             "maxScore": float(latest.max_score) if latest else 0,
             "scoreStep": float(latest.score_step) if latest else 0.25,

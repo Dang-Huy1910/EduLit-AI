@@ -27,6 +27,8 @@ from app.db.models import (  # noqa: F401
     SocraticSession,
     SourcePrompt,
     SourcePromptMaterial,
+    TeacherDocument,
+    TeacherDocumentBlob,
     Topic,
     User,
 )

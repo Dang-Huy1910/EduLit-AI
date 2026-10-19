@@ -25,13 +25,27 @@ Snapshot đề, ngữ liệu (`context_chunks`) và barem ghi vào `assignment_r
 
 Học sinh chỉ thấy bài `PUBLISHED` có grant còn hiệu lực.
 
+## Import tài liệu
+
+Nút **Import tài liệu** tại kho. Luồng: tải file (multipart) → lưu nguyên bytes vào PostgreSQL (`teacher_document_blobs`) → MarkItDown (cục bộ, không plugin/LLM) → agent trích xuất → giáo viên rà soát Markdown/form → xác nhận tạo Material / SourcePrompt / Rubric.
+
+Định dạng bản đầu: DOCX, PDF có lớp văn bản, TXT/Markdown, XLSX (bảng barem). PDF scan/không có chữ: giữ file gốc, trạng thái `NEEDS_OCR`, không READY, agent không đoán nội dung. OCR chữ viết tay học sinh chưa có.
+
+File gốc không bị thay bằng Markdown. API danh sách không trả bytes. Tải lại: `GET /api/teacher/documents/{id}/original` (chỉ chủ sở hữu).
+
+Agent tách: ngữ liệu đầy đủ, yêu cầu viết đầy đủ, tóm tắt yêu cầu, ràng buộc, barem nếu có. Tóm tắt không thay yêu cầu đầy đủ. Snapshot bài đã giao dùng `writingTask` đầy đủ; sửa import sau đó không đổi bài đã phát hành. Barem nhập vào kho, chỉ chọn khi tạo bài tập.
+
+Cấu hình: `IMPORT_MAX_BYTES`, `IMPORT_MAX_MARKDOWN_CHARS`, `IMPORT_MIN_TEXT_CHARS`, `IMPORT_CONVERT_TIMEOUT_SECONDS`, `IMPORT_AI_TIMEOUT_SECONDS`, `IMPORT_AI_MAX_OUTPUT_TOKENS` (mặc định 4096, không dùng trần output Socratic 512), `IMPORT_PROMPT_VERSION`. Prompt `prompts/catalog/document-extract.v1.md` được đóng gói khi build.
+
+Vẫn giữ dán văn bản và nhập barem JSON.
+
 ## Import barem
 
-Xem [backend/README.md](../../backend/README.md) mục “Import barem JSON”.
+Xem [backend/README.md](../../backend/README.md) mục “Import barem JSON” và “Import tài liệu”.
 
 ## API (cookie `edulit_session`, CSRF Origin + `X-Edulit-CSRF: 1`)
 
-Giáo viên: `GET/POST /api/teacher/{topics,classrooms,materials,prompts,rubrics,assignments}`; `PATCH` ngữ liệu/đề/barem/bài nháp; `POST /api/teacher/assignments/{id}/publish`; `POST .../save-as-rubric`.
+Giáo viên: `GET/POST /api/teacher/{topics,classrooms,materials,prompts,rubrics,assignments,documents}`; `POST /api/teacher/documents` (multipart); `GET .../documents/{id}/original`; `POST .../documents/{id}/{analyze,draft,confirm}`; `PATCH` ngữ liệu/đề/barem/bài nháp; `POST /api/teacher/assignments/{id}/publish`; `POST .../save-as-rubric`.
 
 Học sinh: `GET /api/assignments` (chỉ bài PUBLISHED được giao); `GET /api/assignments/{id|code}`.
 

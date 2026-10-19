@@ -102,7 +102,8 @@ TRUNCATE_SQL = (
     "assignment_access, assignment_revisions, "
     "class_memberships, classrooms, material_chunks, material_versions, "
     "source_prompt_materials, source_prompts, materials, topics, "
-    "rubric_versions, rubrics, assignments RESTART IDENTITY CASCADE"
+    "rubric_versions, rubrics, assignments, "
+    "teacher_document_blobs, teacher_documents RESTART IDENTITY CASCADE"
 )
 
 

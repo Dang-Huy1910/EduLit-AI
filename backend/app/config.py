@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     AI_MAX_RETRIES: int = 2
     # Prompt version for Socratic agent
     SOCRATIC_PROMPT_VERSION: str = "v1"
+    IMPORT_PROMPT_VERSION: str = "v1"
+    IMPORT_MAX_BYTES: int = 8_000_000
+    IMPORT_MAX_MARKDOWN_CHARS: int = 100_000
+    IMPORT_MIN_TEXT_CHARS: int = 40
+    IMPORT_CONVERT_TIMEOUT_SECONDS: float = 30.0
+    IMPORT_AI_TIMEOUT_SECONDS: float = 90.0
+    IMPORT_AI_MAX_OUTPUT_TOKENS: int = 4096
+    IMPORT_AI_MAX_INPUT_CHARS: int = 80_000
+    IMPORT_STALE_SECONDS: int = 300
 
     BOOTSTRAP_TEACHER_LOGIN_ID: str = "dang.loan"
     BOOTSTRAP_TEACHER_EMAIL: str = "dang.loan@thptdanphuong.edu.vn"

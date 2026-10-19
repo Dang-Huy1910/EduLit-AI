@@ -62,8 +62,9 @@ async def verify_mutation_guards(request: Request, settings: Settings) -> None:
         raise ApiHttpException(403, "CSRF_HEADER", ERROR_MESSAGES["CSRF_HEADER"])
 
     content_type = (request.headers.get("content-type") or "").lower()
-    if not content_type.startswith("application/json"):
-        raise ApiHttpException(400, "JSON_REQUIRED", ERROR_MESSAGES["JSON_REQUIRED"])
+    if content_type.startswith("application/json") or content_type.startswith("multipart/form-data"):
+        return
+    raise ApiHttpException(400, "JSON_REQUIRED", ERROR_MESSAGES["JSON_REQUIRED"])
 
 
 def set_session_cookie(

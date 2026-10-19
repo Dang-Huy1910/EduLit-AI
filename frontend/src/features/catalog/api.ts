@@ -1,4 +1,4 @@
-import { apiGet, apiSend } from '@/lib/api/http';
+import { apiBlob, apiGet, apiSend, apiUpload } from '@/lib/api/http';
 import type {
   CatalogMaterial,
   CatalogPrompt,
@@ -8,6 +8,7 @@ import type {
   ClassroomSummary,
   StudentAssignment,
   TeacherAssignment,
+  TeacherDocument,
 } from './types';
 
 export const catalogApi = {
@@ -44,6 +45,16 @@ export const catalogApi = {
     apiSend<CatalogRubric>(`/api/teacher/assignments/${id}/save-as-rubric`, 'POST', body),
   listStudentAssignments: () => apiGet<{ items: StudentAssignment[] }>('/api/assignments'),
   getAssignment: (id: string) => apiGet<StudentAssignment>(`/api/assignments/${id}`),
+  listDocuments: () => apiGet<{ items: TeacherDocument[] }>('/api/teacher/documents'),
+  getDocument: (id: string) => apiGet<TeacherDocument>(`/api/teacher/documents/${id}`),
+  uploadDocument: (form: FormData) => apiUpload<TeacherDocument>('/api/teacher/documents', form),
+  analyzeDocument: (id: string, body?: unknown) =>
+    apiSend<TeacherDocument>(`/api/teacher/documents/${id}/analyze`, 'POST', body ?? {}),
+  saveDocumentDraft: (id: string, body: unknown) =>
+    apiSend<TeacherDocument>(`/api/teacher/documents/${id}/draft`, 'POST', body),
+  confirmDocument: (id: string, body?: unknown) =>
+    apiSend<TeacherDocument>(`/api/teacher/documents/${id}/confirm`, 'POST', body ?? {}),
+  downloadDocumentOriginal: (id: string) => apiBlob(`/api/teacher/documents/${id}/original`),
 };
 
 function query(params?: Record<string, string | boolean | undefined>): string {

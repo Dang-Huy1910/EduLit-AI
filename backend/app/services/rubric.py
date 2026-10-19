@@ -7,6 +7,7 @@ to 4.0.
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any
 
@@ -17,12 +18,22 @@ ALLOWED_GRADE_LEVELS = {10, 11, 12}
 DEFAULT_SCORE_STEP = Decimal("0.25")
 
 
+def _coerce_number_string(value: str) -> str:
+    """Vietnamese decimal comma (`2,5`, `0,0`) without treating thousands groups."""
+    text = value.strip().replace(" ", "").replace("\u00a0", "")
+    if re.fullmatch(r"-?\d+,\d+", text):
+        return text.replace(",", ".")
+    return text
+
+
 def _as_finite_decimal(value: Any, field: str) -> Decimal:
     if isinstance(value, bool) or value is None:
         raise DomainError("RUBRIC_SHAPE", f"{field} phải là số.")
     try:
         if isinstance(value, Decimal):
             number = value
+        elif isinstance(value, str):
+            number = Decimal(_coerce_number_string(value))
         else:
             number = Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:

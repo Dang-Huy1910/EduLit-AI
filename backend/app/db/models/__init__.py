@@ -9,6 +9,8 @@ from app.db.models.catalog import (
     RubricVersion,
     SourcePrompt,
     SourcePromptMaterial,
+    TeacherDocument,
+    TeacherDocumentBlob,
     Topic,
 )
 from app.db.models.enums import (
@@ -64,6 +66,8 @@ __all__ = [
     "SocraticState",
     "SourcePrompt",
     "SourcePromptMaterial",
+    "TeacherDocument",
+    "TeacherDocumentBlob",
     "Topic",
     "User",
     "UserRole",

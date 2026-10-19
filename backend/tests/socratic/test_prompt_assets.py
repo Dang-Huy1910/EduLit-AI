@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from app.ai.prompt_assets import PromptAssetError, load_socratic_prompt
+from app.ai.prompt_assets import PromptAssetError, load_prompt_asset, load_socratic_prompt
 from _prompt_build import PACKAGE_DIR, sync_prompt_assets
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -51,6 +51,29 @@ def test_outline_init_prompt_is_a_separate_asset() -> None:
     assert asset.schema_version == "socratic_outline_init.v1"
     system = load_socratic_prompt("v1")
     assert system.sha256 != asset.sha256
+
+
+def test_catalog_extract_prompt_loads_outside_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "prompts").mkdir()
+    (tmp_path / "prompts" / "catalog").mkdir()
+    (tmp_path / "prompts" / "catalog" / "document-extract.v1.md").write_text(
+        "WRONG CWD COPY", encoding="utf-8"
+    )
+    asset = load_prompt_asset("catalog", "v1", "document-extract")
+    assert asset.filename == "document-extract.v1.md"
+    assert "WRONG CWD COPY" not in asset.text
+    assert "dữ liệu không đáng tin" in asset.text.lower()
+    assert asset.schema_version == "document_analysis.v1"
+
+
+def test_build_hook_copies_catalog_prompt_into_package_dir() -> None:
+    sync_prompt_assets()
+    canonical = REPO_ROOT / "prompts" / "catalog" / "document-extract.v1.md"
+    packaged = BACKEND_ROOT / "app" / "ai" / "prompts" / "catalog" / "document-extract.v1.md"
+    assert canonical.is_file()
+    assert packaged.is_file()
+    assert packaged.read_text(encoding="utf-8") == canonical.read_text(encoding="utf-8")
 
 
 def test_build_hook_copies_canonical_into_package_dir() -> None:

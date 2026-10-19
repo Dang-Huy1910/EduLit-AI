@@ -76,7 +76,15 @@ Seed idempotent: lớp 11A14, `nguyen.van.an` trong lớp, `bui.hamy` ngoài l�
 }
 ```
 
-`weight` là điểm tối đa. Tổng weight = maxScore. Không bắt buộc 4.0. Chưa hỗ trợ PDF/DOCX.
+`weight` là điểm tối đa. Tổng weight = maxScore. Không bắt buộc 4.0. Dấu phẩy thập phân Việt Nam (`2,5`) được chấp nhận. Mức điểm 0 hợp lệ.
+
+### Import tài liệu (DOCX / PDF / XLSX / TXT)
+
+`POST /api/teacher/documents` multipart field `file` (không JSON). Chuyển Markdown bằng MarkItDown cục bộ (`markitdown[pdf,docx,xlsx]`, `enable_plugins=False`). Bytes gốc lưu BYTEA, tải lại `GET /api/teacher/documents/{id}/original`.
+
+Hỗ trợ: DOCX, PDF có lớp văn bản, TXT/Markdown, XLSX. Giới hạn mặc định 8MB; `IMPORT_MIN_TEXT_CHARS=40`. PDF scan/rỗng: trạng thái `NEEDS_OCR`, giữ file gốc, không phân tích đoán nội dung. OCR chữ viết tay chưa có.
+
+Sau convert, agent (cùng adapter/provider hiện tại, prompt `document-extract.v1`, `IMPORT_AI_MAX_OUTPUT_TOKENS=4096`) tách ngữ liệu / yêu cầu viết đầy đủ / tóm tắt / barem. Giáo viên rà soát rồi `POST .../confirm`. Barem vào kho; chọn khi tạo bài tập. Snapshot bài đã giao dùng yêu cầu đầy đủ.
 
 ## Kiểm thử
 
