@@ -5,6 +5,8 @@ import {
   mapOutlineToUI,
   mapUIToOutlineContent,
   mapMessageToUI,
+  mapMessagesWithContext,
+  deriveOutlineSuggestion,
 } from '../types';
 import type {
   OutlineContent,
@@ -447,8 +449,11 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
       'section-meta-xyz',
       'section metadata TUYỆT ĐỐI không bị loại bỏ'
     );
+    const savedTexts = payloadToSave.sections[0].points.map((p) =>
+      typeof p === 'string' ? p : (p as { text: string }).text
+    );
     assert.deepStrictEqual(
-      payloadToSave.sections[0].points,
+      savedTexts,
       ['Gợi mở 1', 'Gợi mở mới được thêm'],
       'Points mới được cập nhật chính xác'
     );
@@ -551,6 +556,206 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
       0,
       'Phản hồi muộn tuyệt đối không được ghi đè vào session mới'
     );
+  });
+
+  test('Khởi tạo dàn ý: hiển thị dàn ý đã lưu, retry không giả dữ liệu', async () => {
+    useSocraticStore.setState({ sessionId: 'session-123', assignmentCode: 'VAN11-NLVH-01' });
+    mockFetch(async (url, init) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/outline-init') && init?.method === 'POST') {
+        return jsonResponse({
+          status: 'COMPLETED',
+          sessionState: 'OUTLINE',
+          outlineVersion: 1,
+          readiness: 'NOT_READY',
+          message: 'Đây là dàn ý gợi ý theo đề.',
+          outline: {
+            id: 'rev-1',
+            sessionId: 'session-123',
+            revision: 1,
+            author: 'ASSISTANT',
+            reviewStatus: 'ACCEPTED',
+            createdAt: new Date().toISOString(),
+            content: {
+              thesis: 'Luận đề gợi ý',
+              sections: [
+                { id: 'intro', title: 'I. Mở bài', points: [{ id: 'intro-1', text: 'Ý mở', kind: 'claim' }] },
+                { id: 'body', title: 'II. Thân bài', points: [{ id: 'body-1', text: 'Ý thân', kind: 'claim' }] },
+                { id: 'conclusion', title: 'III. Kết bài', points: [{ id: 'conc-1', text: 'Ý kết', kind: 'note' }] },
+              ],
+            },
+          },
+        });
+      }
+      if (urlStr.includes('/messages')) {
+        return jsonResponse({ messages: [], hasMore: false, nextBeforeTurn: null });
+      }
+      return jsonResponse({});
+    });
+
+    await useSocraticStore.getState().ensureOutlineInit(false);
+    const state = useSocraticStore.getState();
+    assert.strictEqual(state.outlineVersion, 1);
+    assert.strictEqual(state.outline.sections[0].points[0], 'Ý mở');
+    assert.strictEqual(state.outlineInitFailed, false);
+    assert.strictEqual(state.isInitializingOutline, false);
+  });
+
+  test('PROPOSE không ghi đè canvas; draft đang sửa được giữ khi AI đổi dàn ý', async () => {
+    useSocraticStore.setState({
+      sessionId: 'session-123',
+      outlineVersion: 1,
+      outlineRevisionId: 'rev-1',
+      outline: {
+        sections: [{ id: 'body', title: 'II. Thân bài', points: ['Ý nháp của em'] }],
+      },
+      pendingOutlineChanges: {
+        sections: [{ id: 'body', title: 'II. Thân bài', points: ['Ý nháp của em'] }],
+      },
+    });
+
+    mockFetch(async (url, init) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith('/messages') && init?.method === 'POST') {
+        return jsonResponse({
+          id: 'ai-1',
+          turnId: 1,
+          role: 'ASSISTANT',
+          content: 'Đã thêm ý vào thân bài.',
+          status: 'VALIDATED',
+          createdAt: new Date().toISOString(),
+          intent: 'EDIT',
+          outlineChanged: true,
+          appliedOps: [{ op: 'add', sectionId: 'body', targetId: 'body-9', text: 'Ý AI' }],
+          currentOutline: {
+            id: 'rev-2',
+            sessionId: 'session-123',
+            revision: 2,
+            author: 'ASSISTANT',
+            reviewStatus: 'ACCEPTED',
+            createdAt: new Date().toISOString(),
+            content: {
+              sections: [{ id: 'body', title: 'II. Thân bài', points: [{ id: 'body-9', text: 'Ý AI' }] }],
+            },
+          },
+        });
+      }
+      if (urlStr.includes('/messages?limit=50')) {
+        return jsonResponse({
+          messages: [
+            {
+              id: 'st-1',
+              turnId: 1,
+              role: 'STUDENT',
+              content: 'Thêm ý',
+              status: 'VALIDATED',
+              createdAt: new Date().toISOString(),
+            },
+            {
+              id: 'ai-1',
+              turnId: 1,
+              role: 'ASSISTANT',
+              content: 'Đã thêm ý vào thân bài.',
+              status: 'VALIDATED',
+              createdAt: new Date().toISOString(),
+            },
+          ],
+          hasMore: false,
+          nextBeforeTurn: null,
+        });
+      }
+      return jsonResponse({});
+    });
+
+    await useSocraticStore.getState().sendMessage('Thêm ý');
+    const state = useSocraticStore.getState();
+    assert.deepStrictEqual(state.outline.sections[0].points, ['Ý nháp của em']);
+    assert.strictEqual(state.outlineConflict, true);
+  });
+
+  test('Mục 9: Fallback & câu hỏi an toàn tuyệt đối KHÔNG gợi ý đưa vào dàn ý, không strip dấu hỏi', () => {
+    // 1. Fallback status
+    const fallbackWithStatus = deriveOutlineSuggestion(
+      'Trước khi phát triển chi tiết, em có muốn chia sẻ thêm về cách em định sắp xếp các ý chính không?',
+      'ASSISTANT',
+      undefined,
+      'FALLBACK'
+    );
+    assert.strictEqual(fallbackWithStatus.canAddToOutline, false);
+
+    // 2. Fallback text pattern
+    const fallbackText = deriveOutlineSuggestion(
+      'Trước khi phát triển chi tiết, em có muốn chia sẻ thêm về cách em định sắp xếp các ý chính không?',
+      'ASSISTANT'
+    );
+    assert.strictEqual(fallbackText.canAddToOutline, false);
+
+    // 3. Viết hộ refusal
+    const refusal = deriveOutlineSuggestion(
+      'Thầy/Cô không thể viết thay em, nhưng chúng ta hãy cùng phác thảo ý tưởng. Em dự định bắt đầu từ đâu?',
+      'ASSISTANT'
+    );
+    assert.strictEqual(refusal.canAddToOutline, false);
+
+    // 4. Pure question: không bao giờ cắt bỏ '?' để biến thành ý dàn ý
+    const pureQuestion = deriveOutlineSuggestion(
+      'Em có suy nghĩ gì về biện pháp tu từ trong đoạn thơ này không?',
+      'ASSISTANT'
+    );
+    assert.strictEqual(pureQuestion.canAddToOutline, false);
+  });
+
+  test('Mục 10: Nhận diện đúng Mở bài, Thân bài, Kết bài dựa trên ngữ cảnh câu hỏi học sinh và câu trả lời AI', () => {
+    // 1. Học sinh hỏi về kết bài
+    const studentConclusionPrompt = 'Kết bài nên là thế nào';
+    const aiAnswer = 'Em có thể khẳng định cách nhìn riêng của Trần Quang Quý: tự do có ý nghĩa trong sự gắn bó với cội rễ, lao động và nhân nghĩa quê hương. Em thấy hướng kết bài này thế nào?';
+    
+    const conclusionSuggestion = deriveOutlineSuggestion(
+      aiAnswer,
+      'ASSISTANT',
+      studentConclusionPrompt,
+      'VALIDATED'
+    );
+    assert.strictEqual(conclusionSuggestion.canAddToOutline, true);
+    assert.strictEqual(conclusionSuggestion.suggestedSectionId, 'conclusion');
+    assert.ok(conclusionSuggestion.outlinePoint && conclusionSuggestion.outlinePoint.length > 10);
+    assert.strictEqual(conclusionSuggestion.outlinePoint?.endsWith('?'), false);
+
+    // 2. Học sinh hỏi về mở bài
+    const studentIntroPrompt = 'Mở bài nên viết thế nào cho ấn tượng?';
+    const introSuggestion = deriveOutlineSuggestion(
+      'Em có thể giới thiệu tác giả Trần Quang Quý và bài thơ Màu tự do của đất, từ đó dẫn vào quan niệm về tự do.',
+      'ASSISTANT',
+      studentIntroPrompt,
+      'VALIDATED'
+    );
+    assert.strictEqual(introSuggestion.canAddToOutline, true);
+    assert.strictEqual(introSuggestion.suggestedSectionId, 'intro');
+
+    // 3. mapMessagesWithContext liên kết đúng câu hỏi của học sinh với câu trả lời của trợ lý
+    const messages: MessageResponse[] = [
+      {
+        id: 'msg-s-1',
+        turnId: 7,
+        role: 'STUDENT',
+        content: 'Kết bài nên là thế nào',
+        status: 'VALIDATED',
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'msg-a-1',
+        turnId: 7,
+        role: 'ASSISTANT',
+        content: 'Em nên tổng kết lại đóng góp của hình tượng ngọn khói rơm rạ và khẳng định thông điệp về tự do gắn liền với hồn đất quê hương. Em có muốn bổ sung thêm điều gì không?',
+        status: 'VALIDATED',
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    const mapped = mapMessagesWithContext(messages);
+    const aiMapped = mapped[1];
+    assert.strictEqual(aiMapped.suggestedSectionId, 'conclusion');
+    assert.strictEqual(aiMapped.canAddToOutline, true);
   });
 });
 

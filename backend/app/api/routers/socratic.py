@@ -54,6 +54,9 @@ class MessageRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     content: str = Field(..., min_length=1, max_length=2000)
+    selectedPointId: str | None = Field(default=None, alias="selectedPointId")
+    selectedSectionId: str | None = Field(default=None, alias="selectedSectionId")
+    expectedOutlineVersion: int | None = Field(default=None, alias="expectedOutlineVersion")
 
 
 class MessageResponse(BaseModel):
@@ -64,6 +67,13 @@ class MessageResponse(BaseModel):
     sources: list[dict] | None = None
     status: str
     createdAt: str
+    intent: str | None = None
+    proposals: list[dict] | None = None
+    appliedOps: list[dict] | None = None
+    outlineChanged: bool = False
+    outlineVersion: int | None = None
+    currentOutline: dict | None = None
+    clarificationReason: str | None = None
 
 
 class MessagesListResponse(BaseModel):
@@ -117,6 +127,16 @@ class SessionResponse(BaseModel):
     updatedAt: str
     currentOutline: OutlineResponse | None = None
     readiness: str
+    outlineInitStatus: str = "NONE"
+
+
+class OutlineInitResponse(BaseModel):
+    status: str
+    outline: OutlineResponse | None = None
+    message: str | None = None
+    sessionState: str
+    outlineVersion: int
+    readiness: str | None = None
 
 
 def _map_error(e: SocraticServiceError) -> None:
@@ -159,6 +179,41 @@ def _session_response(session, outline=None, readiness: str = "INCONCLUSIVE") ->
         updatedAt=session.updated_at.isoformat(),
         currentOutline=_outline_response(outline, readiness) if outline else None,
         readiness=readiness,
+        outlineInitStatus=getattr(session, "outline_init_status", None) or "NONE",
+    )
+
+
+def _message_response(message, result=None, outline=None) -> MessageResponse:
+    meta = message.turn_meta or {}
+    if result is not None:
+        intent = result.intent
+        proposals = result.proposals or meta.get("proposals")
+        applied = result.applied_ops or meta.get("appliedOps")
+        changed = result.outline_changed
+        version = result.outline_version
+        reason = result.clarification_reason
+    else:
+        intent = meta.get("intent")
+        proposals = meta.get("proposals")
+        applied = meta.get("appliedOps")
+        changed = bool(meta.get("outlineChanged"))
+        version = meta.get("outlineVersion")
+        reason = meta.get("clarificationReason")
+    return MessageResponse(
+        id=str(message.id),
+        turnId=message.turn_id,
+        role=message.role.value,
+        content=message.content,
+        sources=message.sources,
+        status=message.status.value,
+        createdAt=message.created_at.isoformat(),
+        intent=intent,
+        proposals=proposals,
+        appliedOps=applied,
+        outlineChanged=bool(changed),
+        outlineVersion=version,
+        currentOutline=_outline_response(outline).model_dump() if outline else None,
+        clarificationReason=reason,
     )
 
 
@@ -298,18 +353,7 @@ async def get_messages(
             sid, student, limit, beforeTurn
         )
         return MessagesListResponse(
-            messages=[
-                MessageResponse(
-                    id=str(m.id),
-                    turnId=m.turn_id,
-                    role=m.role.value,
-                    content=m.content,
-                    sources=m.sources,
-                    status=m.status.value,
-                    createdAt=m.created_at.isoformat(),
-                )
-                for m in messages
-            ],
+            messages=[_message_response(m) for m in messages],
             hasMore=has_more,
             nextBeforeTurn=next_cursor,
         )
@@ -329,20 +373,47 @@ async def send_message(
 ):
     try:
         sid = uuid.UUID(session_id)
-        message, _result = await service.process_turn(
+        message, result = await service.process_turn(
             session_id=sid,
             user=student,
             student_input=body.content,
             idempotency_key=idempotency_key,
+            selected_point_id=body.selectedPointId,
+            selected_section_id=body.selectedSectionId,
+            expected_outline_version=body.expectedOutlineVersion,
         )
-        return MessageResponse(
-            id=str(message.id),
-            turnId=message.turn_id,
-            role=message.role.value,
-            content=message.content,
-            sources=message.sources,
-            status=message.status.value,
-            createdAt=message.created_at.isoformat(),
+        outline = None
+        if result.outline_changed:
+            outline = await service.get_current_outline(sid, student)
+        return _message_response(message, result, outline)
+    except ValueError:
+        raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "INVALID_SESSION_ID", "Invalid session ID format")
+    except SocraticServiceError as e:
+        _map_error(e)
+
+
+@router.post("/{session_id}/outline-init", response_model=OutlineInitResponse)
+async def init_outline(
+    session_id: str,
+    student: Annotated[User, Depends(get_authenticated_student)],
+    service: Annotated[SocraticService, Depends(get_socratic_service)],
+    retry: bool = Query(default=False),
+):
+    try:
+        sid = uuid.UUID(session_id)
+        outline, status, message = await service.ensure_initial_outline(
+            sid, student, retry=retry
+        )
+        session = await service.get_session(sid, student)
+        policy = session.assignment_revision.readiness_policy or {}
+        readiness = evaluate_readiness(outline.content if outline else None, policy)
+        return OutlineInitResponse(
+            status=status,
+            outline=_outline_response(outline, readiness) if outline else None,
+            message=message,
+            sessionState=session.state.value,
+            outlineVersion=session.outline_version,
+            readiness=readiness,
         )
     except ValueError:
         raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "INVALID_SESSION_ID", "Invalid session ID format")

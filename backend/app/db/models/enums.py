@@ -45,6 +45,16 @@ class OutlineRevisionStatus(StrEnum):
     SUPERSEDED = "SUPERSEDED"
 
 
+class OutlineInitStatus(StrEnum):
+    """Lifecycle of the one-time AI outline initialization."""
+
+    NONE = "NONE"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    NEEDS_CLARIFICATION = "NEEDS_CLARIFICATION"
+
+
 class IdempotencyState(StrEnum):
     """State of an idempotency record."""
     PROCESSING = "PROCESSING"

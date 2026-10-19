@@ -30,7 +30,7 @@ async def _run(ai: FakeAiAdapter, student_input: str = "Tôi muốn bàn về b�
         session_id="s1",
         student_id="u1",
         assignment_revision_id="a1",
-        current_state="INIT",
+        current_state=kwargs.get("current_state", "INIT"),
         student_input=student_input,
         rubric={"sentinel": kwargs.get("rubric_sentinel", "RUBRIC_SENTINEL")},
         context_chunks=kwargs.get(
@@ -46,6 +46,7 @@ async def _run(ai: FakeAiAdapter, student_input: str = "Tôi muốn bàn về b�
         ),
         prompt_asset=asset,
         max_output_tokens=kwargs.get("max_output_tokens", 77),
+        selected_point=kwargs.get("selected_point"),
     )
 
 
@@ -143,6 +144,38 @@ async def test_sentinels_reach_adapter_and_history_not_duplicated() -> None:
     assert system.count(current) == 1
     assert ai.last_max_tokens == 64
     assert current in prompt
+
+
+@pytest.mark.asyncio
+async def test_selected_point_and_intent_reach_adapter() -> None:
+    ai = FakeAiAdapter()
+    ai.add_response(
+        '{"message": "Ý này bám vào ngữ liệu đã cho.",'
+        ' "suggested_state": "OUTLINE", "intent": "EXPLAIN", "sources": [],'
+        ' "outline_ops": [{"op": "delete", "target_id": "body-1", "section_id": "body"}]}'
+    )
+    result = await _run(
+        ai,
+        student_input="Ý này nghĩa là gì?",
+        current_state="OUTLINE",
+    )
+    # selected_point is passed through run_turn in a dedicated test below via kwargs
+    assert result.intent == "EXPLAIN"
+    assert result.outline_ops == []
+    assert result.status == "VALIDATED"
+
+
+@pytest.mark.asyncio
+async def test_selected_point_is_in_system_prompt() -> None:
+    ai = FakeAiAdapter()
+    ai.add_response(VALID)
+    await _run(
+        ai,
+        selected_point={"id": "body-2", "text": "POINT_SENTINEL_XYZ", "section_id": "body"},
+    )
+    system = ai.last_system_prompt or ""
+    assert "POINT_SENTINEL_XYZ" in system
+    assert "SELECTED_POINT" in system
 
 
 @pytest.mark.asyncio

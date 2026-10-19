@@ -339,3 +339,45 @@ async def test_ai_unavailable_maps_to_503(
         assert "Traceback" not in resp.text
     finally:
         app.dependency_overrides.pop(get_socratic_service, None)
+
+
+@pytest.mark.asyncio
+async def test_outline_init_endpoint_saves_revision(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    settings: Settings,
+    published_assignment: dict,
+) -> None:
+    user, _ = await create_authenticated_student(db_session, settings, client)
+    await grant_assignment_access(db_session, published_assignment["id"], user.id)
+    created = await client.post(
+        "/api/socratic-sessions",
+        json={"assignmentCode": published_assignment["code"]},
+        headers=auth_headers(),
+    )
+    assert created.status_code == 201
+    session_id = created.json()["id"]
+    init = await client.post(
+        f"/api/socratic-sessions/{session_id}/outline-init",
+        headers=auth_headers(),
+    )
+    assert init.status_code == 200
+    body = init.json()
+    assert body["status"] == "COMPLETED"
+    assert body["outline"] is not None
+    assert body["outline"]["revision"] == 1
+    assert body["outlineVersion"] == 1
+    assert body["sessionState"] == "OUTLINE"
+    again = await client.post(
+        f"/api/socratic-sessions/{session_id}/outline-init?retry=true",
+        headers=auth_headers(),
+    )
+    assert again.status_code == 200
+    assert again.json()["outline"]["id"] == body["outline"]["id"]
+    session = await client.get(
+        f"/api/socratic-sessions/{session_id}",
+        headers=auth_headers(),
+    )
+    assert session.status_code == 200
+    assert session.json()["outlineInitStatus"] == "COMPLETED"
+    assert session.json()["currentOutline"]["revision"] == 1

@@ -28,7 +28,13 @@ from app.ai.adapters import (
     AiUnavailableError,
 )
 from app.ai.prompt_assets import PromptAsset
-from app.ai.schemas import SOCRATIC_OUTPUT_SCHEMA_VERSION, SourceReference, SocraticOutput
+from app.ai.schemas import (
+    SOCRATIC_OUTPUT_SCHEMA_VERSION,
+    OutlineOp,
+    OutlineProposal,
+    SourceReference,
+    SocraticOutput,
+)
 from app.workflows.guardrails import (
     context_chunk_id,
     detect_out_of_scope,
@@ -59,6 +65,13 @@ class TurnResult(BaseModel):
     prompt_hash: str = ""
     schema_version: str = SOCRATIC_OUTPUT_SCHEMA_VERSION
     model: str = ""
+    intent: str | None = None
+    outline_ops: list[dict] = Field(default_factory=list)
+    proposals: list[dict] = Field(default_factory=list)
+    applied_ops: list[dict] = Field(default_factory=list)
+    outline_changed: bool = False
+    outline_version: int | None = None
+    clarification_reason: str | None = None
 
 
 @dataclass
@@ -78,10 +91,14 @@ class SocraticGraphState:
     chat_history: list[dict] = field(default_factory=list)
 
     student_input: str = ""
+    selected_point: dict[str, Any] | None = None
     ai_response: str = ""
     response_status: str = "PENDING"
     suggested_state: str = ""
     sources: list[dict] = field(default_factory=list)
+    intent: str | None = None
+    outline_ops: list[dict] = field(default_factory=list)
+    proposals: list[dict] = field(default_factory=list)
 
     retry_count: int = 0
     retry_reason: str = ""
@@ -147,11 +164,20 @@ def build_system_prompt(state: SocraticGraphState) -> str:
     parts.append(_dump_untrusted(f"{UNTRUSTED_MATERIAL_BANNER} CHUNKS", chunks_text or "(none)"))
     if state.current_outline:
         parts.append(_dump_untrusted(f"{UNTRUSTED_STUDENT_BANNER} OUTLINE", state.current_outline))
+    if state.selected_point:
+        parts.append(
+            _dump_untrusted(f"{UNTRUSTED_STUDENT_BANNER} SELECTED_POINT", state.selected_point)
+        )
     hist = _history_block(state)
     if hist:
         parts.append(hist)
     parts.append(
         _dump_untrusted(f"{UNTRUSTED_STUDENT_BANNER} CURRENT_INPUT", state.student_input)
+    )
+    parts.append(
+        "\n\nHãy phân loại intent (EXPLAIN|PROPOSE|EDIT|MIXED|CLARIFY) theo nghĩa của tin nhắn, "
+        "lịch sử, dàn ý và ý đang chọn — không chỉ vì có dấu hỏi. "
+        "Chỉ điền outline_ops khi EDIT hoặc MIXED và đối tượng đã rõ."
     )
     return "".join(parts)
 
@@ -162,8 +188,8 @@ def build_user_prompt(state: SocraticGraphState) -> str:
         prompt += (
             "\n\nLẦN SỬA BẮT BUỘC: Phản hồi trước bị từ chối vì: "
             f"{state.retry_reason}. "
-            "Hãy viết lại tối đa 4 câu, kết thúc bằng câu hỏi, không viết hộ, "
-            "chỉ trích nguồn khớp ngữ liệu đã cung cấp."
+            "Hãy viết lại đúng schema, không viết hộ, chỉ trích nguồn khớp ngữ liệu. "
+            "Tuân thủ quy tắc độ dài theo intent; CLARIFY phải kết thúc bằng câu hỏi."
         )
     return prompt
 
@@ -194,6 +220,9 @@ def _apply_fallback(state: SocraticGraphState, message: str | None = None) -> No
     state.response_status = "FALLBACK"
     state.suggested_state = state.current_state
     state.sources = []
+    state.outline_ops = []
+    state.proposals = []
+    state.intent = state.intent or "CLARIFY"
     state.error = ""
 
 
@@ -224,6 +253,8 @@ async def call_ai(state: SocraticGraphState, ai_port: AiPort) -> SocraticGraphSt
         logger.warning("socratic_graph call_ai content_error code=%s", exc.code)
         state.ai_response = ""
         state.sources = []
+        state.outline_ops = []
+        state.proposals = []
         state.suggested_state = state.current_state
         state.error = exc.code
         state.retry_reason = "Output không hợp lệ hoặc bị từ chối"
@@ -234,19 +265,50 @@ async def call_ai(state: SocraticGraphState, ai_port: AiPort) -> SocraticGraphSt
         state.ai_response = output.message
         state.suggested_state = output.suggested_state
         state.sources = _sources_as_dicts(output.sources)
+        state.intent = output.intent
+        state.outline_ops = [
+            op.model_dump() if isinstance(op, OutlineOp) else op for op in (output.outline_ops or [])
+        ]
+        state.proposals = [
+            p.model_dump() if isinstance(p, OutlineProposal) else p for p in (output.proposals or [])
+        ]
+        _filter_ops_by_intent(state)
         state.error = ""
         return state
 
     state.ai_response = ""
     state.sources = []
+    state.outline_ops = []
+    state.proposals = []
     state.suggested_state = state.current_state
     state.error = "AI_INVALID_OUTPUT"
     state.retry_reason = "Output không đúng schema"
     return state
 
 
+def _filter_ops_by_intent(state: SocraticGraphState) -> None:
+    """The model cannot write the DB; strip ops that the intent forbids."""
+    intent = (state.intent or "").upper() or None
+    if intent in {None, "EXPLAIN", "CLARIFY"}:
+        state.outline_ops = []
+        state.proposals = []
+        return
+    if intent == "PROPOSE":
+        state.outline_ops = []
+        return
+    if intent == "EDIT":
+        state.proposals = []
+        return
+    if intent == "MIXED":
+        return
+    state.outline_ops = []
+    state.proposals = []
+
+
 def post_guardrail(state: SocraticGraphState) -> SocraticGraphState:
-    is_valid, error_msg = validate_response(state.ai_response)
+    is_valid, error_msg = validate_response(
+        state.ai_response, task="turn", intent=state.intent
+    )
     if is_valid:
         src_ok, src_err = validate_sources(state.sources, state.context_chunks)
         if not src_ok:
@@ -333,6 +395,13 @@ def _to_result(state: SocraticGraphState, ai_port: AiPort) -> TurnResult:
         status = "FALLBACK"
         message = get_fallback_response(state.current_state)
         sources = []
+    intent = state.intent
+    outline_ops = state.outline_ops if status == "VALIDATED" else []
+    proposals = state.proposals if status == "VALIDATED" else []
+    if status != "VALIDATED":
+        intent = intent or "CLARIFY"
+        outline_ops = []
+        proposals = []
     return TurnResult(
         message=message,
         status=status,  # type: ignore[arg-type]
@@ -342,6 +411,9 @@ def _to_result(state: SocraticGraphState, ai_port: AiPort) -> TurnResult:
         prompt_hash=state.prompt_hash,
         schema_version=state.schema_version,
         model=ai_port.model_name,
+        intent=intent,
+        outline_ops=outline_ops,
+        proposals=proposals,
     )
 
 
@@ -359,6 +431,7 @@ async def run_turn(
     chat_history: list[dict] | None = None,
     prompt_asset: PromptAsset | None = None,
     max_output_tokens: int = 512,
+    selected_point: dict[str, Any] | None = None,
 ) -> TurnResult:
     """Run a single Socratic turn with at most one correction call."""
     if prompt_asset is None:
@@ -377,6 +450,7 @@ async def run_turn(
         instructions=instructions or {},
         current_outline=current_outline,
         chat_history=chat_history or [],
+        selected_point=selected_point,
         system_prompt_template=prompt_asset.text,
         prompt_version=prompt_asset.version,
         prompt_hash=prompt_asset.sha256,

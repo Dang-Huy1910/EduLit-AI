@@ -43,11 +43,16 @@ export default function SocraticChatPage() {
     outline,
     isSavingOutline,
     outlineConflict,
+    isInitializingOutline,
+    outlineInitFailed,
+    selectedPoint,
+    highlightedPointIds,
     isSending,
     isAiResponding,
     pendingOperation,
     error,
     initializeSession,
+    ensureOutlineInit,
     loadMessages,
     sendMessage,
     retryPendingMessage,
@@ -58,6 +63,8 @@ export default function SocraticChatPage() {
     saveOutline,
     resolveOutlineConflict,
     reviewOutline,
+    selectPoint,
+    clearPointSelection,
     reset,
   } = useSocraticStore();
 
@@ -255,7 +262,7 @@ export default function SocraticChatPage() {
     : 'Đang đánh giá...';
 
   // Loading state
-  const isLoading = isLoadingMessages && messages.length === 0;
+  const isLoading = (isLoadingMessages && messages.length === 0 && !isInitializingOutline);
 
   return (
     <StudentShell headerTitle="Khối 11 - Lớp 11A14" headerSubtitle="Trợ lý gợi mở Socratic & Lập dàn ý">
@@ -330,7 +337,14 @@ export default function SocraticChatPage() {
                 </div>
               )}
 
-              {isLoading ? (
+              {isInitializingOutline && messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-xs text-on-surface-variant">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
+                    <span>Đang soạn dàn ý gợi ý theo đề...</span>
+                  </div>
+                </div>
+              ) : isLoading ? (
                 <div className="flex items-center justify-center h-full text-xs text-on-surface-variant">
                   <div className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
@@ -427,7 +441,7 @@ export default function SocraticChatPage() {
                                 handleTransferToOutline(
                                   msg.id,
                                   msg.outlinePoint!,
-                                  msg.suggestedSectionId || 'body'
+                                  selectedTargetSection[msg.id] || msg.suggestedSectionId || 'body'
                                 )
                               }
                               className="px-2.5 py-1 bg-secondary text-white rounded text-[11px] font-semibold hover:bg-secondary/90 flex items-center gap-1 shadow-sm transition-all"
@@ -481,7 +495,13 @@ export default function SocraticChatPage() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 disabled={isAiResponding || !isAuthenticated || isSending}
-                placeholder={!isAuthenticated ? 'Vui lòng đăng nhập để chat...' : "Nhập câu hỏi hoặc chia sẻ ý tưởng để cùng Trợ lý Socratic phát triển dàn ý..."}
+                placeholder={
+                  !isAuthenticated
+                    ? 'Vui lòng đăng nhập để chat...'
+                    : selectedPoint
+                      ? 'Hỏi về ý đang chọn, hoặc yêu cầu thêm/sửa/xóa ý đó...'
+                      : 'Nhập câu hỏi hoặc chia sẻ ý tưởng để cùng Trợ lý Socratic phát triển dàn ý...'
+                }
                 maxLength={400}
                 className="flex-1 px-3 py-2 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary disabled:opacity-60"
               />
@@ -509,7 +529,9 @@ export default function SocraticChatPage() {
                   Dàn ý bài viết của em (Outline Canvas)
                 </h3>
                 <p className="text-[11px] text-on-surface-variant">
-                  Tự xây dựng từ phản hồi gợi mở, hỗ trợ chỉnh sửa và sắp xếp thứ tự.
+                  {selectedPoint
+                    ? 'Đang chọn một ý — tin nhắn tiếp theo sẽ hỏi/sửa đúng ý này.'
+                    : 'Chọn một ý để hỏi, hoặc tự chỉnh sửa và sắp xếp thứ tự.'}
                 </p>
               </div>
               <button
@@ -552,6 +574,25 @@ export default function SocraticChatPage() {
                     Tải lại từ máy chủ
                   </button>
                 </div>
+              </div>
+            )}
+
+            {isInitializingOutline && (
+              <div className="mx-3.5 mt-3 p-3 bg-secondary/5 border border-secondary/20 rounded-xl text-xs flex items-center gap-2 text-on-surface-variant">
+                <span className="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin shrink-0"></span>
+                <span>Đang soạn dàn ý gợi ý theo đề, ngữ liệu và rubric...</span>
+              </div>
+            )}
+            {outlineInitFailed && !isInitializingOutline && (
+              <div className="mx-3.5 mt-3 p-3 bg-error/5 border border-error/20 rounded-xl text-xs space-y-2">
+                <p className="text-error font-semibold">Không tạo được dàn ý ban đầu. Không dùng dàn ý giả.</p>
+                <button
+                  type="button"
+                  onClick={() => ensureOutlineInit(true)}
+                  className="px-2.5 py-1 bg-primary text-white rounded text-[11px] font-semibold"
+                >
+                  Thử lại
+                </button>
               </div>
             )}
 
@@ -615,12 +656,36 @@ export default function SocraticChatPage() {
                           );
                         }
 
+                        const pointId = section.pointItems?.[idx]?.id;
+                        const isSelected =
+                          selectedPoint?.sectionId === section.id && selectedPoint?.index === idx;
+                        const isHighlighted = Boolean(pointId && highlightedPointIds.includes(pointId));
+
                         return (
                           <li
-                            key={idx}
-                            className="p-2 bg-surface-container-lowest rounded-lg border border-outline-variant/30 text-on-surface text-[11px] flex items-start justify-between gap-2 group hover:border-secondary/40 transition-all"
+                            key={pointId || idx}
+                            className={`p-2 bg-surface-container-lowest rounded-lg border text-on-surface text-[11px] flex items-start justify-between gap-2 group transition-all ${
+                              isSelected
+                                ? 'border-secondary ring-1 ring-secondary/40'
+                                : isHighlighted
+                                  ? 'border-tertiary bg-tertiary-container/20'
+                                  : 'border-outline-variant/30 hover:border-secondary/40'
+                            }`}
                           >
-                            <span className="leading-relaxed flex-1">• {point}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  clearPointSelection();
+                                } else {
+                                  selectPoint(section.id, idx);
+                                }
+                              }}
+                              className="leading-relaxed flex-1 text-left"
+                              title={isSelected ? 'Bỏ chọn ý này' : 'Chọn ý này để hỏi hoặc chỉnh'}
+                            >
+                              • {point}
+                            </button>
                             <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity shrink-0">
                               {/* Reorder Up */}
                               {idx > 0 && (

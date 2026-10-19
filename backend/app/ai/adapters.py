@@ -27,6 +27,7 @@ from openai import (
 )
 from pydantic import BaseModel, ValidationError
 
+from app.ai.schemas import SocraticOutlineInit
 from app.config import Settings, get_settings
 
 logger = logging.getLogger("edulit.ai")
@@ -473,13 +474,41 @@ class GeminiAdapter(AiPort):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+DEFAULT_FAKE_TURN = (
+    '{"message": "Em đang nghĩ gì về ý chính của đề bài này?",'
+    ' "suggested_state": "THESIS", "sources": []}'
+)
+
+DEFAULT_FAKE_OUTLINE_INIT = (
+    '{"message": "Đây là dàn ý gợi ý theo đề; em có thể hỏi để hiểu hoặc nhờ chỉnh sửa.",'
+    ' "thesis": "Ý chí vượt khó giúp con người đứng vững trước thử thách.",'
+    ' "sections": ['
+    '  {"id": "intro", "title": "I. Mở bài — Đặt vấn đề",'
+    '   "points": [{"id": "intro-1", "text": "Dẫn vào vấn đề ý chí vượt khó", "kind": "claim"}]},'
+    '  {"id": "body", "title": "II. Thân bài — Triển khai luận điểm",'
+    '   "points": ['
+    '     {"id": "body-1", "text": "Luận điểm 1: Ý chí giúp vượt khó", "kind": "claim"},'
+    '     {"id": "body-1e", "text": "Gợi ý dẫn chứng: ý chí vượt khó", "kind": "evidence",'
+    '      "source_chunk_id": "chunk_1"}'
+    "   ]},"
+    '  {"id": "conclusion", "title": "III. Kết bài — Đánh giá & Thông điệp",'
+    '   "points": [{"id": "conc-1", "text": "Khẳng định giá trị của bản lĩnh", "kind": "note"}]}'
+    " ],"
+    ' "arguments": [{"id": "arg-1", "content": "Ý chí giúp vượt khó", "position": 0}],'
+    ' "needs_clarification": false,'
+    ' "sources": [{"chunk_id": "chunk_1", "quote": "ý chí vượt khó"}]}'
+)
+
+
 @dataclass
 class FakeAiAdapter(AiPort):
     """Fake AI adapter for testing only. Never calls a real provider."""
 
     model: str = "fake-model"
     responses: list[str] = field(default_factory=list)
+    outline_responses: list[str] = field(default_factory=list)
     response_index: int = 0
+    outline_response_index: int = 0
     fail_next: bool = False
     fail_with: type[Exception] | Exception = AiUnavailableError
     call_count: int = 0
@@ -501,6 +530,9 @@ class FakeAiAdapter(AiPort):
 
     def add_response(self, text: str) -> None:
         self.responses.append(text)
+
+    def add_outline_response(self, text: str) -> None:
+        self.outline_responses.append(text)
 
     def set_fail_next(self, exc: type[Exception] | Exception = AiUnavailableError) -> None:
         self.fail_next = True
@@ -533,14 +565,23 @@ class FakeAiAdapter(AiPort):
                 raise exc("Fake failure")
             raise exc
 
-        if self.responses:
+        wants_outline = structured_output is not None and (
+            structured_output is SocraticOutlineInit
+            or getattr(structured_output, "__name__", "") == "SocraticOutlineInit"
+        )
+        if wants_outline:
+            if self.outline_responses:
+                content = self.outline_responses[
+                    self.outline_response_index % len(self.outline_responses)
+                ]
+                self.outline_response_index += 1
+            else:
+                content = DEFAULT_FAKE_OUTLINE_INIT
+        elif self.responses:
             content = self.responses[self.response_index % len(self.responses)]
             self.response_index += 1
         else:
-            content = (
-                '{"message": "Em đang nghĩ gì về ý chính của đề bài này?",'
-                ' "suggested_state": "THESIS", "sources": []}'
-            )
+            content = DEFAULT_FAKE_TURN
 
         if structured_output:
             try:

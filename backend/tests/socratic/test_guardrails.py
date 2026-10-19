@@ -112,6 +112,29 @@ class TestResponseValidation:
         assert "viết hộ" in error or "mẫu" in error
         assert detect_sample_writing(text) is True
 
+    def test_explain_intent_allows_statement_without_question(self):
+        is_valid, error = validate_response(
+            "Luận điểm này bám vào hình ảnh khói rơm rạ trong ngữ liệu.",
+            intent="EXPLAIN",
+        )
+        assert is_valid is True
+        assert error == ""
+
+    def test_outline_init_allows_short_welcome_without_question(self):
+        is_valid, error = validate_response(
+            "Đây là dàn ý gợi ý theo đề và ngữ liệu.",
+            task="outline_init",
+        )
+        assert is_valid is True
+
+    def test_clarify_still_requires_question(self):
+        is_valid, error = validate_response(
+            "Em muốn chỉnh ý nào trong thân bài.",
+            intent="CLARIFY",
+        )
+        assert is_valid is False
+        assert "câu hỏi" in error
+
     def test_open_question_not_false_positive(self):
         text = (
             "Em đang nghiêng về luận điểm nào? "

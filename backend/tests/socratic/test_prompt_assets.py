@@ -44,6 +44,15 @@ def test_canonical_repo_copy_is_the_official_source() -> None:
     assert CANONICAL.read_text(encoding="utf-8") == asset.text
 
 
+def test_outline_init_prompt_is_a_separate_asset() -> None:
+    asset = load_socratic_prompt("v1", kind="outline-init")
+    assert asset.filename == "outline-init.v1.md"
+    assert "tạo dàn ý gợi ý ban đầu" in asset.text.lower() or "Tạo dàn ý" in asset.text
+    assert asset.schema_version == "socratic_outline_init.v1"
+    system = load_socratic_prompt("v1")
+    assert system.sha256 != asset.sha256
+
+
 def test_build_hook_copies_canonical_into_package_dir() -> None:
     sync_prompt_assets()
     packaged = PACKAGE_DIR / "system.v1.md"

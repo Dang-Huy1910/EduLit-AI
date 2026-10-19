@@ -24,6 +24,7 @@ from app.ai.adapters import (
     create_ai_adapter,
 )
 from app.ai.prompt_assets import PromptAssetError, load_socratic_prompt
+from app.ai.schemas import OutlineOp
 from app.config import Settings, get_settings
 from app.core.http import utcnow
 from app.db.models import (
@@ -34,6 +35,7 @@ from app.db.models import (
     IdempotencyRecord,
     IdempotencyState,
     MessageStatus,
+    OutlineInitStatus,
     OutlineRevision,
     OutlineRevisionStatus,
     SocraticSession,
@@ -41,7 +43,17 @@ from app.db.models import (
     User,
     UserRole,
 )
+from app.workflows.outline_init import run_outline_init
+from app.workflows.outline_ops import (
+    OutlineOpError,
+    apply_outline_ops,
+    find_point,
+    normalize_outline_content,
+    proposals_as_dicts,
+)
 from app.workflows.socratic_graph import TurnResult, run_turn
+
+OUTLINE_INIT_IDEMPOTENCY_KEY = "outline-init"
 
 logger = logging.getLogger("edulit.socratic")
 
@@ -157,11 +169,11 @@ class SocraticService:
     def ai_port(self) -> AiPort:
         return self._ensure_ai_port()
 
-    def _load_prompt(self):
+    def _load_prompt(self, kind: str = "system"):
         try:
-            return load_socratic_prompt(self.settings.SOCRATIC_PROMPT_VERSION)
+            return load_socratic_prompt(self.settings.SOCRATIC_PROMPT_VERSION, kind=kind)
         except PromptAssetError as exc:
-            logger.error("prompt_asset_error version=%s", exc.version)
+            logger.error("prompt_asset_error version=%s kind=%s", exc.version, kind)
             raise AiUnavailableServiceError("Socratic prompt is not configured") from exc
 
     # ── Authorization ────────────────────────────────────────────────────────
@@ -370,6 +382,49 @@ class SocraticService:
     def _route(self, session_id: uuid.UUID) -> str:
         return f"/socratic-sessions/{session_id}/messages"
 
+    def _outline_init_route(self, session_id: uuid.UUID) -> str:
+        return f"/socratic-sessions/{session_id}/outline-init"
+
+    def _turn_payload_text(
+        self,
+        student_input: str,
+        selected_point_id: str | None,
+        selected_section_id: str | None,
+    ) -> str:
+        if not selected_point_id and not selected_section_id:
+            return student_input
+        import json as _json
+
+        return _json.dumps(
+            {
+                "content": student_input,
+                "selectedPointId": selected_point_id or "",
+                "selectedSectionId": selected_section_id or "",
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+
+    def _resolve_selected_point(
+        self,
+        outline: dict[str, Any] | None,
+        selected_point_id: str | None,
+        selected_section_id: str | None,
+    ) -> dict[str, Any] | None:
+        if not selected_point_id or not outline:
+            return None
+        content = normalize_outline_content(outline)
+        point, index, section = find_point(content, selected_point_id, selected_section_id)
+        if point is None or section is None:
+            return None
+        return {
+            "id": point.get("id"),
+            "text": point.get("text"),
+            "kind": point.get("kind"),
+            "section_id": section.get("id"),
+            "index": index,
+        }
+
     async def process_turn(
         self,
         session_id: uuid.UUID,
@@ -377,13 +432,20 @@ class SocraticService:
         student_input: str,
         request_id: str | None = None,
         idempotency_key: str | None = None,
+        selected_point_id: str | None = None,
+        selected_section_id: str | None = None,
+        expected_outline_version: int | None = None,
     ) -> tuple[ChatMessage, TurnResult]:
         session = await self._load_owned_session(session_id, user, for_mutation=True)
+        payload_text = self._turn_payload_text(
+            student_input, selected_point_id, selected_section_id
+        )
+        selected_point: dict[str, Any] | None = None
 
         record: IdempotencyRecord | None = None
         if idempotency_key:
             replay = await self._lookup_idempotency(
-                user.id, session_id, idempotency_key, student_input
+                user.id, session_id, idempotency_key, payload_text
             )
             if replay is not None:
                 return replay
@@ -416,7 +478,7 @@ class SocraticService:
         try:
             if idempotency_key:
                 record = await self._upsert_idempotency_processing(
-                    user.id, session_id, idempotency_key, student_input, record
+                    user.id, session_id, idempotency_key, payload_text, record
                 )
 
             if recover_turn_id is not None:
@@ -465,6 +527,11 @@ class SocraticService:
                 record.updated_at = utcnow()
 
             context = await self._load_session_context(session, exclude_turn_id=turn_id)
+            selected_point = self._resolve_selected_point(
+                context.get("current_outline"),
+                selected_point_id,
+                selected_section_id,
+            )
             await self.db.commit()
         except Exception:
             await self.db.rollback()
@@ -486,6 +553,7 @@ class SocraticService:
                 ai_port=self.ai_port,
                 prompt_asset=prompt_asset,
                 max_output_tokens=self.settings.AI_MAX_OUTPUT_TOKENS,
+                selected_point=selected_point,
             )
         except (AiUnavailableError, AiTimeoutError, AiConfigurationError, AiError) as exc:
             await self._fail_inflight(
@@ -505,6 +573,8 @@ class SocraticService:
             turn_id=turn_id,
             result=result,
             idempotency_id=record.id if record else None,
+            selected_point=selected_point,
+            expected_outline_version=expected_outline_version,
         )
         return ai_msg, result
 
@@ -532,6 +602,8 @@ class SocraticService:
             if msg is None:
                 return None
             session = await self.db.get(SocraticSession, session_id)
+            meta = msg.turn_meta or {}
+            cached = record.cached_response or {}
             return msg, TurnResult(
                 message=msg.content,
                 status=msg.status.value,  # type: ignore[arg-type]
@@ -541,6 +613,13 @@ class SocraticService:
                 prompt_hash=msg.prompt_hash or "",
                 schema_version=msg.schema_version or "",
                 model=msg.model or "",
+                intent=meta.get("intent") or cached.get("intent"),
+                outline_ops=[],
+                proposals=meta.get("proposals") or cached.get("proposals") or [],
+                applied_ops=meta.get("appliedOps") or cached.get("applied_ops") or [],
+                outline_changed=False,
+                outline_version=meta.get("outlineVersion") or cached.get("outline_version"),
+                clarification_reason=meta.get("clarificationReason"),
             )
         if record.state == IdempotencyState.PROCESSING:
             session = await self.db.get(SocraticSession, session_id)
@@ -723,6 +802,8 @@ class SocraticService:
         turn_id: int,
         result: TurnResult,
         idempotency_id: uuid.UUID | None,
+        selected_point: dict[str, Any] | None = None,
+        expected_outline_version: int | None = None,
     ) -> ChatMessage:
         now = utcnow()
         try:
@@ -747,6 +828,21 @@ class SocraticService:
                 )
 
             status = MessageStatus(result.status.upper())
+            if status == MessageStatus.VALIDATED:
+                await self._apply_turn_outline_changes(
+                    session_id,
+                    result,
+                    selected_point=selected_point,
+                    expected_outline_version=expected_outline_version,
+                )
+            turn_meta = {
+                "intent": result.intent,
+                "appliedOps": result.applied_ops,
+                "proposals": proposals_as_dicts(result.proposals),
+                "outlineChanged": result.outline_changed,
+                "outlineVersion": result.outline_version,
+                "clarificationReason": result.clarification_reason,
+            }
             ai_msg = ChatMessage(
                 session_id=session_id,
                 turn_id=turn_id,
@@ -759,6 +855,7 @@ class SocraticService:
                 prompt_version=result.prompt_version or self.settings.SOCRATIC_PROMPT_VERSION,
                 prompt_hash=result.prompt_hash or None,
                 schema_version=result.schema_version or None,
+                turn_meta=turn_meta,
             )
             self.db.add(ai_msg)
             await self.db.flush()
@@ -831,9 +928,146 @@ class SocraticService:
         row = result.scalar_one_or_none()
         return row.content if row is not None else None
 
+    async def _cas_insert_outline(
+        self,
+        session_id: uuid.UUID,
+        expected_version: int,
+        content: dict[str, Any],
+        *,
+        author: str,
+        source_refs: list[dict] | None = None,
+        next_state: SocraticState | None = None,
+    ) -> OutlineRevision | None:
+        """Insert a new ACCEPTED revision if outline_version still matches.
+
+        Returns None on CAS miss (caller must not treat it as applied).
+        """
+        new_revision_no = expected_version + 1
+        now = utcnow()
+        values: dict[str, Any] = {
+            "outline_version": new_revision_no,
+            "version": SocraticSession.version + 1,
+            "updated_at": now,
+            "outline_init_status": OutlineInitStatus.COMPLETED.value,
+        }
+        if next_state is not None:
+            values["state"] = next_state
+        cas = await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.outline_version == expected_version,
+            )
+            .values(**values)
+            .returning(SocraticSession.id)
+        )
+        if cas.one_or_none() is None:
+            return None
+        await self.db.execute(
+            update(OutlineRevision)
+            .where(
+                OutlineRevision.session_id == session_id,
+                OutlineRevision.review_status == OutlineRevisionStatus.ACCEPTED,
+            )
+            .values(review_status=OutlineRevisionStatus.SUPERSEDED)
+        )
+        revision = OutlineRevision(
+            session_id=session_id,
+            revision=new_revision_no,
+            content=content,
+            author=author,
+            source_refs=source_refs,
+            review_status=OutlineRevisionStatus.ACCEPTED,
+        )
+        self.db.add(revision)
+        await self.db.flush()
+        return revision
+
+    async def _apply_turn_outline_changes(
+        self,
+        session_id: uuid.UUID,
+        result: TurnResult,
+        *,
+        selected_point: dict[str, Any] | None,
+        expected_outline_version: int | None,
+    ) -> None:
+        intent = (result.intent or "").upper()
+        raw_ops = result.outline_ops or []
+        if intent not in {"EDIT", "MIXED"} or not raw_ops:
+            result.applied_ops = []
+            result.outline_changed = False
+            if intent == "PROPOSE":
+                result.proposals = proposals_as_dicts(result.proposals)
+            return
+
+        session = await self.db.get(SocraticSession, session_id)
+        if session is None:
+            return
+        loaded_version = session.outline_version
+        if expected_outline_version is not None and expected_outline_version != loaded_version:
+            result.clarification_reason = "OUTLINE_VERSION_CONFLICT"
+            result.applied_ops = []
+            result.outline_changed = False
+            result.outline_ops = []
+            return
+
+        ops: list[OutlineOp] = []
+        for item in raw_ops:
+            try:
+                ops.append(item if isinstance(item, OutlineOp) else OutlineOp.model_validate(item))
+            except Exception:
+                result.clarification_reason = "OUTLINE_OP_INVALID"
+                result.applied_ops = []
+                result.outline_changed = False
+                result.outline_ops = []
+                if intent == "EDIT":
+                    result.intent = "CLARIFY"
+                return
+
+        current = await self._current_outline_content(session)
+        try:
+            new_content, applied = apply_outline_ops(
+                current, ops, selected_point=selected_point
+            )
+        except OutlineOpError as exc:
+            result.clarification_reason = exc.code
+            result.applied_ops = []
+            result.outline_changed = False
+            result.outline_ops = []
+            if intent == "EDIT":
+                result.intent = "CLARIFY"
+            return
+
+        if not applied:
+            result.applied_ops = []
+            result.outline_changed = False
+            return
+
+        next_state = None
+        if session.state in {SocraticState.INIT, SocraticState.THESIS}:
+            next_state = SocraticState.OUTLINE
+        revision = await self._cas_insert_outline(
+            session_id,
+            loaded_version,
+            new_content,
+            author="ASSISTANT",
+            source_refs=result.sources or None,
+            next_state=next_state,
+        )
+        if revision is None:
+            result.clarification_reason = "OUTLINE_VERSION_CONFLICT"
+            result.applied_ops = []
+            result.outline_changed = False
+            result.outline_ops = []
+            return
+        result.applied_ops = applied
+        result.outline_changed = True
+        result.outline_version = revision.revision
+        result.proposals = proposals_as_dicts(result.proposals) if intent == "MIXED" else []
+
     async def _try_transition_state(self, session: SocraticSession, new_state: str) -> bool:
         valid_transitions = {
-            SocraticState.INIT: [SocraticState.THESIS],
+            SocraticState.INIT: [SocraticState.THESIS, SocraticState.OUTLINE],
             SocraticState.THESIS: [SocraticState.OUTLINE, SocraticState.INIT],
             SocraticState.OUTLINE: [SocraticState.REVIEW, SocraticState.THESIS],
             SocraticState.REVIEW: [SocraticState.OUTLINE],
@@ -867,16 +1101,7 @@ class SocraticService:
         self, session: SocraticSession, exclude_turn_id: int | None = None
     ) -> dict[str, Any]:
         revision = session.assignment_revision
-        outline_result = await self.db.execute(
-            select(OutlineRevision)
-            .where(
-                OutlineRevision.session_id == session.id,
-                OutlineRevision.review_status == OutlineRevisionStatus.ACCEPTED,
-            )
-            .order_by(OutlineRevision.revision.desc())
-            .limit(1)
-        )
-        current_outline = outline_result.scalar_one_or_none()
+        current_outline_content = await self._current_outline_content(session)
         history_q = (
             select(ChatMessage)
             .where(ChatMessage.session_id == session.id)
@@ -907,7 +1132,7 @@ class SocraticService:
             "rubric": revision.rubric or {},
             "context_chunks": revision.context_chunks or [],
             "instructions": revision.instructions or {},
-            "current_outline": current_outline.content if current_outline else None,
+            "current_outline": current_outline_content,
             "chat_history": [
                 {"turn_id": m.turn_id, "role": m.role.value, "content": m.content}
                 for m in chat_history
@@ -924,6 +1149,7 @@ class SocraticService:
         expected_version: int,
     ) -> OutlineRevision:
         session = await self._load_owned_session(session_id, user, for_mutation=True)
+        content = normalize_outline_content(content)
         new_revision_no = expected_version + 1
         now = utcnow()
         cas = await self.db.execute(
@@ -983,6 +1209,261 @@ class SocraticService:
             ) from exc
         await self.db.refresh(revision)
         return revision
+
+    async def ensure_initial_outline(
+        self,
+        session_id: uuid.UUID,
+        user: User,
+        *,
+        retry: bool = False,
+    ) -> tuple[OutlineRevision | None, str, str | None]:
+        """Create the first outline once per session.
+
+        Concurrent callers: one worker generates; others get IN_PROGRESS or
+        the already-saved revision. Never overwrites outline_version > 0.
+        AI failure stores FAILED with no fake outline.
+        """
+        session = await self._load_owned_session(session_id, user, for_mutation=True)
+
+        if session.outline_version > 0:
+            outline = await self.get_current_outline(session_id, user)
+            return outline, OutlineInitStatus.COMPLETED.value, None
+
+        status = (session.outline_init_status or OutlineInitStatus.NONE.value).upper()
+        now = utcnow()
+        lease_valid = (
+            session.reservation_token is not None
+            and session.reservation_expires_at is not None
+            and session.reservation_expires_at > now
+        )
+        if status == OutlineInitStatus.PROCESSING.value and lease_valid:
+            raise ConflictError(
+                "Outline is still being generated",
+                "OUTLINE_INIT_IN_PROGRESS",
+            )
+        if status == OutlineInitStatus.NEEDS_CLARIFICATION.value and not retry:
+            return None, status, None
+        if status == OutlineInitStatus.COMPLETED.value:
+            return None, status, None
+
+        self._ensure_ai_port()
+        prompt_asset = self._load_prompt("outline-init")
+        reservation_token = uuid.uuid4()
+        allowed_status = [
+            OutlineInitStatus.NONE.value,
+            OutlineInitStatus.FAILED.value,
+            OutlineInitStatus.PROCESSING.value,
+        ]
+        if retry:
+            allowed_status.append(OutlineInitStatus.NEEDS_CLARIFICATION.value)
+
+        claimed = await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.outline_version == 0,
+                SocraticSession.outline_init_status.in_(allowed_status),
+                or_(
+                    SocraticSession.reservation_token.is_(None),
+                    SocraticSession.reservation_expires_at.is_(None),
+                    SocraticSession.reservation_expires_at <= now,
+                ),
+            )
+            .values(
+                reservation_token=reservation_token,
+                reservation_expires_at=now + timedelta(seconds=RESERVATION_LEASE_SECONDS),
+                outline_init_status=OutlineInitStatus.PROCESSING.value,
+                updated_at=now,
+            )
+            .returning(SocraticSession.id)
+        )
+        if claimed.one_or_none() is None:
+            await self.db.commit()
+            session = await self.db.get(SocraticSession, session_id)
+            if session and session.outline_version > 0:
+                outline = await self.get_current_outline(session_id, user)
+                return outline, OutlineInitStatus.COMPLETED.value, None
+            raise ConflictError(
+                "Outline is still being generated",
+                "OUTLINE_INIT_IN_PROGRESS",
+            )
+
+        assignment = session.assignment_revision
+        await self.db.commit()
+
+        max_tokens = max(int(self.settings.AI_MAX_OUTPUT_TOKENS or 512), 2048)
+        try:
+            init_result = await run_outline_init(
+                title=assignment.title,
+                instructions=assignment.instructions or {},
+                rubric=assignment.rubric or {},
+                context_chunks=assignment.context_chunks or [],
+                ai_port=self.ai_port,
+                prompt_asset=prompt_asset,
+                max_output_tokens=max_tokens,
+            )
+        except (AiUnavailableError, AiTimeoutError, AiConfigurationError, AiError) as exc:
+            await self._fail_outline_init(session_id, reservation_token)
+            raise AiUnavailableServiceError("AI provider is unavailable") from exc
+        except Exception:
+            await self._fail_outline_init(session_id, reservation_token)
+            raise
+
+        try:
+            return await self._finalize_outline_init(
+                session_id=session_id,
+                reservation_token=reservation_token,
+                init_result=init_result,
+            )
+        except (IntegrityError, ConflictError):
+            if self.db.in_transaction():
+                await self.db.rollback()
+            await self._release_reservation(session_id, reservation_token)
+            outline = await self.get_current_outline(session_id, user)
+            if outline is not None:
+                return outline, OutlineInitStatus.COMPLETED.value, None
+            raise ConflictError(
+                "Outline is still being generated",
+                "OUTLINE_INIT_IN_PROGRESS",
+            )
+
+    async def _fail_outline_init(
+        self, session_id: uuid.UUID, token: uuid.UUID
+    ) -> None:
+        if self.db.in_transaction():
+            await self.db.rollback()
+        now = utcnow()
+        await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.reservation_token == token,
+                SocraticSession.outline_version == 0,
+            )
+            .values(
+                reservation_token=None,
+                reservation_expires_at=None,
+                processing_turn=None,
+                outline_init_status=OutlineInitStatus.FAILED.value,
+                updated_at=now,
+            )
+        )
+        await self.db.commit()
+
+    async def _finalize_outline_init(
+        self,
+        *,
+        session_id: uuid.UUID,
+        reservation_token: uuid.UUID,
+        init_result: Any,
+    ) -> tuple[OutlineRevision | None, str, str | None]:
+        now = utcnow()
+        claimed = await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.reservation_token == reservation_token,
+                SocraticSession.outline_version == 0,
+            )
+            .values(updated_at=now)
+            .returning(SocraticSession.id, SocraticSession.state)
+        )
+        row = claimed.one_or_none()
+        if row is None:
+            raise ConflictError(
+                "Reservation is no longer held by this worker",
+                "STALE_RESERVATION",
+            )
+
+        if init_result.needs_clarification or init_result.status == "NEEDS_CLARIFICATION":
+            turn_id = await self._get_next_turn_id(session_id)
+            msg = ChatMessage(
+                session_id=session_id,
+                turn_id=turn_id,
+                role=ChatRole.ASSISTANT,
+                content=init_result.message,
+                sources=[],
+                status=MessageStatus.VALIDATED,
+                provider=self.ai_port.provider_name,
+                model=init_result.model or self.ai_port.model_name,
+                prompt_version=init_result.prompt_version or None,
+                prompt_hash=init_result.prompt_hash or None,
+                schema_version=init_result.schema_version or None,
+                turn_meta={"intent": "CLARIFY", "outlineChanged": False},
+            )
+            self.db.add(msg)
+            await self.db.execute(
+                update(SocraticSession)
+                .where(
+                    SocraticSession.id == session_id,
+                    SocraticSession.reservation_token == reservation_token,
+                )
+                .values(
+                    reservation_token=None,
+                    reservation_expires_at=None,
+                    processing_turn=None,
+                    outline_init_status=OutlineInitStatus.NEEDS_CLARIFICATION.value,
+                    last_message_at=now,
+                    updated_at=now,
+                )
+            )
+            await self.db.commit()
+            return None, OutlineInitStatus.NEEDS_CLARIFICATION.value, init_result.message
+
+        content = normalize_outline_content(init_result.content)
+        revision = await self._cas_insert_outline(
+            session_id,
+            0,
+            content,
+            author="ASSISTANT",
+            source_refs=init_result.sources or None,
+            next_state=SocraticState.OUTLINE,
+        )
+        if revision is None:
+            raise ConflictError(
+                "Outline already initialized",
+                "OUTLINE_INIT_IN_PROGRESS",
+            )
+
+        turn_id = await self._get_next_turn_id(session_id)
+        msg = ChatMessage(
+            session_id=session_id,
+            turn_id=turn_id,
+            role=ChatRole.ASSISTANT,
+            content=init_result.message,
+            sources=init_result.sources or [],
+            status=MessageStatus.VALIDATED,
+            provider=self.ai_port.provider_name,
+            model=init_result.model or self.ai_port.model_name,
+            prompt_version=init_result.prompt_version or None,
+            prompt_hash=init_result.prompt_hash or None,
+            schema_version=init_result.schema_version or None,
+            turn_meta={
+                "intent": "EXPLAIN",
+                "outlineChanged": True,
+                "outlineVersion": revision.revision,
+            },
+        )
+        self.db.add(msg)
+        await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.reservation_token == reservation_token,
+            )
+            .values(
+                reservation_token=None,
+                reservation_expires_at=None,
+                processing_turn=None,
+                outline_init_status=OutlineInitStatus.COMPLETED.value,
+                last_message_at=now,
+                updated_at=utcnow(),
+            )
+        )
+        await self.db.commit()
+        await self.db.refresh(revision)
+        logger.info("outline_init completed session_id=%s revision=%s", session_id, revision.revision)
+        return revision, OutlineInitStatus.COMPLETED.value, init_result.message
 
     async def get_current_outline(
         self, session_id: uuid.UUID, user: User

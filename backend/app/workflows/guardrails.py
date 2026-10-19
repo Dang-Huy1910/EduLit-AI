@@ -83,15 +83,13 @@ def split_sentences(response_text: str) -> list[str]:
     return [s.strip() for s in sentences if s.strip()]
 
 
-def detect_sample_writing(response_text: str) -> bool:
+def detect_sample_writing(response_text: str, *, task: str = "turn") -> bool:
     """Heuristic: assistant is drafting a sample paragraph/essay for the student.
 
-    A valid Socratic turn is a short sequence of guiding questions, not a
-    block of declarative sentences finished with a courtesy question.
-
     Limits: this is pattern-based. Short guiding statements plus one question
-    are allowed. Three or more declarative sentences (even with a final '?')
-    are treated as sample writing.
+    are allowed. Classic conversation turns treat three or more declarative
+    sentences (even with a final '?') as sample writing. Explain/edit intents
+    and outline-init use a looser check so valid lists and explanations pass.
     """
     text = response_text.strip()
     lowered = text.lower()
@@ -103,34 +101,82 @@ def detect_sample_writing(response_text: str) -> bool:
     if not sentences:
         return False
     declarative = [s for s in sentences if not s.endswith("?")]
-    if len(declarative) >= 3:
-        return True
     long_declarative = [s for s in declarative if len(s) >= 140]
     if len(long_declarative) >= 2:
+        return True
+    if task == "outline_init":
+        # Welcome copy plus a question is fine; long prose is not.
+        if len(declarative) >= 5:
+            return True
+        return False
+    if task in {"explain", "edit", "propose", "mixed"}:
+        if len(long_declarative) >= 1 and len(declarative) >= 4:
+            return True
+        return False
+    if len(declarative) >= 3:
         return True
     return False
 
 
-def validate_response(response_text: str) -> tuple[bool, str]:
-    """Validate that a response meets guardrail requirements.
+def _max_sentences_for(task: str, intent: str | None) -> int:
+    if task == "outline_init":
+        return 8
+    key = (intent or "").upper()
+    if key == "EXPLAIN":
+        return 8
+    if key in {"PROPOSE", "EDIT"}:
+        return 6
+    if key == "MIXED":
+        return 8
+    if key == "CLARIFY":
+        return 4
+    return 4
 
-    Checks:
-    1. Not more than 4 sentences
-    2. Ends with a question mark
-    3. Does not look like sample writing for the student
+
+def _requires_trailing_question(task: str, intent: str | None) -> bool:
+    if task == "outline_init":
+        return False
+    key = (intent or "").upper()
+    if key in {"EXPLAIN", "PROPOSE", "EDIT", "MIXED"}:
+        return False
+    if key == "CLARIFY":
+        return True
+    return True
+
+
+def validate_response(
+    response_text: str,
+    *,
+    task: str = "turn",
+    intent: str | None = None,
+) -> tuple[bool, str]:
+    """Validate that a response meets the guardrail for this task/intent.
+
+    Classic conversation turns (no intent) keep: max 4 sentences, trailing
+    question, no sample writing. Outline init and labelled intents relax
+    length/question so lists and explanations are not blocked.
     """
     text = response_text.strip()
     if not text:
         return False, "Phản hồi trống"
 
     sentences = split_sentences(text)
-    if len(sentences) > 4:
-        return False, f"Phản hồi có {len(sentences)} câu, tối đa 4 câu"
+    max_sentences = _max_sentences_for(task, intent)
+    if len(sentences) > max_sentences:
+        return False, f"Phản hồi có {len(sentences)} câu, tối đa {max_sentences} câu"
 
-    if not text.endswith("?"):
+    if _requires_trailing_question(task, intent) and not text.endswith("?"):
         return False, "Phản hồi phải kết thúc bằng câu hỏi (?)"
 
-    if detect_sample_writing(text):
+    sample_task = "turn"
+    key = (intent or "").upper()
+    if task == "outline_init":
+        sample_task = "outline_init"
+    elif key == "EXPLAIN":
+        sample_task = "explain"
+    elif key in {"EDIT", "PROPOSE", "MIXED"}:
+        sample_task = key.lower()
+    if detect_sample_writing(text, task=sample_task):
         return False, "Phản hồi giống đoạn văn mẫu / viết hộ học sinh"
 
     return True, ""

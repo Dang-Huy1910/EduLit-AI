@@ -16,7 +16,13 @@ from pathlib import Path
 
 PROMPT_PACKAGE = "app.ai.prompts.socratic"
 SOCRATIC_SCHEMA_VERSION = "socratic_output.v1"
+OUTLINE_INIT_SCHEMA_VERSION = "socratic_outline_init.v1"
 CANONICAL_DIRNAME = Path("prompts") / "socratic"
+ALLOWED_KINDS = {"system", "outline-init"}
+KIND_SCHEMA_VERSION = {
+    "system": SOCRATIC_SCHEMA_VERSION,
+    "outline-init": OUTLINE_INIT_SCHEMA_VERSION,
+}
 
 _VERSION_RE = re.compile(r"^v?\d+(\.\d+)*$")
 
@@ -53,8 +59,8 @@ def _normalize_version(version: str) -> str:
     return raw
 
 
-def _filename_for(version: str) -> str:
-    return f"system.{version}.md"
+def _filename_for(version: str, kind: str = "system") -> str:
+    return f"{kind}.{version}.md"
 
 
 def _canonical_file(filename: str) -> Path | None:
@@ -81,14 +87,17 @@ def _packaged_bytes(filename: str) -> bytes | None:
     return None
 
 
-def load_socratic_prompt(version: str) -> PromptAsset:
-    """Load the Socratic system prompt for the configured version.
+def load_socratic_prompt(version: str, kind: str = "system") -> PromptAsset:
+    """Load a Socratic prompt asset for the configured version.
 
-    The configured version selects the file. A missing v2 file is an
-    error; v1 is never silently substituted.
+    `kind` is `system` (conversation) or `outline-init`. A missing v2 file
+    is an error; v1 is never silently substituted.
     """
     normalized = _normalize_version(version)
-    filename = _filename_for(normalized)
+    kind_key = (kind or "system").strip().lower()
+    if kind_key not in ALLOWED_KINDS:
+        raise PromptAssetError(version, f"unknown prompt kind '{kind}'")
+    filename = _filename_for(normalized, kind_key)
     canonical = _canonical_file(filename)
     if canonical is not None:
         data = canonical.read_bytes()
@@ -107,5 +116,5 @@ def load_socratic_prompt(version: str) -> PromptAsset:
         filename=filename,
         text=text,
         sha256=digest,
-        schema_version=SOCRATIC_SCHEMA_VERSION,
+        schema_version=KIND_SCHEMA_VERSION[kind_key],
     )

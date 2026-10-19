@@ -14,6 +14,7 @@ import type {
   UpdateOutlineRequest,
   ReviewOutlineRequest,
   FindSessionResponse,
+  OutlineInitResponse,
 } from './types';
 
 const API_BASE = '/api/socratic-sessions';
@@ -30,6 +31,7 @@ export const ApiErrorCode = {
   TURN_IN_PROGRESS: 'TURN_IN_PROGRESS',
   OUTLINE_NOT_CURRENT: 'OUTLINE_NOT_CURRENT',
   OUTLINE_SUPERSEDED: 'OUTLINE_SUPERSEDED',
+  OUTLINE_INIT_IN_PROGRESS: 'OUTLINE_INIT_IN_PROGRESS',
   ASSIGNMENT_CLOSED: 'ASSIGNMENT_CLOSED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   AI_UNAVAILABLE: 'AI_UNAVAILABLE',
@@ -256,12 +258,35 @@ export async function getOutline(sessionId: string): Promise<OutlineResponse> {
 /**
  * Send a message to the Socratic session
  */
+export async function initOutline(
+  sessionId: string,
+  retry: boolean = false
+): Promise<OutlineInitResponse> {
+  const params = retry ? '?retry=true' : '';
+  const response = await safeFetch(`${API_BASE}/${sessionId}/outline-init${params}`, {
+    method: 'POST',
+    headers: getHeaders(true),
+    credentials: 'include',
+  });
+  return handleResponse<OutlineInitResponse>(response);
+}
+
 export async function sendMessage(
   sessionId: string,
   content: string,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  extras?: {
+    selectedPointId?: string;
+    selectedSectionId?: string;
+    expectedOutlineVersion?: number;
+  }
 ): Promise<MessageResponse> {
-  const body: MessageRequest = { content };
+  const body: MessageRequest = {
+    content,
+    selectedPointId: extras?.selectedPointId,
+    selectedSectionId: extras?.selectedSectionId,
+    expectedOutlineVersion: extras?.expectedOutlineVersion,
+  };
 
   const headers = getHeaders(true) as Record<string, string>;
   if (idempotencyKey) {
