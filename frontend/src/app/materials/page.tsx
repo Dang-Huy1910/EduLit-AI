@@ -10,11 +10,14 @@ import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import ImportReview from '@/features/catalog/ImportReview';
 import {
+  catalogHref,
   createAssignmentHref,
+  isCatalogUuid,
   loadAssignmentDraft,
   promptMissingLabels,
   saveAssignmentDraft,
 } from '@/features/catalog/draft';
+import { downloadOriginalDocument } from '@/features/catalog/download';
 import { boundPreview, canActOnPreview } from '@/features/catalog/preview';
 import { parseRubricJson, RUBRIC_JSON_HELP } from '@/features/catalog/rubric';
 import {
@@ -27,6 +30,7 @@ import {
   MISSING_LABELS,
   PICK_PROMPT_NOTICE,
   RUBRIC_IMPORT_SUCCESS,
+  TeacherDocument,
 } from '@/features/catalog/types';
 
 type ListKind = 'all' | 'prompt' | 'material' | 'rubric';
@@ -43,9 +47,16 @@ function MaterialsContent() {
   const isTeacher = currentUser?.role === 'teacher';
   const pickMode = searchParams.get('mode') === 'pick-prompt';
   const classroomId = searchParams.get('classroomId') || '';
-  const assignmentId = searchParams.get('assignmentId') || '';
-  const importId = searchParams.get('importId') || '';
+  const assignmentId = isCatalogUuid(searchParams.get('assignmentId')) ? searchParams.get('assignmentId') || '' : '';
+  const importId = isCatalogUuid(searchParams.get('importId')) ? searchParams.get('importId') || '' : '';
+  const selectParam = searchParams.get('select') || '';
+  const kindParam = searchParams.get('kind') as ListKind | null;
   const draftScope = { userId: currentUser?.id, assignmentId: assignmentId || 'new' };
+  const catalogState = {
+    mode: pickMode ? 'pick-prompt' : undefined,
+    classroomId: classroomId || undefined,
+    assignmentId: assignmentId || undefined,
+  };
 
   const [topics, setTopics] = useState<CatalogTopic[]>([]);
   const [prompts, setPrompts] = useState<CatalogPrompt[]>([]);
@@ -54,17 +65,18 @@ function MaterialsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterKind, setFilterKind] = useState<ListKind>(pickMode ? 'prompt' : 'all');
+  const [filterKind, setFilterKind] = useState<ListKind>(pickMode ? 'prompt' : kindParam && ['all', 'prompt', 'material', 'rubric'].includes(kindParam) ? kindParam : 'all');
   const [filterTopic, setFilterTopic] = useState('all');
   const [filterGrade, setFilterGrade] = useState('all');
   const [filterGenre, setFilterGenre] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedKey, setSelectedKey] = useState('');
+  const [selectedKey, setSelectedKey] = useState(selectParam);
   const [previewPrompt, setPreviewPrompt] = useState<CatalogPrompt | null>(null);
   const [previewMaterial, setPreviewMaterial] = useState<CatalogMaterial | null>(null);
   const [previewRubric, setPreviewRubric] = useState<CatalogRubric | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState('');
+  const [importNotice, setImportNotice] = useState('');
 
   const [drawer, setDrawer] = useState<null | 'material' | 'prompt' | 'rubric' | 'topic'>(null);
   const [editingId, setEditingId] = useState('');
@@ -93,6 +105,8 @@ function MaterialsContent() {
   const [importGenre, setImportGenre] = useState('NLXH');
   const [importTopicId, setImportTopicId] = useState('');
   const [importError, setImportError] = useState('');
+  const [fullMaterial, setFullMaterial] = useState(false);
+  const [previewNonce, setPreviewNonce] = useState(0);
 
   const load = async () => {
     if (!isTeacher) {
@@ -125,10 +139,26 @@ function MaterialsContent() {
   }, [isTeacher, pickMode]);
 
   useEffect(() => {
+    if (selectParam) setSelectedKey(selectParam);
+  }, [selectParam]);
+
+  useEffect(() => {
     if (pickMode) {
       const previous = loadAssignmentDraft(draftScope);
       saveAssignmentDraft(
-        { ...previous, classroomId: classroomId || previous.classroomId, assignmentId: assignmentId || previous.assignmentId },
+        {
+          classroomId: classroomId || previous.classroomId,
+          title: previous.title,
+          extraInstructions: previous.extraInstructions,
+          dueAt: previous.dueAt,
+          rubricId: previous.rubricId,
+          criteria: previous.criteria,
+          maxScore: previous.maxScore,
+          scoreStep: previous.scoreStep,
+          recipientStudentIds: previous.recipientStudentIds,
+          assignToWholeClass: previous.assignToWholeClass,
+          promptId: previous.promptId,
+        },
         draftScope
       );
     }
@@ -146,7 +176,16 @@ function MaterialsContent() {
     if (!pickMode && (kind === 'all' || kind === 'rubric')) {
       rubrics.forEach((data) => list.push({ kind: 'rubric', data }));
     }
+    if (pickMode && selectedKey.startsWith('material:')) {
+      const material = materials.find((item) => `material:${item.id}` === selectedKey);
+      if (material) list.unshift({ kind: 'material', data: material });
+    }
+    if (pickMode && selectedKey.startsWith('rubric:')) {
+      const rubric = rubrics.find((item) => `rubric:${item.id}` === selectedKey);
+      if (rubric) list.unshift({ kind: 'rubric', data: rubric });
+    }
     return list.filter((item) => {
+      if (pickMode && `${item.kind}:${item.data.id}` === selectedKey) return true;
       const title = item.data.title.toLowerCase();
       if (searchQuery && !title.includes(searchQuery.toLowerCase())) return false;
       if (filterTopic !== 'all') {
@@ -163,7 +202,7 @@ function MaterialsContent() {
       }
       return true;
     });
-  }, [prompts, materials, rubrics, filterKind, filterTopic, filterGrade, filterGenre, filterStatus, searchQuery, pickMode]);
+  }, [prompts, materials, rubrics, filterKind, filterTopic, filterGrade, filterGenre, filterStatus, searchQuery, pickMode, selectedKey]);
 
   const selected = items.find((item) => `${item.kind}:${item.data.id}` === selectedKey) || items[0];
 
@@ -172,6 +211,7 @@ function MaterialsContent() {
     setPreviewMaterial(null);
     setPreviewRubric(null);
     setPreviewError('');
+    setFullMaterial(false);
     if (!selected) {
       setPreviewLoading(false);
       return;
@@ -205,7 +245,7 @@ function MaterialsContent() {
     return () => {
       cancelled = true;
     };
-  }, [selected?.kind, selected?.data.id]);
+  }, [selected?.kind, selected?.data.id, previewNonce]);
 
   const selectedPrompt =
     selected?.kind === 'prompt'
@@ -223,6 +263,78 @@ function MaterialsContent() {
     previewLoading
   );
 
+  const assignmentDraft = {
+    classroomId: classroomId || loadAssignmentDraft(draftScope).classroomId,
+    assignmentId: assignmentId || undefined,
+  };
+
+  const openPromptForm = (opts?: { editing?: CatalogPrompt; materialIds?: string[] }) => {
+    if (opts?.editing) {
+      setEditingId(opts.editing.id);
+      setPromptTitle(opts.editing.title);
+      setPromptTask(opts.editing.writingTask);
+      setPromptGenre(opts.editing.genre || 'NLVH');
+      setPromptTopicId(opts.editing.topicId || '');
+      setPromptGradeLevel(opts.editing.gradeLevel || 11);
+      setPromptMaterialIds(opts.editing.materials.map((item) => item.id));
+    } else {
+      setEditingId('');
+      setPromptTitle('');
+      setPromptTask('');
+      setPromptMaterialIds(opts?.materialIds || []);
+      setPromptTopicId('');
+      setPromptGradeLevel(11);
+      setPromptGenre('NLVH');
+    }
+    setDrawer('prompt');
+  };
+
+  const handleImportConfirmed = async (doc: TeacherDocument) => {
+    const createdPromptIds = doc.createdPromptIds || [];
+    const createdMaterialIds = doc.createdMaterialIds || [];
+    const createdRubricIds = doc.createdRubricIds || [];
+    await load();
+    setFilterStatus('all');
+    setSearchQuery('');
+    let nextSelect = '';
+    let nextKind: ListKind = pickMode ? 'prompt' : 'all';
+    if (createdPromptIds.length) {
+      nextSelect = `prompt:${createdPromptIds[0]}`;
+      nextKind = 'prompt';
+      setFilterKind('prompt');
+      if (createdPromptIds.length > 1) {
+        setImportNotice(`Đã lưu ${createdPromptIds.length} đề nguồn. Hãy chọn đề thầy/cô muốn dùng.`);
+        addToast(`Đã lưu ${createdPromptIds.length} đề nguồn vào kho.`, 'success');
+      } else {
+        setImportNotice('Đã lưu đề nguồn. Có thể tạo bài tập từ đề này.');
+        addToast('Đã lưu đề nguồn vào kho.', 'success');
+      }
+    } else if (createdMaterialIds.length) {
+      nextSelect = `material:${createdMaterialIds[0]}`;
+      nextKind = 'material';
+      if (!pickMode) setFilterKind('material');
+      setImportNotice('Đã lưu ngữ liệu. Hãy tạo đề nguồn từ ngữ liệu này rồi tiếp tục giao bài.');
+      addToast('Đã lưu ngữ liệu vào kho.', 'success');
+      openPromptForm({ materialIds: createdMaterialIds });
+    } else if (createdRubricIds.length) {
+      nextSelect = `rubric:${createdRubricIds[0]}`;
+      nextKind = 'rubric';
+      if (!pickMode) setFilterKind('rubric');
+      setImportNotice('Đã lưu barem vào kho. Thầy/cô chọn barem này tại màn tạo bài tập.');
+      addToast('Đã lưu barem vào kho. Chọn barem khi tạo bài tập.', 'success');
+    } else {
+      addToast('Đã xác nhận tài liệu nhưng chưa có mục nào được lưu.', 'warning');
+    }
+    if (nextSelect) setSelectedKey(nextSelect);
+    router.replace(
+      catalogHref({
+        ...catalogState,
+        select: nextSelect || undefined,
+        kind: pickMode ? undefined : nextKind === 'all' ? undefined : nextKind,
+      })
+    );
+  };
+
   const handleImportRubric = async (raw: string) => {
     const parsed = parseRubricJson(raw);
     if (!parsed.ok) {
@@ -232,17 +344,42 @@ function MaterialsContent() {
     setSaving(true);
     setRubricParseError('');
     try {
-      await catalogApi.createRubric(parsed.rubric);
+      const created = await catalogApi.createRubric(parsed.rubric);
       addToast(RUBRIC_IMPORT_SUCCESS, 'success');
       setDrawer(null);
       setRubricText('');
       await load();
+      setFilterKind('rubric');
+      setSelectedKey(`rubric:${created.id}`);
     } catch (err) {
       const message = err instanceof AuthApiError ? err.message : 'Không lưu được barem.';
       setRubricParseError(message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleDownloadOriginal = async (documentId?: string | null) => {
+    if (!documentId) return;
+    try {
+      await downloadOriginalDocument(documentId);
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không tải được file gốc.', 'error');
+    }
+  };
+
+  const purposeBadge = (kind: ListItem['kind']) => {
+    if (kind === 'prompt') return 'bg-secondary-fixed/60 text-secondary';
+    if (kind === 'rubric') return 'bg-primary-fixed text-primary';
+    return 'bg-surface-container text-on-surface-variant';
+  };
+
+  const statusBadge = (item: ListItem) => {
+    const ready = item.kind === 'prompt' ? item.data.ready : item.data.status === 'READY';
+    const failed = item.kind !== 'prompt' && item.data.status === 'FAILED';
+    if (failed) return { className: 'bg-error-container text-error', label: 'Thất bại' };
+    if (ready) return { className: 'bg-tertiary-container/30 text-tertiary', label: 'Sẵn sàng' };
+    return { className: 'bg-surface-container-high text-[#CA8A04]', label: 'Chưa đủ dữ liệu' };
   };
 
   const content = (
@@ -289,16 +426,7 @@ function MaterialsContent() {
               Thêm ngữ liệu
             </button>
             <button
-              onClick={() => {
-                setEditingId('');
-                setPromptTitle('');
-                setPromptTask('');
-                setPromptMaterialIds([]);
-                setPromptTopicId('');
-                setPromptGradeLevel(11);
-                setPromptGenre('NLVH');
-                setDrawer('prompt');
-              }}
+              onClick={() => openPromptForm()}
               className="px-4 py-2 border border-outline-variant/60 bg-surface-container-lowest font-semibold rounded-lg text-sm hover:bg-surface-container flex items-center gap-2"
             >
               Thêm đề nguồn
@@ -322,11 +450,31 @@ function MaterialsContent() {
             </button>
           </div>
         )}
+        {isTeacher && pickMode && (
+          <button
+            onClick={() => {
+              setImportFile(null);
+              setImportError('');
+              setImportIntent('MIXED');
+              setImportOpen(true);
+            }}
+            className="px-4 py-2 bg-primary-container text-on-primary-container font-semibold rounded-lg text-sm hover:brightness-95 flex items-center gap-2 shadow-sm shrink-0"
+          >
+            <span className="material-symbols-outlined text-[18px]">upload_file</span>
+            {IMPORT_DOCUMENT_LABEL}
+          </button>
+        )}
       </div>
 
       {pickMode && (
         <div className="p-4 bg-secondary-fixed/40 border border-secondary/40 rounded-xl text-sm text-on-surface whitespace-pre-line">
           {PICK_PROMPT_NOTICE}
+        </div>
+      )}
+
+      {importNotice && (
+        <div className="p-3.5 bg-tertiary-container/20 border border-tertiary/30 rounded-xl text-sm text-on-surface">
+          {importNotice}
         </div>
       )}
 
@@ -402,7 +550,12 @@ function MaterialsContent() {
       </div>
 
       {error && (
-        <div className="p-3 bg-error-container/50 text-error text-sm rounded-xl">{error}</div>
+        <div className="p-3 bg-error-container/50 text-error text-sm rounded-xl flex items-center justify-between gap-3">
+          <span>{error}</span>
+          <button type="button" onClick={() => void load()} className="px-3 py-1.5 rounded-lg border text-xs font-semibold">
+            Thử lại
+          </button>
+        </div>
       )}
 
       {loading ? (
@@ -413,8 +566,8 @@ function MaterialsContent() {
             {items.map((item) => {
               const key = `${item.kind}:${item.data.id}`;
               const isSelected = selected && key === `${selected.kind}:${selected.data.id}`;
-              const purpose =
-                item.kind === 'prompt' ? 'Đề nguồn' : item.kind === 'material' ? 'Ngữ liệu' : 'Barem';
+              const purpose = item.kind === 'prompt' ? 'Đề nguồn' : item.kind === 'material' ? 'Ngữ liệu' : 'Barem';
+              const badge = statusBadge(item);
               return (
                 <div
                   key={key}
@@ -426,22 +579,33 @@ function MaterialsContent() {
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-secondary-fixed/60 text-secondary">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${purposeBadge(item.kind)}`}>
                       {purpose}
                     </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary">
-                      {item.kind === 'prompt'
-                        ? item.data.ready
-                          ? 'Sẵn sàng'
-                          : 'Chưa đủ dữ liệu'
-                        : item.data.status === 'READY'
-                        ? 'Sẵn sàng'
-                        : item.data.status}
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${badge.className}`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                      {badge.label}
                     </span>
                   </div>
                   <h3 className="font-headline-sm text-sm font-bold text-on-surface font-merriweather line-clamp-2">
                     {item.data.title}
                   </h3>
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-on-surface-variant">
+                    <span>
+                      {item.kind === 'prompt'
+                        ? `${item.data.genre} • Khối ${item.data.gradeLevel} • ${item.data.materialCount} ngữ liệu`
+                        : item.kind === 'material'
+                          ? `${item.data.author || 'Chưa có tác giả'} • Khối ${item.data.gradeLevel}`
+                          : `Thang ${item.data.maxScore}đ • ${item.data.criteriaCount} tiêu chí`}
+                    </span>
+                    <span>
+                      {item.data.updatedAt
+                        ? new Date(item.data.updatedAt).toLocaleDateString('vi-VN')
+                        : item.kind === 'material'
+                          ? `Phiên bản ${item.data.version}`
+                          : ''}
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -457,15 +621,23 @@ function MaterialsContent() {
               <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-sm space-y-5">
                 <div className="flex items-start justify-between gap-4 pb-4 border-b border-outline-variant/20">
                   <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${purposeBadge(selected.kind)}`}>
+                        {selected.kind === 'prompt' ? 'Đề nguồn' : selected.kind === 'material' ? 'Ngữ liệu' : 'Barem'}
+                      </span>
+                      {'gradeLevel' in selected.data && (
+                        <span className="text-xs text-on-surface-variant font-medium">Khối {selected.data.gradeLevel}</span>
+                      )}
+                    </div>
                     <h2 className="font-headline-md text-lg sm:text-xl font-bold text-on-surface font-merriweather">
                       {selected.data.title}
                     </h2>
                     <p className="text-xs text-on-surface-variant mt-1">
                       {selected.kind === 'prompt'
-                        ? `${selected.data.genre} • Khối ${selected.data.gradeLevel}`
+                        ? `${selected.data.genre} • ${selected.data.materialCount} ngữ liệu liên kết`
                         : selected.kind === 'material'
-                        ? `${selected.data.author || 'Chưa có tác giả'} • Khối ${selected.data.gradeLevel}`
-                        : `Thang ${selected.data.maxScore}đ • ${selected.data.criteriaCount} tiêu chí`}
+                          ? `${selected.data.author || 'Chưa có tác giả'} • ${selected.data.sourceInfo || 'Chưa có thông tin nguồn'}`
+                          : `Thang ${selected.data.maxScore}đ • ${selected.data.criteriaCount} tiêu chí`}
                     </p>
                   </div>
                   {isTeacher && selected.kind !== 'rubric' && !pickMode && (
@@ -486,14 +658,7 @@ function MaterialsContent() {
                           setDrawer('material');
                         }
                         if (selected.kind === 'prompt' && selectedPrompt) {
-                          setEditingId(selectedPrompt.id);
-                          setPromptTitle(selectedPrompt.title);
-                          setPromptTask(selectedPrompt.writingTask);
-                          setPromptGenre(selectedPrompt.genre);
-                          setPromptTopicId(selectedPrompt.topicId || '');
-                          setPromptGradeLevel(selectedPrompt.gradeLevel || 11);
-                          setPromptMaterialIds(selectedPrompt.materials.map((item) => item.id));
-                          setDrawer('prompt');
+                          openPromptForm({ editing: selectedPrompt });
                         }
                       }}
                     >
@@ -505,7 +670,18 @@ function MaterialsContent() {
                 {previewLoading && (
                   <p className="text-sm text-on-surface-variant">Đang tải nội dung xem trước...</p>
                 )}
-                {previewError && <p className="text-sm text-error">{previewError}</p>}
+                {previewError && (
+                  <div className="p-3 bg-error-container/50 text-error text-sm rounded-lg flex items-center justify-between gap-2">
+                    <span>{previewError}</span>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold"
+                      onClick={() => setPreviewNonce((value) => value + 1)}
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                )}
 
                 {selected.kind === 'prompt' && selectedPrompt && previewReady && (
                   <>
@@ -521,12 +697,21 @@ function MaterialsContent() {
                         {selectedPrompt.writingTask || 'Chưa có yêu cầu viết.'}
                       </p>
                     </div>
+                    {selectedPrompt.extraGuidance && (
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-outline block">Gợi ý / các ý còn lại</span>
+                        <p className="text-sm leading-relaxed whitespace-pre-line">{selectedPrompt.extraGuidance}</p>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <span className="text-xs font-bold uppercase tracking-wider text-outline block">Ngữ liệu liên kết</span>
                       {selectedPrompt.materials.map((material) => (
-                        <div key={material.id} className="p-3 rounded-lg bg-surface-container-low/50 text-xs">
+                        <div key={material.id} className="p-3 rounded-lg bg-surface-container-low/50 text-xs space-y-1">
                           <p className="font-semibold">{material.title}</p>
-                          <p className="text-on-surface-variant mt-1">{material.sourceInfo || material.excerpt}</p>
+                          <p className="text-on-surface-variant">
+                            {material.author ? `${material.author} • ` : ''}
+                            {material.sourceInfo || 'Chưa có thông tin nguồn'}
+                          </p>
                           {(material.content || material.excerpt) && (
                             <pre className="mt-2 whitespace-pre-wrap font-merriweather text-[12px] leading-relaxed">
                               {material.content || material.excerpt}
@@ -538,42 +723,93 @@ function MaterialsContent() {
                         <p className="text-xs text-error">Chưa gắn ngữ liệu.</p>
                       )}
                     </div>
-                    {selectedPrompt.ready ? (
-                      <Link
-                        href={createAssignmentHref(selectedPrompt.id, {
-                          classroomId,
-                          assignmentId: assignmentId || loadAssignmentDraft(draftScope).assignmentId,
-                        })}
-                        onClick={() =>
-                          saveAssignmentDraft(
-                            {
-                              ...loadAssignmentDraft(draftScope),
-                              promptId: selectedPrompt.id,
-                              classroomId,
-                              assignmentId: assignmentId || loadAssignmentDraft(draftScope).assignmentId,
-                            },
-                            draftScope
-                          )
-                        }
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-container text-on-primary-container text-xs font-semibold rounded-lg"
-                      >
-                        {pickMode ? 'Dùng đề này & Tiếp tục' : 'Tạo bài tập từ đề này'}
-                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                      </Link>
-                    ) : (
-                      <div className="p-3 bg-[#FEF9C3] rounded-lg text-xs text-[#CA8A04]">
-                        Đề chưa đủ dữ liệu: cần bổ sung {promptMissingLabels(selectedPrompt.missing, MISSING_LABELS)}.
-                        Không thể dùng đề này để tạo bài tập.
-                      </div>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {selectedPrompt.sourceDocumentId && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDownloadOriginal(selectedPrompt.sourceDocumentId)}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 border border-outline-variant/60 text-xs font-semibold rounded-lg hover:bg-surface-container"
+                        >
+                          Tải file gốc
+                        </button>
+                      )}
+                      {selectedPrompt.ready ? (
+                        <Link
+                          href={createAssignmentHref(selectedPrompt.id, assignmentDraft)}
+                          onClick={() =>
+                            saveAssignmentDraft(
+                              {
+                                ...loadAssignmentDraft(draftScope),
+                                promptId: selectedPrompt.id,
+                                classroomId: assignmentDraft.classroomId,
+                                assignmentId: assignmentDraft.assignmentId,
+                              },
+                              draftScope
+                            )
+                          }
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-container text-on-primary-container text-xs font-semibold rounded-lg shadow-sm hover:brightness-95"
+                        >
+                          {pickMode ? 'Dùng đề này & Tiếp tục' : 'Tạo bài tập từ đề này'}
+                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        </Link>
+                      ) : (
+                        <div className="w-full p-3 bg-[#FEF9C3] rounded-lg text-xs text-[#CA8A04] space-y-2">
+                          <p>
+                            Đề chưa đủ dữ liệu: cần bổ sung {promptMissingLabels(selectedPrompt.missing, MISSING_LABELS)}.
+                            Chỉ tạo bài tập khi đề đã sẵn sàng.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => openPromptForm({ editing: selectedPrompt })}
+                            className="px-3 py-1.5 bg-surface-container-lowest border border-[#CA8A04]/40 rounded-lg font-semibold"
+                          >
+                            Bổ sung ngữ liệu / yêu cầu viết
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
 
                 {selected.kind === 'material' && selectedMaterial && previewReady && (
                   <>
-                    <p className="text-xs text-on-surface-variant">{selectedMaterial.sourceInfo}</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {selectedMaterial.author ? `${selectedMaterial.author} • ` : ''}
+                      {selectedMaterial.sourceInfo || 'Chưa có thông tin nguồn'}
+                    </p>
                     <div className="p-4 bg-surface-container-low/40 rounded-xl border-l-4 border-primary text-sm font-merriweather whitespace-pre-wrap">
-                      {selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.'}
+                      {fullMaterial
+                        ? selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.'
+                        : (selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.').slice(0, 800)}
+                      {!fullMaterial && (selectedMaterial.content || selectedMaterial.excerpt || '').length > 800 ? '…' : ''}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedMaterial.content || selectedMaterial.excerpt || '').length > 800 && (
+                        <button
+                          type="button"
+                          onClick={() => setFullMaterial((value) => !value)}
+                          className="text-xs font-semibold text-secondary"
+                        >
+                          {fullMaterial ? 'Thu gọn' : 'Xem toàn văn'}
+                        </button>
+                      )}
+                      {selectedMaterial.sourceDocumentId && (
+                        <button
+                          type="button"
+                          onClick={() => void handleDownloadOriginal(selectedMaterial.sourceDocumentId)}
+                          className="px-3 py-1.5 border border-outline-variant/60 text-xs font-semibold rounded-lg"
+                        >
+                          Tải file gốc
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openPromptForm({ materialIds: [selectedMaterial.id] })}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-primary-container text-on-primary-container text-xs font-semibold rounded-lg shadow-sm hover:brightness-95"
+                      >
+                        Tạo đề nguồn từ ngữ liệu này
+                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                      </button>
                     </div>
                   </>
                 )}
@@ -582,19 +818,30 @@ function MaterialsContent() {
                   <>
                     <p className="text-sm text-on-surface-variant">{selectedRubric.description}</p>
                     <p className="text-xs">
-                      Thang {selectedRubric.maxScore}đ • bước {selectedRubric.scoreStep} • {selectedRubric.criteriaCount} tiêu chí.
-                      Chọn barem này tại màn tạo đề, không áp dụng từ kho.
+                      Thang {selectedRubric.maxScore}đ • bước {selectedRubric.scoreStep} • {selectedRubric.criteriaCount} tiêu
+                      chí. Chọn barem này tại màn tạo bài tập, không áp dụng từ kho.
                     </p>
-                    {(selectedRubric.criteria || []).map((criterion) => (
-                      <div key={criterion.id} className="p-2.5 bg-surface-container-low/50 rounded-lg text-xs">
-                        <span className="font-bold text-primary">
-                          {criterion.name} ({criterion.weight}đ)
-                        </span>
-                        {criterion.guideNote && (
-                          <p className="text-on-surface-variant mt-1">{criterion.guideNote}</p>
-                        )}
-                      </div>
-                    ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {(selectedRubric.criteria || []).map((criterion) => (
+                        <div key={criterion.id} className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 text-xs">
+                          <span className="font-bold text-primary block">
+                            {criterion.name} ({criterion.weight}đ)
+                          </span>
+                          {criterion.guideNote && (
+                            <p className="text-[11px] text-on-surface-variant mt-1">{criterion.guideNote}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {selectedRubric.sourceDocumentId && (
+                      <button
+                        type="button"
+                        onClick={() => void handleDownloadOriginal(selectedRubric.sourceDocumentId)}
+                        className="px-3 py-1.5 border border-outline-variant/60 text-xs font-semibold rounded-lg"
+                      >
+                        Tải file gốc
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -621,18 +868,16 @@ function MaterialsContent() {
                 gradeLevel: materialGradeLevel,
               };
               try {
-                if (editingId) {
-                  await catalogApi.updateMaterial(editingId, body);
-                  addToast('Đã cập nhật ngữ liệu.', 'success');
-                } else {
-                  await catalogApi.createMaterial(body);
-                  addToast('Đã lưu ngữ liệu vào kho.', 'success');
-                }
+                const saved = editingId
+                  ? await catalogApi.updateMaterial(editingId, body)
+                  : await catalogApi.createMaterial(body);
+                addToast(editingId ? 'Đã cập nhật ngữ liệu.' : 'Đã lưu ngữ liệu vào kho.', 'success');
                 setDrawer(null);
                 setEditingId('');
                 setMaterialTitle('');
                 setMaterialContent('');
                 await load();
+                setSelectedKey(`material:${saved.id}`);
               } catch (err) {
                 addToast(err instanceof AuthApiError ? err.message : 'Không lưu được ngữ liệu.', 'error');
               } finally {
@@ -699,18 +944,19 @@ function MaterialsContent() {
                 materialIds: promptMaterialIds,
               };
               try {
-                if (editingId) {
-                  await catalogApi.updatePrompt(editingId, body);
-                  addToast('Đã cập nhật đề nguồn.', 'success');
-                } else {
-                  await catalogApi.createPrompt(body);
-                  addToast('Đã lưu đề nguồn.', 'success');
-                }
+                const saved = editingId
+                  ? await catalogApi.updatePrompt(editingId, body)
+                  : await catalogApi.createPrompt(body);
+                addToast(editingId ? 'Đã cập nhật đề nguồn.' : 'Đã lưu đề nguồn.', 'success');
                 setDrawer(null);
                 setEditingId('');
                 setPromptTitle('');
                 setPromptTask('');
                 await load();
+                setFilterKind(pickMode ? 'prompt' : 'prompt');
+                setSelectedKey(`prompt:${saved.id}`);
+                setImportNotice(saved.ready ? 'Đề nguồn đã sẵn sàng. Có thể tạo bài tập từ đề này.' : 'Đề đã lưu. Hãy bổ sung phần còn thiếu trước khi tạo bài.');
+                router.replace(catalogHref({ ...catalogState, select: `prompt:${saved.id}`, kind: pickMode ? undefined : 'prompt' }));
               } catch (err) {
                 addToast(err instanceof AuthApiError ? err.message : 'Không lưu được đề nguồn.', 'error');
               } finally {
@@ -774,7 +1020,11 @@ function MaterialsContent() {
                   <span>{material.title}</span>
                 </label>
               ))}
+              {materials.length === 0 && <p className="text-on-surface-variant">Chưa có ngữ liệu trong kho.</p>}
             </div>
+            {promptMaterialIds.length === 0 && (
+              <p className="text-[#CA8A04]">Đề chưa gắn ngữ liệu. Có thể lưu rồi bổ sung sau; chỉ tạo bài khi đề sẵn sàng.</p>
+            )}
             <ModalActions saving={saving} onCancel={() => setDrawer(null)} submitLabel={editingId ? 'Cập nhật đề nguồn' : 'Lưu đề nguồn'} />
           </form>
         </Modal>
@@ -848,7 +1098,7 @@ function MaterialsContent() {
                 setImportOpen(false);
                 setImportFile(null);
                 addToast('Đã lưu file gốc. Hãy rà soát bản phân tích.', 'success');
-                router.replace(`/materials?importId=${created.id}`);
+                router.replace(catalogHref({ ...catalogState, importId: created.id }));
               } catch (err) {
                 setImportError(err instanceof AuthApiError ? err.message : 'Không import được tài liệu.');
               } finally {
@@ -915,11 +1165,10 @@ function MaterialsContent() {
         <ImportReview
           documentId={importId}
           topics={topics}
-          onClose={() => router.replace('/materials')}
-          onConfirmed={() => {
-            addToast('Đã lưu ngữ liệu/đề/barem vào kho. Barem chỉ chọn khi tạo bài tập.', 'success');
-            router.replace('/materials');
-            void load();
+          catalogMaterials={materials}
+          onClose={() => router.replace(catalogHref(catalogState))}
+          onConfirmed={(doc) => {
+            void handleImportConfirmed(doc);
           }}
         />
       )}
@@ -953,7 +1202,7 @@ function MaterialsContent() {
                 type="button"
                 disabled={saving}
                 onClick={() => void handleImportRubric(rubricText)}
-                className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-semibold"
+                className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-semibold disabled:opacity-40"
               >
                 {saving ? 'Đang lưu...' : 'Xác nhận nhập kho'}
               </button>
@@ -1015,7 +1264,7 @@ function Modal({
       <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
           <h3 className="font-headline-sm text-base font-bold font-merriweather">{title}</h3>
-          <button onClick={onClose} className="p-1">
+          <button onClick={onClose} className="p-1" aria-label="Đóng">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -1042,7 +1291,7 @@ function ModalActions({
       <button
         type="submit"
         disabled={saving}
-        className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-semibold"
+        className="px-4 py-2 bg-primary-container text-on-primary-container rounded-lg font-semibold disabled:opacity-40"
       >
         {saving ? 'Đang lưu...' : submitLabel}
       </button>

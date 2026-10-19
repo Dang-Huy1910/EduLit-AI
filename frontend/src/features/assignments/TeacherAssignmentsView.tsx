@@ -6,12 +6,11 @@ import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
-import { pickPromptHref, saveAssignmentDraft } from '@/features/catalog/draft';
+import { beginNewAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
 import type { ClassroomSummary, TeacherAssignment } from '@/features/catalog/types';
 
 export default function TeacherAssignmentsView() {
   const { addToast, currentUser } = useAppStore();
-  const draftScope = { userId: currentUser?.id, assignmentId: 'new' };
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
   const [classrooms, setClassrooms] = useState<ClassroomSummary[]>([]);
   const [classroomId, setClassroomId] = useState('');
@@ -68,7 +67,7 @@ export default function TeacherAssignmentsView() {
             </Link>
             <Link
               href={createHref}
-              onClick={() => saveAssignmentDraft({ classroomId }, draftScope)}
+              onClick={() => beginNewAssignmentDraft({ classroomId }, { userId: currentUser?.id })}
               className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-sm font-semibold flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-[18px]">add</span>
@@ -84,7 +83,7 @@ export default function TeacherAssignmentsView() {
               value={classroomId}
               onChange={(e) => {
                 setClassroomId(e.target.value);
-                saveAssignmentDraft({ classroomId: e.target.value }, draftScope);
+                beginNewAssignmentDraft({ classroomId: e.target.value }, { userId: currentUser?.id });
               }}
               className="mt-1 w-full text-sm font-bold bg-transparent"
             >

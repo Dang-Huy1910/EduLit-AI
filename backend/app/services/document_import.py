@@ -572,13 +572,9 @@ class DocumentImportService:
                 material_id_map[str(item.get("id"))] = created["id"]
 
             for item in prompts:
-                linked = []
-                for raw_id in item.get("linkedMaterialIds") or []:
-                    mapped = material_id_map.get(str(raw_id))
-                    if mapped:
-                        linked.append(mapped)
-                if not linked:
-                    linked = created_materials
+                linked = await self._resolve_prompt_material_ids(
+                    teacher, item.get("linkedMaterialIds") or [], material_id_map
+                )
                 created = await self.catalog.create_prompt(
                     teacher,
                     {
@@ -639,3 +635,50 @@ class DocumentImportService:
         document.updated_at = utcnow()
         await self.session.commit()
         return self._dict(document, full=True)
+
+    async def _resolve_prompt_material_ids(
+        self,
+        teacher: User,
+        raw_ids: list[Any],
+        material_id_map: dict[str, str],
+    ) -> list[str]:
+        """Map extract temp ids to created UUIDs; accept owned catalog UUIDs.
+
+        Specified ids that cannot be resolved are rejected. An empty list stays empty
+        so a prompt can be saved incomplete instead of silently linking every material.
+        """
+        linked: list[str] = []
+        seen: set[str] = set()
+        invalid: list[str] = []
+        for raw in raw_ids:
+            key = str(raw or "").strip()
+            if not key:
+                continue
+            mapped = material_id_map.get(key)
+            if mapped:
+                if mapped not in seen:
+                    seen.add(mapped)
+                    linked.append(mapped)
+                continue
+            try:
+                uid = uuid.UUID(key)
+            except (TypeError, ValueError):
+                invalid.append(key)
+                continue
+            try:
+                material = await self.catalog._owned_material(teacher, uid)
+            except CatalogError:
+                invalid.append(key)
+                continue
+            mid = str(material.id)
+            if mid not in seen:
+                seen.add(mid)
+                linked.append(mid)
+        if invalid:
+            raise CatalogError(
+                400,
+                "VALIDATION",
+                "Ngữ liệu liên kết không hợp lệ hoặc không thuộc quyền sở hữu của giáo viên.",
+                {"materialIds": ", ".join(invalid)},
+            )
+        return linked

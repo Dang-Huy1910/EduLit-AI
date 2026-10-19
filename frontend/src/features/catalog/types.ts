@@ -79,6 +79,7 @@ export interface CatalogRubric {
   criteriaCount: number;
   criteria?: CatalogRubricCriterion[];
   rubricVersionId?: string;
+  sourceDocumentId?: string | null;
   updatedAt?: string | null;
 }
 
