@@ -16,10 +16,15 @@ COPY backend/app /app/app
 COPY backend/alembic /app/alembic
 COPY backend/alembic.ini /app/alembic.ini
 COPY backend/pyproject.toml /app/pyproject.toml
+COPY backend/scripts /app/scripts
+COPY frontend/src/lib/mock/roster_11a14.json /app/demo_frontend/src/lib/mock/roster_11a14.json
+COPY frontend/src/lib/mock/submissionsManifest.ts /app/demo_frontend/src/lib/mock/submissionsManifest.ts
+COPY frontend/public/submissions /app/demo_frontend/public/submissions
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEMO_FRONTEND_ROOT=/app/demo_frontend
 USER edulit
 EXPOSE 4000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/api/health')"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "4000"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-4000}"]

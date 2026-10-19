@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.core.errors import ERROR_MESSAGES, ApiHttpException, error_body
+from app.db.migrate import upgrade_head
 from app.core.http import SENSITIVE_FIELDS
 from app.db.session import close_db
 from app.workers.outline_prep import start_outline_prep_worker
@@ -42,6 +43,9 @@ def _configure_logging() -> None:
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     _configure_logging()
     settings = get_settings()
+    if settings.should_run_migrations:
+        logger.info("applying database migrations")
+        upgrade_head()
     worker_task = None
     stop_worker = None
     ocr_task = None

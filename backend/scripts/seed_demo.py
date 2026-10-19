@@ -68,6 +68,7 @@ async def seed_teacher(session: AsyncSession, settings: Settings) -> User:
         user.email_verified_at = user.email_verified_at or utcnow()
         user.status = UserStatus.ACTIVE
         user.role = UserRole.TEACHER
+        user.password_hash = await hash_password(password)
         logger.info("Teacher already exists: %s", login_id)
     return user
 
@@ -96,6 +97,7 @@ async def seed_student(session: AsyncSession) -> User:
         user.email_verified_at = user.email_verified_at or utcnow()
         user.status = UserStatus.ACTIVE
         user.role = UserRole.STUDENT
+        user.password_hash = await hash_password(password)
         logger.info("Student already exists: %s", login_id)
     return user
 
@@ -303,6 +305,7 @@ async def seed_student_named(
         user.email_verified_at = user.email_verified_at or utcnow()
         user.status = UserStatus.ACTIVE
         user.role = UserRole.STUDENT
+        user.password_hash = await hash_password(password)
         logger.info("Student already exists: %s", login_id)
     return user
 

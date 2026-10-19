@@ -116,6 +116,7 @@ class Settings(BaseSettings):
     BOOTSTRAP_TEACHER_EMAIL_ALIASES: str = ""
 
     ALLOW_DEMO_LOGIN: bool = False
+    RUN_MIGRATIONS: bool | None = None
 
     @field_validator("APP_ENV")
     @classmethod
@@ -136,6 +137,12 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV == "production"
+
+    @property
+    def should_run_migrations(self) -> bool:
+        if self.RUN_MIGRATIONS is not None:
+            return bool(self.RUN_MIGRATIONS)
+        return self.is_production
 
     @property
     def is_test(self) -> bool:

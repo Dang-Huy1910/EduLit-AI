@@ -13,6 +13,7 @@ Creates/updates:
 Usage (from backend/):
   uv run python scripts/seed_classroom_demo.py
   uv run python scripts/seed_classroom_demo.py --apply
+  uv run python scripts/seed_classroom_demo.py --apply --allow-remote --database-url "$SEED_DATABASE_URL"
 """
 
 from __future__ import annotations
@@ -22,11 +23,13 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -35,7 +38,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
 REPO_ROOT = BACKEND_DIR.parent
-FRONTEND_ROOT = REPO_ROOT / "frontend"
+_FRONTEND_OVERRIDE = os.environ.get("DEMO_FRONTEND_ROOT", "").strip()
+FRONTEND_ROOT = Path(_FRONTEND_OVERRIDE) if _FRONTEND_OVERRIDE else REPO_ROOT / "frontend"
 MOCK_DIR = FRONTEND_ROOT / "src" / "lib" / "mock"
 PUBLIC_ROOT = FRONTEND_ROOT / "public"
 
@@ -50,7 +54,7 @@ from seed_demo import (  # noqa: E402
 )
 
 from app.ai.schemas import ASSESSMENT_OUTPUT_SCHEMA_VERSION, CLASS_INSIGHT_SCHEMA_VERSION  # noqa: E402
-from app.config import Settings, get_settings  # noqa: E402
+from app.config import Settings, clear_settings_cache, get_settings  # noqa: E402
 from app.core.http import utcnow  # noqa: E402
 from app.core.passwords import hash_password_sync  # noqa: E402
 from app.db.models import (  # noqa: E402
@@ -387,6 +391,7 @@ async def get_or_create_student(
     user.email = email
     user.role = UserRole.STUDENT
     user.status = UserStatus.ACTIVE
+    user.password_hash = password_hash
     user.email_verified_at = user.email_verified_at or utcnow()
     counts["students_existing"] += 1
     return user
@@ -1006,10 +1011,34 @@ async def seed_class_insight(
     counts["insights_updated"] += 1
 
 
-async def run(*, apply: bool) -> dict[str, int]:
+def _database_host(url: str) -> str:
+    return urlparse(url).hostname or ""
+
+
+def _is_local_host(host: str) -> bool:
+    return host in {"localhost", "127.0.0.1", "::1", "postgres"}
+
+
+def configure_database(*, database_url: str | None, allow_remote: bool) -> Settings:
+    url = (database_url or os.environ.get("SEED_DATABASE_URL") or "").strip()
+    if url:
+        os.environ["DATABASE_URL"] = url
+        clear_settings_cache()
     settings = get_settings()
-    if settings.is_production:
+    host = _database_host(settings.DATABASE_URL)
+    demo_job = os.environ.get("SEED_CLASSROOM_DEMO", "").strip().lower() in {"1", "true", "yes"}
+    if not _is_local_host(host) and not allow_remote and not demo_job:
+        raise SystemExit(
+            f"Refusing to seed remote host {host!r}. Pass --allow-remote to write the deploy database."
+        )
+    if settings.is_production and not allow_remote and not demo_job:
         raise SystemExit("Refusing to seed demo data when APP_ENV=production")
+    logger.info("Seed database host: %s", host or "(unknown)")
+    return settings
+
+
+async def run(*, apply: bool, database_url: str | None = None, allow_remote: bool = False) -> dict[str, int]:
+    settings = configure_database(database_url=database_url, allow_remote=allow_remote)
 
     roster = load_roster()
     submissions = load_central_submissions()
@@ -1100,8 +1129,24 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Seed 11A14 classroom demo data from mock files")
     parser.add_argument("--apply", action="store_true", help="Write to the database")
     parser.add_argument("--dry-run", action="store_true", help="Parse and plan without writing (default)")
+    parser.add_argument(
+        "--database-url",
+        default=None,
+        help="Target Postgres URL. Overrides DATABASE_URL. Prefer SEED_DATABASE_URL env.",
+    )
+    parser.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="Allow writing a non-localhost database (deploy/Render).",
+    )
     args = parser.parse_args()
-    asyncio.run(run(apply=bool(args.apply)))
+    asyncio.run(
+        run(
+            apply=bool(args.apply),
+            database_url=args.database_url,
+            allow_remote=bool(args.allow_remote),
+        )
+    )
 
 
 if __name__ == "__main__":
