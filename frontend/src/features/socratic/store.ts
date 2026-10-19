@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import type {
   UISocraticMessage,
   UIOutline,
+  UIOutlineSection,
   SessionResponse,
   OutlineResponse,
   OutlineContent,
@@ -18,6 +19,9 @@ import {
   mapOutlineToUI,
   mapUIToOutlineContent,
   DEFAULT_OUTLINE,
+  itemsOfSection,
+  withSectionItems,
+  CLARIFICATION_REASON_LABEL,
 } from './types';
 import * as api from './api';
 import { ApiErrorCode, SocraticApiError } from './api';
@@ -48,6 +52,91 @@ function highlightIdsFromOps(ops: MessageResponse['appliedOps']): string[] {
     .filter((id): id is string => Boolean(id));
 }
 
+function mapSection(
+  outline: UIOutline,
+  sectionId: string,
+  mapper: (section: UIOutlineSection) => UIOutlineSection
+): UIOutline {
+  return {
+    ...outline,
+    sections: outline.sections.map((section) =>
+      section.id === sectionId ? mapper(section) : section
+    ),
+  };
+}
+
+function clarificationLabel(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  return CLARIFICATION_REASON_LABEL[reason] || `Thao tác dàn ý chưa được áp dụng (${reason}).`;
+}
+
+function applyAssistantOutlineResult(
+  set: (partial: object) => void,
+  get: () => SocraticState,
+  response: MessageResponse
+) {
+  const serverOutline = response.currentOutline;
+  const reasonLabel = clarificationLabel(response.clarificationReason);
+  const highlight = highlightIdsFromOps(response.appliedOps);
+  const hasDirtyDraft = get().pendingOutlineChanges !== null;
+
+  if (reasonLabel) {
+    set({
+      error: reasonLabel,
+      errorCode: response.clarificationReason || ApiErrorCode.OUTLINE_VERSION_CONFLICT,
+      highlightedPointIds: highlight,
+      ...(serverOutline
+        ? {
+            rawServerOutline: serverOutline.content,
+            outlineRevisionId: serverOutline.id,
+            outlineVersion: serverOutline.revision,
+            outlineConflict: hasDirtyDraft,
+          }
+        : {}),
+    });
+    return;
+  }
+
+  if (serverOutline && hasDirtyDraft) {
+    set({
+      rawServerOutline: serverOutline.content,
+      outlineRevisionId: serverOutline.id,
+      outlineVersion: serverOutline.revision,
+      outlineConflict: true,
+      error: 'AI đã cập nhật dàn ý. Bản nháp đang sửa được giữ lại.',
+      errorCode: ApiErrorCode.OUTLINE_VERSION_CONFLICT,
+      highlightedPointIds: highlight,
+    });
+    return;
+  }
+
+  if (serverOutline) {
+    const mappedUI = mapOutlineToUI(serverOutline.content);
+    const shouldReplace =
+      response.outlineChanged === true || serverOutline.revision !== get().outlineVersion;
+    if (shouldReplace) {
+      set({
+        outline: mappedUI,
+        rawServerOutline: serverOutline.content,
+        lastSavedOutline: mappedUI,
+        outlineRevisionId: serverOutline.id,
+        outlineVersion: serverOutline.revision,
+        pendingOutlineChanges: null,
+        highlightedPointIds: highlight,
+        error: null,
+        errorCode: null,
+      });
+      return;
+    }
+  }
+
+  set({
+    highlightedPointIds: highlight,
+    error: null,
+    errorCode: null,
+  });
+}
+
 // Queue state for sequential outline saves
 let isSavingQueue = false;
 let hasQueuedSave = false;
@@ -57,6 +146,9 @@ export interface PendingChatOperation {
   content: string;
   idempotencyKey: string;
   tempId: string;
+  selectedPointId?: string;
+  selectedSectionId?: string;
+  expectedOutlineVersion: number;
 }
 
 export interface SocraticState {
@@ -84,7 +176,7 @@ export interface SocraticState {
   isInitializingOutline: boolean;
   outlineInitStatus: string | null;
   outlineInitFailed: boolean;
-  selectedPoint: { sectionId: string; index: number; id?: string } | null;
+  selectedPoint: { sectionId: string; index: number; id: string } | null;
   highlightedPointIds: string[];
 
   // Chat state
@@ -226,6 +318,10 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
     const { sessionId, currentGeneration } = get();
     if (!sessionId) return;
     const gen = currentGeneration;
+    const startedSessionId = sessionId;
+    const isCurrent = () =>
+      gen === get().currentGeneration && get().sessionId === startedSessionId;
+
     set({
       isInitializingOutline: true,
       outlineInitFailed: false,
@@ -233,18 +329,64 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
       errorCode: null,
     });
 
+    const adoptInitOutline = (outline: OutlineResponse, status: string, extras?: {
+      outlineVersion?: number;
+      sessionState?: string;
+      readiness?: SessionResponse['readiness'] | null;
+      session?: SessionResponse;
+    }) => {
+      if (!isCurrent()) return;
+      const mappedUI = mapOutlineToUI(outline.content);
+      const hasDirtyDraft = get().pendingOutlineChanges !== null;
+      set((state) => ({
+        isInitializingOutline: false,
+        outlineInitFailed: false,
+        outlineInitStatus: status,
+        rawServerOutline: outline.content,
+        outlineRevisionId: outline.id,
+        outlineVersion: extras?.outlineVersion ?? outline.revision,
+        ...(hasDirtyDraft
+          ? {
+              outlineConflict: true,
+              error: 'Dàn ý gợi ý đã sẵn sàng. Bản nháp đang sửa được giữ lại.',
+              errorCode: ApiErrorCode.OUTLINE_VERSION_CONFLICT,
+            }
+          : {
+              outline: mappedUI,
+              lastSavedOutline: mappedUI,
+              pendingOutlineChanges: null,
+              outlineConflict: false,
+            }),
+        session: extras?.session
+          ? extras.session
+          : state.session
+            ? {
+                ...state.session,
+                outlineVersion: extras?.outlineVersion ?? outline.revision,
+                state: (extras?.sessionState as SessionResponse['state']) || state.session.state,
+                readiness: extras?.readiness || state.session.readiness,
+                outlineInitStatus: status,
+                currentOutline: outline,
+              }
+            : state.session,
+      }));
+    };
+
     try {
-      let result = await api.initOutline(sessionId, retry);
+      let result = await api.initOutline(startedSessionId, retry);
+      if (!isCurrent()) return;
       let attempts = 0;
       while (
         (result.status === 'PROCESSING' || !result.status) &&
         attempts < 20 &&
-        gen === get().currentGeneration
+        isCurrent()
       ) {
         await sleep(750);
+        if (!isCurrent()) return;
         try {
-          result = await api.initOutline(sessionId, false);
+          result = await api.initOutline(startedSessionId, false);
         } catch (err) {
+          if (!isCurrent()) return;
           const apiError = err instanceof SocraticApiError ? err : null;
           if (apiError?.code === ApiErrorCode.OUTLINE_INIT_IN_PROGRESS) {
             attempts += 1;
@@ -252,39 +394,24 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
           }
           throw err;
         }
+        if (!isCurrent()) return;
         attempts += 1;
       }
 
-      if (gen !== get().currentGeneration) return;
+      if (!isCurrent()) return;
 
       if (result.outline) {
-        const mappedUI = mapOutlineToUI(result.outline.content);
-        set((state) => ({
-          isInitializingOutline: false,
-          outlineInitFailed: false,
-          outlineInitStatus: result.status,
-          outline: mappedUI,
-          rawServerOutline: result.outline!.content,
-          lastSavedOutline: mappedUI,
-          outlineRevisionId: result.outline!.id,
-          outlineVersion: result.outline!.revision,
-          pendingOutlineChanges: null,
-          outlineConflict: false,
-          session: state.session
-            ? {
-                ...state.session,
-                outlineVersion: result.outlineVersion,
-                state: result.sessionState as SessionResponse['state'],
-                readiness: result.readiness || state.session.readiness,
-                outlineInitStatus: result.status,
-                currentOutline: result.outline!,
-              }
-            : state.session,
-        }));
+        adoptInitOutline(result.outline, result.status, {
+          outlineVersion: result.outlineVersion,
+          sessionState: result.sessionState,
+          readiness: result.readiness,
+        });
+        if (!isCurrent()) return;
         await get().loadMessages(false);
         return;
       }
 
+      if (!isCurrent()) return;
       set((state) => ({
         isInitializingOutline: false,
         outlineInitFailed: result.status === 'FAILED',
@@ -299,29 +426,26 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
           : state.session,
       }));
       if (result.message) {
+        if (!isCurrent()) return;
         await get().loadMessages(false);
       }
     } catch (error) {
-      if (gen !== get().currentGeneration) return;
+      if (!isCurrent()) return;
       const apiError = error instanceof SocraticApiError ? error : new SocraticApiError(0, 'UNKNOWN', String(error));
       if (apiError.code === ApiErrorCode.OUTLINE_INIT_IN_PROGRESS) {
-        for (let i = 0; i < 15 && gen === get().currentGeneration; i += 1) {
+        for (let i = 0; i < 15; i += 1) {
+          if (!isCurrent()) return;
           await sleep(750);
+          if (!isCurrent()) return;
           try {
-            const session = await api.getSession(sessionId);
+            const session = await api.getSession(startedSessionId);
+            if (!isCurrent()) return;
             if (session.currentOutline) {
-              const mappedUI = mapOutlineToUI(session.currentOutline.content);
-              set({
+              adoptInitOutline(session.currentOutline, session.outlineInitStatus || 'COMPLETED', {
                 session,
-                isInitializingOutline: false,
-                outlineInitFailed: false,
-                outlineInitStatus: session.outlineInitStatus || 'COMPLETED',
-                outline: mappedUI,
-                rawServerOutline: session.currentOutline.content,
-                lastSavedOutline: mappedUI,
-                outlineRevisionId: session.currentOutline.id,
-                outlineVersion: session.currentOutline.revision,
+                outlineVersion: session.outlineVersion,
               });
+              if (!isCurrent()) return;
               await get().loadMessages(false);
               return;
             }
@@ -330,6 +454,7 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
           }
         }
       }
+      if (!isCurrent()) return;
       set({
         isInitializingOutline: false,
         outlineInitFailed: true,
@@ -345,12 +470,14 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
 
   selectPoint: (sectionId: string, index: number) => {
     const section = get().outline.sections.find((s) => s.id === sectionId);
-    const item = section?.pointItems?.[index];
+    if (!section) return;
+    const item = itemsOfSection(section)[index];
+    if (!item?.id) return;
     set({
       selectedPoint: {
         sectionId,
         index,
-        id: item?.id,
+        id: item.id,
       },
     });
   },
@@ -458,17 +585,19 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
   },
 
   loadOutline: async (options) => {
-    const { sessionId, currentGeneration, pendingOutlineChanges } = get();
+    const { sessionId, currentGeneration } = get();
     if (!sessionId) return;
     const gen = currentGeneration;
+    const startedSessionId = sessionId;
     const force = options?.force === true;
 
     try {
-      const outlineResponse = await api.getOutline(sessionId);
-      if (gen !== get().currentGeneration) return;
+      const outlineResponse = await api.getOutline(startedSessionId);
+      if (gen !== get().currentGeneration || get().sessionId !== startedSessionId) return;
 
       const mappedUI = mapOutlineToUI(outlineResponse.content);
-      if (pendingOutlineChanges && !force) {
+      const hasDirtyDraft = get().pendingOutlineChanges !== null;
+      if (hasDirtyDraft && !force) {
         set({
           rawServerOutline: outlineResponse.content,
           outlineRevisionId: outlineResponse.id,
@@ -521,11 +650,14 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
     const gen = currentGeneration;
     const idempotencyKey = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const tempId = `temp_${Date.now()}`;
-
+    const selected = get().selectedPoint;
     const operation: PendingChatOperation = {
       content: trimmed,
       idempotencyKey,
       tempId,
+      selectedPointId: selected?.id,
+      selectedSectionId: selected?.sectionId,
+      expectedOutlineVersion: get().outlineVersion,
     };
 
     // Optimistic user message bubble
@@ -549,11 +681,10 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
     }));
 
     try {
-      const selected = get().selectedPoint;
       const response = await api.sendMessage(sessionId, trimmed, idempotencyKey, {
-        selectedPointId: selected?.id,
-        selectedSectionId: selected?.sectionId,
-        expectedOutlineVersion: get().outlineVersion,
+        selectedPointId: operation.selectedPointId,
+        selectedSectionId: operation.selectedSectionId,
+        expectedOutlineVersion: operation.expectedOutlineVersion,
       });
       if (gen !== get().currentGeneration) return;
 
@@ -561,40 +692,12 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
       await get().syncMessagesAfterTurn(tempId, response);
       if (gen !== get().currentGeneration) return;
 
-      const serverOutline = response.currentOutline;
-      const hasDirtyDraft = get().pendingOutlineChanges !== null;
-      if (response.outlineChanged && serverOutline && hasDirtyDraft) {
-        set({
-          isSending: false,
-          isAiResponding: false,
-          pendingOperation: null,
-          rawServerOutline: serverOutline.content,
-          outlineConflict: true,
-          error: 'AI đã cập nhật dàn ý. Bản nháp đang sửa được giữ lại.',
-          errorCode: ApiErrorCode.OUTLINE_VERSION_CONFLICT,
-          highlightedPointIds: highlightIdsFromOps(response.appliedOps),
-        });
-        return;
-      }
-      if (response.outlineChanged && serverOutline && !hasDirtyDraft) {
-        const mappedUI = mapOutlineToUI(serverOutline.content);
-        set({
-          outline: mappedUI,
-          rawServerOutline: serverOutline.content,
-          lastSavedOutline: mappedUI,
-          outlineRevisionId: serverOutline.id,
-          outlineVersion: serverOutline.revision,
-          pendingOutlineChanges: null,
-          highlightedPointIds: highlightIdsFromOps(response.appliedOps),
-        });
-      }
+      applyAssistantOutlineResult(set, get, response);
 
       set({
         isSending: false,
         isAiResponding: false,
         pendingOperation: null,
-        error: null,
-        errorCode: null,
       });
     } catch (error) {
       if (gen !== get().currentGeneration) return;
@@ -623,6 +726,7 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
     if (!sessionId || !pendingOperation || isSending || isAiResponding) return;
 
     const gen = currentGeneration;
+    const snapshot = { ...pendingOperation };
     set({ isSending: true, isAiResponding: true, error: null, errorCode: null });
 
     try {
@@ -631,41 +735,34 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
       if (gen !== get().currentGeneration) return;
 
       const alreadyProcessed = history.messages.some(
-        (m) => m.role === 'STUDENT' && m.content === pendingOperation.content
+        (m) => m.role === 'STUDENT' && m.content === snapshot.content
       );
 
-      if (alreadyProcessed) {
-        await get().syncMessagesAfterTurn(pendingOperation.tempId);
-        set({
-          isSending: false,
-          isAiResponding: false,
-          pendingOperation: null,
-        });
-        return;
-      }
-
-      // 2. Replay with identical payload and Idempotency-Key
-      const selected = get().selectedPoint;
+      // 2. Replay with the original snapshot (same key, selection, version)
       const response = await api.sendMessage(
         sessionId,
-        pendingOperation.content,
-        pendingOperation.idempotencyKey,
+        snapshot.content,
+        snapshot.idempotencyKey,
         {
-          selectedPointId: selected?.id,
-          selectedSectionId: selected?.sectionId,
-          expectedOutlineVersion: get().outlineVersion,
+          selectedPointId: snapshot.selectedPointId,
+          selectedSectionId: snapshot.selectedSectionId,
+          expectedOutlineVersion: snapshot.expectedOutlineVersion,
         }
       );
       if (gen !== get().currentGeneration) return;
 
-      await get().syncMessagesAfterTurn(pendingOperation.tempId, response);
+      await get().syncMessagesAfterTurn(snapshot.tempId, response);
+      if (gen !== get().currentGeneration) return;
+
+      applyAssistantOutlineResult(set, get, response);
+      if (alreadyProcessed && !response.currentOutline && !get().pendingOutlineChanges) {
+        await get().loadOutline();
+      }
 
       set({
         isSending: false,
         isAiResponding: false,
         pendingOperation: null,
-        error: null,
-        errorCode: null,
       });
     } catch (error) {
       if (gen !== get().currentGeneration) return;
@@ -687,28 +784,22 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
   addOutlinePoint: (sectionId: string, point: string) => {
     const trimmed = point.trim();
     if (!trimmed) return false;
+    const section = get().outline.sections.find((s) => s.id === sectionId);
+    if (!section) return false;
+    const existing = itemsOfSection(section);
+    if (existing.some((item) => item.text === trimmed)) return false;
 
     set((state) => {
-      const newOutline: UIOutline = {
-        ...state.outline,
-        sections: state.outline.sections.map((section) => {
-          if (section.id === sectionId) {
-            if (section.points.includes(trimmed)) {
-              return section;
-            }
-            const nextItems = [
-              ...(section.pointItems || []),
-              { id: `${sectionId}-${Date.now()}`, text: trimmed, kind: 'claim' as const },
-            ];
-            return {
-              ...section,
-              points: [...section.points, trimmed],
-              pointItems: section.pointItems ? nextItems : section.pointItems,
-            };
-          }
-          return section;
-        }),
-      };
+      const newOutline = mapSection(state.outline, sectionId, (sec) =>
+        withSectionItems(sec, [
+          ...itemsOfSection(sec),
+          {
+            id: `${sectionId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            text: trimmed,
+            kind: 'claim',
+          },
+        ])
+      );
       return {
         outline: newOutline,
         pendingOutlineChanges: newOutline,
@@ -723,17 +814,12 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
     if (!trimmed) return;
 
     set((state) => {
-      const newOutline: UIOutline = {
-        ...state.outline,
-        sections: state.outline.sections.map((section) => {
-          if (section.id === sectionId && section.points[index] !== undefined) {
-            const newPoints = [...section.points];
-            newPoints[index] = trimmed;
-            return { ...section, points: newPoints };
-          }
-          return section;
-        }),
-      };
+      const newOutline = mapSection(state.outline, sectionId, (sec) => {
+        const items = itemsOfSection(sec);
+        if (!items[index]) return sec;
+        const next = items.map((item, i) => (i === index ? { ...item, text: trimmed } : item));
+        return withSectionItems(sec, next);
+      });
       return {
         outline: newOutline,
         pendingOutlineChanges: newOutline,
@@ -743,42 +829,55 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
 
   removeOutlinePoint: (sectionId: string, index: number) => {
     set((state) => {
-      const newOutline: UIOutline = {
-        ...state.outline,
-        sections: state.outline.sections.map((section) => {
-          if (section.id === sectionId && section.points[index] !== undefined) {
-            return {
-              ...section,
-              points: section.points.filter((_, i) => i !== index),
-            };
-          }
-          return section;
-        }),
-      };
+      const section = state.outline.sections.find((s) => s.id === sectionId);
+      const items = section ? itemsOfSection(section) : [];
+      const removed = items[index];
+      const nextItems = items.filter((_, i) => i !== index);
+      const newOutline = mapSection(state.outline, sectionId, (sec) =>
+        withSectionItems(sec, nextItems)
+      );
+      let selectedPoint = state.selectedPoint;
+      if (selectedPoint && removed && selectedPoint.id === removed.id) {
+        selectedPoint = null;
+      } else if (selectedPoint && selectedPoint.sectionId === sectionId) {
+        const newIndex = nextItems.findIndex((item) => item.id === selectedPoint?.id);
+        selectedPoint = newIndex >= 0
+          ? { ...selectedPoint, index: newIndex }
+          : selectedPoint;
+      }
       return {
         outline: newOutline,
         pendingOutlineChanges: newOutline,
+        selectedPoint,
       };
     });
   },
 
   reorderOutlinePoints: (sectionId: string, fromIndex: number, toIndex: number) => {
     set((state) => {
-      const newOutline: UIOutline = {
-        ...state.outline,
-        sections: state.outline.sections.map((section) => {
-          if (section.id === sectionId) {
-            const newPoints = [...section.points];
-            const [moved] = newPoints.splice(fromIndex, 1);
-            newPoints.splice(toIndex, 0, moved);
-            return { ...section, points: newPoints };
-          }
-          return section;
-        }),
-      };
+      const newOutline = mapSection(state.outline, sectionId, (sec) => {
+        const items = [...itemsOfSection(sec)];
+        if (fromIndex < 0 || toIndex < 0 || fromIndex >= items.length || toIndex >= items.length) {
+          return sec;
+        }
+        const [moved] = items.splice(fromIndex, 1);
+        items.splice(toIndex, 0, moved);
+        return withSectionItems(sec, items);
+      });
+      let selectedPoint = state.selectedPoint;
+      if (selectedPoint && selectedPoint.sectionId === sectionId) {
+        const items = itemsOfSection(
+          newOutline.sections.find((s) => s.id === sectionId) || { id: sectionId, title: '', points: [] }
+        );
+        const newIndex = items.findIndex((item) => item.id === selectedPoint?.id);
+        if (newIndex >= 0) {
+          selectedPoint = { ...selectedPoint, index: newIndex };
+        }
+      }
       return {
         outline: newOutline,
         pendingOutlineChanges: newOutline,
+        selectedPoint,
       };
     });
   },

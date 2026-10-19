@@ -11,6 +11,8 @@ from app.workflows.guardrails import (
     normalize_quote,
     validate_response,
     validate_sources,
+    validate_structured_outline,
+    validate_structured_turn,
 )
 
 
@@ -193,6 +195,109 @@ class TestSourceValidation:
         sources = [{"chunk_id": "chunk_1", "quote": "  “ý chí   vượt khó” "}]
         ok, err = validate_sources(sources, self.chunks)
         assert ok is True
+
+
+class TestStructuredPayloadValidation:
+    chunks = [
+        {"chunk_id": "chunk_1", "text": "Nội dung mẫu về ý chí vượt khó và bản lĩnh."},
+    ]
+
+    def test_unknown_source_chunk_on_point_rejected(self):
+        content = {
+            "thesis": "Luận đề ngắn",
+            "sections": [
+                {
+                    "id": "intro",
+                    "title": "I",
+                    "points": [
+                        {
+                            "id": "intro-1",
+                            "text": "Ý mở ngắn",
+                            "kind": "claim",
+                            "source_chunk_id": "chunk_missing",
+                        }
+                    ],
+                }
+            ],
+        }
+        ok, err = validate_structured_outline(content, self.chunks)
+        assert ok is False
+        assert "source_chunk_id" in err
+
+    def test_sample_essay_in_section_content_rejected(self):
+        content = {
+            "thesis": "Luận đề ngắn",
+            "sections": [
+                {
+                    "id": "body",
+                    "title": "II",
+                    "content": (
+                        "Mở bài: Trong thời đại số, bản lĩnh giúp người trẻ giữ vững giá trị sống. "
+                        "Họ cần biết chọn lọc thông tin thay vì bị thuật toán dẫn dắt. "
+                        "Từ đó mỗi người sẽ hình thành thái độ trách nhiệm với cộng đồng."
+                    ),
+                    "points": [{"id": "body-1", "text": "Luận điểm ngắn", "kind": "claim"}],
+                }
+            ],
+        }
+        ok, err = validate_structured_outline(content, self.chunks)
+        assert ok is False
+        assert "mẫu" in err or "viết hộ" in err
+
+    def test_short_bullets_allowed(self):
+        content = {
+            "thesis": "Ý chí giúp con người vượt khó",
+            "sections": [
+                {
+                    "id": "intro",
+                    "title": "I. Mở bài",
+                    "points": [
+                        {
+                            "id": "intro-1",
+                            "text": "Dẫn vào vấn đề ý chí",
+                            "kind": "claim",
+                            "source_chunk_id": "chunk_1",
+                        }
+                    ],
+                }
+            ],
+        }
+        ok, err = validate_structured_outline(content, self.chunks)
+        assert ok is True
+        assert err == ""
+
+    def test_proposal_unknown_source_rejected(self):
+        ok, err = validate_structured_turn(
+            outline_ops=[],
+            proposals=[
+                {
+                    "section_id": "body",
+                    "text": "Ý mới ngắn",
+                    "source_chunk_id": "chunk_999",
+                }
+            ],
+            available_chunks=self.chunks,
+        )
+        assert ok is False
+        assert "source_chunk_id" in err
+
+    def test_op_sample_paragraph_rejected(self):
+        ok, err = validate_structured_turn(
+            outline_ops=[
+                {
+                    "op": "add",
+                    "section_id": "body",
+                    "text": (
+                        "Mở bài: Trong thời đại số bản lĩnh giúp người trẻ giữ vững giá trị sống. "
+                        "Họ cần biết chọn lọc thông tin thay vì bị thuật toán dẫn dắt. "
+                        "Từ đó mỗi người sẽ hình thành thái độ trách nhiệm với cộng đồng."
+                    ),
+                }
+            ],
+            proposals=[],
+            available_chunks=self.chunks,
+        )
+        assert ok is False
 
 
 class TestFallbackResponses:

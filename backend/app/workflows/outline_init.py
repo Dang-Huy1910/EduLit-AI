@@ -22,6 +22,7 @@ from app.workflows.guardrails import (
     context_chunk_id,
     validate_response,
     validate_sources,
+    validate_structured_outline,
 )
 from app.workflows.outline_ops import (
     assignment_has_essential_context,
@@ -191,6 +192,10 @@ async def run_outline_init(
         points_ok, points_err = validate_init_points(content)
         if not points_ok:
             last_error = points_err
+            continue
+        structured_ok, structured_err = validate_structured_outline(content, context_chunks)
+        if not structured_ok:
+            last_error = structured_err
             continue
 
         return OutlineInitResult(

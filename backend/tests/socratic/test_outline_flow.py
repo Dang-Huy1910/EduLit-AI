@@ -24,6 +24,7 @@ from app.db.session import get_session_factory
 from app.services.socratic_service import (
     AiUnavailableServiceError,
     ConflictError,
+    ForbiddenError,
     SocraticService,
 )
 from app.workflows.outline_ops import apply_outline_ops, normalize_outline_content
@@ -612,8 +613,108 @@ class TestVersionManualAndReplay:
             expected_outline_version=0,
         )
         assert result.outline_changed is False
+        assert result.intent == "CLARIFY"
+        assert result.clarification_reason == "OUTLINE_VERSION_CONFLICT"
+        assert "Đã sửa" not in result.message
+        assert result.message.endswith("?")
         await db_session.refresh(session)
         assert session.outline_version == 1
+        current = await service.get_current_outline(session.id, student_user["user"])
+        by_id = {
+            p["id"]: p["text"]
+            for s in current.content["sections"]
+            for p in s["points"]
+        }
+        assert by_id["body-2"] == "Ý sẽ được sửa"
+
+
+class TestOutlineInitAccessRecheck:
+    @pytest.mark.asyncio
+    async def test_revoked_access_during_init_does_not_persist(
+        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+    ):
+        factory = get_session_factory()
+        setup = SocraticService(db_session, ai_port=FakeAiAdapter())
+        session = await setup.create_session(
+            student_user["user"], published_assignment["code"]
+        )
+        await db_session.commit()
+
+        ai = FakeAiAdapter()
+        ai.hold_before_generate = asyncio.Event()
+        ai.release_generate = asyncio.Event()
+        async with factory() as worker_db:
+            service = SocraticService(worker_db, ai_port=ai)
+            task = asyncio.create_task(
+                service.ensure_initial_outline(session.id, student_user["user"])
+            )
+            await asyncio.wait_for(ai.hold_before_generate.wait(), timeout=5)
+            async with factory() as other:
+                access = (
+                    await other.execute(
+                        select(AssignmentAccess).where(
+                            AssignmentAccess.student_id == student_user["id"],
+                            AssignmentAccess.assignment_revision_id
+                            == published_assignment["id"],
+                        )
+                    )
+                ).scalar_one()
+                from app.core.http import utcnow
+
+                access.revoked_at = utcnow()
+                await other.commit()
+            ai.release_generate.set()
+            with pytest.raises(ForbiddenError):
+                await task
+
+        await db_session.refresh(session)
+        assert session.outline_version == 0
+        rows = (
+            await db_session.execute(
+                select(OutlineRevision).where(OutlineRevision.session_id == session.id)
+            )
+        ).scalars().all()
+        assert rows == []
+
+    @pytest.mark.asyncio
+    async def test_closed_assignment_during_init_does_not_persist(
+        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+    ):
+        factory = get_session_factory()
+        setup = SocraticService(db_session, ai_port=FakeAiAdapter())
+        session = await setup.create_session(
+            student_user["user"], published_assignment["code"]
+        )
+        await db_session.commit()
+
+        ai = FakeAiAdapter()
+        ai.hold_before_generate = asyncio.Event()
+        ai.release_generate = asyncio.Event()
+        async with factory() as worker_db:
+            service = SocraticService(worker_db, ai_port=ai)
+            task = asyncio.create_task(
+                service.ensure_initial_outline(session.id, student_user["user"])
+            )
+            await asyncio.wait_for(ai.hold_before_generate.wait(), timeout=5)
+            async with factory() as other:
+                assignment = await other.get(
+                    AssignmentRevision, published_assignment["id"]
+                )
+                assignment.status = "CLOSED"
+                await other.commit()
+            ai.release_generate.set()
+            with pytest.raises(ConflictError) as exc:
+                await task
+            assert exc.value.code == "ASSIGNMENT_CLOSED"
+
+        count = (
+            await db_session.execute(
+                select(func.count()).select_from(OutlineRevision).where(
+                    OutlineRevision.session_id == session.id
+                )
+            )
+        ).scalar_one()
+        assert count == 0
 
 
 class TestOutlineOpsUnit:
@@ -635,3 +736,105 @@ class TestOutlineOpsUnit:
                 SEED_OUTLINE,
                 [OutlineOp(op="delete", section_id="body")],
             )
+
+
+class TestOutlineInitStructuredGuard:
+    @pytest.mark.asyncio
+    async def test_unknown_point_source_rejected_without_saving_scaffold(self):
+        from app.ai.adapters import AiInvalidOutputError
+        from app.ai.prompt_assets import load_socratic_prompt
+        from app.workflows.outline_init import run_outline_init
+
+        payload = {
+            "message": "Đây là dàn ý gợi ý theo đề.",
+            "thesis": "Luận đề ngắn",
+            "sections": [
+                {
+                    "id": "intro",
+                    "title": "I. Mở bài",
+                    "points": [{"id": "intro-1", "text": "Ý mở", "kind": "claim"}],
+                },
+                {
+                    "id": "body",
+                    "title": "II. Thân bài",
+                    "points": [
+                        {
+                            "id": "body-1",
+                            "text": "Ý thân",
+                            "kind": "claim",
+                            "source_chunk_id": "chunk_missing",
+                        }
+                    ],
+                },
+                {
+                    "id": "conclusion",
+                    "title": "III. Kết bài",
+                    "points": [{"id": "conc-1", "text": "Ý kết", "kind": "note"}],
+                },
+            ],
+            "needs_clarification": False,
+            "sources": [],
+        }
+        ai = FakeAiAdapter()
+        encoded = json.dumps(payload, ensure_ascii=False)
+        ai.add_outline_response(encoded)
+        ai.add_outline_response(encoded)
+        with pytest.raises(AiInvalidOutputError):
+            await run_outline_init(
+                title="Đề nghị luận",
+                instructions={"task": "Viết bài"},
+                rubric={"c": 1},
+                context_chunks=[{"chunk_id": "chunk_1", "text": "ý chí vượt khó"}],
+                ai_port=ai,
+                prompt_asset=load_socratic_prompt("v1", kind="outline-init"),
+            )
+        assert ai.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_sample_essay_in_section_content_rejected(self):
+        from app.ai.adapters import AiInvalidOutputError
+        from app.ai.prompt_assets import load_socratic_prompt
+        from app.workflows.outline_init import run_outline_init
+
+        payload = {
+            "message": "Đây là dàn ý gợi ý theo đề.",
+            "thesis": "Luận đề ngắn",
+            "sections": [
+                {
+                    "id": "intro",
+                    "title": "I. Mở bài",
+                    "content": (
+                        "Mở bài: Trong thời đại số, bản lĩnh giúp người trẻ giữ vững giá trị sống. "
+                        "Họ cần biết chọn lọc thông tin thay vì bị thuật toán dẫn dắt. "
+                        "Từ đó mỗi người sẽ hình thành thái độ trách nhiệm với cộng đồng."
+                    ),
+                    "points": [{"id": "intro-1", "text": "Ý mở", "kind": "claim"}],
+                },
+                {
+                    "id": "body",
+                    "title": "II. Thân bài",
+                    "points": [{"id": "body-1", "text": "Ý thân", "kind": "claim"}],
+                },
+                {
+                    "id": "conclusion",
+                    "title": "III. Kết bài",
+                    "points": [{"id": "conc-1", "text": "Ý kết", "kind": "note"}],
+                },
+            ],
+            "needs_clarification": False,
+            "sources": [],
+        }
+        ai = FakeAiAdapter()
+        encoded = json.dumps(payload, ensure_ascii=False)
+        ai.add_outline_response(encoded)
+        ai.add_outline_response(encoded)
+        with pytest.raises(AiInvalidOutputError):
+            await run_outline_init(
+                title="Đề nghị luận",
+                instructions={"task": "Viết bài"},
+                rubric={"c": 1},
+                context_chunks=[{"chunk_id": "chunk_1", "text": "ý chí vượt khó"}],
+                ai_port=ai,
+                prompt_asset=load_socratic_prompt("v1", kind="outline-init"),
+            )
+        assert ai.call_count == 2

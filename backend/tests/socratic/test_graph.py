@@ -213,3 +213,19 @@ async def test_run_turn_invokes_compiled_state_graph(monkeypatch: pytest.MonkeyP
     assert invoked == ["ainvoke"]
     assert result.status == "VALIDATED"
     assert ai.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_unknown_proposal_source_retries_then_fallback() -> None:
+    ai = FakeAiAdapter()
+    bad = (
+        '{"message": "Em có thể bổ sung ý về bản lĩnh số.",'
+        ' "suggested_state": "OUTLINE", "intent": "PROPOSE", "sources": [],'
+        ' "proposals": [{"section_id": "body", "text": "Ý mới", "source_chunk_id": "chunk_missing"}]}'
+    )
+    ai.add_response(bad)
+    ai.add_response(bad)
+    result = await _run(ai, current_state="OUTLINE")
+    assert ai.call_count == 2
+    assert result.status == "FALLBACK"
+    assert result.proposals == []

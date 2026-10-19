@@ -217,6 +217,141 @@ def parse_source_references(sources: Any) -> tuple[list[SourceReference] | None,
     return parsed, ""
 
 
+MAX_STORED_POINT_CHARS = 280
+MAX_SECTION_CONTENT_CHARS = 1200
+
+
+def allowed_chunk_ids(available_chunks: Iterable[dict[str, Any]] | set[str]) -> set[str]:
+    if isinstance(available_chunks, set):
+        return {str(item) for item in available_chunks}
+    return {
+        context_chunk_id(chunk, index)
+        for index, chunk in enumerate(available_chunks or [])
+        if isinstance(chunk, dict)
+    }
+
+
+def _validate_stored_text(text: str, *, field: str, max_chars: int) -> tuple[bool, str]:
+    value = (text or "").strip()
+    if not value:
+        return True, ""
+    if len(value) > max_chars:
+        return False, f"{field} vượt quá {max_chars} ký tự"
+    if detect_sample_writing(value, task="turn"):
+        return False, f"{field} giống đoạn văn mẫu / viết hộ học sinh"
+    return True, ""
+
+
+def _validate_source_chunk_id(
+    chunk_id: str | None, available_chunks: Iterable[dict[str, Any]] | set[str]
+) -> tuple[bool, str]:
+    if not chunk_id:
+        return True, ""
+    if str(chunk_id) not in allowed_chunk_ids(available_chunks):
+        return False, f"source_chunk_id không thuộc ngữ liệu: {chunk_id}"
+    return True, ""
+
+
+def _iter_point_dicts(raw_points: Any) -> Iterable[dict[str, Any]]:
+    for index, item in enumerate(raw_points or []):
+        if isinstance(item, str):
+            yield {"id": f"p-{index + 1}", "text": item}
+        elif isinstance(item, dict):
+            yield item
+
+
+def validate_structured_outline(
+    content: dict[str, Any] | None,
+    available_chunks: Iterable[dict[str, Any]] | set[str],
+) -> tuple[bool, str]:
+    """Reject invented sources and sample essays in fields that can be stored."""
+    data = content or {}
+    ok, err = _validate_stored_text(
+        str(data.get("thesis") or ""), field="thesis", max_chars=MAX_STORED_POINT_CHARS
+    )
+    if not ok:
+        return False, err
+    for argument in data.get("arguments") or []:
+        if not isinstance(argument, dict):
+            continue
+        ok, err = _validate_stored_text(
+            str(argument.get("content") or ""),
+            field="argument",
+            max_chars=MAX_STORED_POINT_CHARS,
+        )
+        if not ok:
+            return False, err
+    for section in data.get("sections") or []:
+        if not isinstance(section, dict):
+            continue
+        ok, err = _validate_stored_text(
+            str(section.get("content") or ""),
+            field="section.content",
+            max_chars=MAX_SECTION_CONTENT_CHARS,
+        )
+        if not ok:
+            return False, err
+        for point in _iter_point_dicts(section.get("points")):
+            ok, err = _validate_stored_text(
+                str(point.get("text") or point.get("content") or ""),
+                field="outline point",
+                max_chars=MAX_STORED_POINT_CHARS,
+            )
+            if not ok:
+                return False, err
+            source_id = point.get("source_chunk_id") or point.get("sourceChunkId")
+            ok, err = _validate_source_chunk_id(
+                str(source_id) if source_id else None, available_chunks
+            )
+            if not ok:
+                return False, err
+    return True, ""
+
+
+def validate_structured_turn(
+    *,
+    outline_ops: Iterable[Any] | None,
+    proposals: Iterable[Any] | None,
+    available_chunks: Iterable[dict[str, Any]] | set[str],
+) -> tuple[bool, str]:
+    """Validate model-proposed outline mutations and suggestions."""
+    for op in outline_ops or []:
+        data = op.model_dump() if hasattr(op, "model_dump") else (op if isinstance(op, dict) else {})
+        text = str(data.get("text") or "")
+        if text:
+            ok, err = _validate_stored_text(
+                text, field="outline_ops.text", max_chars=MAX_STORED_POINT_CHARS
+            )
+            if not ok:
+                return False, err
+        source_id = data.get("source_chunk_id") or data.get("sourceChunkId")
+        ok, err = _validate_source_chunk_id(
+            str(source_id) if source_id else None, available_chunks
+        )
+        if not ok:
+            return False, err
+    for proposal in proposals or []:
+        data = (
+            proposal.model_dump()
+            if hasattr(proposal, "model_dump")
+            else (proposal if isinstance(proposal, dict) else {})
+        )
+        ok, err = _validate_stored_text(
+            str(data.get("text") or ""),
+            field="proposal",
+            max_chars=MAX_STORED_POINT_CHARS,
+        )
+        if not ok:
+            return False, err
+        source_id = data.get("source_chunk_id") or data.get("sourceChunkId")
+        ok, err = _validate_source_chunk_id(
+            str(source_id) if source_id else None, available_chunks
+        )
+        if not ok:
+            return False, err
+    return True, ""
+
+
 def validate_sources(
     sources: Any,
     available_chunks: Iterable[dict[str, Any]] | set[str],

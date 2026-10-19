@@ -7,7 +7,7 @@ import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { useSocraticStore, setOnUnauthorizedHandler } from '@/features/socratic/store';
 import { useAuthStore } from '@/lib/auth-store';
-import { UIOutlineSection } from '@/features/socratic/types';
+import { UIOutlineSection, itemsOfSection, isValidOutlineProposal, CLARIFICATION_REASON_LABEL } from '@/features/socratic/types';
 import {
   CENTRAL_ASSIGNMENT_ID,
   CENTRAL_ASSIGNMENT,
@@ -409,49 +409,64 @@ export default function SocraticChatPage() {
                         </div>
                       )}
 
-                      {/* Action: Transfer structured outline point to selected outline section */}
-                      {msg.canAddToOutline && msg.outlinePoint && (
-                        <div className="mt-3 pt-2.5 border-t border-outline-variant/30 space-y-2 bg-surface-container-lowest/60 p-2.5 rounded-lg border border-outline-variant/20">
-                          <div className="text-[11px] text-on-surface flex items-start gap-1.5">
-                            <span className="material-symbols-outlined text-secondary text-sm shrink-0 mt-0.5">lightbulb</span>
-                            <span className="leading-snug"><strong className="text-secondary font-semibold">Gợi ý ý dàn ý:</strong> {msg.outlinePoint}</span>
-                          </div>
-                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-outline-variant/20">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[11px] text-on-surface-variant font-medium">Chuyển vào:</span>
-                              <select
-                                value={selectedTargetSection[msg.id] || msg.suggestedSectionId || 'body'}
-                                onChange={(e) =>
-                                  setSelectedTargetSection({
-                                    ...selectedTargetSection,
-                                    [msg.id]: e.target.value as 'intro' | 'body' | 'conclusion',
-                                  })
-                                }
-                                className="text-[11px] font-semibold bg-surface border border-outline-variant/60 rounded px-2 py-0.5 text-primary"
-                              >
-                                <option value="intro">I. Mở bài</option>
-                                <option value="body">II. Thân bài</option>
-                                <option value="conclusion">III. Kết bài</option>
-                              </select>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleTransferToOutline(
-                                  msg.id,
-                                  msg.outlinePoint!,
-                                  selectedTargetSection[msg.id] || msg.suggestedSectionId || 'body'
-                                )
-                              }
-                              className="px-2.5 py-1 bg-secondary text-white rounded text-[11px] font-semibold hover:bg-secondary/90 flex items-center gap-1 shadow-sm transition-all"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">playlist_add</span>
-                              <span>Thêm vào dàn ý</span>
-                            </button>
-                          </div>
+                      {msg.clarificationReason ? (
+                        <div className="mt-2.5 pt-2 border-t border-error/20 text-[11px] text-error">
+                          {CLARIFICATION_REASON_LABEL[msg.clarificationReason] ||
+                            'Thao tác dàn ý chưa được áp dụng. Bản nháp của em được giữ nguyên.'}
                         </div>
-                      )}
+                      ) : null}
+
+                      {(msg.proposals || []).filter(isValidOutlineProposal).map((proposal, proposalIdx) => {
+                        const key = `${msg.id}-p-${proposalIdx}`;
+                        const defaultSection = (proposal.sectionId === 'intro' || proposal.sectionId === 'conclusion' || proposal.sectionId === 'body')
+                          ? proposal.sectionId
+                          : 'body';
+                        return (
+                          <div
+                            key={key}
+                            className="mt-3 pt-2.5 border-t border-outline-variant/30 space-y-2 bg-surface-container-lowest/60 p-2.5 rounded-lg border border-outline-variant/20"
+                          >
+                            <div className="text-[11px] text-on-surface flex items-start gap-1.5">
+                              <span className="material-symbols-outlined text-secondary text-sm shrink-0 mt-0.5">lightbulb</span>
+                              <span className="leading-snug"><strong className="text-secondary font-semibold">Gợi ý ý dàn ý:</strong> {proposal.text}</span>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-outline-variant/20">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] text-on-surface-variant font-medium">Chuyển vào:</span>
+                                <select
+                                  value={selectedTargetSection[key] || defaultSection}
+                                  onChange={(e) =>
+                                    setSelectedTargetSection({
+                                      ...selectedTargetSection,
+                                      [key]: e.target.value as 'intro' | 'body' | 'conclusion',
+                                    })
+                                  }
+                                  className="text-[11px] font-semibold bg-surface border border-outline-variant/60 rounded px-2 py-0.5 text-primary"
+                                >
+                                  <option value="intro">I. Mở bài</option>
+                                  <option value="body">II. Thân bài</option>
+                                  <option value="conclusion">III. Kết bài</option>
+                                </select>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleTransferToOutline(
+                                    key,
+                                    proposal.text,
+                                    selectedTargetSection[key] || defaultSection
+                                  )
+                                }
+                                className="px-2.5 py-1 bg-secondary text-white rounded text-[11px] font-semibold hover:bg-secondary/90 flex items-center gap-1 shadow-sm transition-all"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">playlist_add</span>
+                                <span>Thêm vào dàn ý</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Retry button for failed message */}
@@ -615,19 +630,20 @@ export default function SocraticChatPage() {
                     </button>
                   </div>
 
-                  {section.points.length === 0 ? (
+                  {itemsOfSection(section).length === 0 ? (
                     <div className="p-2.5 border border-dashed border-outline-variant/40 rounded-lg text-center text-[11px] text-on-surface-variant/70 italic">
                       Chưa có ý nào. Hãy trao đổi với trợ lý AI hoặc bấm &ldquo;Thêm ý&rdquo;.
                     </div>
                   ) : (
                     <ul className="space-y-1.5">
-                      {section.points.map((point: string, idx: number) => {
+                      {itemsOfSection(section).map((item, idx: number) => {
+                        const point = item.text;
                         const isEditingThis =
                           editingPoint !== null && editingPoint?.sectionId === section.id && editingPoint?.index === idx;
 
                         if (isEditingThis && editingPoint) {
                           return (
-                            <li key={idx} className="p-2 bg-surface-container-lowest rounded-lg border border-secondary space-y-1.5">
+                            <li key={item.id || idx} className="p-2 bg-surface-container-lowest rounded-lg border border-secondary space-y-1.5">
                               <textarea
                                 value={editingPoint.text}
                                 onChange={(e) =>
@@ -656,9 +672,10 @@ export default function SocraticChatPage() {
                           );
                         }
 
-                        const pointId = section.pointItems?.[idx]?.id;
+                        const pointId = item.id;
                         const isSelected =
-                          selectedPoint?.sectionId === section.id && selectedPoint?.index === idx;
+                          selectedPoint?.id === pointId ||
+                          (selectedPoint?.sectionId === section.id && selectedPoint?.index === idx);
                         const isHighlighted = Boolean(pointId && highlightedPointIds.includes(pointId));
 
                         return (

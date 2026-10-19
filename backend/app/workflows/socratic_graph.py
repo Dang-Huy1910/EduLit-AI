@@ -42,6 +42,7 @@ from app.workflows.guardrails import (
     get_fallback_response,
     validate_response,
     validate_sources,
+    validate_structured_turn,
 )
 
 logger = logging.getLogger("edulit.socratic_graph")
@@ -314,6 +315,15 @@ def post_guardrail(state: SocraticGraphState) -> SocraticGraphState:
         if not src_ok:
             is_valid = False
             error_msg = src_err
+    if is_valid:
+        structured_ok, structured_err = validate_structured_turn(
+            outline_ops=state.outline_ops,
+            proposals=state.proposals,
+            available_chunks=state.context_chunks,
+        )
+        if not structured_ok:
+            is_valid = False
+            error_msg = structured_err
 
     if is_valid:
         state.response_status = "VALIDATED"

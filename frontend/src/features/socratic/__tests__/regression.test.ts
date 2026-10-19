@@ -705,57 +705,267 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     assert.strictEqual(pureQuestion.canAddToOutline, false);
   });
 
-  test('Mục 10: Nhận diện đúng Mở bài, Thân bài, Kết bài dựa trên ngữ cảnh câu hỏi học sinh và câu trả lời AI', () => {
-    // 1. Học sinh hỏi về kết bài
-    const studentConclusionPrompt = 'Kết bài nên là thế nào';
-    const aiAnswer = 'Em có thể khẳng định cách nhìn riêng của Trần Quang Quý: tự do có ý nghĩa trong sự gắn bó với cội rễ, lao động và nhân nghĩa quê hương. Em thấy hướng kết bài này thế nào?';
-    
-    const conclusionSuggestion = deriveOutlineSuggestion(
-      aiAnswer,
+  test('EXPLAIN không suy luận gợi ý cứng từ keyword; khói nhà máy không thành khói rơm rạ', () => {
+    const factoryExplain: MessageResponse = {
+      id: 'ai-factory',
+      turnId: 2,
+      role: 'ASSISTANT',
+      content:
+        'Hình ảnh khói nhà máy trong ngữ liệu này nói về lao động công nghiệp và hệ lụy môi trường, khác với không gian làng quê.',
+      status: 'VALIDATED',
+      intent: 'EXPLAIN',
+      createdAt: new Date().toISOString(),
+    };
+    const mapped = mapMessageToUI(factoryExplain, 'Khói nhà máy nghĩa là gì?');
+    assert.strictEqual(mapped.canAddToOutline, false);
+    assert.equal(mapped.outlinePoint, undefined);
+    assert.deepStrictEqual(mapped.proposals || [], []);
+    assert.equal(JSON.stringify(mapped).includes('rơm rạ'), false);
+
+    const heuristic = deriveOutlineSuggestion(
+      factoryExplain.content,
       'ASSISTANT',
-      studentConclusionPrompt,
+      'Khói nhà máy nghĩa là gì?',
       'VALIDATED'
     );
-    assert.strictEqual(conclusionSuggestion.canAddToOutline, true);
-    assert.strictEqual(conclusionSuggestion.suggestedSectionId, 'conclusion');
-    assert.ok(conclusionSuggestion.outlinePoint && conclusionSuggestion.outlinePoint.length > 10);
-    assert.strictEqual(conclusionSuggestion.outlinePoint?.endsWith('?'), false);
+    assert.strictEqual(heuristic.canAddToOutline, false);
 
-    // 2. Học sinh hỏi về mở bài
-    const studentIntroPrompt = 'Mở bài nên viết thế nào cho ấn tượng?';
-    const introSuggestion = deriveOutlineSuggestion(
-      'Em có thể giới thiệu tác giả Trần Quang Quý và bài thơ Màu tự do của đất, từ đó dẫn vào quan niệm về tự do.',
-      'ASSISTANT',
-      studentIntroPrompt,
-      'VALIDATED'
+    const withProposals: MessageResponse = {
+      ...factoryExplain,
+      id: 'ai-propose',
+      intent: 'PROPOSE',
+      proposals: [
+        { sectionId: 'body', text: 'Khói nhà máy như dấu ấn lao động công nghiệp', kind: 'claim' },
+        { sectionId: 'conclusion', text: 'Khái quát hệ lụy môi trường', kind: 'note' },
+      ],
+    };
+    const proposed = mapMessageToUI(withProposals);
+    assert.strictEqual(proposed.canAddToOutline, true);
+    assert.strictEqual(proposed.proposals?.length, 2);
+    assert.strictEqual(proposed.proposals?.[0].text.includes('nhà máy'), true);
+  });
+
+  test('Đổi thứ tự A/B rồi chọn B gửi đúng ID; xóa A không lấy ID/nguồn của A', async () => {
+    useSocraticStore.setState({
+      sessionId: 'session-123',
+      outlineVersion: 1,
+      outline: {
+        sections: [
+          {
+            id: 'body',
+            title: 'II. Thân bài',
+            points: ['Ý A', 'Ý B'],
+            pointItems: [
+              { id: 'body-a', text: 'Ý A', kind: 'claim', source_chunk_id: 'chunk-a' },
+              { id: 'body-b', text: 'Ý B', kind: 'evidence', source_chunk_id: 'chunk-b' },
+            ],
+          },
+        ],
+      },
+    });
+
+    useSocraticStore.getState().reorderOutlinePoints('body', 0, 1);
+    const afterReorder = useSocraticStore.getState().outline.sections[0];
+    assert.deepStrictEqual(afterReorder.points, ['Ý B', 'Ý A']);
+    assert.strictEqual(afterReorder.pointItems?.[0].id, 'body-b');
+    assert.strictEqual(afterReorder.pointItems?.[0].source_chunk_id, 'chunk-b');
+    assert.strictEqual(afterReorder.pointItems?.[1].id, 'body-a');
+    assert.strictEqual(afterReorder.pointItems?.[1].source_chunk_id, 'chunk-a');
+
+    useSocraticStore.getState().selectPoint('body', 0);
+    assert.strictEqual(useSocraticStore.getState().selectedPoint?.id, 'body-b');
+
+    let sentBody: any;
+    mockFetch(async (url, init) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith('/messages') && init?.method === 'POST') {
+        sentBody = JSON.parse(String(init.body));
+        return jsonResponse({
+          id: 'ai-1',
+          turnId: 1,
+          role: 'ASSISTANT',
+          content: 'Ý B bám ngữ liệu.',
+          status: 'VALIDATED',
+          intent: 'EXPLAIN',
+          createdAt: new Date().toISOString(),
+        });
+      }
+      if (urlStr.includes('/messages?limit=50')) {
+        return jsonResponse({ messages: [], hasMore: false, nextBeforeTurn: null });
+      }
+      return jsonResponse({});
+    });
+
+    await useSocraticStore.getState().sendMessage('Ý này nghĩa là gì?');
+    assert.strictEqual(sentBody.selectedPointId, 'body-b');
+    assert.strictEqual(sentBody.selectedSectionId, 'body');
+
+    useSocraticStore.getState().removeOutlinePoint('body', 1);
+    const afterDelete = useSocraticStore.getState().outline.sections[0];
+    assert.deepStrictEqual(afterDelete.points, ['Ý B']);
+    assert.strictEqual(afterDelete.pointItems?.[0].id, 'body-b');
+    assert.strictEqual(afterDelete.pointItems?.[0].source_chunk_id, 'chunk-b');
+  });
+
+  test('Retry dùng snapshot selection/version ban đầu, không đọc lựa chọn mới', async () => {
+    useSocraticStore.setState({
+      sessionId: 'session-123',
+      outlineVersion: 3,
+      selectedPoint: { sectionId: 'body', index: 0, id: 'body-a' },
+      outline: {
+        sections: [
+          {
+            id: 'body',
+            title: 'II',
+            points: ['A', 'B'],
+            pointItems: [
+              { id: 'body-a', text: 'A' },
+              { id: 'body-b', text: 'B' },
+            ],
+          },
+        ],
+      },
+    });
+
+    mockFetch(async (url, init) => {
+      if (String(url).endsWith('/messages') && init?.method === 'POST') {
+        throw new SocraticApiError(0, ApiErrorCode.NETWORK, 'Mất kết nối mạng');
+      }
+      return jsonResponse({});
+    });
+    await useSocraticStore.getState().sendMessage('Sửa ý A');
+    assert.strictEqual(useSocraticStore.getState().pendingOperation?.selectedPointId, 'body-a');
+    assert.strictEqual(useSocraticStore.getState().pendingOperation?.expectedOutlineVersion, 3);
+
+    useSocraticStore.getState().selectPoint('body', 1);
+    useSocraticStore.setState({ outlineVersion: 4 });
+    assert.strictEqual(useSocraticStore.getState().selectedPoint?.id, 'body-b');
+
+    let retried: any;
+    let retriedKey: string | undefined;
+    mockFetch(async (url, init) => {
+      const urlStr = String(url);
+      if (urlStr.endsWith('/messages?limit=50') && init?.method === 'GET') {
+        return jsonResponse({ messages: [], hasMore: false, nextBeforeTurn: null });
+      }
+      if (urlStr.endsWith('/messages') && init?.method === 'POST') {
+        retried = JSON.parse(String(init.body));
+        retriedKey = (init.headers as Record<string, string>)['Idempotency-Key'];
+        return jsonResponse({
+          id: 'ai-retry',
+          turnId: 1,
+          role: 'ASSISTANT',
+          content: 'Đã nhận lại yêu cầu.',
+          status: 'VALIDATED',
+          createdAt: new Date().toISOString(),
+        });
+      }
+      return jsonResponse({ messages: [] });
+    });
+
+    const originalKey = useSocraticStore.getState().pendingOperation?.idempotencyKey;
+    await useSocraticStore.getState().retryPendingMessage();
+    assert.strictEqual(retried.selectedPointId, 'body-a');
+    assert.strictEqual(retried.selectedSectionId, 'body');
+    assert.strictEqual(retried.expectedOutlineVersion, 3);
+    assert.strictEqual(retriedKey, originalKey);
+  });
+
+  test('ensureOutlineInit: reset khi đang polling không khôi phục session/outline cũ', async () => {
+    useSocraticStore.setState({ sessionId: 'session-old', currentGeneration: 1 });
+    let resolvePoll: ((value: Response) => void) | undefined;
+    mockFetch(async (url, init) => {
+      const urlStr = String(url);
+      if (urlStr.includes('/outline-init') && init?.method === 'POST') {
+        return errorResponse('OUTLINE_INIT_IN_PROGRESS', 'Đang tạo', 409);
+      }
+      if (urlStr.endsWith('/socratic-sessions/session-old') || /\/socratic-sessions\/session-old$/.test(urlStr)) {
+        return new Promise((resolve) => {
+          resolvePoll = resolve;
+        });
+      }
+      return jsonResponse({});
+    });
+
+    const pending = useSocraticStore.getState().ensureOutlineInit(false);
+    await new Promise((r) => setTimeout(r, 1100));
+    useSocraticStore.getState().reset();
+    useSocraticStore.setState({ sessionId: 'session-new' });
+    resolvePoll?.(
+      jsonResponse({
+        id: 'session-old',
+        studentId: 'stale',
+        assignmentRevisionId: 'asg',
+        state: 'OUTLINE',
+        version: 2,
+        outlineVersion: 1,
+        lastMessageAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        readiness: 'NOT_READY',
+        outlineInitStatus: 'COMPLETED',
+        currentOutline: {
+          id: 'rev-stale',
+          sessionId: 'session-old',
+          revision: 1,
+          author: 'ASSISTANT',
+          reviewStatus: 'ACCEPTED',
+          createdAt: new Date().toISOString(),
+          content: {
+            sections: [{ id: 'body', title: 'II', points: [{ id: 'stale-1', text: 'Ý cũ không được khôi phục' }] }],
+          },
+        },
+      })
     );
-    assert.strictEqual(introSuggestion.canAddToOutline, true);
-    assert.strictEqual(introSuggestion.suggestedSectionId, 'intro');
+    await pending;
+    const state = useSocraticStore.getState();
+    assert.strictEqual(state.sessionId, 'session-new');
+    assert.equal(
+      JSON.stringify(state.outline).includes('Ý cũ không được khôi phục'),
+      false
+    );
+    assert.strictEqual(state.session, null);
+  });
 
-    // 3. mapMessagesWithContext liên kết đúng câu hỏi của học sinh với câu trả lời của trợ lý
-    const messages: MessageResponse[] = [
-      {
-        id: 'msg-s-1',
-        turnId: 7,
-        role: 'STUDENT',
-        content: 'Kết bài nên là thế nào',
-        status: 'VALIDATED',
-        createdAt: new Date().toISOString(),
+  test('Sửa dàn ý trong lúc GET outline đang chờ thì giữ bản nháp', async () => {
+    useSocraticStore.setState({
+      sessionId: 'session-123',
+      outlineVersion: 1,
+      outline: {
+        sections: [{ id: 'body', title: 'II', points: ['Ý gốc'], pointItems: [{ id: 'body-1', text: 'Ý gốc' }] }],
       },
-      {
-        id: 'msg-a-1',
-        turnId: 7,
-        role: 'ASSISTANT',
-        content: 'Em nên tổng kết lại đóng góp của hình tượng ngọn khói rơm rạ và khẳng định thông điệp về tự do gắn liền với hồn đất quê hương. Em có muốn bổ sung thêm điều gì không?',
-        status: 'VALIDATED',
-        createdAt: new Date().toISOString(),
-      },
-    ];
+    });
+    let resolveOutline: ((value: Response) => void) | undefined;
+    mockFetch(async (url) => {
+      if (String(url).includes('/outline') ) {
+        return new Promise((resolve) => {
+          resolveOutline = resolve;
+        });
+      }
+      return jsonResponse({});
+    });
 
-    const mapped = mapMessagesWithContext(messages);
-    const aiMapped = mapped[1];
-    assert.strictEqual(aiMapped.suggestedSectionId, 'conclusion');
-    assert.strictEqual(aiMapped.canAddToOutline, true);
+    const pending = useSocraticStore.getState().loadOutline();
+    useSocraticStore.getState().updateOutlinePoint('body', 0, 'Ý học sinh vừa sửa');
+    assert.strictEqual(useSocraticStore.getState().outline.sections[0].points[0], 'Ý học sinh vừa sửa');
+    resolveOutline?.(
+      jsonResponse({
+        id: 'rev-old',
+        sessionId: 'session-123',
+        revision: 1,
+        author: 'ASSISTANT',
+        reviewStatus: 'ACCEPTED',
+        createdAt: new Date().toISOString(),
+        content: {
+          sections: [{ id: 'body', title: 'II', points: [{ id: 'body-1', text: 'Ý gốc' }] }],
+        },
+      })
+    );
+    await pending;
+    const state = useSocraticStore.getState();
+    assert.strictEqual(state.outline.sections[0].points[0], 'Ý học sinh vừa sửa');
+    assert.strictEqual(state.outlineConflict, true);
+    assert.ok(state.pendingOutlineChanges);
   });
 });
 

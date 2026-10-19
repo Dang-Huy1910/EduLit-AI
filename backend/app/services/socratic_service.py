@@ -59,6 +59,20 @@ logger = logging.getLogger("edulit.socratic")
 
 IDEMPOTENCY_TTL_HOURS = 24
 RESERVATION_LEASE_SECONDS = 300
+APPLY_FAILURE_MESSAGES = {
+    "OUTLINE_VERSION_CONFLICT": (
+        "Dàn ý vừa được cập nhật nên thầy/cô chưa áp dụng thao tác. "
+        "Em xem lại canvas rồi nêu lại yêu cầu giúp thầy/cô nhé?"
+    ),
+    "OUTLINE_OP_AMBIGUOUS": (
+        "Em muốn thêm, sửa hay xóa ý nào? "
+        "Hãy chọn ý trên dàn ý hoặc nêu rõ vị trí giúp thầy/cô."
+    ),
+    "OUTLINE_OP_INVALID": (
+        "Thao tác dàn ý chưa hợp lệ nên chưa được áp dụng. "
+        "Em mô tả lại ý cần đổi được không?"
+    ),
+}
 DISPLAYABLE_ASSISTANT_STATUSES = (MessageStatus.VALIDATED, MessageStatus.FALLBACK)
 MAX_PAGE_SIZE = 100
 DEFAULT_PAGE_SIZE = 50
@@ -983,6 +997,17 @@ class SocraticService:
         await self.db.flush()
         return revision
 
+    def _mark_apply_failure(self, result: TurnResult, reason: str) -> None:
+        result.clarification_reason = reason
+        result.applied_ops = []
+        result.outline_changed = False
+        result.outline_ops = []
+        result.intent = "CLARIFY"
+        result.message = APPLY_FAILURE_MESSAGES.get(
+            reason,
+            "Thầy/cô chưa áp dụng thay đổi. Em nói rõ hơn ý cần chỉnh được không?",
+        )
+
     async def _apply_turn_outline_changes(
         self,
         session_id: uuid.UUID,
@@ -1005,10 +1030,7 @@ class SocraticService:
             return
         loaded_version = session.outline_version
         if expected_outline_version is not None and expected_outline_version != loaded_version:
-            result.clarification_reason = "OUTLINE_VERSION_CONFLICT"
-            result.applied_ops = []
-            result.outline_changed = False
-            result.outline_ops = []
+            self._mark_apply_failure(result, "OUTLINE_VERSION_CONFLICT")
             return
 
         ops: list[OutlineOp] = []
@@ -1016,12 +1038,7 @@ class SocraticService:
             try:
                 ops.append(item if isinstance(item, OutlineOp) else OutlineOp.model_validate(item))
             except Exception:
-                result.clarification_reason = "OUTLINE_OP_INVALID"
-                result.applied_ops = []
-                result.outline_changed = False
-                result.outline_ops = []
-                if intent == "EDIT":
-                    result.intent = "CLARIFY"
+                self._mark_apply_failure(result, "OUTLINE_OP_INVALID")
                 return
 
         current = await self._current_outline_content(session)
@@ -1030,12 +1047,7 @@ class SocraticService:
                 current, ops, selected_point=selected_point
             )
         except OutlineOpError as exc:
-            result.clarification_reason = exc.code
-            result.applied_ops = []
-            result.outline_changed = False
-            result.outline_ops = []
-            if intent == "EDIT":
-                result.intent = "CLARIFY"
+            self._mark_apply_failure(result, exc.code)
             return
 
         if not applied:
@@ -1055,10 +1067,7 @@ class SocraticService:
             next_state=next_state,
         )
         if revision is None:
-            result.clarification_reason = "OUTLINE_VERSION_CONFLICT"
-            result.applied_ops = []
-            result.outline_changed = False
-            result.outline_ops = []
+            self._mark_apply_failure(result, "OUTLINE_VERSION_CONFLICT")
             return
         result.applied_ops = applied
         result.outline_changed = True
@@ -1315,7 +1324,22 @@ class SocraticService:
                 reservation_token=reservation_token,
                 init_result=init_result,
             )
-        except (IntegrityError, ConflictError):
+        except ForbiddenError:
+            raise
+        except ConflictError as exc:
+            if exc.code == "ASSIGNMENT_CLOSED":
+                raise
+            if self.db.in_transaction():
+                await self.db.rollback()
+            await self._release_reservation(session_id, reservation_token)
+            outline = await self.get_current_outline(session_id, user)
+            if outline is not None:
+                return outline, OutlineInitStatus.COMPLETED.value, None
+            raise ConflictError(
+                "Outline is still being generated",
+                "OUTLINE_INIT_IN_PROGRESS",
+            )
+        except IntegrityError:
             if self.db.in_transaction():
                 await self.db.rollback()
             await self._release_reservation(session_id, reservation_token)
@@ -1350,6 +1374,31 @@ class SocraticService:
         )
         await self.db.commit()
 
+    async def _abort_outline_init(
+        self,
+        session_id: uuid.UUID,
+        reservation_token: uuid.UUID,
+        *,
+        status: str,
+    ) -> None:
+        now = utcnow()
+        await self.db.execute(
+            update(SocraticSession)
+            .where(
+                SocraticSession.id == session_id,
+                SocraticSession.reservation_token == reservation_token,
+                SocraticSession.outline_version == 0,
+            )
+            .values(
+                reservation_token=None,
+                reservation_expires_at=None,
+                processing_turn=None,
+                outline_init_status=status,
+                updated_at=now,
+            )
+        )
+        await self.db.commit()
+
     async def _finalize_outline_init(
         self,
         *,
@@ -1364,9 +1413,15 @@ class SocraticService:
                 SocraticSession.id == session_id,
                 SocraticSession.reservation_token == reservation_token,
                 SocraticSession.outline_version == 0,
+                SocraticSession.reservation_expires_at > now,
             )
             .values(updated_at=now)
-            .returning(SocraticSession.id, SocraticSession.state)
+            .returning(
+                SocraticSession.id,
+                SocraticSession.state,
+                SocraticSession.student_id,
+                SocraticSession.assignment_revision_id,
+            )
         )
         row = claimed.one_or_none()
         if row is None:
@@ -1374,6 +1429,36 @@ class SocraticService:
                 "Reservation is no longer held by this worker",
                 "STALE_RESERVATION",
             )
+
+        student_id = row.student_id
+        assignment_id = row.assignment_revision_id
+        assignment = (
+            await self.db.execute(
+                select(AssignmentRevision)
+                .where(AssignmentRevision.id == assignment_id)
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        access = (
+            await self.db.execute(
+                select(AssignmentAccess)
+                .where(
+                    AssignmentAccess.assignment_revision_id == assignment_id,
+                    AssignmentAccess.student_id == student_id,
+                )
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if access is None or access.revoked_at is not None:
+            await self._abort_outline_init(
+                session_id, reservation_token, status=OutlineInitStatus.FAILED.value
+            )
+            raise ForbiddenError("Assignment is not assigned to this student", "ACCESS_DENIED")
+        if assignment is None or assignment.status != "PUBLISHED":
+            await self._abort_outline_init(
+                session_id, reservation_token, status=OutlineInitStatus.FAILED.value
+            )
+            raise ConflictError("Assignment is closed", "ASSIGNMENT_CLOSED")
 
         if init_result.needs_clarification or init_result.status == "NEEDS_CLARIFICATION":
             turn_id = await self._get_next_turn_id(session_id)

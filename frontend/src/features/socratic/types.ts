@@ -188,6 +188,7 @@ export interface UISocraticMessage {
   intent?: ConversationIntent | string | null;
   proposals?: OutlineProposal[];
   appliedOps?: OutlineAppliedOp[];
+  clarificationReason?: string | null;
 }
 
 export interface UIOutlinePoint {
@@ -201,7 +202,9 @@ export interface UIOutlinePoint {
 export interface UIOutlineSection {
   id: string;
   title: string;
+  /** Derived from `pointItems` — keep in lockstep via `withSectionItems`. */
   points: string[];
+  /** Canonical point identity (id, text, source). */
   pointItems?: UIOutlinePoint[];
   content?: string;
   [key: string]: unknown;
@@ -216,148 +219,61 @@ export interface UIOutline {
   [key: string]: unknown;
 }
 
-// Helper to identify outline section and extract structured outline point from AI responses
+const VALID_SECTION_IDS = new Set(['intro', 'body', 'conclusion']);
+
+export function isValidOutlineProposal(item: OutlineProposal | null | undefined): item is OutlineProposal {
+  if (!item) return false;
+  const section = String(item.sectionId || '').trim();
+  const text = String(item.text || '').trim();
+  return VALID_SECTION_IDS.has(section) && text.length > 0;
+}
+
+export function structuredProposalsFromMessage(msg: MessageResponse): OutlineProposal[] {
+  if (msg.role === 'STUDENT' || msg.status === 'FALLBACK' || msg.status === 'REJECTED') {
+    return [];
+  }
+  if (msg.intent === 'EXPLAIN' || msg.intent === 'CLARIFY') {
+    return [];
+  }
+  const raw = Array.isArray(msg.proposals) ? msg.proposals : [];
+  return raw.filter(isValidOutlineProposal);
+}
+
+/**
+ * Kept for refusal/fallback regression tests. Does not infer outline points
+ * from keywords or inject assignment-specific copy.
+ */
 export function deriveOutlineSuggestion(
-  text: string,
+  _text: string,
   role?: string,
-  studentPrompt?: string,
+  _studentPrompt?: string,
   status?: string
 ): {
   canAddToOutline?: boolean;
   outlinePoint?: string;
   suggestedSectionId?: 'intro' | 'body' | 'conclusion';
 } {
-  if (role === 'STUDENT' || !text || status === 'FALLBACK' || status === 'REJECTED') {
+  if (role === 'STUDENT' || status === 'FALLBACK' || status === 'REJECTED') {
     return { canAddToOutline: false };
   }
-
-  const lower = text.toLowerCase().trim();
-
-  // 1. Refusal & Fallback check: từ chối viết hộ hoặc câu hỏi điều phối an toàn thì không bao giờ đưa vào dàn ý
-  if (
-    lower.includes('không thể viết thay') ||
-    lower.includes('không viết thay') ||
-    lower.includes('không cung cấp bài văn mẫu') ||
-    lower.includes('không làm giúp') ||
-    lower.includes('trước khi phát triển chi tiết') ||
-    lower.includes('chia sẻ suy nghĩ đầu tiên') ||
-    lower.includes('nói rõ hơn về hướng triển khai') ||
-    lower.includes('dàn ý hiện tại đã sẵn sàng') ||
-    lower.includes('thuộc phạm vi ngữ văn')
-  ) {
-    return { canAddToOutline: false };
-  }
-
-  // 2. Nhận diện phần gợi ý: Mở bài, Thân bài, Kết bài (kết hợp câu hỏi của học sinh và phản hồi của trợ lý)
-  const combined = `${studentPrompt || ''} ${text}`.toLowerCase();
-  let suggestedSectionId: 'intro' | 'body' | 'conclusion' = 'body';
-  if (
-    combined.includes('kết bài') ||
-    combined.includes('kết luận') ||
-    combined.includes('thông điệp') ||
-    combined.includes('đóng góp của bài thơ') ||
-    combined.includes('khép lại') ||
-    combined.includes('khái quát') ||
-    combined.includes('tổng kết') ||
-    combined.includes('đánh giá chung')
-  ) {
-    suggestedSectionId = 'conclusion';
-  } else if (
-    combined.includes('mở bài') ||
-    combined.includes('đặt vấn đề') ||
-    combined.includes('giới thiệu tác giả') ||
-    combined.includes('yêu cầu đề bài')
-  ) {
-    suggestedSectionId = 'intro';
-  }
-
-  // 3. Phân tách câu nhận định và câu hỏi
-  const sentences = text
-    .split(/(?<=[.?!])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const declarativeSentences = sentences.filter((s) => !s.endsWith('?'));
-  const candidate = declarativeSentences.slice(0, 2).join(' ').trim();
-
-  // 4. Xác định ý đưa vào dàn ý
-  let outlinePoint: string | undefined = undefined;
-
-  if (suggestedSectionId === 'conclusion') {
-    if (candidate.length >= 15) {
-      outlinePoint = candidate;
-    } else {
-      outlinePoint = 'Khẳng định cách nhìn riêng: tự do có ý nghĩa trong sự gắn bó với cội rễ, lao động và nhân nghĩa của làng quê.';
-    }
-  } else if (suggestedSectionId === 'intro') {
-    if (candidate.length >= 15) {
-      outlinePoint = candidate;
-    } else {
-      outlinePoint = 'Phân tích quan niệm về tự do qua hình ảnh làng quê; liên hệ một bài thơ khác để làm rõ nét riêng của Trần Quang Quý.';
-    }
-  } else {
-    // Thân bài: kiểm tra theo từng khía cạnh ngữ liệu hoặc lấy nhận định từ AI
-    if (lower.includes('khói') || lower.includes('rơm rạ') || lower.includes('mùi') || lower.includes('khứu giác')) {
-      outlinePoint = 'Khói rơm rạ và sự chuyển đổi cảm giác trong ‘hít thở mầu tự do’ khiến tự do được cảm nhận như hơi thở của quê hương.';
-    } else if (lower.includes('buộc') || lower.includes('neo') || lower.includes('cởi')) {
-      outlinePoint = 'Chuỗi ‘buộc – neo – cởi’ nối cảm thức gắn bó với làng quê; ngọn khói đầu bài và mùi khói cuối bài tạo kết cấu vòng tròn.';
-    } else if (lower.includes('nghịch lí') || lower.includes('nghịch lý') || lower.includes('bùn đất') || lower.includes('mồ hôi')) {
-      outlinePoint = 'Tự do vừa gắn với khát vọng thoát nhọc nhằn, vừa là có chỗ đứng trên mảnh đất thân thuộc và sống bằng sức lao động của mình.';
-    } else if (lower.includes('bếp lửa') || lower.includes('bằng việt')) {
-      outlinePoint = 'Liên hệ ‘Bếp lửa’ qua kí ức và hình ảnh khói; làm rõ nét riêng của Trần Quang Quý ở suy tưởng về tự do trong sự gắn bó với đất và lao động.';
-    } else if (lower.includes('tế hanh') || lower.includes('quê hương')) {
-      outlinePoint = 'Liên hệ ‘Quê hương’ (Tế Hanh) qua hình ảnh người lao động gắn bó với quê hương; làm nổi bật nét riêng của Trần Quang Quý ở độ lùi suy tưởng triết lý về tự do.';
-    } else if (candidate.length >= 15) {
-      outlinePoint = candidate;
-    }
-  }
-
-  // Tuyệt đối không đưa câu hỏi vào dàn ý: chỉ chấp nhận khi outlinePoint là câu khẳng định rõ ràng
-  if (outlinePoint && outlinePoint.length >= 10 && !outlinePoint.endsWith('?')) {
-    return {
-      canAddToOutline: true,
-      outlinePoint,
-      suggestedSectionId,
-    };
-  }
-
   return { canAddToOutline: false };
 }
 
-// Mapping functions
-function proposalsFromMessage(
-  msg: MessageResponse,
-  studentPrompt?: string
-): {
+function proposalsFromMessage(msg: MessageResponse): {
   canAddToOutline?: boolean;
   outlinePoint?: string;
   suggestedSectionId?: 'intro' | 'body' | 'conclusion';
   proposals?: OutlineProposal[];
 } {
-  if (msg.status === 'FALLBACK' || msg.status === 'REJECTED') {
-    return { canAddToOutline: false };
+  const proposals = structuredProposalsFromMessage(msg);
+  if (proposals.length === 0) {
+    return { canAddToOutline: false, proposals: [] };
   }
-
-  const proposals = Array.isArray(msg.proposals) ? msg.proposals : [];
-  if (proposals.length > 0) {
-    const first = proposals[0];
-    const section = (first.sectionId === 'intro' || first.sectionId === 'conclusion' || first.sectionId === 'body')
-      ? first.sectionId
-      : (studentPrompt?.toLowerCase().includes('kết bài') ? 'conclusion' : studentPrompt?.toLowerCase().includes('mở bài') ? 'intro' : 'body');
-    return {
-      canAddToOutline: true,
-      outlinePoint: first.text,
-      suggestedSectionId: section,
-      proposals,
-    };
-  }
-
-  if (msg.intent === 'CLARIFY' || msg.intent === 'EDIT') {
-    return { canAddToOutline: false, proposals };
-  }
-
+  const first = proposals[0];
   return {
-    ...deriveOutlineSuggestion(msg.content, msg.role, studentPrompt, msg.status),
+    canAddToOutline: true,
+    outlinePoint: first.text,
+    suggestedSectionId: first.sectionId as 'intro' | 'body' | 'conclusion',
     proposals,
   };
 }
@@ -365,7 +281,8 @@ function proposalsFromMessage(
 export function mapMessageToUI(msg: MessageResponse, studentPrompt?: string): UISocraticMessage {
   const isUser = msg.role === 'STUDENT';
   const date = new Date(msg.createdAt);
-  const suggestion = !isUser ? proposalsFromMessage(msg, studentPrompt) : {};
+  const suggestion = !isUser ? proposalsFromMessage(msg) : {};
+  void studentPrompt;
 
   return {
     id: msg.id,
@@ -384,6 +301,7 @@ export function mapMessageToUI(msg: MessageResponse, studentPrompt?: string): UI
     intent: msg.intent,
     proposals: suggestion.proposals,
     appliedOps: msg.appliedOps,
+    clarificationReason: msg.clarificationReason ?? null,
   };
 }
 
@@ -414,6 +332,43 @@ function coercePoint(raw: string | OutlinePoint, fallbackId: string): UIOutlineP
     source_chunk_id: raw.source_chunk_id ? String(raw.source_chunk_id) : undefined,
   };
 }
+
+export function itemsOfSection(section: UIOutlineSection): UIOutlinePoint[] {
+  const points = Array.isArray(section.points) ? section.points : [];
+  const items = Array.isArray(section.pointItems) ? section.pointItems : [];
+  const count = Math.max(points.length, items.length);
+  const result: UIOutlinePoint[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const item = items[i];
+    const text = (points[i] ?? item?.text ?? '').trim();
+    if (!text && !item) continue;
+    result.push({
+      ...(item || {}),
+      id: String(item?.id || `${section.id}-${i + 1}`),
+      text: text || String(item?.text || ''),
+      kind: item?.kind === 'evidence' || item?.kind === 'note' ? item.kind : item?.kind || 'claim',
+      source_chunk_id: item?.source_chunk_id,
+    });
+  }
+  return result;
+}
+
+export function withSectionItems(
+  section: UIOutlineSection,
+  items: UIOutlinePoint[]
+): UIOutlineSection {
+  return {
+    ...section,
+    pointItems: items,
+    points: items.map((item) => item.text),
+  };
+}
+
+export const CLARIFICATION_REASON_LABEL: Record<string, string> = {
+  OUTLINE_VERSION_CONFLICT: 'Dàn ý đã đổi phiên bản nên thao tác chưa được áp dụng.',
+  OUTLINE_OP_AMBIGUOUS: 'Chưa rõ ý cần thêm/sửa/xóa. Hãy chọn ý trên canvas hoặc nêu rõ vị trí.',
+  OUTLINE_OP_INVALID: 'Thao tác dàn ý chưa hợp lệ nên chưa được áp dụng.',
+};
 
 export function mapOutlineToUI(outline: OutlineContent): UIOutline {
   // Handle sections from backend - preserve full content and extra properties
@@ -459,14 +414,7 @@ export function mapUIToOutlineContent(
 
   const mergedSections: OutlineSection[] = outline.sections.map((sec) => {
     const orig = baseSections.find((s: OutlineSection) => s.id === sec.id) || ({} as Partial<OutlineSection>);
-    const items: UIOutlinePoint[] = (sec.pointItems && sec.pointItems.length === sec.points.length)
-      ? sec.pointItems.map((item, i) => ({ ...item, text: sec.points[i] ?? item.text }))
-      : sec.points.map((text, i) => ({
-          id: sec.pointItems?.[i]?.id || `${sec.id}-${i + 1}`,
-          text,
-          kind: sec.pointItems?.[i]?.kind || 'claim',
-          source_chunk_id: sec.pointItems?.[i]?.source_chunk_id,
-        }));
+    const items = itemsOfSection(sec);
     return {
       ...orig,
       ...sec,
@@ -490,9 +438,9 @@ export function mapUIToOutlineContent(
 // Default outline structure
 export const DEFAULT_OUTLINE: UIOutline = {
   sections: [
-    { id: 'intro', title: 'I. Mở bài — Đặt vấn đề', points: [] },
-    { id: 'body', title: 'II. Thân bài — Triển khai luận điểm', points: [] },
-    { id: 'conclusion', title: 'III. Kết bài — Đánh giá & Thông điệp', points: [] },
+    { id: 'intro', title: 'I. Mở bài — Đặt vấn đề', points: [], pointItems: [] },
+    { id: 'body', title: 'II. Thân bài — Triển khai luận điểm', points: [], pointItems: [] },
+    { id: 'conclusion', title: 'III. Kết bài — Đánh giá & Thông điệp', points: [], pointItems: [] },
   ],
   thesis: undefined,
   arguments: [],

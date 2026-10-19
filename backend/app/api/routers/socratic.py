@@ -383,7 +383,7 @@ async def send_message(
             expected_outline_version=body.expectedOutlineVersion,
         )
         outline = None
-        if result.outline_changed:
+        if result.outline_changed or result.outline_version is not None:
             outline = await service.get_current_outline(sid, student)
         return _message_response(message, result, outline)
     except ValueError:
