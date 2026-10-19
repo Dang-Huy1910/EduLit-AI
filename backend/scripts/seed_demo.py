@@ -1,7 +1,7 @@
 """Seed demo data for EduLit-AI Socratic testing.
 
 Creates:
-1. Teacher account: dang.loan / 123456
+1. Teacher account: dang.loan / BOOTSTRAP_TEACHER_PASSWORD (fallback 123456)
 2. Student account: nguyen.van.an / 123456 (lớp 11A14)
 3. Student outside class: bui.hamy / 123456 (không nhận bài của 11A14)
 4. Published legacy assignments: VAN12-NLXH-SOC, VAN11-NLVH-01
@@ -48,7 +48,7 @@ async def seed_teacher(session: AsyncSession, settings: Settings) -> User:
     login_id = normalize_login_id(settings.BOOTSTRAP_TEACHER_LOGIN_ID)
     email = normalize_email(settings.BOOTSTRAP_TEACHER_EMAIL)
     display_name = settings.BOOTSTRAP_TEACHER_DISPLAY_NAME.strip() or "Cô Đặng Loan"
-    password = DEMO_PASSWORD
+    password = (settings.BOOTSTRAP_TEACHER_PASSWORD or "").strip() or DEMO_PASSWORD
 
     result = await session.execute(select(User).where(User.login_id == login_id))
     user = result.scalar_one_or_none()
