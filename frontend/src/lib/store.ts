@@ -271,14 +271,6 @@ export const useAppStore = create<AppState>()(
             ...INITIAL_ASSIGNMENTS,
           ];
 
-          const student1Pages = (INITIAL_SUBMISSIONS['sub-user-student-11a14-001']?.pages || []).map((p) => ({
-            pageIndex: p.pageIndex,
-            imageUrl: p.imageUrl,
-            size: p.size,
-            caption: p.caption,
-            isCustomUpload: false,
-          }));
-
           set({
             demoMilestone: 'complete',
             isAiResponding: false,
@@ -289,7 +281,7 @@ export const useAppStore = create<AppState>()(
             ],
             submissions: { ...INITIAL_SUBMISSIONS },
             assignments: completeAssignments,
-            uploadedPages: student1Pages,
+            uploadedPages: [],
             ocrStatus: 'confirmed',
           });
         }
@@ -628,19 +620,8 @@ export const useAppStore = create<AppState>()(
       // Uploaded Pages
       uploadedPages: [],
 
-      loadStudentPages: (assignmentId?: string, studentId?: string) => {
-        const targetSid = studentId || get().currentUser?.id || 'user-student-11a14-001';
-        const manifest = SUBMISSION_MANIFEST[targetSid] || SUBMISSION_MANIFEST['user-student-11a14-001'];
-        if (manifest) {
-          const pages: SubmissionPageImage[] = manifest.pages.map((p) => ({
-            pageIndex: p.pageIndex,
-            imageUrl: p.localPath,
-            size: p.size,
-            caption: p.caption,
-            isCustomUpload: false,
-          }));
-          set({ uploadedPages: pages });
-        }
+      loadStudentPages: (_assignmentId?: string, _studentId?: string) => {
+        set({ uploadedPages: [] });
       },
 
       loadDemoBuiHaMyPages: () => {
@@ -770,6 +751,9 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'edulit-app-v2',
+      onRehydrateStorage: () => (state) => {
+        if (state) state.uploadedPages = [];
+      },
       storage: createJSONStorage(() => ({
         getItem: (key: string) => {
           if (typeof window === 'undefined') return null;
@@ -805,10 +789,7 @@ export const useAppStore = create<AppState>()(
         ocrStatus: state.ocrStatus,
         flaggedSegments: state.flaggedSegments,
         // Strip out gigantic raw base64 data URLs from storage to guarantee 0 quota overflow
-        uploadedPages: (state.uploadedPages || []).map((p) => ({
-          ...p,
-          imageUrl: p?.imageUrl && typeof p.imageUrl === 'string' && p.imageUrl.startsWith('data:') ? '' : (p?.imageUrl || ''),
-        })),
+        uploadedPages: [],
         submissions: Object.fromEntries(
           Object.entries(state.submissions || {}).map(([id, sub]) => [
             id,

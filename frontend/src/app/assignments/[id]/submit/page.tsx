@@ -21,6 +21,22 @@ function errorMessage(err: unknown, fallback: string): string {
   return err instanceof AuthApiError ? err.message : fallback;
 }
 
+function pageSourceLabel(page: SubmissionPage): string {
+  const name = (page.filename || '').toLowerCase();
+  if (
+    !name ||
+    name === 'image.jpg' ||
+    name === 'image.jpeg' ||
+    name === 'image.png' ||
+    name.startsWith('img_') ||
+    name.includes('capture') ||
+    name.includes('camera')
+  ) {
+    return 'Bản quét camera';
+  }
+  return 'Ảnh tải lên từ tệp';
+}
+
 export default function SubmitPhotosPage() {
   const router = useRouter();
   const params = useParams();
@@ -126,6 +142,10 @@ export default function SubmitPhotosPage() {
 
   const handleDelete = (page: SubmissionPage) => {
     void run(() => submissionApi.deletePage(assignmentId, page.id), 'Đã xóa trang.');
+  };
+
+  const handleClearAll = () => {
+    void run(() => submissionApi.clearPages(assignmentId), 'Đã xóa tất cả các trang.');
   };
 
   const handleReorder = (index: number, nextIndex: number) => {
@@ -374,10 +394,21 @@ export default function SubmitPhotosPage() {
                   </h3>
                   <span className="text-[11px] text-on-surface-variant">
                     {pages.length > 0
-                      ? 'Đây là ảnh đã xử lý sẽ gửi OCR. Bấm ảnh để phóng to, xoay hoặc che vùng riêng tư.'
-                      : 'Vui lòng chọn hoặc chụp ảnh bài làm (1–4 trang).'}
+                      ? `Đã nạp ${pages.length} trang bài làm, sẵn sàng đối chiếu OCR.`
+                      : 'Vui lòng chọn hoặc chụp ảnh bài làm (1–4 trang). Không tự nạp ảnh mẫu.'}
                   </span>
                 </div>
+                {pages.length > 0 && canEdit && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleClearAll()}
+                    className="text-[11px] text-error hover:underline flex items-center gap-0.5 disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-sm">delete_sweep</span>
+                    <span>Xóa hết</span>
+                  </button>
+                )}
               </div>
 
               {pages.length === 0 ? (
@@ -387,7 +418,7 @@ export default function SubmitPhotosPage() {
                   </div>
                   <h4 className="font-bold text-xs text-on-surface">Chưa có trang bài làm nào</h4>
                   <p className="text-[11px] text-on-surface-variant max-w-sm mx-auto">
-                    Bấm chụp ảnh hoặc tải file từ thiết bị. Refresh trang vẫn tải lại ảnh đã lưu.
+                    Bấm chụp ảnh hoặc tải file từ thiết bị. Hệ thống không tự điền ảnh mẫu. Refresh trang vẫn tải lại ảnh đã lưu.
                   </p>
                 </div>
               ) : (
@@ -423,7 +454,7 @@ export default function SubmitPhotosPage() {
                       </div>
                       <div className="flex items-center justify-between text-[11px] pt-1">
                         <span className="text-on-surface-variant truncate max-w-[140px] text-[10px]">
-                          {page.filename || 'Ảnh đã tải'}
+                          {pageSourceLabel(page)}
                         </span>
                         {canEdit && (
                           <div className="flex items-center gap-1">

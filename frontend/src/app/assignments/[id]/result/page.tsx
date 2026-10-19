@@ -33,7 +33,7 @@ export default function StudentResultPage() {
   const code = payload?.assignment.code || '';
 
   return (
-    <StudentShell headerTitle="Kết quả đánh giá Rubric" headerSubtitle={`${code}: ${title}`}>
+    <StudentShell headerTitle="Bài đã nộp" headerSubtitle={`${code}: ${title}`}>
       <div className="max-w-4xl mx-auto space-y-4">
         <AssignmentWorkflowStepper currentStep="result" assignmentId={assignmentId} />
         {loading ? (
@@ -42,12 +42,12 @@ export default function StudentResultPage() {
           <div className="p-6 rounded-xl border text-sm text-error">{error}</div>
         ) : payload?.waitingForGrade || payload?.status === 'confirmed' ? (
           <div className="p-6 bg-surface-container-lowest rounded-xl border space-y-3">
-            <h1 className="font-merriweather font-bold text-lg">Bản chép đã xác nhận — Chờ đánh giá</h1>
+            <h1 className="font-merriweather font-bold text-lg">Bài đã nộp chính thức</h1>
             <p className="text-sm text-on-surface-variant">
-              Em đã xác nhận bản chép số hóa. Chấm rubric bằng AI chưa mở trên hệ thống này, nên chưa có điểm.
+              Em đã nộp bài. Giáo viên nhận được bài của em. Điểm rubric sẽ có khi hệ thống mở chấm.
             </p>
             <Link href={`/assignments/${assignmentId}/ocr`} className="text-primary text-sm font-semibold">
-              Xem lại bản chép đã xác nhận
+              Xem lại bài đã nộp
             </Link>
           </div>
         ) : (

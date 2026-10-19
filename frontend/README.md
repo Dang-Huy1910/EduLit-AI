@@ -44,7 +44,7 @@ Tại màn hình đăng nhập, hệ thống cung cấp sẵn 2 nút đăng nh�
    - Theo dõi báo cáo năng lực lớp và điều chỉnh giáo án.
 2. **Học sinh:** Bấm **"Bùi Hà My"** (Học sinh Lớp 12A1 • Mã định danh: `VN-12A1-048`)
    - Xem bài tập cần làm & bài đã nộp.
-   - Trải nghiệm chu trình: Đọc hiểu &rarr; Lập dàn ý Socratic &rarr; Viết tay & Nộp ảnh &rarr; Học sinh đối chiếu OCR &rarr; Bản chép đã xác nhận (chấm rubric AI chưa mở).
+   - Trải nghiệm chu trình: Đọc hiểu &rarr; Lập dàn ý Socratic &rarr; Viết tay & Nộp ảnh &rarr; Học sinh đối chiếu OCR &rarr; Nộp bài chính thức.
 
 ---
 

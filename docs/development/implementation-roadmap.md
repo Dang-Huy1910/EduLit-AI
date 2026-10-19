@@ -42,7 +42,7 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 
 - Upload/che vùng riêng tư 1–4 trang, freeze attempt, queue OCR, segment mapping và transcription revision.
 - Học sinh đối chiếu/sửa/xác nhận bản chép; không có màn giáo viên duyệt OCR.
-- Chấm rubric AI chưa làm ở bước này; sau xác nhận hiện “Chờ đánh giá”.
+- Chấm rubric AI chưa làm ở bước này; sau xác nhận bài đã nộp chính thức (`READY_TO_GRADE`).
 - Worker crash/re-delivery, trang lỗi phải báo rõ, retry cùng input, nộp bộ ảnh mới tạo attempt mới.
 
 **Hoàn thành khi:** một bài đi hết chụp → OCR → học sinh xác nhận → `READY_TO_GRADE`; job giao lại không nhân đôi. Ánh xạ FR-11–FR-14. Chấm/công bố điểm thuộc bước sau.
@@ -74,7 +74,7 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 | Outline/chat dùng chung toàn app | Scope theo student + session + assignment revision |
 | `piiMasked: boolean` | Ảnh đã rà soát xuất bitmap (xoay/che vùng); học sinh tự che, không tự mờ danh tính |
 | Học sinh sửa text OCR trực tiếp | Học sinh đối chiếu/sửa/xác nhận; expectedRevision; không màn giáo viên duyệt OCR |
-| Điểm 7.5 và confidence 0.94 mock | Sau xác nhận: “Chờ đánh giá”; confidence có source hoặc null |
+| Điểm 7.5 và confidence 0.94 mock | Sau xác nhận: bài đã nộp chính thức; điểm rubric khi hệ thống mở chấm |
 | Reset demo | Xóa state mock của trình duyệt; không có endpoint xóa production data |
 
 Mock/API mode phải tách bằng cấu hình và adapter rõ, không silently fallback sang mock khi API lỗi. Không chuyển toàn bộ store trước khi feature tương ứng có API và kiểm tra; mỗi milestone giữ demo có thể chạy để so giao diện.

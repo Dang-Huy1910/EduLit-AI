@@ -232,6 +232,26 @@ class SubmissionService:
         submission.updated_at = attempt.updated_at
         return await self.commit_payload(revision, student, submission, attempt)
 
+    async def delete_all_pages(self, student: User, assignment_key: str) -> dict[str, Any]:
+        revision, submission, attempt = await self._require_draft(student, assignment_key)
+        pages = (
+            await self.session.execute(
+                select(SubmissionPage).where(SubmissionPage.attempt_id == attempt.id)
+            )
+        ).scalars().all()
+        page_ids = [page.id for page in pages]
+        if page_ids:
+            await self.session.execute(
+                delete(SubmissionPageBlob).where(SubmissionPageBlob.page_id.in_(page_ids))
+            )
+            await self.session.execute(
+                delete(SubmissionPage).where(SubmissionPage.id.in_(page_ids))
+            )
+        attempt.page_count = 0
+        attempt.updated_at = utcnow()
+        submission.updated_at = attempt.updated_at
+        return await self.commit_payload(revision, student, submission, attempt)
+
     async def reorder_pages(
         self, student: User, assignment_key: str, page_ids: list[str]
     ) -> dict[str, Any]:

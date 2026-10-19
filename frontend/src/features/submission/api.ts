@@ -28,6 +28,8 @@ export const submissionApi = {
   },
   deletePage: (assignmentId: string, pageId: string) =>
     apiSend<SubmissionPayload>(path(assignmentId, `/submission/pages/${pageId}`), 'DELETE'),
+  clearPages: (assignmentId: string) =>
+    apiSend<SubmissionPayload>(path(assignmentId, '/submission/pages'), 'DELETE'),
   reorder: (assignmentId: string, pageIds: string[]) =>
     apiSend<SubmissionPayload>(path(assignmentId, '/submission/reorder'), 'POST', { pageIds }),
   submit: (assignmentId: string) =>

@@ -133,6 +133,18 @@ async def replace_page(
         _raise(exc)
 
 
+@router.delete("/{assignment_key}/submission/pages")
+async def delete_all_pages(
+    assignment_key: str,
+    student: Annotated[User, Depends(get_student)],
+    service: Annotated[SubmissionService, Depends(get_submission_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.delete_all_pages(student, assignment_key)
+    except SubmissionError as exc:
+        _raise(exc)
+
+
 @router.delete("/{assignment_key}/submission/pages/{page_id}")
 async def delete_page(
     assignment_key: str,

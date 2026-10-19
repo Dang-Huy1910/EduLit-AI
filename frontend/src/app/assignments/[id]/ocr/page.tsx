@@ -19,7 +19,7 @@ function statusLabel(status: string): string {
   if (status === 'processing') return 'Đang số hóa';
   if (status === 'review') return 'Cần rà soát';
   if (status === 'failed') return 'Lỗi số hóa';
-  if (status === 'confirmed') return 'Đã xác nhận';
+  if (status === 'confirmed') return 'Đã nộp bài';
   return 'Bản nháp';
 }
 
@@ -122,7 +122,7 @@ export default function OcrVerificationPage() {
         pages: draftPages,
       });
       applyPayload(saved);
-      addToast('Bản chép đã xác nhận — Chờ đánh giá.', 'success');
+      addToast('Bài đã được nộp chính thức.', 'success');
     } catch (err) {
       addToast(errorMessage(err, 'Không xác nhận được bản chép.'), 'error');
     } finally {
@@ -207,7 +207,7 @@ export default function OcrVerificationPage() {
                 disabled={busy}
                 className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
               >
-                <span>Xác nhận bản chép</span>
+                <span>Xác nhận và nộp bài</span>
                 <span className="material-symbols-outlined text-sm">check</span>
               </button>
             )}
@@ -261,9 +261,9 @@ export default function OcrVerificationPage() {
 
         {confirmed && (
           <div className="p-3 rounded-xl border border-tertiary/40 bg-tertiary-container/30 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span className="font-semibold text-tertiary">Bản chép đã xác nhận — Chờ đánh giá</span>
+            <span className="font-semibold text-tertiary">Bài đã nộp chính thức. Giáo viên nhận được bài của em.</span>
             <button type="button" onClick={() => void handleReopen()} className="px-3 py-1.5 border rounded-lg font-semibold">
-              Chỉnh sửa lại bản chép
+              Sửa bản chép rồi nộp lại
             </button>
           </div>
         )}
@@ -449,8 +449,8 @@ export default function OcrVerificationPage() {
             <div className="p-3.5 border-t border-outline-variant/20 bg-surface-container-low/50 rounded-b-xl flex items-center justify-between text-xs gap-3">
               <span className="text-on-surface-variant text-[11px]">
                 {confirmed
-                  ? 'Bản chép đã xác nhận — Chờ đánh giá. Chấm rubric AI chưa mở.'
-                  : `Đã đối chiếu kỹ các trang bài làm (${pages.length} trang)?`}
+                  ? 'Bài đã được nộp chính thức.'
+                  : `Đã đối chiếu kỹ các trang bài làm (${pages.length} trang)? Xác nhận là nộp bài chính thức.`}
               </span>
               {canEdit ? (
                 <button
@@ -459,11 +459,11 @@ export default function OcrVerificationPage() {
                   disabled={busy}
                   className="py-2 px-5 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
                 >
-                  <span>Xác nhận bản chép</span>
+                  <span>Xác nhận và nộp bài</span>
                   <span className="material-symbols-outlined text-sm">check</span>
                 </button>
               ) : confirmed ? (
-                <span className="text-tertiary font-semibold">Chờ đánh giá</span>
+                <span className="text-tertiary font-semibold">Đã nộp bài</span>
               ) : (
                 <Link href={`/assignments/${assignmentId}/submit`} className="text-primary font-semibold">
                   Về nộp ảnh
