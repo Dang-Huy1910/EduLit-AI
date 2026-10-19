@@ -69,7 +69,7 @@ async function request<T>(
 
 export const authClient = {
   register(body: { loginId: string; email: string; displayName: string; password: string }) {
-    return request<{ status: string; message: string }>('/register', {
+    return request<{ status: string; message: string; user: PublicUser }>('/register', {
       method: 'POST',
       headers: mutationHeaders(),
       body: JSON.stringify(body),

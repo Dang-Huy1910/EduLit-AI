@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     BREVO_API_KEY: str = ""
     GMAIL_WEBHOOK_URL: str = ""
-    AUTO_VERIFY_STUDENT: bool = False
+    AUTO_VERIFY_STUDENT: bool = True
 
     # ── AI Configuration ───────────────────────────────────────────────────────
     # Provider: openai | gemini | fake

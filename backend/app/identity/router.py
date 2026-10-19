@@ -32,20 +32,36 @@ router = APIRouter(
 )
 
 
-@router.post("/register", status_code=202)
+@router.post("/register")
 async def register(
     body: RegisterRequest,
     request: Request,
+    response: Response,
     service: Annotated[AuthService, Depends(get_auth_service)],
     settings: Annotated[Settings, Depends(get_settings)],
-) -> dict[str, str]:
-    return await service.register(
+) -> dict[str, Any]:
+    current = request.cookies.get(settings.SESSION_COOKIE_NAME)
+    result = await service.register(
         login_id_raw=body.login_id,
         email_raw=body.email,
         display_name_raw=body.display_name,
         password_raw=body.password,
         ip=client_ip(request, settings),
+        user_agent=user_agent_summary(request),
+        current_raw_token=current,
     )
+    set_session_cookie(
+        response,
+        settings,
+        result.raw_token,
+        persistent=result.persistent,
+        expires_at=result.expires_at,  # type: ignore[arg-type]
+    )
+    return {
+        "status": "success",
+        "message": "Đăng ký thành công.",
+        "user": result.user.model_dump(by_alias=True),
+    }
 
 
 @router.post("/verify-email")

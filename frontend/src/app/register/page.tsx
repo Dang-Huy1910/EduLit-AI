@@ -7,9 +7,13 @@ import AuthLayout from '@/components/AuthLayout';
 import PasswordField from '@/components/PasswordField';
 import { AuthApiError } from '@/lib/auth-types';
 import { authClient } from '@/lib/auth-client';
+import { useAuthStore } from '@/lib/auth-store';
+import { useAppStore } from '@/lib/store';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
+  const addToast = useAppStore((s) => s.addToast);
   const [loginId, setLoginId] = useState('');
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -40,11 +44,9 @@ export default function RegisterPage() {
         displayName: displayName.trim(),
         password,
       });
-      if ((res as { status?: string }).status === 'success') {
-        router.push('/login?registered=1');
-      } else {
-        router.push(`/verify-email?email=${encodeURIComponent(email.trim())}`);
-      }
+      setAuthenticated(res.user);
+      addToast(res.message || 'Đăng ký thành công.', 'success');
+      router.push('/assignments');
     } catch (err) {
       if (err instanceof AuthApiError) {
         setFormError(err.message);
@@ -65,7 +67,7 @@ export default function RegisterPage() {
             Đăng ký học sinh
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Tài khoản mới luôn là học sinh. Sau khi đăng ký, em cần xác minh email trước khi đăng nhập.
+            Tài khoản mới luôn là học sinh. Đăng ký xong em vào học ngay, không cần xác minh email.
           </p>
         </div>
         {formError && (

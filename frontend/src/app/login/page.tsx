@@ -21,13 +21,11 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setFormError(null);
-    setUnverifiedEmail(null);
     if (!loginId.trim() || !password) {
       setFormError('Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.');
       return;
@@ -44,10 +42,7 @@ export default function LoginPage() {
       const returnTo = searchParams.get('returnTo');
       router.push(isSafeReturnTo(returnTo) ? returnTo : '/assignments');
     } catch (err) {
-      if (err instanceof AuthApiError && err.code === 'AUTH_UNVERIFIED') {
-        setUnverifiedEmail(loginId.includes('@') ? loginId.trim() : null);
-        setFormError(err.message);
-      } else if (err instanceof AuthApiError) {
+      if (err instanceof AuthApiError) {
         setFormError(err.message);
       } else {
         setFormError('Không kết nối được máy chủ. Vui lòng thử lại.');
@@ -75,14 +70,6 @@ export default function LoginPage() {
             <span>{formError}</span>
           </div>
         )}
-        {unverifiedEmail && (
-          <p className="mb-3 text-xs">
-            <Link href={`/verify-email?email=${encodeURIComponent(unverifiedEmail)}`} className="text-secondary font-semibold hover:underline">
-              Gửi lại email xác minh
-            </Link>
-          </p>
-        )}
-
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
           <div>
             <label htmlFor="loginId" className="block font-semibold text-slate-800 mb-1">

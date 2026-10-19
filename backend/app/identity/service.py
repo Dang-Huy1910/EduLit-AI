@@ -35,9 +35,6 @@ from app.identity.schemas import PublicUser, SessionItem, user_to_public
 
 logger = logging.getLogger("edulit.auth")
 
-REGISTER_NEUTRAL = (
-    "Nếu thông tin hợp lệ, hãy kiểm tra hộp thư để xác minh email rồi đăng nhập."
-)
 RESEND_NEUTRAL = "Nếu email còn cần xác minh, hãy kiểm tra hộp thư."
 FORGOT_NEUTRAL = "Nếu email tồn tại, hãy kiểm tra hộp thư để đặt lại mật khẩu."
 
@@ -97,7 +94,9 @@ class AuthService:
         display_name_raw: str,
         password_raw: str,
         ip: str,
-    ) -> dict[str, str]:
+        user_agent: str,
+        current_raw_token: str | None,
+    ) -> LoginResult:
         await hit_rate_limit(
             self.settings,
             f"register:ip:{ip}",
@@ -117,31 +116,8 @@ class AuthService:
 
         existing_email = await self.repo.get_user_by_email(email)
         if existing_email is not None:
-            if existing_email.email_verified_at is None:
-                existing_email.display_name = display_name
-                await self.repo.revoke_unused_tokens(existing_email.id, AuthTokenPurpose.EMAIL_VERIFICATION)
-                raw_token = generate_raw_token()
-                await self.repo.add_token(
-                    AuthToken(
-                        user_id=existing_email.id,
-                        purpose=AuthTokenPurpose.EMAIL_VERIFICATION,
-                        token_hash=hash_token(raw_token),
-                        expires_at=utcnow()
-                        + timedelta(seconds=self.settings.EMAIL_VERIFICATION_TTL_SECONDS),
-                    )
-                )
-                await self.session.commit()
-                verification_link = self._app_url("/verify-email", raw_token)
-                await self._dispatch_email(
-                    email,
-                    verification_email(display_name, verification_link),
-                )
-                return {"status": "verification_required", "message": REGISTER_NEUTRAL}
-            await self.session.commit()
-            return {"status": "verification_required", "message": REGISTER_NEUTRAL}
+            raise ApiHttpException(409, "EMAIL_TAKEN", ERROR_MESSAGES["EMAIL_TAKEN"])
 
-        auto_verify = self.settings.AUTO_VERIFY_STUDENT
-        email_verified_at = utcnow() if auto_verify else None
         password_hash = await hash_password(password)
         user = User(
             login_id=login_id,
@@ -150,49 +126,39 @@ class AuthService:
             password_hash=password_hash,
             role=UserRole.STUDENT,
             status=UserStatus.ACTIVE,
-            email_verified_at=email_verified_at,
+            email_verified_at=utcnow(),
         )
         try:
             await self.repo.add_user(user)
-            raw_token = generate_raw_token()
-            await self.repo.add_token(
-                AuthToken(
-                    user_id=user.id,
-                    purpose=AuthTokenPurpose.EMAIL_VERIFICATION,
-                    token_hash=hash_token(raw_token),
-                    expires_at=utcnow()
-                    + timedelta(seconds=self.settings.EMAIL_VERIFICATION_TTL_SECONDS),
-                )
-            )
-            await self.session.commit()
+            await self.session.flush()
         except IntegrityError as exc:
             await self.session.rollback()
-            return await self._register_integrity_conflict(exc, login_id, email)
+            self._raise_register_integrity_conflict(exc, login_id, email)
 
-        verification_link = self._app_url("/verify-email", raw_token)
-        logger.info("VERIFICATION_LINK to=%s link=%s", email, verification_link)
-
-        if auto_verify:
-            return {"status": "success", "message": "Đăng ký thành công! Bạn có thể đăng nhập ngay."}
-
-        await self._dispatch_email(
-            email,
-            verification_email(display_name, verification_link),
+        return await self._open_session(
+            user,
+            persistent=True,
+            ip=ip,
+            user_agent=user_agent,
+            current_raw_token=current_raw_token,
         )
-        return {"status": "verification_required", "message": REGISTER_NEUTRAL}
 
-    async def _register_integrity_conflict(
+    def _raise_register_integrity_conflict(
         self,
         exc: IntegrityError,
         login_id: str,
         email: str,
-    ) -> dict[str, str]:
-        existing_login = await self.repo.get_user_by_login_id(login_id)
-        if existing_login is not None:
-            raise ApiHttpException(409, "USERNAME_TAKEN", ERROR_MESSAGES["USERNAME_TAKEN"])
+    ) -> None:
         constraint = _constraint_name(exc)
-        if constraint in {"users_email_key", "users_email_unique"} or await self.repo.get_user_by_email(email):
-            return {"status": "verification_required", "message": REGISTER_NEUTRAL}
+        if constraint in {"users_login_id_key", "users_login_id_unique"}:
+            raise ApiHttpException(409, "USERNAME_TAKEN", ERROR_MESSAGES["USERNAME_TAKEN"]) from exc
+        if constraint in {"users_email_key", "users_email_unique"}:
+            raise ApiHttpException(409, "EMAIL_TAKEN", ERROR_MESSAGES["EMAIL_TAKEN"]) from exc
+        message = str(getattr(exc, "orig", exc))
+        if login_id and login_id in message:
+            raise ApiHttpException(409, "USERNAME_TAKEN", ERROR_MESSAGES["USERNAME_TAKEN"]) from exc
+        if email and email in message:
+            raise ApiHttpException(409, "EMAIL_TAKEN", ERROR_MESSAGES["EMAIL_TAKEN"]) from exc
         logger.exception("register_integrity_error constraint=%s", constraint)
         raise ApiHttpException(500, "INTERNAL", ERROR_MESSAGES["INTERNAL"]) from exc
 
@@ -322,19 +288,35 @@ class AuthService:
             await self.session.commit()
             raise ApiHttpException(403, "ACCOUNT_INACTIVE", ERROR_MESSAGES["ACCOUNT_INACTIVE"])
         if user.email_verified_at is None:
-            await self.session.commit()
-            raise ApiHttpException(403, "AUTH_UNVERIFIED", ERROR_MESSAGES["AUTH_UNVERIFIED"])
+            user.email_verified_at = utcnow()
+            user.updated_at = utcnow()
 
         new_hash = await maybe_rehash(user.password_hash, password_raw)
         if new_hash:
             user.password_hash = new_hash
             user.updated_at = utcnow()
 
+        return await self._open_session(
+            user,
+            persistent=bool(remember_me),
+            ip=ip,
+            user_agent=user_agent,
+            current_raw_token=current_raw_token,
+        )
+
+    async def _open_session(
+        self,
+        user: User,
+        *,
+        persistent: bool,
+        ip: str,
+        user_agent: str,
+        current_raw_token: str | None,
+    ) -> LoginResult:
         if current_raw_token:
             await self.repo.revoke_session_by_hash(hash_token(current_raw_token))
 
         version_at_verify = user.credentials_version
-        persistent = bool(remember_me)
         ttl = (
             self.settings.SESSION_TTL_SECONDS_LONG
             if persistent
@@ -359,10 +341,13 @@ class AuthService:
             session_row.revoked_at = utcnow()
             await self.session.commit()
             raise ApiHttpException(401, "AUTH_CREDENTIALS", ERROR_MESSAGES["AUTH_CREDENTIALS"])
-        if fresh.status != UserStatus.ACTIVE or fresh.email_verified_at is None:
+        if fresh.status != UserStatus.ACTIVE:
             session_row.revoked_at = utcnow()
             await self.session.commit()
             raise ApiHttpException(401, "AUTH_INVALID", ERROR_MESSAGES["AUTH_INVALID"])
+        if fresh.email_verified_at is None:
+            fresh.email_verified_at = utcnow()
+            fresh.updated_at = utcnow()
 
         await self.session.commit()
         return LoginResult(
@@ -391,7 +376,8 @@ class AuthService:
         if user is None or user.status != UserStatus.ACTIVE:
             raise ApiHttpException(403, "ACCOUNT_INACTIVE", ERROR_MESSAGES["ACCOUNT_INACTIVE"])
         if user.email_verified_at is None:
-            raise ApiHttpException(403, "AUTH_UNVERIFIED", ERROR_MESSAGES["AUTH_UNVERIFIED"])
+            user.email_verified_at = utcnow()
+            user.updated_at = utcnow()
 
         await self.repo.touch_session(session_row.id)
         await self.session.commit()

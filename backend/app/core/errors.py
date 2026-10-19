@@ -39,6 +39,7 @@ ERROR_MESSAGES: dict[str, str] = {
     "AUTH_RATE_LIMIT": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
     "ACCOUNT_INACTIVE": "Tài khoản đã bị vô hiệu hóa.",
     "USERNAME_TAKEN": "Tên đăng nhập đã được sử dụng.",
+    "EMAIL_TAKEN": "Email đã được sử dụng.",
     "TOKEN_INVALID": "Liên kết không hợp lệ hoặc đã hết hạn.",
     "PASSWORD_MISMATCH": "Mật khẩu hiện tại không đúng.",
     "SESSION_NOT_FOUND": "Không tìm thấy phiên đăng nhập.",
