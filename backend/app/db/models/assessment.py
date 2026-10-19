@@ -172,23 +172,29 @@ class AssessmentResult(Base):
 
 
 class ClassInsight(Base):
-    """Cached AI teaching suggestions for one assignment, keyed by stats hash."""
+    """Cached AI teaching suggestions, keyed by teacher + scope + mode."""
 
     __tablename__ = "class_insights"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
     )
-    assignment_id: Mapped[uuid.UUID] = mapped_column(
+    teacher_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    scope_kind: Mapped[str] = mapped_column(String(32), nullable=False, default="assignment")
+    scope_key: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    mode: Mapped[str] = mapped_column(String(32), nullable=False, default="official")
+    filter_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    assignment_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("assignments.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=True,
+        nullable=True,
     )
-    assignment_revision_id: Mapped[uuid.UUID] = mapped_column(
+    assignment_revision_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("assignment_revisions.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     input_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     status: Mapped[str] = mapped_column(
@@ -215,5 +221,8 @@ class ClassInsight(Base):
     )
 
     __table_args__ = (
+        UniqueConstraint("teacher_id", "scope_key", "mode", name="class_insights_teacher_scope_mode_key"),
         Index("class_insights_claim_idx", "status", "lease_expires_at", "created_at"),
+        Index("class_insights_teacher_id_idx", "teacher_id"),
+        Index("class_insights_assignment_id_idx", "assignment_id"),
     )

@@ -14,7 +14,9 @@ Hiện đây là prototype với mock data và Zustand/sessionStorage. [Kiến t
 | `src/app/assignments/` | Danh sách bài tập, Soạn đề & Cấu hình Rubric 10.0đ |
 | `src/app/assignments/[id]/` | Chu trình 5 bước làm bài: `/socratic`, `/submit`, `/ocr`, `/result` |
 | `src/app/materials/` | Kho học liệu & Quản lý ngữ liệu đọc hiểu, barem GDPT 2018 |
-| `src/app/reports/` | Báo cáo lớp theo bài tập thật, chi tiết bài chấm giáo viên |
+| `src/app/reports/` | Báo cáo năng lực tổng hợp nhiều bài; URL cũ chuyển về chi tiết bài tập |
+| `src/app/assignments/[id]` | Giáo viên: đề & barem, bài nộp, thống kê từng bài |
+| `src/app/assignments/[id]/students/[studentId]/assessment` | Chi tiết chấm của một học sinh trong bài tập |
 | `src/app/login/` | Màn hình đăng nhập phong cách VLearn với nền trường THPT Đan Phượng |
 | `src/components/` | Shell giao diện (`TeacherShell`, `StudentShell`), Stepper 5 bước, Toasts |
 | `src/features/` | Components nghiệp vụ (`assignments`, `assessment`, `reports`) |

@@ -978,19 +978,36 @@ def _fake_assessment_json(prompt: str) -> str:
     )
 
 
-def _fake_insight_json(_prompt: str) -> str:
+def _fake_insight_json(prompt: str) -> str:
+    sample = None
+    mode = None
+    try:
+        start = prompt.find("{")
+        end = prompt.rfind("}")
+        if start >= 0 and end > start:
+            data = json.loads(prompt[start : end + 1])
+            stats = data.get("stats") if isinstance(data, dict) else None
+            if isinstance(stats, dict):
+                sample = stats.get("scoredCount") or stats.get("sampleSize")
+            if isinstance(data, dict):
+                sample = sample or data.get("sampleSize") or data.get("scoredCount")
+                mode = data.get("mode")
+    except (json.JSONDecodeError, TypeError, ValueError):
+        sample = None
+    n_text = f"n={sample}" if isinstance(sample, int) else "cỡ mẫu trong JSON"
+    mode_text = "bản tạm tính" if mode == "provisional" else "bản đang chọn"
     return json.dumps(
         {
             "priorities": [
                 {
-                    "title": "Ôn lại tiêu chí còn yếu (giả lập)",
-                    "evidence": "Số liệu lớp sẽ được diễn giải khi chạy mô hình thật.",
+                    "title": "Ưu tiên ôn tiêu chí còn yếu theo số liệu đã cho",
+                    "evidence": f"Dựa trên {n_text} kết quả {mode_text} do hệ thống tính sẵn.",
                     "suggested_activities": [
-                        "Chữa một đoạn mẫu trên lớp theo barem đã giao."
+                        "Chữa một đoạn mẫu trên lớp theo barem đã giao, tập trung tiêu chí có meanRate thấp nhất trong JSON."
                     ],
                 }
             ],
-            "notes": "Phân tích giả lập. Không dùng số liệu bịa.",
+            "notes": "Phân tích giả lập. Không bịa thêm số liệu ngoài JSON.",
         },
         ensure_ascii=False,
     )

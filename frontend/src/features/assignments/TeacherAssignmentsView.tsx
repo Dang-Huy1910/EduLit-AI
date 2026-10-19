@@ -197,7 +197,7 @@ export default function TeacherAssignmentsView() {
                   {assignment.status === 'PUBLISHED' && assignment.outlinePrep && assignment.outlinePrep.total > 0 && (
                     <div className="mb-3 p-2.5 rounded-lg bg-secondary/5 border border-secondary/15 text-xs">
                       <p className="font-semibold text-on-surface">
-                        Đã sẵn sàng {assignment.outlinePrep.ready}/{assignment.outlinePrep.total} học sinh
+                        Dàn ý sẵn sàng {assignment.outlinePrep.ready}/{assignment.outlinePrep.total} học sinh
                       </p>
                       {assignment.outlinePrep.failed > 0 && (
                         <p className="text-error mt-0.5">{assignment.outlinePrep.failed} trường hợp thất bại</p>
@@ -214,6 +214,15 @@ export default function TeacherAssignmentsView() {
                       )}
                     </div>
                   )}
+                  {assignment.status === 'PUBLISHED' && assignment.submissionProgress ? (
+                    <div className="mb-3 p-2.5 rounded-lg bg-surface-container-low/50 border border-outline-variant/20 text-xs">
+                      <p className="font-semibold text-on-surface">
+                        Đã nộp {assignment.submissionProgress.officialSubmitted}/{assignment.submissionProgress.assigned}
+                        {' · '}Chờ rà soát {assignment.submissionProgress.awaitingReview}
+                        {' · '}Đã công bố {assignment.submissionProgress.published}
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="grid grid-cols-3 gap-2 text-xs p-2.5 bg-surface-container-low/40 rounded-lg">
                     <div>
                       <span className="text-[10px] text-outline block">Mã truy cập</span>
@@ -231,10 +240,14 @@ export default function TeacherAssignmentsView() {
                 </div>
                 <div className="pt-3 border-t mt-4 flex items-center justify-between gap-2">
                   <Link
-                    href={`/assignments/${assignment.id}`}
+                    href={
+                      assignment.status === 'DRAFT'
+                        ? `/assignments/${assignment.id}`
+                        : `/assignments/${assignment.id}?tab=details`
+                    }
                     className="px-3 py-1.5 rounded-lg bg-primary-container text-on-primary-container text-xs font-semibold"
                   >
-                    {assignment.status === 'DRAFT' ? 'Tiếp tục soạn đề' : 'Chi tiết đề & Rubric'}
+                    {assignment.status === 'DRAFT' ? 'Tiếp tục soạn đề' : 'Chi tiết bài tập'}
                   </Link>
                   {assignment.status === 'PUBLISHED' &&
                     ((assignment.outlinePrep?.failed ?? 0) > 0 ||

@@ -1,33 +1,21 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import TeacherShell from '@/components/TeacherShell';
-import EvaluationResultView from '@/features/assessment/EvaluationResultView';
+import React, { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function TeacherStudentResultPage() {
+export default function LegacyTeacherStudentResultRedirect() {
   const params = useParams();
+  const router = useRouter();
   const assignmentId = (params?.assignmentId as string) || '';
   const studentId = (params?.studentId as string) || '';
 
-  return (
-    <TeacherShell
-      breadcrumb={
-        <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
-          <Link href={assignmentId ? `/reports?assignmentId=${encodeURIComponent(assignmentId)}` : '/reports'} className="hover:text-primary">
-            Báo cáo lớp
-          </Link>
-          <span className="text-outline-variant">/</span>
-          <span className="text-on-surface font-semibold">Chi tiết bài chấm</span>
-        </div>
-      }
-    >
-      {assignmentId && studentId ? (
-        <EvaluationResultView viewMode="teacher" assignmentId={assignmentId} studentId={studentId} />
-      ) : (
-        <div className="p-8 text-sm text-error">Thiếu mã bài tập hoặc học sinh.</div>
-      )}
-    </TeacherShell>
-  );
+  useEffect(() => {
+    if (assignmentId && studentId) {
+      router.replace(`/assignments/${assignmentId}/students/${studentId}/assessment`);
+    } else {
+      router.replace('/reports');
+    }
+  }, [assignmentId, studentId, router]);
+
+  return <div className="p-8 text-sm text-on-surface-variant">Đang chuyển tới chi tiết bài chấm...</div>;
 }

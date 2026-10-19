@@ -132,6 +132,27 @@ export interface TeacherAssignment {
     processing: number;
     needsClarification: number;
   };
+  submissionProgress?: {
+    assigned: number;
+    officialSubmitted: number;
+    grading: number;
+    awaitingReview: number;
+    published: number;
+    failed: number;
+    processing: number;
+  };
+  publishedSnapshot?: {
+    writingTask?: string;
+    writingTaskSummary?: string;
+    extraInstructions?: string;
+    materials?: CatalogMaterial[];
+    rubric?: CatalogRubric & { criteria: CatalogRubricCriterion[] };
+    title?: string;
+    dueAt?: string | null;
+  };
+  publishedWritingTask?: string;
+  publishedExtraInstructions?: string;
+  publishedMaterials?: CatalogMaterial[];
   assignmentRubric?: CatalogRubric & { criteria: CatalogRubricCriterion[] };
   recipientStudentIds?: string[];
   assignToWholeClass?: boolean;

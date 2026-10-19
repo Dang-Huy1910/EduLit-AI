@@ -50,7 +50,8 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 
 ## M5 — Báo cáo lớp (và cá nhân hóa sau)
 
-- SQL metrics theo bài tập/lớp đã giao: sĩ số, đã nộp chính thức, đang xử lý, chờ rà soát, đã công bố, lỗi. Trung bình/phân bố chỉ từ kết quả hiện hành đã công bố; thiếu điểm không coi là 0; mỗi học sinh/bài tập một dòng.
+- Giáo viên tách hai luồng: chi tiết từng bài (`/assignments/[id]` tab đề / bài nộp / thống kê) và báo cáo năng lực nhiều bài (`/reports`). URL cũ `/reports?assignmentId=` và `/reports/[id]/students/[sid]` chuyển về luồng bài tập.
+- SQL metrics theo bài và theo nhiều bài, hai chế độ: tạm tính (bản nộp chính thức hiện hành, ưu tiên overlay giáo viên) và chính thức (published snapshot hiện hành). Thiếu điểm không coi là 0; mỗi học sinh/bài tập một kết quả; bài khác maxScore quy về thang 10 trước khi tổng hợp. Phổ điểm `[0,2)…[8,10]` do backend tính.
 - Tổng hợp lỗi theo `code` ổn định, tách số học sinh và số lần xuất hiện, ghi rõ mẫu số; phân biệt AI phát hiện với giáo viên xác nhận.
 - Gợi ý điều chỉnh dạy học từ số liệu server đã tính; cache theo hash đầu vào; GET/refresh không gọi AI; lỗi phân tích không làm mất bảng điểm.
 - Hồ sơ văn phong (goal survey, observations, snapshot Socratic) vẫn là bước sau; không dùng profile để chấm.

@@ -78,6 +78,8 @@ ERROR_MESSAGES: dict[str, str] = {
     "ASSESSMENT_STALE": "Kết quả không còn khớp bản nộp chính thức hiện hành.",
     "VERSION_CONFLICT": "Kết quả đã được sửa ở tab khác. Hãy tải lại rồi lưu.",
     "PUBLISH_STALE": "Không công bố được kết quả của bản nộp cũ. Hãy chấm bản hiện hành.",
+    "INSIGHT_NO_DATA": "Chưa có kết quả hợp lệ để phân tích. Hãy chấm bài trước.",
+    "STATS_MODE": "Chế độ thống kê không hợp lệ. Dùng tạm tính hoặc chính thức.",
 }
 
 

@@ -26,6 +26,8 @@ import type {
   ClassroomSummary,
   TeacherAssignment,
 } from '@/features/catalog/types';
+import AssignmentSubmissionsPanel from '@/features/assessment/AssignmentSubmissionsPanel';
+import AssignmentStatisticsPanel from '@/features/assessment/AssignmentStatisticsPanel';
 
 type PageIssueKind =
   | 'missing-prompt'
@@ -56,6 +58,7 @@ function AssignmentEditorPage() {
 
   const assignmentId = (params?.id as string) || 'new';
   const isNew = assignmentId === 'new';
+  const tabParam = searchParams.get('tab') || 'details';
   const promptId = searchParams.get('promptId') || '';
   const queryAssignmentId = isCatalogUuid(searchParams.get('assignmentId')) ? searchParams.get('assignmentId') || '' : '';
   const existingAssignmentId = !isNew && isCatalogUuid(assignmentId) ? assignmentId : queryAssignmentId;
@@ -100,6 +103,24 @@ function AssignmentEditorPage() {
   const isValidTotal = maxScore > 0 && Math.abs(totalWeight - maxScore) < 0.001;
   const currentRubric = rubrics.find((item) => item.id === selectedRubricId);
   const sourceDocumentId = prompt?.sourceDocumentId || prompt?.materials.find((item) => item.sourceDocumentId)?.sourceDocumentId;
+  const isPublished = assignment?.status === 'PUBLISHED';
+  const activeTab =
+    isPublished && (tabParam === 'submissions' || tabParam === 'statistics' || tabParam === 'details')
+      ? tabParam
+      : 'details';
+  const setActiveTab = (tab: 'details' | 'submissions' | 'statistics') => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', tab);
+    if (tab !== 'statistics') params.delete('mode');
+    router.replace(`/assignments/${assignmentId}?${params.toString()}`, { scroll: false });
+  };
+  const snapshot = assignment?.publishedSnapshot;
+  const displayWritingTask = isPublished
+    ? snapshot?.writingTask || assignment?.publishedWritingTask || prompt?.writingTask
+    : prompt?.writingTask;
+  const displayWritingSummary = isPublished ? snapshot?.writingTaskSummary : prompt?.writingTaskSummary;
+  const displayMaterials = isPublished ? assignment?.publishedMaterials || snapshot?.materials || prompt?.materials : prompt?.materials;
+  const displayExtra = isPublished ? assignment?.publishedExtraInstructions ?? snapshot?.extraInstructions ?? extraInstructions : extraInstructions;
 
   useEffect(() => {
     const gen = ++loadGen.current;
@@ -317,15 +338,16 @@ function AssignmentEditorPage() {
 
   const persistLocalDraft = (extra: AssignmentDraftState = {}) => {
     const payload = { ...localDraftPayload(), ...extra };
+    if (assignment?.status === 'PUBLISHED') return payload;
     const scopeId = isCatalogUuid(payload.assignmentId) ? payload.assignmentId : 'new';
     saveAssignmentDraft(payload, { userId: currentUser?.id, assignmentId: scopeId });
     return payload;
   };
 
   useEffect(() => {
-    if (loading || issue) return;
+    if (loading || issue || assignment?.status === 'PUBLISHED') return;
     persistLocalDraft();
-  }, [title, extraInstructions, classroomId, dueAt, selectedRubricId, criteria, maxScore, scoreStep, recipientIds, assignToWholeClass, prompt?.id, loading]);
+  }, [title, extraInstructions, classroomId, dueAt, selectedRubricId, criteria, maxScore, scoreStep, recipientIds, assignToWholeClass, prompt?.id, loading, assignment?.status]);
 
   const applyRubric = (rubric: CatalogRubric, toast = true) => {
     setSelectedRubricId(rubric.id);
@@ -548,7 +570,9 @@ function AssignmentEditorPage() {
             Quản lý bài tập
           </Link>
           <span className="text-outline-variant">/</span>
-          <span className="text-on-surface font-semibold">{isNew ? 'Tạo bài tập mới cho lớp' : 'Soạn đề & Cấu hình Rubric'}</span>
+          <span className="text-on-surface font-semibold">
+            {isPublished ? assignment?.title || 'Chi tiết bài tập' : isNew ? 'Tạo bài tập mới cho lớp' : 'Soạn đề & Cấu hình Rubric'}
+          </span>
         </div>
       }
     >
@@ -571,30 +595,71 @@ function AssignmentEditorPage() {
               )}
             </div>
             <h1 className="font-headline-lg text-2xl font-bold text-on-surface font-merriweather">
-              {isNew ? 'Tạo đề bài mới & Thiết lập Rubric GDPT 2018' : 'Cấu hình Đề bài & Thang tiêu chí Rubric'}
+              {isPublished
+                ? assignment?.title || 'Chi tiết bài tập'
+                : isNew
+                  ? 'Tạo đề bài mới & Thiết lập Rubric GDPT 2018'
+                  : 'Cấu hình Đề bài & Thang tiêu chí Rubric'}
             </h1>
             <p className="text-xs text-on-surface-variant mt-1">
-              Barem đang soạn là bản của bài này, không sửa ngầm barem gốc.
+              {isPublished
+                ? 'Đề, ngữ liệu và barem đã chốt khi giao. Sửa kho sau đó không đổi bài này.'
+                : 'Barem đang soạn là bản của bài này, không sửa ngầm barem gốc.'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => void handleSaveDraft()}
-              disabled={saving || loading || !prompt?.id}
-              className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
+          {isPublished ? (
+            <Link
+              href="/assignments"
+              className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium"
             >
-              Lưu bản nháp
-            </button>
-            <button
-              onClick={() => void handlePublish()}
-              disabled={saving || loading || !prompt?.id}
-              className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40"
-            >
-              <span className="material-symbols-outlined text-[16px]">verified</span>
-              Xác nhận Rubric &amp; Giao bài
-            </button>
-          </div>
+              Về danh sách bài tập
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => void handleSaveDraft()}
+                disabled={saving || loading || !prompt?.id}
+                className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
+              >
+                Lưu bản nháp
+              </button>
+              <button
+                onClick={() => void handlePublish()}
+                disabled={saving || loading || !prompt?.id}
+                className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40"
+              >
+                <span className="material-symbols-outlined text-[16px]">verified</span>
+                Xác nhận Rubric &amp; Giao bài
+              </button>
+            </div>
+          )}
         </div>
+
+        {isPublished ? (
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ['details', 'Đề bài & Barem', 'menu_book'],
+                ['submissions', 'Bài nộp & Chấm điểm', 'assignment_turned_in'],
+                ['statistics', 'Thống kê bài này', 'bar_chart'],
+              ] as const
+            ).map(([id, label, icon]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setActiveTab(id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
+                  activeTab === id
+                    ? 'bg-primary-container text-on-primary-container'
+                    : 'bg-surface-container-lowest border border-outline-variant/40'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[16px]">{icon}</span>
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="p-3.5 bg-surface-container-low/70 border border-outline-variant/30 rounded-xl flex items-center gap-3 text-xs text-on-surface-variant">
           <span className="material-symbols-outlined text-secondary text-lg">history_edu</span>
@@ -613,6 +678,10 @@ function AssignmentEditorPage() {
 
         {loading ? (
           <div className="p-12 text-center text-sm text-on-surface-variant">Đang tải dữ liệu bài tập...</div>
+        ) : isPublished && activeTab === 'submissions' ? (
+          <AssignmentSubmissionsPanel assignmentId={existingAssignmentId || assignmentId} />
+        ) : isPublished && activeTab === 'statistics' ? (
+          <AssignmentStatisticsPanel assignmentId={existingAssignmentId || assignmentId} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-8 space-y-6">
@@ -622,24 +691,28 @@ function AssignmentEditorPage() {
                     <span className="material-symbols-outlined text-sm">menu_book</span>
                     Đề nguồn đã chọn
                   </span>
-                  <Link
-                    href={pickHref}
-                    onClick={() => persistLocalDraft({ promptId: prompt?.id })}
-                    className="text-xs font-semibold text-secondary"
-                  >
-                    Đổi đề
-                  </Link>
+                  {isPublished ? (
+                    <span className="text-[11px] text-tertiary font-semibold">Bản đã giao</span>
+                  ) : (
+                    <Link
+                      href={pickHref}
+                      onClick={() => persistLocalDraft({ promptId: prompt?.id })}
+                      className="text-xs font-semibold text-secondary"
+                    >
+                      Đổi đề
+                    </Link>
+                  )}
                 </div>
                 <h2 className="font-merriweather font-bold text-lg">{prompt?.title || 'Chưa có đề nguồn'}</h2>
-                {prompt?.writingTaskSummary && (
+                {displayWritingSummary && (
                   <div className="space-y-1">
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-outline">Tóm tắt yêu cầu</span>
-                    <p className="text-sm whitespace-pre-line">{prompt.writingTaskSummary}</p>
+                    <p className="text-sm whitespace-pre-line">{displayWritingSummary}</p>
                   </div>
                 )}
                 <div className="space-y-1">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-outline">Yêu cầu viết đầy đủ</span>
-                  <p className="text-sm whitespace-pre-line">{prompt?.writingTask || 'Chưa có yêu cầu viết.'}</p>
+                  <p className="text-sm whitespace-pre-line">{displayWritingTask || 'Chưa có yêu cầu viết.'}</p>
                 </div>
                 {prompt?.extraGuidance && (
                   <div className="space-y-1">
@@ -667,7 +740,7 @@ function AssignmentEditorPage() {
                   )}
                 </div>
                 {fullPreview &&
-                  (prompt?.materials || []).map((material) => (
+                  (displayMaterials || []).map((material) => (
                     <div key={material.id} className="p-3 bg-surface-container-low/50 rounded-lg text-xs space-y-1">
                       <p className="font-semibold">{material.title}</p>
                       <p className="text-on-surface-variant">
@@ -700,7 +773,8 @@ function AssignmentEditorPage() {
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-sm font-semibold rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary font-merriweather"
+                  disabled={isPublished}
+                  className="w-full px-3 py-2 text-sm font-semibold rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary font-merriweather disabled:opacity-70"
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
@@ -711,7 +785,8 @@ function AssignmentEditorPage() {
                         setClassroomId(e.target.value);
                         persistLocalDraft({ classroomId: e.target.value });
                       }}
-                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary"
+                      disabled={isPublished}
+                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary disabled:opacity-70"
                     >
                       <option value="">Chọn lớp</option>
                       {classrooms.map((classroom) => (
@@ -727,16 +802,18 @@ function AssignmentEditorPage() {
                       type="datetime-local"
                       value={dueAt}
                       onChange={(e) => setDueAt(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary"
+                      disabled={isPublished}
+                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary disabled:opacity-70"
                     />
                   </div>
                 </div>
                 <label className="block text-xs font-semibold text-on-surface">Hướng dẫn bổ sung</label>
                 <textarea
                   rows={4}
-                  value={extraInstructions}
+                  value={isPublished ? displayExtra || extraInstructions : extraInstructions}
                   onChange={(e) => setExtraInstructions(e.target.value)}
-                  className="w-full p-3 text-xs rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary font-merriweather leading-relaxed"
+                  disabled={isPublished}
+                  className="w-full p-3 text-xs rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary font-merriweather leading-relaxed disabled:opacity-70"
                 />
                 <div>
                   <span className="text-xs font-semibold">Người nhận bài</span>
@@ -746,6 +823,7 @@ function AssignmentEditorPage() {
                         type="radio"
                         name="recipient-mode"
                         checked={assignToWholeClass}
+                        disabled={isPublished}
                         onChange={() => {
                           setAssignToWholeClass(true);
                           setRecipientIds(members.map((member) => member.userId));
@@ -758,6 +836,7 @@ function AssignmentEditorPage() {
                         type="radio"
                         name="recipient-mode"
                         checked={!assignToWholeClass}
+                        disabled={isPublished}
                         onChange={() => setAssignToWholeClass(false)}
                       />
                       Giao các học sinh được chọn
@@ -772,6 +851,7 @@ function AssignmentEditorPage() {
                         <input
                           type="checkbox"
                           checked={recipientIds.includes(member.userId)}
+                          disabled={isPublished}
                           onChange={(e) => {
                             setAssignToWholeClass(false);
                             setRecipientIds((prev) =>
@@ -834,7 +914,10 @@ function AssignmentEditorPage() {
                         <button
                           key={rubric.id}
                           type="button"
-                          onClick={() => applyRubric(rubric)}
+                          onClick={() => {
+                            if (!isPublished) applyRubric(rubric);
+                          }}
+                          disabled={isPublished}
                           className={`p-3.5 rounded-xl border text-left transition-all relative flex flex-col justify-between ${
                             isSelected
                               ? 'bg-surface-container-lowest border-secondary ring-2 ring-secondary/25 shadow-xs'
@@ -903,6 +986,7 @@ function AssignmentEditorPage() {
                           step={scoreStep}
                           min={0}
                           value={criterion.weight}
+                          disabled={isPublished}
                           onChange={(e) =>
                             setCriteria((prev) =>
                               prev.map((item) =>
@@ -933,6 +1017,7 @@ function AssignmentEditorPage() {
                     )}
                   </div>
                 ))}
+                {isPublished ? null : (
                 <button
                   type="button"
                   onClick={() => void handleSaveAsRubric()}
@@ -940,6 +1025,7 @@ function AssignmentEditorPage() {
                 >
                   Lưu thành barem mới trong kho
                 </button>
+                )}
               </section>
             </div>
 
@@ -948,7 +1034,7 @@ function AssignmentEditorPage() {
                 <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                   <span className="text-xs font-bold uppercase tracking-wider text-on-surface flex items-center gap-1">
                     <span className="material-symbols-outlined text-base text-secondary">menu_book</span>
-                    Ngữ liệu liên kết ({prompt?.materials.length || 0})
+                    Ngữ liệu liên kết ({(displayMaterials || prompt?.materials || []).length})
                   </span>
                   <span
                     className={`text-[10px] font-bold px-2 py-0.2 rounded ${
@@ -959,7 +1045,7 @@ function AssignmentEditorPage() {
                   </span>
                 </div>
                 <div className="space-y-2 text-xs">
-                  {(prompt?.materials || []).map((material) => (
+                  {(displayMaterials || prompt?.materials || []).map((material) => (
                     <div key={material.id} className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 flex items-start gap-2">
                       <span className="material-symbols-outlined text-secondary text-base mt-0.5">description</span>
                       <div className="flex-1">
@@ -971,7 +1057,7 @@ function AssignmentEditorPage() {
                       </div>
                     </div>
                   ))}
-                  {(prompt?.materials || []).length === 0 && (
+                  {(displayMaterials || prompt?.materials || []).length === 0 && (
                     <p className="text-on-surface-variant">Đề chưa gắn ngữ liệu.</p>
                   )}
                 </div>
@@ -1020,6 +1106,11 @@ function AssignmentEditorPage() {
                     label={assignToWholeClass ? 'Đã chọn lớp nhận bài' : 'Đã chọn học sinh nhận bài'}
                   />
                 </div>
+                {isPublished ? (
+                  <p className="text-[11px] text-on-surface-variant">
+                    Bài đã giao. Snapshot đề và barem không đổi khi sửa kho.
+                  </p>
+                ) : (
                 <button
                   type="button"
                   onClick={() => void handlePublish()}
@@ -1029,6 +1120,7 @@ function AssignmentEditorPage() {
                   <span className="material-symbols-outlined text-base">send</span>
                   Xác nhận &amp; Giao bài
                 </button>
+                )}
               </div>
             </div>
           </div>

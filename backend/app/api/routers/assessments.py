@@ -87,13 +87,104 @@ async def student_assessment(
         _raise(exc)
 
 
+def _uuid_list(values: list[uuid.UUID] | None, csv: str | None) -> list[uuid.UUID] | None:
+    items: list[uuid.UUID] = []
+    for item in values or []:
+        items.append(item)
+    if csv:
+        for part in csv.split(","):
+            text = part.strip()
+            if not text:
+                continue
+            items.append(uuid.UUID(text))
+    unique: list[uuid.UUID] = []
+    seen: set[uuid.UUID] = set()
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        unique.append(item)
+    return unique or None
+
+
+@teacher_router.get("/competency-reports")
+async def competency_report(
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[ReportService, Depends(get_report_service)],
+    classroom_id: uuid.UUID | None = None,
+    assignment_ids: Annotated[list[uuid.UUID] | None, Query(alias="assignmentId")] = None,
+    assignment_ids_csv: Annotated[str | None, Query(alias="assignmentIds")] = None,
+    student_id: uuid.UUID | None = None,
+    date_from: Annotated[str | None, Query(alias="from")] = None,
+    date_to: Annotated[str | None, Query(alias="to")] = None,
+    mode: str | None = None,
+    search: str = "",
+    sort: str = "default",
+    page: int = 1,
+    page_size: int = 20,
+) -> dict[str, Any]:
+    try:
+        return await service.competency_report(
+            teacher,
+            classroom_id=classroom_id,
+            assignment_ids=_uuid_list(assignment_ids, assignment_ids_csv),
+            student_id=student_id,
+            date_from=date_from,
+            date_to=date_to,
+            mode=mode,
+            search=search,
+            sort=sort,
+            page=page,
+            page_size=page_size,
+        )
+    except SubmissionError as exc:
+        _raise(exc)
+    except ValueError:
+        raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "VALIDATION", ERROR_MESSAGES["VALIDATION"])
+
+
+@teacher_router.post("/competency-reports/insights")
+async def enqueue_competency_insight(
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[ReportService, Depends(get_report_service)],
+    body: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload = body or {}
+    raw_ids = payload.get("assignmentIds") or payload.get("assignmentId") or []
+    if isinstance(raw_ids, str):
+        raw_ids = [part.strip() for part in raw_ids.split(",") if part.strip()]
+    if not isinstance(raw_ids, list):
+        raw_ids = [raw_ids]
+    parsed_ids: list[uuid.UUID] = []
+    try:
+        for item in raw_ids:
+            if item:
+                parsed_ids.append(uuid.UUID(str(item)))
+        classroom = payload.get("classroomId")
+        student = payload.get("studentId")
+        return await service.enqueue_competency_insight(
+            teacher,
+            classroom_id=uuid.UUID(str(classroom)) if classroom else None,
+            assignment_ids=parsed_ids or None,
+            student_id=uuid.UUID(str(student)) if student else None,
+            date_from=payload.get("from") or payload.get("dateFrom"),
+            date_to=payload.get("to") or payload.get("dateTo"),
+            mode=payload.get("mode"),
+        )
+    except SubmissionError as exc:
+        _raise(exc)
+    except ValueError:
+        raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "VALIDATION", ERROR_MESSAGES["VALIDATION"])
+
+
 @teacher_router.get("/reports")
 async def list_report_assignments(
     teacher: Annotated[User, Depends(get_teacher)],
     service: Annotated[ReportService, Depends(get_report_service)],
+    classroom_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     try:
-        return await service.list_report_assignments(teacher)
+        return await service.list_report_assignments(teacher, classroom_id=classroom_id)
     except SubmissionError as exc:
         _raise(exc)
 
@@ -108,16 +199,24 @@ async def class_report(
     sort: str = "default",
     page: int = 1,
     page_size: int = 10,
+    mode: str | None = None,
+    date_from: Annotated[str | None, Query(alias="from")] = None,
+    date_to: Annotated[str | None, Query(alias="to")] = None,
+    student_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     try:
         return await service.class_report(
             teacher,
             assignment_id,
+            mode=mode,
             search=search,
             status=status_filter,
             sort=sort,
             page=page,
             page_size=page_size,
+            date_from=date_from,
+            date_to=date_to,
+            student_id=student_id,
         )
     except SubmissionError as exc:
         _raise(exc)
@@ -128,11 +227,24 @@ async def enqueue_insight(
     assignment_id: uuid.UUID,
     teacher: Annotated[User, Depends(get_teacher)],
     service: Annotated[ReportService, Depends(get_report_service)],
+    body: dict[str, Any] | None = None,
+    mode: str | None = None,
 ) -> dict[str, Any]:
+    payload = body or {}
     try:
-        return await service.enqueue_insight(teacher, assignment_id)
+        student = payload.get("studentId")
+        return await service.enqueue_assignment_insight(
+            teacher,
+            assignment_id,
+            mode=payload.get("mode") or mode,
+            date_from=payload.get("from") or payload.get("dateFrom"),
+            date_to=payload.get("to") or payload.get("dateTo"),
+            student_id=uuid.UUID(str(student)) if student else None,
+        )
     except SubmissionError as exc:
         _raise(exc)
+    except ValueError:
+        raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "VALIDATION", ERROR_MESSAGES["VALIDATION"])
 
 
 @teacher_router.get("/assignments/{assignment_id}/students/{student_id}/assessment")

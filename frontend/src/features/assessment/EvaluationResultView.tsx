@@ -26,6 +26,8 @@ interface EvaluationResultViewProps {
   assignmentId: string;
   studentId?: string;
   studentData?: StudentAssessmentResponse | null;
+  backHref?: string;
+  backLabel?: string;
 }
 
 function formatScore(value: number | null | undefined, digits = 2): string {
@@ -50,7 +52,11 @@ export default function EvaluationResultView({
   assignmentId,
   studentId,
   studentData,
+  backHref,
+  backLabel,
 }: EvaluationResultViewProps) {
+  const teacherBackHref = backHref || `/assignments/${assignmentId}?tab=submissions`;
+  const teacherBackLabel = backLabel || 'Bài nộp của đề này';
   const { addToast } = useAppStore();
   const [detail, setDetail] = useState<TeacherAssessmentDetail | null>(null);
   const [error, setError] = useState('');
@@ -152,8 +158,8 @@ export default function EvaluationResultView({
         <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
           {error || 'Học sinh chưa có bài nộp cho đề này.'}
         </p>
-        <Link href="/reports" className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold inline-block">
-          Quay lại danh sách báo cáo
+        <Link href={teacherBackHref} className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold inline-block">
+          {teacherBackLabel}
         </Link>
       </div>
     );
@@ -285,11 +291,11 @@ export default function EvaluationResultView({
           ) : null}
           {viewMode === 'teacher' ? (
             <Link
-              href="/reports"
+              href={teacherBackHref}
               className="px-3.5 py-1.5 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1 shadow-sm"
             >
               <span className="material-symbols-outlined text-sm">arrow_back</span>
-              <span>Báo cáo lớp</span>
+              <span>{teacherBackLabel}</span>
             </Link>
           ) : (
             <Link

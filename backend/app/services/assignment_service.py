@@ -135,12 +135,18 @@ class AssignmentService:
         rows = list(result.scalars().all())
         revision_ids = [row.published_revision_id for row in rows if row.published_revision_id]
         counts = await outline_prep_service.counts_for_revisions(self.session, revision_ids)
+        from app.services.stats_engine import StatsEngine, empty_progress
+
+        progress = await StatsEngine(self.session).submission_progress_for_revisions(revision_ids)
         return [
             await self._teacher_dict(
                 row,
                 outline_prep=counts.get(row.published_revision_id)
                 if row.published_revision_id
                 else outline_prep_service.empty_prep_counts(),
+                submission_progress=progress.get(row.published_revision_id)
+                if row.published_revision_id
+                else empty_progress(),
             )
             for row in rows
         ]
@@ -640,6 +646,7 @@ class AssignmentService:
         *,
         full: bool = False,
         outline_prep: dict[str, int] | None = None,
+        submission_progress: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         classroom = None
         if assignment.classroom_id:
@@ -686,11 +693,28 @@ class AssignmentService:
                 self.session, assignment.published_revision_id
             )
         payload["outlinePrep"] = outline_prep or outline_prep_service.empty_prep_counts()
+        if submission_progress is None and assignment.published_revision_id:
+            from app.services.stats_engine import StatsEngine
+
+            progress_map = await StatsEngine(self.session).submission_progress_for_revisions(
+                [assignment.published_revision_id]
+            )
+            submission_progress = progress_map.get(assignment.published_revision_id)
+        from app.services.stats_engine import empty_progress
+
+        payload["submissionProgress"] = submission_progress or empty_progress()
         if full:
             payload["assignmentRubric"] = assignment.assignment_rubric
             payload["assignToWholeClass"] = whole_class
             payload["recipientStudentIds"] = stored_recipients
             payload["sourcePrompt"] = prompt_payload
+            if assignment.published_revision_id:
+                revision = await self.session.get(AssignmentRevision, assignment.published_revision_id)
+                snapshot = (revision.snapshot if revision else None) or {}
+                payload["publishedSnapshot"] = snapshot
+                payload["publishedWritingTask"] = snapshot.get("writingTask") or ""
+                payload["publishedExtraInstructions"] = snapshot.get("extraInstructions") or assignment.extra_instructions
+                payload["publishedMaterials"] = snapshot.get("materials") or []
         return payload
 
     def _student_dict(
