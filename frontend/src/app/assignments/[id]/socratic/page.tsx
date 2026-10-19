@@ -8,14 +8,11 @@ import { useAppStore } from '@/lib/store';
 import { useSocraticStore, setOnUnauthorizedHandler } from '@/features/socratic/store';
 import { useAuthStore } from '@/lib/auth-store';
 import { UIOutlineSection, itemsOfSection, isValidOutlineProposal, CLARIFICATION_REASON_LABEL } from '@/features/socratic/types';
-import {
-  CENTRAL_ASSIGNMENT_ID,
-  CENTRAL_ASSIGNMENT,
-  POEM_TEXT_LINES,
-  POEM_SOURCE_NOTES,
-} from '@/lib/mock/assignmentData';
+import { catalogApi } from '@/features/catalog/api';
+import type { StudentAssignment } from '@/features/catalog/types';
+import { shouldResetSocraticSession, socraticSessionKey } from '@/features/socratic/lifecycle';
+import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
 
-// Assignment code mapping for backend - using the mock ID format
 const ASSIGNMENT_CODE_MAP: Record<string, string> = {
   'assign-nlvh-mau-tu-do-dat': 'VAN11-NLVH-01',
 };
@@ -30,9 +27,10 @@ export default function SocraticChatPage() {
   const isAuthenticated = authStore.status === 'authenticated';
   const authUser = authStore.user;
   const { addToast } = useAppStore();
+  const [assignmentDetail, setAssignmentDetail] = useState<StudentAssignment | null>(null);
+  const [assignmentLoadError, setAssignmentLoadError] = useState('');
 
-  // Get assignment code for backend
-  const assignmentCode = ASSIGNMENT_CODE_MAP[assignmentId] || assignmentId;
+  const assignmentCode = assignmentDetail?.code || ASSIGNMENT_CODE_MAP[assignmentId] || assignmentId;
 
   // Socratic store state
   const {
@@ -68,14 +66,12 @@ export default function SocraticChatPage() {
     reset,
   } = useSocraticStore();
 
-  // Legacy store for assignment data
-  const {
-    assignments,
-    activeRubric,
-    currentUser,
-  } = useAppStore();
-
-  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
+  const { currentUser } = useAppStore();
+  const assignmentTitle = assignmentDetail?.title || 'Bài tập';
+  const assignmentInstructions =
+    assignmentDetail?.writingTask || assignmentDetail?.instructions || assignmentDetail?.extraInstructions || '';
+  const assignmentMaterials = assignmentDetail?.materials || [];
+  const assignmentRubric = assignmentDetail?.rubric;
 
   // Local UI state
   const [inputMessage, setInputMessage] = useState('');
@@ -94,34 +90,73 @@ export default function SocraticChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const sessionIdentityRef = useRef<string | null>(null);
 
-  // Initialize session on mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    catalogApi
+      .getAssignment(ASSIGNMENT_CODE_MAP[assignmentId] || assignmentId)
+      .then((detail) => {
+        if (!cancelled) setAssignmentDetail(detail);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setAssignmentLoadError(err instanceof Error ? err.message : 'Không tải được đề bài.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, assignmentId]);
+
   useEffect(() => {
     setOnUnauthorizedHandler(() => {
       authStore.clear();
     });
+  }, [authStore]);
 
-    if (isAuthenticated && assignmentCode && !isInitialized && authUser) {
-      initializeSession(assignmentCode, authUser.id)
-        .then(() => setIsInitialized(true))
-        .catch((err) => {
-          console.error('Failed to initialize session:', err);
-          setIsInitialized(true);
-        });
-    }
+  const sessionIdentity = socraticSessionKey(authUser?.id, assignmentDetail?.code);
 
-    return () => {
-      reset();
-    };
-  }, [isAuthenticated, assignmentCode, authUser?.id, authStore]);
-
-  // Re-initialize when user changes (login/logout)
   useEffect(() => {
-    if (!isAuthenticated && isInitialized) {
+    const previous = sessionIdentityRef.current;
+    if (shouldResetSocraticSession(previous, sessionIdentity)) {
       reset();
       setIsInitialized(false);
     }
-  }, [isAuthenticated]);
+    sessionIdentityRef.current = sessionIdentity;
+  }, [sessionIdentity, reset]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !assignmentDetail?.code || !authUser) {
+      return;
+    }
+    let cancelled = false;
+    initializeSession(assignmentDetail.code, authUser.id)
+      .then(() => {
+        if (!cancelled) setIsInitialized(true);
+      })
+      .catch((err) => {
+        console.error('Failed to initialize session:', err);
+        if (!cancelled) setIsInitialized(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, assignmentDetail?.code, authUser?.id, initializeSession]);
+
+  useEffect(() => {
+    return () => {
+      reset();
+    };
+  }, [reset]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      reset();
+      setIsInitialized(false);
+    }
+  }, [isAuthenticated, reset]);
 
   // Auto-scroll chat when messages update or during response
   useEffect(() => {
@@ -275,7 +310,7 @@ export default function SocraticChatPage() {
                 Socratic Writing Scaffold
               </span>
               <span className="text-xs text-on-surface-variant font-medium">
-                {assignment?.code}: {assignment?.title}
+                {assignmentDetail?.code || assignmentCode}: {assignmentTitle}
               </span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">
@@ -860,7 +895,7 @@ export default function SocraticChatPage() {
           <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
               <h2 className="font-headline-sm text-lg font-bold text-on-surface font-merriweather">
-                Đề bài &amp; Bài thơ
+                Đề bài &amp; Ngữ liệu
               </h2>
               <button onClick={() => setReadingModalOpen(false)} className="p-1 text-on-surface-variant hover:bg-surface-container rounded">
                 <span className="material-symbols-outlined">close</span>
@@ -868,24 +903,30 @@ export default function SocraticChatPage() {
             </div>
             <div className="p-6 space-y-6">
               <div>
-                <h3 className="font-bold text-on-surface mb-2">{assignment?.title}</h3>
-                <p className="text-sm text-on-surface-variant mb-4">{assignment?.instructions}</p>
+                <h3 className="font-bold text-on-surface mb-2">{assignmentTitle}</h3>
+                <p className="text-sm text-on-surface-variant mb-4 whitespace-pre-line">{assignmentInstructions}</p>
+                {assignmentLoadError && <p className="text-xs text-error">{assignmentLoadError}</p>}
               </div>
-              <div className="p-4 bg-surface-container-low rounded-lg border-l-4 border-primary">
-                <h4 className="font-bold text-primary mb-2">Bài thơ: Màu tự do của đất</h4>
-                <p className="font-merriweather text-sm leading-relaxed whitespace-pre-line">
-                  {POEM_TEXT_LINES.join('\n')}
-                </p>
-              </div>
-              {POEM_SOURCE_NOTES && POEM_SOURCE_NOTES.length > 0 && (
-                <div>
-                  <h4 className="font-bold text-on-surface mb-2">Nguồn tham khảo:</h4>
-                  <ul className="text-xs text-on-surface-variant space-y-1">
-                    {POEM_SOURCE_NOTES.map((note, idx) => (
-                      <li key={idx}>• {note}</li>
-                    ))}
-                  </ul>
+              {assignmentMaterials.map((material) => (
+                <div key={material.id} className="p-4 bg-surface-container-low rounded-lg border-l-4 border-primary">
+                  <h4 className="font-bold text-primary mb-2">{material.title}</h4>
+                  {material.sourceInfo && (
+                    <p className="text-xs text-on-surface-variant mb-2">{material.sourceInfo}</p>
+                  )}
+                  <p className="font-merriweather text-sm leading-relaxed whitespace-pre-line">
+                    {material.content || material.excerpt}
+                  </p>
+                  {(material.sourceNotes || []).length > 0 && (
+                    <ul className="text-xs text-on-surface-variant space-y-1 mt-3">
+                      {material.sourceNotes!.map((note, idx) => (
+                        <li key={idx}>• {note}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
+              ))}
+              {assignmentMaterials.length === 0 && (
+                <p className="text-sm text-on-surface-variant">Chưa tải được ngữ liệu của bài này.</p>
               )}
             </div>
           </div>
@@ -898,17 +939,17 @@ export default function SocraticChatPage() {
           <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
               <h2 className="font-headline-sm text-lg font-bold text-on-surface font-merriweather">
-                Barem Rubric (4,0đ)
+                Barem Rubric {assignmentRubric?.maxScore ? `(${assignmentRubric.maxScore}đ)` : ''}
               </h2>
               <button onClick={() => setRubricModalOpen(false)} className="p-1 text-on-surface-variant hover:bg-surface-container rounded">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
             <div className="p-6">
-              {activeRubric ? (
+              {assignmentRubric?.criteria?.length ? (
                 <div className="space-y-4">
-                  <div className="text-sm text-on-surface-variant">{activeRubric.description}</div>
-                  {activeRubric.criteria.map((criterion) => (
+                  <div className="text-sm text-on-surface-variant">{assignmentRubric.title || assignmentRubric.description}</div>
+                  {assignmentRubric.criteria.map((criterion) => (
                     <div key={criterion.id} className="p-3 bg-surface-container-low rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold text-on-surface">{criterion.name}</span>

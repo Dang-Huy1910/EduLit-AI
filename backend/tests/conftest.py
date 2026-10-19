@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from collections.abc import AsyncIterator, Iterator
@@ -9,6 +10,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -94,20 +96,36 @@ def migrate_test_db(settings: Settings) -> Iterator[None]:
     yield
 
 
+TRUNCATE_SQL = (
+    "TRUNCATE rate_limit_buckets, auth_tokens, auth_sessions, users, "
+    "idempotency_records, outline_revisions, chat_messages, socratic_sessions, "
+    "assignment_access, assignment_revisions, "
+    "class_memberships, classrooms, material_chunks, material_versions, "
+    "source_prompt_materials, source_prompts, materials, topics, "
+    "rubric_versions, rubrics, assignments RESTART IDENTITY CASCADE"
+)
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def db_engine() -> AsyncIterator[None]:
     await close_db()
     configure_engine(_async_url(TEST_DB_URL), null_pool=True)
     factory = get_session_factory()
-    async with factory() as session:
-        await session.execute(
-            text(
-                "TRUNCATE rate_limit_buckets, auth_tokens, auth_sessions, users, "
-                "idempotency_records, outline_revisions, chat_messages, socratic_sessions, "
-                "assignment_access, assignment_revisions RESTART IDENTITY CASCADE"
-            )
-        )
-        await session.commit()
+    last_error: Exception | None = None
+    for attempt in range(5):
+        try:
+            async with factory() as session:
+                await session.execute(text(TRUNCATE_SQL))
+                await session.commit()
+            last_error = None
+            break
+        except DBAPIError as exc:
+            last_error = exc
+            if "deadlock" not in str(exc).lower():
+                raise
+            await asyncio.sleep(0.2 * (attempt + 1))
+    if last_error is not None:
+        raise last_error
     yield
     await close_db()
 

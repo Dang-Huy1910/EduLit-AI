@@ -5,7 +5,7 @@
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
 
-**Trạng thái triển khai:** Giao diện prototype trên `main` chạy mock. Nhánh `feat/python-auth` bổ sung **FastAPI + PostgreSQL** cho tài khoản thật (học sinh tự đăng ký, giáo viên bootstrap). AI/OCR/lớp học chưa thuộc nhánh này. Xem [ADR-0002](docs/architecture/decisions/0002-python-auth.md) và [handoff auth](docs/development/python-auth-handoff.md).
+**Trạng thái triển khai:** Giao diện prototype trên `main` chạy mock. Nhánh hiện tại nối **kho ngữ liệu / đề nguồn / giao bài** với FastAPI + PostgreSQL (cookie auth). Xem [luồng giáo viên](docs/development/teacher-assignment-flow.md), [ADR-0002](docs/architecture/decisions/0002-python-auth.md) và [handoff auth](docs/development/python-auth-handoff.md).
 
 ---
 

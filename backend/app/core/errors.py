@@ -45,6 +45,15 @@ ERROR_MESSAGES: dict[str, str] = {
     "NOT_FOUND": "Không tìm thấy tài nguyên.",
     "INTERNAL": "Hệ thống gặp sự cố. Vui lòng thử lại sau.",
     "AI_UNAVAILABLE": "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau.",
+    "TEACHER_REQUIRED": "Chỉ giáo viên mới thực hiện được thao tác này.",
+    "STUDENT_REQUIRED": "Chỉ học sinh mới thực hiện được thao tác này.",
+    "ACCESS_DENIED": "Thầy/cô không có quyền với tài nguyên này.",
+    "PROMPT_INCOMPLETE": "Đề nguồn chưa đủ dữ liệu để tạo bài tập.",
+    "PROMPT_REQUIRED": "Cần chọn đề nguồn trước khi tạo bài tập.",
+    "ASSIGNMENT_STATUS": "Trạng thái bài tập không cho phép thao tác này.",
+    "NEED_RECIPIENTS": "Cần chọn lớp hoặc học sinh nhận bài trước khi giao.",
+    "RUBRIC_SHAPE": "Định dạng barem không hợp lệ.",
+    "RUBRIC_WEIGHT_SUM": "Tổng điểm các tiêu chí phải bằng thang điểm của barem.",
 }
 
 

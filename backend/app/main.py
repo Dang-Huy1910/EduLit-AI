@@ -16,6 +16,9 @@ from app.core.http import SENSITIVE_FIELDS
 from app.db.session import close_db
 from app.identity.router import router as auth_router
 from app.api.routers.socratic import router as socratic_router
+from app.api.routers.catalog import router as catalog_router
+from app.api.routers.assignments import student_router as assignments_router
+from app.api.routers.assignments import teacher_router as teacher_assignments_router
 
 logger = logging.getLogger("edulit.api")
 
@@ -101,6 +104,9 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix="/api")
     app.include_router(socratic_router, prefix="/api")
+    app.include_router(catalog_router, prefix="/api")
+    app.include_router(teacher_assignments_router, prefix="/api")
+    app.include_router(assignments_router, prefix="/api")
     return app
 
 

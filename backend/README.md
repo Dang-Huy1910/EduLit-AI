@@ -42,6 +42,42 @@ npm run dev
 
 Mở `http://localhost:3000`. Next.js rewrite `/api/*` tới `http://localhost:4000`. Cookie phiên `edulit_session` (HttpOnly, SameSite=Lax).
 
+## Kho ngữ liệu, đề nguồn và giao bài
+
+Luồng: Kho → chọn đề nguồn → tạo bài tập (barem, lớp, hạn nộp) → xác nhận & giao bài → học sinh mở Socratic. Chi tiết: [docs/development/teacher-assignment-flow.md](../docs/development/teacher-assignment-flow.md).
+
+```bash
+uv run alembic upgrade head
+uv run python -m app.cli bootstrap-teacher
+uv run python scripts/seed_demo.py
+```
+
+Seed idempotent: lớp 11A14, `nguyen.van.an` trong lớp, `bui.hamy` ngoài lớp, đề “Khói nhà máy…” khác đề thơ mẫu, barem 4 tiêu chí. Không truncate DB người dùng.
+
+### Định dạng import barem JSON
+
+`POST /api/teacher/rubrics`. Chỉ thông báo thành công sau khi validate và lưu. Không chọn/áp dụng barem cho một bài tập tại kho.
+
+```json
+{
+  "title": "Barem chuẩn 4 tiêu chí",
+  "shortTitle": "4 tiêu chí",
+  "description": "Thang điểm do giáo viên đặt",
+  "version": "v1",
+  "gradeLevel": 11,
+  "maxScore": 4.0,
+  "scoreStep": 0.25,
+  "criteria": [
+    { "id": "C1", "name": "Nội dung", "weight": 2.5, "guideNote": "..." },
+    { "id": "C2", "name": "Lập luận", "weight": 0.75 },
+    { "id": "C3", "name": "Diễn đạt", "weight": 0.5 },
+    { "id": "C4", "name": "Bố cục", "weight": 0.25 }
+  ]
+}
+```
+
+`weight` là điểm tối đa. Tổng weight = maxScore. Không bắt buộc 4.0. Chưa hỗ trợ PDF/DOCX.
+
 ## Kiểm thử
 
 ```bash

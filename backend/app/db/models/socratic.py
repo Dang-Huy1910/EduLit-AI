@@ -31,14 +31,15 @@ outline_revision_status_enum = ENUM(
 idempotency_state_enum = ENUM(IdempotencyState, name="idempotency_state", create_type=False)
 
 if TYPE_CHECKING:
+    from app.db.models.catalog import Assignment
     from app.db.models.user import User
 
 
 class AssignmentRevision(Base):
-    """Assignment revision used as Socratic context.
+    """Frozen assignment snapshot used as Socratic context.
 
-    Full assignment CRUD is out of scope. `code` is a lookup key only;
-    authorization uses AssignmentAccess.
+    `code` is a lookup key only; authorization uses AssignmentAccess.
+    Catalog edits after publish do not mutate this row.
     """
 
     __tablename__ = "assignment_revisions"
@@ -48,6 +49,11 @@ class AssignmentRevision(Base):
         primary_key=True,
         server_default=text("gen_random_uuid()"),
     )
+    assignment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("assignments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     code: Mapped[str] = mapped_column(String(32), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     instructions: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
@@ -56,6 +62,8 @@ class AssignmentRevision(Base):
     context_chunks: Mapped[list[dict]] = mapped_column(JSONB, nullable=False, default=list)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="PUBLISHED")
     readiness_policy: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -67,6 +75,12 @@ class AssignmentRevision(Base):
         server_default=text("now()"),
     )
 
+    assignment: Mapped[Assignment | None] = relationship(
+        "Assignment",
+        foreign_keys=[assignment_id],
+        primaryjoin="AssignmentRevision.assignment_id==Assignment.id",
+        viewonly=True,
+    )
     sessions: Mapped[list[SocraticSession]] = relationship(
         "SocraticSession", back_populates="assignment_revision"
     )
@@ -74,7 +88,10 @@ class AssignmentRevision(Base):
         "AssignmentAccess", back_populates="assignment_revision"
     )
 
-    __table_args__ = (Index("assignment_revisions_code_idx", "code"),)
+    __table_args__ = (
+        Index("assignment_revisions_code_idx", "code"),
+        Index("assignment_revisions_assignment_id_idx", "assignment_id"),
+    )
 
 
 class AssignmentAccess(Base):

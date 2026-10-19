@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -479,6 +480,28 @@ DEFAULT_FAKE_TURN = (
     ' "suggested_state": "THESIS", "sources": []}'
 )
 
+_FAKE_CHUNK_LINE = re.compile(r"\[([^\]\n]+)\]:\s*([^\n]+)")
+
+
+def _fake_outline_init_for_prompt(system_prompt: str | None, prompt: str) -> str:
+    """Bind default fake outline citations to chunks present in the prompt."""
+    blob = f"{system_prompt or ''}\n{prompt}"
+    start = blob.find("CHUNKS")
+    haystack = blob[start:] if start >= 0 else blob
+    match = _FAKE_CHUNK_LINE.search(haystack)
+    if not match:
+        return DEFAULT_FAKE_OUTLINE_INIT
+    chunk_id = match.group(1).strip()
+    quote = match.group(2).strip()[:120]
+    data = json.loads(DEFAULT_FAKE_OUTLINE_INIT)
+    data["sources"] = [{"chunk_id": chunk_id, "quote": quote}]
+    for section in data.get("sections") or []:
+        for point in section.get("points") or []:
+            if point.get("source_chunk_id"):
+                point["source_chunk_id"] = chunk_id
+    return json.dumps(data, ensure_ascii=False)
+
+
 DEFAULT_FAKE_OUTLINE_INIT = (
     '{"message": "Đây là dàn ý gợi ý theo đề; em có thể hỏi để hiểu hoặc nhờ chỉnh sửa.",'
     ' "thesis": "Ý chí vượt khó giúp con người đứng vững trước thử thách.",'
@@ -576,7 +599,7 @@ class FakeAiAdapter(AiPort):
                 ]
                 self.outline_response_index += 1
             else:
-                content = DEFAULT_FAKE_OUTLINE_INIT
+                content = _fake_outline_init_for_prompt(system_prompt, prompt)
         elif self.responses:
             content = self.responses[self.response_index % len(self.responses)]
             self.response_index += 1
