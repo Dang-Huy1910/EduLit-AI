@@ -154,6 +154,111 @@ async def seed_assignment(session: AsyncSession) -> AssignmentRevision:
     return assignment
 
 
+async def seed_assignment_nlvh(session: AsyncSession) -> AssignmentRevision:
+    code = "VAN11-NLVH-01"
+    result = await session.execute(
+        select(AssignmentRevision).where(AssignmentRevision.code == code)
+    )
+    assignment = result.scalar_one_or_none()
+    if assignment is None:
+        assignment = AssignmentRevision(
+            code=code,
+            title='Phân tích "Màu tự do của đất" — Trần Quang Quý',
+            genre="NLVH",
+            status="PUBLISHED",
+            instructions={
+                "topic": 'Cảm nhận "tự do" qua hình ảnh làng quê trong bài thơ "Màu tự do của đất"',
+                "genre": "Nghị luận văn học",
+                "word_count_target": "khoảng 600 chữ",
+                "requirements": [
+                    "Mở bài: Đặt bài thơ Màu tự do của đất của Trần Quang Quý vào đúng vấn đề nghị luận.",
+                    "Thân bài: Phân tích hình ảnh làng quê qua khứu giác, cảm giác và cội rễ tâm thức làng; làm rõ nghịch lí tự do không thoát ly bùn đất; nghệ thuật chuỗi buộc-neo-cởi; liên hệ tác phẩm khác.",
+                    "Kết bài: Khái quát đóng góp của hình ảnh làng quê và khẳng định cách nhìn riêng của tác giả về tự do.",
+                ],
+            },
+            rubric={
+                "criteria": [
+                    {
+                        "id": "C1_CONTENT_ART_RELATION",
+                        "name": "Nội dung, nghệ thuật và liên hệ",
+                        "weight": 2.5,
+                        "description": "Phân tích cách cảm nhận tự do qua hình ảnh làng quê; làm rõ nghịch lí tự do không thoát ly bùn đất; nghệ thuật thơ tự do suy tưởng; liên hệ tác phẩm khác làm bật nét riêng của tác giả.",
+                    },
+                    {
+                        "id": "C2_ANALYSIS_ARGUMENT",
+                        "name": "Phân tích, lập luận và sử dụng dẫn chứng",
+                        "weight": 0.75,
+                        "description": "Lập luận mạch lạc, bám sát văn bản; trích dẫn dẫn chứng thơ chính xác, phát hiện và phân tích được các tín hiệu thẩm mỹ độc đáo.",
+                    },
+                    {
+                        "id": "C3_EXPRESSION_LANGUAGE",
+                        "name": "Diễn đạt, ngôn ngữ và chính tả",
+                        "weight": 0.5,
+                        "description": "Diễn đạt trong sáng, giàu hình ảnh và cảm xúc văn học; không mắc lỗi chính tả, dùng từ, ngữ pháp.",
+                    },
+                    {
+                        "id": "C4_STRUCTURE_PRESENTATION",
+                        "name": "Bố cục và hình thức bài viết",
+                        "weight": 0.25,
+                        "description": "Bố cục đủ 3 phần Mở bài - Thân bài - Kết bài rõ ràng, chuyển ý tự nhiên; trình bày sạch đẹp.",
+                    },
+                ]
+            },
+            context_chunks=[
+                {
+                    "chunk_id": "chunk-poem-mau-tu-do-dat",
+                    "title": "Bài thơ Màu tự do của đất (Trần Quang Quý)",
+                    "text": (
+                        "Những ngọn khói cay mùi rơm rạ dắt tôi về cánh đồng lồng lộng sao đêm\n"
+                        "tôi hít thở mầu tự do của đất\n"
+                        "ngọn khói buộc thân phận nông dân vào cây cột tâm thức làng\n"
+                        "và mái đình cong câu ngược tầm nhìn\n"
+                        "những ngõ xóm ngủ hiền trên ngõ\n"
+                        "mỗi buổi sáng một ban mai mọc trong họ tiếng hạt nảy mầm…\n\n"
+                        "Còn vẳng lên bầy châu chấu bò quanh ký ức quê làng\n"
+                        "nức thơm mùa hái gặt\n"
+                        "củ khoai lùi bong ra cơn đói\n"
+                        "dẫn ngược con đường in dấu vết thuở ông bà mở đất\n"
+                        "những giần sàng gạn lấy nhân sinh\n\n"
+                        "Liềm hái thèm ngày thôi gặt gió sương\n"
+                        "người nông dân thèm tự do được giải phóng mình khỏi nhọc nhằn cơ bắp\n"
+                        "và tự do đầu tiên lại là tự do không thoát ly bùn đất\n"
+                        "tự do của mồ hôi\n"
+                        "tự do neo đời mình vào cánh đồng sương gió\n\n"
+                        "Trong trùng điệp bóng quê, trong trùng điệp gót người xa khuất\n"
+                        "sợi tóc làng rụng xuống ca dao\n"
+                        "áo rách áo lành bọc được bao nhiêu nhân nghĩa\n"
+                        "chiếc áo làng tôi, chiếc áo đã vị bùn\n"
+                        "ai cởi cho ta mùi khói cơm thơm?\n\n"
+                        "26/10/2010\n"
+                        "('Màu tự do của đất', in trong tập thơ cùng tên, NXB Hội Nhà văn)"
+                    ),
+                },
+                {
+                    "chunk_id": "chunk-barem-docx-huong-dan-cham",
+                    "title": "Hướng dẫn chấm gốc DOCX",
+                    "text": (
+                        "Bài văn tập trung vào cách Trần Quang Quý cảm nhận 'tự do' qua hình ảnh làng quê, "
+                        "đánh giá được nét đặc sắc nội dung, nghệ thuật và có một văn bản liên hệ về làng quê, đồng ruộng. "
+                        "Dung lượng khoảng 600 chữ; chứng cứ chủ yếu lấy từ chính bài thơ. "
+                        "Nghịch lí trung tâm: người nông dân thèm giải phóng mình khỏi nhọc nhằn cơ bắp nhưng tự do đầu tiên lại là tự do không thoát ly bùn đất. "
+                        "Chuỗi động từ: buộc - neo - cởi. Điệp từ tự do."
+                    ),
+                },
+            ],
+            readiness_policy={
+                "requiredContentKeys": ["thesis", "sections"],
+                "minSections": 1,
+            },
+        )
+        session.add(assignment)
+        logger.info("Created assignment: %s - %s", code, assignment.title)
+    else:
+        assignment.status = "PUBLISHED"
+        logger.info("Assignment already exists: %s", code)
+    return assignment
+
+
 async def seed_access(session: AsyncSession, student: User, assignment: AssignmentRevision) -> None:
     result = await session.execute(
         select(AssignmentAccess).where(
@@ -185,8 +290,10 @@ async def main() -> None:
     async with factory() as session:
         await seed_teacher(session, settings)
         student = await seed_student(session)
-        assignment = await seed_assignment(session)
-        await seed_access(session, student, assignment)
+        assignment_soc = await seed_assignment(session)
+        assignment_nlvh = await seed_assignment_nlvh(session)
+        await seed_access(session, student, assignment_soc)
+        await seed_access(session, student, assignment_nlvh)
         await session.commit()
     logger.info("Seed demo completed successfully!")
 

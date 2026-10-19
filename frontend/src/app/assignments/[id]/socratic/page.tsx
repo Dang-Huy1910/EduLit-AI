@@ -1,47 +1,81 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
-import {
-  evaluateOutlineCoverage,
-} from '@/lib/mock/socraticScript';
+import { useSocraticStore, setOnUnauthorizedHandler } from '@/features/socratic/store';
+import { useAuthStore } from '@/lib/auth-store';
+import { UIOutlineSection } from '@/features/socratic/types';
 import {
   CENTRAL_ASSIGNMENT_ID,
   CENTRAL_ASSIGNMENT,
   POEM_TEXT_LINES,
   POEM_SOURCE_NOTES,
-  DOCX_ORIGINAL_GUIDE,
 } from '@/lib/mock/assignmentData';
+
+// Assignment code mapping for backend - using the mock ID format
+const ASSIGNMENT_CODE_MAP: Record<string, string> = {
+  'assign-nlvh-mau-tu-do-dat': 'VAN11-NLVH-01',
+};
 
 export default function SocraticChatPage() {
   const router = useRouter();
   const params = useParams();
   const assignmentId = (params?.id as string) || CENTRAL_ASSIGNMENT_ID;
 
+  // Auth state
+  const authStore = useAuthStore();
+  const isAuthenticated = authStore.status === 'authenticated';
+  const authUser = authStore.user;
+  const { addToast } = useAppStore();
+
+  // Get assignment code for backend
+  const assignmentCode = ASSIGNMENT_CODE_MAP[assignmentId] || assignmentId;
+
+  // Socratic store state
   const {
-    assignments,
-    activeRubric,
-    socraticMessages,
-    isAiResponding,
-    sendSocraticMessage,
+    session,
+    messages,
+    isLoadingMessages,
+    hasMoreMessages,
     outline,
+    isSavingOutline,
+    outlineConflict,
+    isSending,
+    isAiResponding,
+    pendingOperation,
+    error,
+    initializeSession,
+    loadMessages,
+    sendMessage,
+    retryPendingMessage,
     addOutlinePoint,
     updateOutlinePoint,
     removeOutlinePoint,
     reorderOutlinePoints,
-    addToast,
+    saveOutline,
+    resolveOutlineConflict,
+    reviewOutline,
+    reset,
+  } = useSocraticStore();
+
+  // Legacy store for assignment data
+  const {
+    assignments,
+    activeRubric,
     currentUser,
   } = useAppStore();
 
   const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
 
+  // Local UI state
   const [inputMessage, setInputMessage] = useState('');
   const [readingModalOpen, setReadingModalOpen] = useState(false);
   const [rubricModalOpen, setRubricModalOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
 
   // Outline manual addition & inline editing
   const [addingSectionId, setAddingSectionId] = useState<string | null>(null);
@@ -52,11 +86,40 @@ export default function SocraticChatPage() {
   const [selectedTargetSection, setSelectedTargetSection] = useState<Record<string, 'intro' | 'body' | 'conclusion'>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Initialize session on mount
+  useEffect(() => {
+    setOnUnauthorizedHandler(() => {
+      authStore.clear();
+    });
+
+    if (isAuthenticated && assignmentCode && !isInitialized && authUser) {
+      initializeSession(assignmentCode, authUser.id)
+        .then(() => setIsInitialized(true))
+        .catch((err) => {
+          console.error('Failed to initialize session:', err);
+          setIsInitialized(true);
+        });
+    }
+
+    return () => {
+      reset();
+    };
+  }, [isAuthenticated, assignmentCode, authUser?.id, authStore]);
+
+  // Re-initialize when user changes (login/logout)
+  useEffect(() => {
+    if (!isAuthenticated && isInitialized) {
+      reset();
+      setIsInitialized(false);
+    }
+  }, [isAuthenticated]);
 
   // Auto-scroll chat when messages update or during response
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [socraticMessages, isAiResponding]);
+  }, [messages, isAiResponding]);
 
   // Handle Escape key to close modals
   useEffect(() => {
@@ -72,51 +135,127 @@ export default function SocraticChatPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Handle API errors
+  useEffect(() => {
+    if (error) {
+      addToast(error, 'error');
+    }
+  }, [error, addToast]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMessage.trim() || isAiResponding) return;
+    if (!inputMessage.trim() || isAiResponding || isSending) return;
     const textToSend = inputMessage.trim();
     setInputMessage('');
-    sendSocraticMessage(textToSend);
+    await sendMessage(textToSend);
   };
 
+  const handleRetry = async () => {
+    await retryPendingMessage();
+  };
 
-  const handleAddOutlinePointSubmit = (sectionId: string) => {
+  const handleLoadMoreMessages = async () => {
+    const container = chatScrollRef.current;
+    if (!container) return;
+    const prevScrollHeight = container.scrollHeight;
+    const prevScrollTop = container.scrollTop;
+
+    await loadMessages(true);
+
+    requestAnimationFrame(() => {
+      if (container) {
+        const newScrollHeight = container.scrollHeight;
+        container.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight);
+      }
+    });
+  };
+
+  const handleAddOutlinePointSubmit = async (sectionId: string) => {
     if (!newPointText.trim()) return;
-    const success = addOutlinePoint(sectionId, newPointText.trim());
-    if (success) {
-      addToast('Đã thêm ý mới vào dàn ý của em.', 'success');
+    const added = addOutlinePoint(sectionId, newPointText.trim());
+    if (added) {
       setNewPointText('');
       setAddingSectionId(null);
+      const saved = await saveOutline();
+      if (saved) {
+        addToast('Đã thêm ý mới vào dàn ý của em.', 'success');
+      } else {
+        addToast('Đã thêm ý vào bản nháp, nhưng chưa lưu được lên máy chủ.', 'warning');
+      }
     } else {
       addToast('Ý này đã có trong dàn ý của em (tránh trùng lặp).', 'warning');
     }
   };
 
-  const handleSaveInlineEdit = () => {
+  const handleSaveInlineEdit = async () => {
     if (!editingPoint) return;
     if (!editingPoint.text.trim()) {
       addToast('Nội dung ý không được để trống.', 'warning');
       return;
     }
     updateOutlinePoint(editingPoint.sectionId, editingPoint.index, editingPoint.text.trim());
-    addToast('Đã cập nhật ý trong dàn ý.', 'success');
     setEditingPoint(null);
+    const saved = await saveOutline();
+    if (saved) {
+      addToast('Đã cập nhật ý trong dàn ý.', 'success');
+    } else {
+      addToast('Đã sửa bản nháp, nhưng chưa lưu được lên máy chủ.', 'warning');
+    }
   };
 
-  const handleTransferToOutline = (msgId: string, point: string, defaultSectionId: 'intro' | 'body' | 'conclusion' = 'body') => {
+  const handleTransferToOutline = async (msgId: string, point: string, defaultSectionId: 'intro' | 'body' | 'conclusion' = 'body') => {
     const targetSection = selectedTargetSection[msgId] || defaultSectionId;
-    const success = addOutlinePoint(targetSection, point);
-    if (success) {
+    const added = addOutlinePoint(targetSection, point);
+    if (added) {
       const sectionName =
         targetSection === 'intro' ? 'Mở bài' : targetSection === 'body' ? 'Thân bài' : 'Kết bài';
-      addToast(`Đã thêm ý vào phần ${sectionName}.`, 'success');
+      const saved = await saveOutline();
+      if (saved) {
+        addToast(`Đã thêm ý vào phần ${sectionName}.`, 'success');
+      } else {
+        addToast(`Đã thêm ý vào bản nháp phần ${sectionName}, nhưng chưa lưu được lên máy chủ.`, 'warning');
+      }
     } else {
       addToast('Ý này đã có trong dàn ý của em (tránh thêm trùng lặp).', 'info');
     }
   };
 
-  const coverage = evaluateOutlineCoverage(outline);
+  const handleSaveOutline = async () => {
+    const saved = await saveOutline();
+    if (saved) {
+      addToast('Dàn ý đã được lưu.', 'success');
+    } else {
+      addToast('Không thể lưu dàn ý. Vui lòng kiểm tra lại.', 'error');
+    }
+  };
+
+  const handleReviewOutline = async () => {
+    setIsReviewing(true);
+    try {
+      const result = await reviewOutline();
+      if (result) {
+        const readinessLabel = result.readiness === 'READY' ? 'Sẵn sàng nộp bài'
+          : result.readiness === 'NOT_READY' ? 'Chưa sẵn sàng'
+          : 'Cần thêm ý kiến';
+        addToast(`Đã rà soát: ${readinessLabel}`, 'info');
+      } else {
+        addToast('Không thể rà soát dàn ý. Vui lòng kiểm tra lại.', 'error');
+      }
+    } catch {
+      addToast('Không thể rà soát dàn ý. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsReviewing(false);
+    }
+  };
+
+  // Get readiness from session
+  const readiness = session?.readiness || 'INCONCLUSIVE';
+  const readinessLabel = readiness === 'READY' ? 'Sẵn sàng nộp bài'
+    : readiness === 'NOT_READY' ? 'Cần hoàn thiện thêm'
+    : 'Đang đánh giá...';
+
+  // Loading state
+  const isLoading = isLoadingMessages && messages.length === 0;
 
   return (
     <StudentShell headerTitle="Khối 11 - Lớp 11A14" headerSubtitle="Trợ lý gợi mở Socratic & Lập dàn ý">
@@ -158,8 +297,6 @@ export default function SocraticChatPage() {
         {/* 5-Step Workflow Stepper */}
         <AssignmentWorkflowStepper currentStep="socratic" assignmentId={assignmentId} />
 
-
-
         {/* Pedagogical Guideline Alert */}
         <div className="p-3 bg-surface-container-low/50 rounded-xl border border-secondary/20 flex items-center gap-2.5 text-xs text-on-surface-variant">
           <span className="material-symbols-outlined text-secondary text-base shrink-0">verified</span>
@@ -173,79 +310,156 @@ export default function SocraticChatPage() {
           {/* Left Chat Area (7 cols) */}
           <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-col h-[670px]">
             {/* Chat Messages Scroll */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              {socraticMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
-                >
-                  <div className="flex items-center gap-1.5 mb-1 text-[11px] text-on-surface-variant">
-                    {msg.sender === 'ai' ? (
-                      <>
-                        <span className="w-5 h-5 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-[10px]">
-                          AI
-                        </span>
-                        <span className="font-semibold text-secondary">Trợ lý Sư phạm</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="font-semibold text-on-surface">{currentUser?.name || 'Đỗ Đăng An'}</span>
-                        <span className="w-5 h-5 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-[10px]">
-                          {currentUser?.avatarInitials || 'ĐA'}
-                        </span>
-                      </>
-                    )}
-                    <span>• {msg.timestamp}</span>
-                  </div>
-
-                  <div
-                    className={`p-3.5 rounded-xl max-w-[88%] text-xs leading-relaxed ${
-                      msg.sender === 'user'
-                        ? 'bg-primary-container text-on-primary-container rounded-tr-none font-medium'
-                        : 'bg-surface-container-low text-on-surface rounded-tl-none border border-outline-variant/30'
-                    }`}
+            <div ref={chatScrollRef} className="flex-1 p-4 overflow-y-auto space-y-4">
+              {/* Pagination button for older turns */}
+              {hasMoreMessages && (
+                <div className="flex justify-center pb-2">
+                  <button
+                    type="button"
+                    onClick={handleLoadMoreMessages}
+                    disabled={isLoadingMessages}
+                    className="px-3 py-1 bg-surface-container hover:bg-surface-container-high rounded-full text-[11px] font-semibold text-primary transition-all flex items-center gap-1 shadow-2xs disabled:opacity-50"
                   >
-                    <p className="whitespace-pre-line">{msg.text}</p>
+                    {isLoadingMessages ? (
+                      <span className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin"></span>
+                    ) : (
+                      <span className="material-symbols-outlined text-[13px]">history</span>
+                    )}
+                    <span>Tải tin nhắn cũ hơn</span>
+                  </button>
+                </div>
+              )}
 
-                    {/* Action: Transfer structured outline point to selected outline section */}
-                    {msg.canAddToOutline && msg.outlinePoint && (
-                      <div className="mt-3 pt-2.5 border-t border-outline-variant/30 flex flex-wrap items-center justify-between gap-2 bg-surface-container-lowest/60 p-2 rounded-lg">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-on-surface-variant font-medium">Chuyển vào:</span>
-                          <select
-                            value={selectedTargetSection[msg.id] || msg.suggestedSectionId || 'body'}
-                            onChange={(e) =>
-                              setSelectedTargetSection({
-                                ...selectedTargetSection,
-                                [msg.id]: e.target.value as 'intro' | 'body' | 'conclusion',
-                              })
-                            }
-                            className="text-[11px] font-semibold bg-surface border border-outline-variant/60 rounded px-2 py-0.5 text-primary"
-                          >
-                            <option value="intro">I. Mở bài</option>
-                            <option value="body">II. Thân bài</option>
-                            <option value="conclusion">III. Kết bài</option>
-                          </select>
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full text-xs text-on-surface-variant">
+                  <div className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
+                    <span>Đang tải cuộc trò chuyện...</span>
+                  </div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-xs text-on-surface-variant">
+                  <div className="text-center p-4">
+                    <span className="material-symbols-outlined text-3xl text-outline mb-2">chat</span>
+                    <p>Chưa có tin nhắn. Hãy bắt đầu cuộc trò chuyện với trợ lý Socratic!</p>
+                  </div>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-1 text-[11px] text-on-surface-variant">
+                      {msg.sender === 'ai' ? (
+                        <>
+                          <span className="w-5 h-5 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-[10px]">
+                            AI
+                          </span>
+                          <span className="font-semibold text-secondary">Trợ lý Sư phạm</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-semibold text-on-surface">{currentUser?.name || authUser?.displayName || 'Học sinh'}</span>
+                          <span className="w-5 h-5 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-[10px]">
+                            {currentUser?.avatarInitials || (authUser?.displayName?.charAt(0) || 'HS')}
+                          </span>
+                        </>
+                      )}
+                      <span>• {msg.timestamp}</span>
+                    </div>
+
+                    <div
+                      className={`p-3.5 rounded-xl max-w-[88%] text-xs leading-relaxed ${
+                        msg.sender === 'user'
+                          ? 'bg-primary-container text-on-primary-container rounded-tr-none font-medium'
+                          : 'bg-surface-container-low text-on-surface rounded-tl-none border border-outline-variant/30'
+                      }`}
+                    >
+                      <p className="whitespace-pre-line">{msg.text}</p>
+
+                      {/* Display source references from backend */}
+                      {msg.sources && msg.sources.length > 0 && (
+                        <div className="mt-2.5 pt-2 border-t border-outline-variant/30 space-y-1">
+                          <div className="text-[10px] font-bold text-secondary flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">format_quote</span>
+                            <span>Nguồn ngữ liệu tham chiếu:</span>
+                          </div>
+                          <div className="space-y-1">
+                            {msg.sources.map((src, idx) => (
+                              <div key={idx} className="text-[11px] text-on-surface-variant italic pl-2 border-l-2 border-secondary/40">
+                                &ldquo;{src.quote}&rdquo; {src.chunk_id ? <span className="not-italic text-[10px] font-mono opacity-70">({src.chunk_id})</span> : null}
+                              </div>
+                            ))}
+                          </div>
                         </div>
+                      )}
 
-                        <button
-                          onClick={() =>
-                            handleTransferToOutline(
-                              msg.id,
-                              msg.outlinePoint!,
-                              msg.suggestedSectionId || 'body'
-                            )
-                          }
-                          className="px-2.5 py-1 bg-secondary text-white rounded text-[11px] font-semibold hover:bg-secondary/90 flex items-center gap-1 shadow-sm transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">playlist_add</span>
-                          <span>Thêm vào dàn ý</span>
-                        </button>
+                      {/* Action: Transfer structured outline point to selected outline section */}
+                      {msg.canAddToOutline && msg.outlinePoint && (
+                        <div className="mt-3 pt-2.5 border-t border-outline-variant/30 space-y-2 bg-surface-container-lowest/60 p-2.5 rounded-lg border border-outline-variant/20">
+                          <div className="text-[11px] text-on-surface flex items-start gap-1.5">
+                            <span className="material-symbols-outlined text-secondary text-sm shrink-0 mt-0.5">lightbulb</span>
+                            <span className="leading-snug"><strong className="text-secondary font-semibold">Gợi ý ý dàn ý:</strong> {msg.outlinePoint}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-outline-variant/20">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] text-on-surface-variant font-medium">Chuyển vào:</span>
+                              <select
+                                value={selectedTargetSection[msg.id] || msg.suggestedSectionId || 'body'}
+                                onChange={(e) =>
+                                  setSelectedTargetSection({
+                                    ...selectedTargetSection,
+                                    [msg.id]: e.target.value as 'intro' | 'body' | 'conclusion',
+                                  })
+                                }
+                                className="text-[11px] font-semibold bg-surface border border-outline-variant/60 rounded px-2 py-0.5 text-primary"
+                              >
+                                <option value="intro">I. Mở bài</option>
+                                <option value="body">II. Thân bài</option>
+                                <option value="conclusion">III. Kết bài</option>
+                              </select>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleTransferToOutline(
+                                  msg.id,
+                                  msg.outlinePoint!,
+                                  msg.suggestedSectionId || 'body'
+                                )
+                              }
+                              className="px-2.5 py-1 bg-secondary text-white rounded text-[11px] font-semibold hover:bg-secondary/90 flex items-center gap-1 shadow-sm transition-all"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">playlist_add</span>
+                              <span>Thêm vào dàn ý</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Retry button for failed message */}
+                    {msg.isFailed && (
+                      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-error font-medium">
+                        <span className="material-symbols-outlined text-xs">error</span>
+                        <span>Chưa gửi được tin nhắn.</span>
+                        {pendingOperation && (
+                          <button
+                            type="button"
+                            onClick={handleRetry}
+                            disabled={isSending || isAiResponding}
+                            className="underline hover:text-error/80 font-semibold ml-1 cursor-pointer"
+                          >
+                            Thử lại
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
+                ))
+              )}
 
               {isAiResponding && (
                 <div className="flex items-center gap-2.5 p-3.5 bg-surface-container-low/70 rounded-xl max-w-[80%] text-xs text-on-surface-variant border border-outline-variant/30 shadow-xs">
@@ -266,17 +480,17 @@ export default function SocraticChatPage() {
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                disabled={isAiResponding}
-                placeholder="Nhập câu hỏi hoặc chia sẻ ý tưởng để cùng Trợ lý Socratic phát triển dàn ý..."
+                disabled={isAiResponding || !isAuthenticated || isSending}
+                placeholder={!isAuthenticated ? 'Vui lòng đăng nhập để chat...' : "Nhập câu hỏi hoặc chia sẻ ý tưởng để cùng Trợ lý Socratic phát triển dàn ý..."}
                 maxLength={400}
                 className="flex-1 px-3 py-2 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary disabled:opacity-60"
               />
               <button
                 type="submit"
-                disabled={isAiResponding || !inputMessage.trim()}
+                disabled={isAiResponding || !inputMessage.trim() || !isAuthenticated || isSending}
                 className="px-4 py-2 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 shrink-0"
               >
-                {isAiResponding ? (
+                {isAiResponding || isSending ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
                 ) : (
                   <span className="material-symbols-outlined text-base">send</span>
@@ -299,17 +513,51 @@ export default function SocraticChatPage() {
                 </p>
               </div>
               <button
-                onClick={() => addToast('Dàn ý đã được lưu tự động vào bộ nhớ phiên làm việc.', 'success')}
-                className="px-2.5 py-1 text-xs border border-outline-variant/50 rounded-md text-on-surface hover:bg-surface-container flex items-center gap-1"
+                onClick={handleSaveOutline}
+                disabled={isSavingOutline}
+                className="px-2.5 py-1 text-xs border border-outline-variant/50 rounded-md text-on-surface hover:bg-surface-container flex items-center gap-1 disabled:opacity-50"
               >
-                <span className="material-symbols-outlined text-[14px]">save</span>
+                {isSavingOutline ? (
+                  <span className="w-3 h-3 border border-on-surface border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <span className="material-symbols-outlined text-[14px]">save</span>
+                )}
                 <span>Lưu nháp</span>
               </button>
             </div>
 
+            {/* Conflict resolution banner */}
+            {outlineConflict && (
+              <div className="p-3 mx-3.5 mt-3 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-400">
+                  <span className="material-symbols-outlined text-sm">warning</span>
+                  <span>Xung đột phiên bản dàn ý với máy chủ</span>
+                </div>
+                <p className="text-[11px] text-on-surface-variant">
+                  Dàn ý trên máy chủ có phiên bản mới hơn. Em muốn ghi đè bằng bản nháp hiện tại hay tải lại từ máy chủ?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => resolveOutlineConflict('keep_draft')}
+                    className="px-2.5 py-1 bg-primary text-white rounded text-[11px] font-semibold hover:bg-primary/90"
+                  >
+                    Ghi đè bản nháp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => resolveOutlineConflict('load_server')}
+                    className="px-2.5 py-1 bg-surface-container border border-outline-variant/60 rounded text-[11px] font-semibold text-on-surface hover:bg-surface-container-high"
+                  >
+                    Tải lại từ máy chủ
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Outline Sections & Points */}
             <div className="flex-1 p-3.5 overflow-y-auto space-y-3.5 text-xs">
-              {outline.map((section) => (
+              {outline.sections.map((section: UIOutlineSection) => (
                 <div key={section.id} className="p-3 bg-surface-container-low/40 rounded-xl border border-outline-variant/30 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-primary font-merriweather flex items-center gap-1.5">
@@ -332,11 +580,11 @@ export default function SocraticChatPage() {
                     </div>
                   ) : (
                     <ul className="space-y-1.5">
-                      {section.points.map((point, idx) => {
+                      {section.points.map((point: string, idx: number) => {
                         const isEditingThis =
-                          editingPoint?.sectionId === section.id && editingPoint?.index === idx;
+                          editingPoint !== null && editingPoint?.sectionId === section.id && editingPoint?.index === idx;
 
-                        if (isEditingThis) {
+                        if (isEditingThis && editingPoint) {
                           return (
                             <li key={idx} className="p-2 bg-surface-container-lowest rounded-lg border border-secondary space-y-1.5">
                               <textarea
@@ -408,7 +656,15 @@ export default function SocraticChatPage() {
                               {/* Delete Point */}
                               <button
                                 type="button"
-                                onClick={() => removeOutlinePoint(section.id, idx)}
+                                onClick={async () => {
+                                  removeOutlinePoint(section.id, idx);
+                                  const saved = await saveOutline();
+                                  if (saved) {
+                                    addToast('Đã xóa ý khỏi dàn ý.', 'info');
+                                  } else {
+                                    addToast('Đã xóa trong bản nháp, nhưng chưa lưu được lên máy chủ.', 'warning');
+                                  }
+                                }}
                                 title="Xóa ý này"
                                 className="p-0.5 text-on-surface-variant hover:text-error rounded"
                               >
@@ -450,37 +706,43 @@ export default function SocraticChatPage() {
                 </div>
               ))}
 
-              {/* Structural Checklist Card (Replaces Hardcoded %) */}
+              {/* Readiness Status Card - from Backend */}
               <div className="p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-on-surface flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm text-secondary">checklist</span>
                     <span>Kiểm tra cấu trúc yêu cầu đề bài:</span>
                   </span>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${coverage.isReadyForSubmission ? 'bg-tertiary-container/40 text-tertiary' : 'bg-[#FEF9C3] text-[#CA8A04]'}`}>
-                    {coverage.metCount}/{coverage.totalCount} yêu cầu
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    readiness === 'READY'
+                      ? 'bg-tertiary-container/40 text-tertiary'
+                      : readiness === 'NOT_READY'
+                      ? 'bg-[#FEF9C3] text-[#CA8A04]'
+                      : 'bg-surface-container text-on-surface-variant'
+                  }`}>
+                    {readiness === 'READY' ? '✓ Đạt chuẩn'
+                      : readiness === 'NOT_READY' ? '⚠ Cần thêm'
+                      : '⏳ Đang đánh giá'}
                   </span>
                 </div>
 
-                <div className="space-y-1 pt-1">
-                  {coverage.items.map((item) => (
-                    <div key={item.id} className="flex items-start gap-1.5 text-[11px]">
-                      <span className={`material-symbols-outlined text-sm mt-0.5 shrink-0 ${item.isMet ? 'text-tertiary font-bold' : 'text-outline/50'}`}>
-                        {item.isMet ? 'check_circle' : 'radio_button_unchecked'}
-                      </span>
-                      <div className="flex-1">
-                        <span className={item.isMet ? 'font-medium text-on-surface' : 'text-on-surface-variant/70'}>
-                          {item.label}
-                        </span>
-                        <p className="text-[10px] text-on-surface-variant/70 leading-tight">{item.description}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-[10px] text-on-surface-variant/70 italic pt-1 border-t border-outline-variant/20">
+                  * Đánh giá độ sẵn sàng dựa trên kết quả rà soát từ hệ thống. Sử dụng nút &ldquo;Rà soát&rdquo; để cập nhật.
                 </div>
 
-                <p className="text-[10px] text-on-surface-variant/80 italic pt-1 border-t border-outline-variant/20">
-                  * Hệ thống tự động đối chiếu các luận điểm trọng tâm dựa theo khung ma trận chuẩn GDPT 2018.
-                </p>
+                <button
+                  type="button"
+                  onClick={handleReviewOutline}
+                  disabled={isReviewing}
+                  className="w-full py-2 px-3 bg-secondary-container text-on-secondary-container text-xs font-semibold rounded-lg hover:bg-secondary-container/80 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {isReviewing ? (
+                    <span className="w-3 h-3 border border-secondary border-t-transparent rounded-full animate-spin"></span>
+                  ) : (
+                    <span className="material-symbols-outlined text-sm">refresh</span>
+                  )}
+                  <span>Rà soát dàn ý</span>
+                </button>
               </div>
             </div>
 
@@ -488,8 +750,12 @@ export default function SocraticChatPage() {
             <div className="p-3.5 border-t border-outline-variant/20 bg-surface-container-low/50 rounded-b-xl space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-on-surface">Đánh giá độ sẵn sàng:</span>
-                <span className="text-[11px] font-semibold text-primary">
-                  {coverage.readinessLabel}
+                <span className={`text-[11px] font-semibold ${
+                  readiness === 'READY' ? 'text-tertiary'
+                  : readiness === 'NOT_READY' ? 'text-[#CA8A04]'
+                  : 'text-primary'
+                }`}>
+                  {readinessLabel}
                 </span>
               </div>
 
@@ -498,140 +764,85 @@ export default function SocraticChatPage() {
                 onClick={() => router.push(`/assignments/${assignmentId}/submit`)}
                 className="w-full py-2.5 px-4 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5"
               >
-                <span>Chuyển sang Bước 3: Viết tay &amp; Nộp ảnh</span>
-                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                <span>Chuyển sang bước viết bài &amp; Nộp ảnh</span>
+                <span className="material-symbols-outlined text-base">arrow_forward</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Reading & Poem Source Modal */}
+      {/* Reading Material Modal */}
       {readingModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-xl border border-outline-variant/40">
-            <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container-low/60 rounded-t-2xl">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">menu_book</span>
-                <h3 className="font-bold text-sm text-on-surface font-merriweather">
-                  Đề bài &amp; Bài thơ &ldquo;Màu tự do của đất&rdquo; (Trần Quang Quý)
-                </h3>
-              </div>
-              <button
-                onClick={() => setReadingModalOpen(false)}
-                className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setReadingModalOpen(false)}>
+          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
+              <h2 className="font-headline-sm text-lg font-bold text-on-surface font-merriweather">
+                Đề bài &amp; Bài thơ
+              </h2>
+              <button onClick={() => setReadingModalOpen(false)} className="p-1 text-on-surface-variant hover:bg-surface-container rounded">
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed">
-              {/* Assignment Instructions */}
-              <div className="p-3.5 bg-surface-container-low rounded-xl border border-outline-variant/30 space-y-2">
-                <span className="font-bold text-primary text-xs uppercase tracking-wider block">
-                  Đề chính (Thang điểm: 4,0 điểm):
-                </span>
-                <p className="text-on-surface font-medium leading-relaxed">
-                  Viết bài văn nghị luận khoảng 600 chữ phân tích cách nhà thơ Trần Quang Quý cảm nhận &ldquo;tự do&rdquo; qua những hình ảnh làng quê trong bài thơ &ldquo;Màu tự do của đất&rdquo;, đồng thời liên hệ với một bài thơ hoặc đoạn thơ khác viết về làng quê, đồng ruộng để làm rõ cách nhìn riêng của tác giả.
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="font-bold text-on-surface mb-2">{assignment?.title}</h3>
+                <p className="text-sm text-on-surface-variant mb-4">{assignment?.instructions}</p>
+              </div>
+              <div className="p-4 bg-surface-container-low rounded-lg border-l-4 border-primary">
+                <h4 className="font-bold text-primary mb-2">Bài thơ: Màu tự do của đất</h4>
+                <p className="font-merriweather text-sm leading-relaxed whitespace-pre-line">
+                  {POEM_TEXT_LINES.join('\n')}
                 </p>
               </div>
-
-              {/* Poem Verbatim Content */}
-              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-2">
-                <div className="text-center pb-2 border-b border-outline-variant/20">
-                  <h4 className="font-bold text-sm font-merriweather text-primary uppercase">Màu tự do của đất</h4>
-                  <span className="text-xs text-on-surface-variant italic">Trần Quang Quý</span>
+              {POEM_SOURCE_NOTES && POEM_SOURCE_NOTES.length > 0 && (
+                <div>
+                  <h4 className="font-bold text-on-surface mb-2">Nguồn tham khảo:</h4>
+                  <ul className="text-xs text-on-surface-variant space-y-1">
+                    {POEM_SOURCE_NOTES.map((note, idx) => (
+                      <li key={idx}>• {note}</li>
+                    ))}
+                  </ul>
                 </div>
-
-                <div className="font-serif text-[13px] leading-loose text-on-surface pl-2 border-l-2 border-secondary/40 space-y-1">
-                  {POEM_TEXT_LINES.map((line, idx) => (
-                    <div key={idx} className={line === '' ? 'h-3' : 'hover:bg-surface-container-low/40 px-1 rounded'}>
-                      {line}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Source verification notes */}
-              <div className="p-3 bg-secondary-fixed/20 rounded-xl border border-secondary/30 space-y-1.5 text-[11px] text-on-surface">
-                <span className="font-bold text-secondary flex items-center gap-1">
-                  <span className="material-symbols-outlined text-sm">info</span>
-                  Ghi chú rà soát văn bản nguồn từ file DOCX:
-                </span>
-                {POEM_SOURCE_NOTES.map((note, idx) => (
-                  <p key={idx} className="text-on-surface-variant">• {note}</p>
-                ))}
-              </div>
-            </div>
-
-            <div className="p-3 border-t border-outline-variant/20 flex justify-end bg-surface-container-low/40 rounded-b-2xl">
-              <button
-                onClick={() => setReadingModalOpen(false)}
-                className="px-4 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold"
-              >
-                Đóng (Esc)
-              </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Rubric & DOCX Guide Modal */}
+      {/* Rubric Modal */}
       {rubricModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container-lowest rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-xl border border-outline-variant/40">
-            <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container-low/60 rounded-t-2xl">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">gavel</span>
-                <h3 className="font-bold text-sm text-on-surface font-merriweather">
-                  Barem Rubric Đề xuất &amp; Hướng dẫn chấm gốc DOCX (Thang 4,0 điểm)
-                </h3>
-              </div>
-              <button
-                onClick={() => setRubricModalOpen(false)}
-                className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setRubricModalOpen(false)}>
+          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
+              <h2 className="font-headline-sm text-lg font-bold text-on-surface font-merriweather">
+                Barem Rubric (4,0đ)
+              </h2>
+              <button onClick={() => setRubricModalOpen(false)} className="p-1 text-on-surface-variant hover:bg-surface-container rounded">
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-
-            <div className="p-5 overflow-y-auto space-y-4 text-xs leading-relaxed">
-              {/* 4 Criteria Grid */}
-              <div className="space-y-3">
-                <span className="font-bold text-primary text-xs uppercase tracking-wider block">
-                  Cấu trúc {activeRubric.criteria.length} tiêu chí Barem Rubric (Tổng: {activeRubric.maxScore.toFixed(2)} điểm):
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {activeRubric.criteria.map((c) => (
-                    <div key={c.id} className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/30 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-on-surface">{c.name}</span>
-                        <span className="font-bold text-secondary font-mono">{c.weight.toFixed(2)}đ</span>
+            <div className="p-6">
+              {activeRubric ? (
+                <div className="space-y-4">
+                  <div className="text-sm text-on-surface-variant">{activeRubric.description}</div>
+                  {activeRubric.criteria.map((criterion) => (
+                    <div key={criterion.id} className="p-3 bg-surface-container-low rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-on-surface">{criterion.name}</span>
+                        <span className="text-xs bg-primary-container text-on-primary-container px-2 py-0.5 rounded-full">
+                          {criterion.weight} điểm
+                        </span>
                       </div>
-                      <p className="text-[11px] text-on-surface-variant leading-relaxed">{c.guideNote}</p>
+                      {criterion.guideNote && (
+                        <p className="text-xs text-on-surface-variant">{criterion.guideNote}</p>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
-
-              {/* Verbatim DOCX Guide Section */}
-              <div className="p-4 bg-surface-container-low/60 rounded-xl border border-outline-variant/30 space-y-2">
-                <span className="font-bold text-primary text-xs uppercase tracking-wider block">
-                  Nội dung Hướng dẫn chấm nguyên gốc từ DOCX:
-                </span>
-                <pre className="font-sans text-[11px] text-on-surface whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto p-3 bg-surface-container-lowest rounded-lg border border-outline-variant/20">
-                  {DOCX_ORIGINAL_GUIDE}
-                </pre>
-              </div>
-            </div>
-
-            <div className="p-3 border-t border-outline-variant/20 flex justify-end bg-surface-container-low/40 rounded-b-2xl">
-              <button
-                onClick={() => setRubricModalOpen(false)}
-                className="px-4 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold"
-              >
-                Đóng (Esc)
-              </button>
+              ) : (
+                <p className="text-sm text-on-surface-variant">Chưa có rubric cho bài tập này.</p>
+              )}
             </div>
           </div>
         </div>

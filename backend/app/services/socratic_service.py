@@ -273,6 +273,30 @@ class SocraticService:
         )
         return list(result.scalars().all())
 
+    async def find_session_by_assignment(
+        self, user: User, assignment_code: str
+    ) -> SocraticSession | None:
+        """Find existing session for a specific assignment code."""
+        if user.role != UserRole.STUDENT:
+            raise ForbiddenError("Only students can access Socratic sessions")
+
+        # Find the assignment revision by code
+        result = await self.db.execute(
+            select(AssignmentRevision).where(AssignmentRevision.code == assignment_code)
+        )
+        assignment = result.scalar_one_or_none()
+        if not assignment:
+            return None
+
+        # Find session for this assignment and student
+        result = await self.db.execute(
+            select(SocraticSession).where(
+                SocraticSession.student_id == user.id,
+                SocraticSession.assignment_revision_id == assignment.id,
+            )
+        )
+        return result.scalar_one_or_none()
+
     # ── Messages / pagination ────────────────────────────────────────────────
 
     def _clamp_limit(self, limit: int | None) -> int:

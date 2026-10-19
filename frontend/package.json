@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --test --experimental-strip-types --loader ./scripts/test-loader.mjs src/features/socratic/__tests__/regression.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

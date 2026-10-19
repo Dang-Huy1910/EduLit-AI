@@ -211,6 +211,39 @@ async def list_sessions(
     return [_session_response(s) for s in sessions]
 
 
+class FindSessionRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    assignmentCode: str = Field(..., min_length=1, max_length=32)
+
+
+class FindSessionResponse(BaseModel):
+    session: SessionResponse | None
+    exists: bool
+
+
+@router.get("/by-assignment", response_model=FindSessionResponse)
+async def find_session_by_assignment(
+    student: Annotated[User, Depends(get_authenticated_student)],
+    service: Annotated[SocraticService, Depends(get_socratic_service)],
+    assignmentCode: str = Query(..., min_length=1, max_length=32),
+):
+    """Find existing session for an assignment, or return None if not found."""
+    try:
+        session = await service.find_session_by_assignment(student, assignmentCode)
+        if session:
+            outline = await service.get_current_outline(session.id, student)
+            policy = session.assignment_revision.readiness_policy or {}
+            readiness = evaluate_readiness(outline.content if outline else None, policy)
+            return FindSessionResponse(
+                session=_session_response(session, outline, readiness),
+                exists=True,
+            )
+        return FindSessionResponse(session=None, exists=False)
+    except SocraticServiceError as e:
+        _map_error(e)
+
+
 @router.get("/{session_id}", response_model=SessionResponse)
 async def get_session(
     session_id: str,
