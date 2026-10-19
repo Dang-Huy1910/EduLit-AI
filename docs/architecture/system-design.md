@@ -6,7 +6,7 @@ Model được người dùng chọn: **Gemini 2.5 Flash**, mã `gemini-2.5-flas
 
 ## 1. Mục tiêu và nguyên tắc
 
-- Giữ chu trình prototype: giáo viên chuẩn bị học liệu/rubric → giao đề → học sinh lập dàn ý → nộp ảnh → rà soát OCR → nhận kết quả → giáo viên xem báo cáo.
+- Giữ chu trình prototype: giáo viên chuẩn bị học liệu/rubric → giao đề → học sinh lập dàn ý → nộp ảnh → học sinh rà soát/xác nhận OCR → chờ đánh giá → giáo viên xem báo cáo (chấm rubric AI là bước sau).
 - Backend là **modular monolith**, có hai tiến trình API và worker dùng cùng mã nghiệp vụ, cùng cơ sở dữ liệu.
 - Điểm, quyền truy cập, phiên bản đề và dữ liệu bài nộp có nguồn sự thật ở backend. Trạng thái trình duyệt phục vụ tương tác.
 - OCR và chấm là hai tác vụ riêng. Gemini đọc ảnh; lượt chấm dùng bản chép đã được xác nhận.

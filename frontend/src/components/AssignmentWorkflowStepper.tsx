@@ -2,8 +2,6 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
-
 export type WorkflowStepId = 'reading' | 'socratic' | 'submit' | 'ocr' | 'result';
 
 interface StepConfig {
@@ -27,28 +25,28 @@ const STEPS: StepConfig[] = [
     stepNumber: 2,
     label: 'Dàn ý Socratic',
     icon: 'psychology',
-    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/socratic`,
+    href: '',
   },
   {
     id: 'submit',
     stepNumber: 3,
     label: 'Viết tay & Nộp ảnh',
     icon: 'photo_camera',
-    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/submit`,
+    href: '',
   },
   {
     id: 'ocr',
     stepNumber: 4,
     label: 'Kiểm tra OCR',
     icon: 'document_scanner',
-    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/ocr`,
+    href: '',
   },
   {
     id: 'result',
     stepNumber: 5,
     label: 'Đánh giá Rubric',
     icon: 'verified',
-    href: `/assignments/${CENTRAL_ASSIGNMENT_ID}/result`,
+    href: '',
   },
 ];
 
@@ -59,7 +57,7 @@ interface AssignmentWorkflowStepperProps {
 
 export default function AssignmentWorkflowStepper({
   currentStep,
-  assignmentId = CENTRAL_ASSIGNMENT_ID,
+  assignmentId = '',
 }: AssignmentWorkflowStepperProps) {
   const currentIdx = STEPS.findIndex((s) => s.id === currentStep);
 
@@ -69,7 +67,6 @@ export default function AssignmentWorkflowStepper({
         {STEPS.map((step, idx) => {
           const isDone = idx < currentIdx;
           const isCurrent = idx === currentIdx;
-          const isUpcoming = idx > currentIdx;
 
           // Target URL
           const targetHref =

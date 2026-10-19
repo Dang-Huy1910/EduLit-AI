@@ -38,14 +38,14 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 
 **Hoàn thành khi:** hướng dẫn theo đúng đề/nguồn, giữ dàn ý học sinh, không xuất bản đoạn vi phạm guardrail; có báo cáo độ trễ thực tế. Ánh xạ FR-06–FR-10, BR-01–BR-04, AC-02/03.
 
-## M4 — OCR, chấm và teacher review
+## M4 — OCR (học sinh xác nhận) và chấm sau này
 
-- Upload/masking 1–4 trang, privacy gate, freeze attempt, queue OCR, segment mapping và bản chép revision.
-- Học sinh báo lỗi, teacher xác nhận/sửa OCR; Gemini chấm riêng, schema/score/evidence validation.
-- Teacher review/publish, retry/version locks/outbox; UI trạng thái pending/error, không lẫn AI draft và final.
-- Test worker crash/re-delivery, schema invalid, thiếu trang, model unavailable và quota limit.
+- Upload/che vùng riêng tư 1–4 trang, freeze attempt, queue OCR, segment mapping và transcription revision.
+- Học sinh đối chiếu/sửa/xác nhận bản chép; không có màn giáo viên duyệt OCR.
+- Chấm rubric AI chưa làm ở bước này; sau xác nhận hiện “Chờ đánh giá”.
+- Worker crash/re-delivery, trang lỗi phải báo rõ, retry cùng input, nộp bộ ảnh mới tạo attempt mới.
 
-**Hoàn thành khi:** một bài đi hết luồng từ ảnh đã kiểm tra đến điểm công bố; evidence kiểm tra được; job giao lại không làm nhân đôi kết quả/báo cáo. Ánh xạ FR-11–FR-17, BR-05–BR-08, AC-04/05/08/10.
+**Hoàn thành khi:** một bài đi hết chụp → OCR → học sinh xác nhận → `READY_TO_GRADE`; job giao lại không nhân đôi. Ánh xạ FR-11–FR-14. Chấm/công bố điểm thuộc bước sau.
 
 ## M5 — Báo cáo và cá nhân hóa
 
@@ -72,9 +72,9 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 | Assignments/materials trong `store.ts` | TanStack Query + API; Zustand giữ UI/draft |
 | `activeRubric` dùng chung | Rubric revision theo đề/session/attempt |
 | Outline/chat dùng chung toàn app | Scope theo student + session + assignment revision |
-| `piiMasked: boolean` | Ảnh xuất phẳng + privacy review thực tế |
-| Học sinh sửa text OCR trực tiếp | Báo lỗi OCR; teacher sửa có revision/audit |
-| Điểm 7.5 và confidence 0.94 mock | Result/pending/failure thật; confidence có source hoặc null |
+| `piiMasked: boolean` | Ảnh đã rà soát xuất bitmap (xoay/che vùng); học sinh tự che, không tự mờ danh tính |
+| Học sinh sửa text OCR trực tiếp | Học sinh đối chiếu/sửa/xác nhận; expectedRevision; không màn giáo viên duyệt OCR |
+| Điểm 7.5 và confidence 0.94 mock | Sau xác nhận: “Chờ đánh giá”; confidence có source hoặc null |
 | Reset demo | Xóa state mock của trình duyệt; không có endpoint xóa production data |
 
 Mock/API mode phải tách bằng cấu hình và adapter rõ, không silently fallback sang mock khi API lỗi. Không chuyển toàn bộ store trước khi feature tương ứng có API và kiểm tra; mỗi milestone giữ demo có thể chạy để so giao diện.

@@ -1,8 +1,8 @@
 """Copy canonical `prompts/<family>/*.md` into the installable package at build.
 
-Official sources live in repository `prompts/socratic/` and `prompts/catalog/`.
-This hook runs during sdist/wheel/editable builds so a second copy is never
-edited by hand.
+Official sources live in repository `prompts/socratic/`, `prompts/catalog/`,
+and `prompts/ocr/`. This hook runs during sdist/wheel/editable builds so a
+second copy is never edited by hand.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parent
-PROMPT_FAMILIES = ("socratic", "catalog")
+PROMPT_FAMILIES = ("socratic", "catalog", "ocr")
 CANONICAL_DIR = BACKEND_ROOT.parent / "prompts" / "socratic"
 PACKAGE_DIR = BACKEND_ROOT / "app" / "ai" / "prompts" / "socratic"
 

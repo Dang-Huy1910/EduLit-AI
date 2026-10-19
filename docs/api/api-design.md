@@ -66,7 +66,7 @@ MVP chat dùng request/response toàn bộ output đã kiểm tra, tránh rò r�
 
 Một session chỉ có một turn đang xử lý; turn reservation/version chống hai lượt đồng thời. Disconnect không tự tạo một turn mới; client đọc lại lịch sử và dùng cùng idempotency key nếu cần. Nếu backend crash khi đang gọi model, retry có thể phát sinh chi phí, phải đối soát usage.
 
-OCR/chấm dùng polling attempt state, không giữ HTTP request cho tới khi giáo viên duyệt. UI hiện progress stage và người đang cần thao tác; không báo “AI đã chấm xong” khi vẫn OCR review hoặc JSON invalid.
+OCR dùng polling GET trạng thái attempt, không giữ HTTP request tới khi xong. Học sinh đối chiếu/sửa/xác nhận bản chép; không có bước giáo viên duyệt OCR. UI hiện queued/processing/review/failed/confirmed; không báo “AI đã chấm xong” khi bài mới ở `READY_TO_GRADE` hoặc JSON invalid.
 
 ## 4. Contracts cần tạo ở milestone nền tảng
 

@@ -31,6 +31,13 @@ from app.db.models import (  # noqa: F401
     TeacherDocumentBlob,
     Topic,
     User,
+    StudentOutlinePrep,
+    Submission,
+    SubmissionAttempt,
+    SubmissionPage,
+    SubmissionPageBlob,
+    OcrResult,
+    TranscriptionRevision,
 )
 
 config = context.config

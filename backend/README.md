@@ -82,7 +82,7 @@ Seed idempotent: lớp 11A14, `nguyen.van.an` trong lớp, `bui.hamy` ngoài l�
 
 `POST /api/teacher/documents` multipart field `file` (không JSON). Chuyển Markdown bằng MarkItDown cục bộ (`markitdown[pdf,docx,xlsx]`, `enable_plugins=False`). Bytes gốc lưu BYTEA, tải lại `GET /api/teacher/documents/{id}/original`.
 
-Hỗ trợ: DOCX, PDF có lớp văn bản, TXT/Markdown, XLSX. Giới hạn mặc định 8MB; `IMPORT_MIN_TEXT_CHARS=40`. PDF scan/rỗng: trạng thái `NEEDS_OCR`, giữ file gốc, không phân tích đoán nội dung. OCR chữ viết tay chưa có.
+Hỗ trợ: DOCX, PDF có lớp văn bản, TXT/Markdown, XLSX. Giới hạn mặc định 8MB; `IMPORT_MIN_TEXT_CHARS=40`. PDF scan/rỗng: trạng thái `NEEDS_OCR`, giữ file gốc, không phân tích đoán nội dung. OCR chữ viết tay của học sinh là luồng nộp bài riêng (`prompts/ocr/transcribe-page.v1.md`), không dùng cho import PDF scan.
 
 Sau convert, agent (cùng adapter/provider hiện tại, prompt `document-extract.v1`, `IMPORT_AI_MAX_OUTPUT_TOKENS=4096`) tách ngữ liệu / yêu cầu viết đầy đủ / tóm tắt / barem. Giáo viên rà soát rồi `POST .../confirm`. Barem vào kho; chọn khi tạo bài tập. Snapshot bài đã giao dùng yêu cầu đầy đủ.
 
@@ -102,7 +102,11 @@ Thiếu `DATABASE_URL_TEST` thì pytest dừng, không dùng database dev.
 uv run python -m app.cli bootstrap-teacher
 uv run python -m app.cli reset-teacher-password --i-understand
 uv run python -m app.cli cleanup-expired
+uv run python -m app.cli outline-prep-worker
+uv run python -m app.cli ocr-worker
 ```
+
+API process đã gắn OCR worker khi `OCR_WORKER_ENABLED=true` (mặc định). Chỉ chạy CLI `ocr-worker` nếu tách worker ra process riêng và tắt worker trong API.
 
 `reset-teacher-password` chỉ dành người vận hành; thu hồi mọi phiên của giáo viên.
 

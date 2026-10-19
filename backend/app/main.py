@@ -16,11 +16,13 @@ from app.core.errors import ERROR_MESSAGES, ApiHttpException, error_body
 from app.core.http import SENSITIVE_FIELDS
 from app.db.session import close_db
 from app.workers.outline_prep import start_outline_prep_worker
+from app.workers.ocr import start_ocr_worker
 from app.identity.router import router as auth_router
 from app.api.routers.socratic import router as socratic_router
 from app.api.routers.catalog import router as catalog_router
 from app.api.routers.assignments import student_router as assignments_router
 from app.api.routers.assignments import teacher_router as teacher_assignments_router
+from app.api.routers.submissions import router as submissions_router
 
 logger = logging.getLogger("edulit.api")
 
@@ -39,18 +41,31 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
     worker_task = None
     stop_worker = None
+    ocr_task = None
+    stop_ocr = None
     if settings.OUTLINE_PREP_WORKER_ENABLED and not settings.is_test:
         worker_task, stop_worker = start_outline_prep_worker(settings=settings)
         logger.info("outline_prep worker attached to api process")
+    if settings.OCR_WORKER_ENABLED and not settings.is_test:
+        ocr_task, stop_ocr = start_ocr_worker(settings=settings)
+        logger.info("ocr worker attached to api process")
     try:
         yield
     finally:
         if stop_worker is not None:
             stop_worker()
+        if stop_ocr is not None:
+            stop_ocr()
         if worker_task is not None:
             worker_task.cancel()
             try:
                 await worker_task
+            except asyncio.CancelledError:
+                pass
+        if ocr_task is not None:
+            ocr_task.cancel()
+            try:
+                await ocr_task
             except asyncio.CancelledError:
                 pass
         await close_db()
@@ -70,7 +85,7 @@ def create_app() -> FastAPI:
         allow_origins=settings.allowed_origins,
         allow_origin_regex=r"^https://.*\.vercel\.app$",
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "X-Edulit-CSRF", "Accept", "Idempotency-Key"],
         max_age=600,
     )
@@ -124,6 +139,7 @@ def create_app() -> FastAPI:
     app.include_router(catalog_router, prefix="/api")
     app.include_router(teacher_assignments_router, prefix="/api")
     app.include_router(assignments_router, prefix="/api")
+    app.include_router(submissions_router, prefix="/api")
     return app
 
 

@@ -85,3 +85,37 @@ class MaterialVersionStatus(StrEnum):
     PRIVACY_REVIEW = "PRIVACY_REVIEW"
     READY = "READY"
     FAILED = "FAILED"
+
+
+class SubmissionAttemptState(StrEnum):
+    """Student handwritten submission attempt."""
+
+    DRAFT = "DRAFT"
+    QUEUED = "QUEUED"
+    OCR_PROCESSING = "OCR_PROCESSING"
+    OCR_REVIEW = "OCR_REVIEW"
+    FAILED = "FAILED"
+    READY_TO_GRADE = "READY_TO_GRADE"
+
+
+class OcrJobStatus(StrEnum):
+    """Durable OCR job attached to a frozen attempt."""
+
+    NONE = "NONE"
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class TranscriptionRevisionStatus(StrEnum):
+    """Student-owned transcription lifecycle."""
+
+    DRAFT = "DRAFT"
+    CONFIRMED = "CONFIRMED"
+    SUPERSEDED = "SUPERSEDED"
+
+
+class PageBlobKind(StrEnum):
+    ORIGINAL = "ORIGINAL"
+    PROCESSED = "PROCESSED"

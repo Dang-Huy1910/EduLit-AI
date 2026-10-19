@@ -222,6 +222,10 @@ def main(argv: list[str] | None = None) -> None:
         "outline-prep-worker",
         help="Run the durable per-student outline-prep worker (resumes queued jobs after restart).",
     )
+    sub.add_parser(
+        "ocr-worker",
+        help="Run the durable OCR worker (resumes queued handwritten pages after restart).",
+    )
     args = parser.parse_args(argv)
     settings = get_settings()
 
@@ -237,6 +241,10 @@ def main(argv: list[str] | None = None) -> None:
         from app.workers.outline_prep import run_outline_prep_worker
 
         asyncio.run(run_outline_prep_worker(settings=settings))
+    elif args.command == "ocr-worker":
+        from app.workers.ocr import run_ocr_worker
+
+        asyncio.run(run_ocr_worker(settings=settings))
     else:
         parser.error("unknown command")
 

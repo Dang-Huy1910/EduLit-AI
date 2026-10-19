@@ -48,7 +48,7 @@ EduLit-AI được thiết kế như một **Trợ lý sư phạm đồng hành 
 
 1. **Kho tri thức học liệu chuẩn (Grounding):** Cung cấp văn bản đọc hiểu, barem và giáo án theo đúng đề để giảm nguy cơ nhận xét thiếu căn cứ. MVP truy xuất theo đề và metadata; kiểm tra nguồn và đánh giá chất lượng vẫn cần thiết.
 2. **Trợ lý gợi mở tư duy Socratic (Socratic Writing Assistant):** Hướng dẫn học sinh lập dàn ý 3 phần (Mở bài - Thân bài - Kết bài) bằng các câu hỏi gợi ý mở. **Tuyệt đối không viết văn hộ**; kiên quyết từ chối yêu cầu "viết giúp mở bài/bài mẫu".
-3. **Bảo vệ quyền riêng tư (PII-Shield) & Nhận dạng chữ viết tay (OCR):** Tự động che mờ họ tên, trường lớp trên ảnh bài viết ngay tại trình duyệt của học sinh trước khi gửi xử lý. Trích xuất bản chép số hóa theo từng dòng để học sinh và giáo viên cùng rà soát đối chiếu.
+3. **Bảo vệ quyền riêng tư & Nhận dạng chữ viết tay (OCR):** Học sinh xem trước ảnh sẽ gửi, có thể khoanh vùng che kín họ tên/lớp/mã định danh; hệ thống xuất ảnh đã che thành file thật rồi mới gửi OCR. Học sinh tự đối chiếu, sửa bản chép và xác nhận. Không có bước giáo viên duyệt OCR.
 4. **Đánh giá đa tiêu chí Rubric GDPT 2018:** Chấm điểm theo Barem chuẩn 4 tiêu chí (Tổng 10.0đ), chỉ rõ điểm mạnh, đoạn cần bổ sung, bắt lỗi chính tả/ngữ pháp và giao bài tập khắc phục cá nhân hóa.
 5. **Báo cáo năng lực & Kế hoạch điều chỉnh giáo án:** Thống kê phổ điểm lớp 12A1, chỉ ra các lỗi phổ biến (ví dụ: 54.3% thiếu phản đề, 37.1% lỗi câu ghép) và gợi ý giải pháp điều chỉnh tiết học tiếp theo cho giáo viên.
 
@@ -74,12 +74,12 @@ sequenceDiagram
     Note over HS,SYS: 2. HỌC SINH LÀM BÀI (5 BƯỚC)
     HS->>SYS: Mở /assignments, thấy đề mới có nhãn ✨ Đề mới được giao
     HS->>SYS: Bước 1-2: Vào /socratic, tương tác với AI để hoàn thiện Dàn ý
-    HS->>SYS: Bước 3: Vào /submit, tải ảnh viết tay, kích hoạt PII-Shield che mờ danh tính
-    HS->>SYS: Bước 4: Vào /ocr, đối chiếu ảnh với bản chép số hóa, bấm "Xác nhận & Nộp bài"
-    SYS-->>SYS: Lưu kết quả nộp bài (submitAssignment)
+    HS->>SYS: Bước 3: Vào /submit, chụp/tải 1–4 trang, rà soát/che vùng riêng tư, nộp
+    HS->>SYS: Bước 4: Vào /ocr, đối chiếu ảnh với bản chép, sửa nếu cần, bấm "Xác nhận bản chép"
+    SYS-->>SYS: Attempt sang READY_TO_GRADE; chờ chấm rubric
 
-    Note over HS,GV: 3. ĐÁNH GIÁ & ĐỒNG BỘ BÁO CÁO
-    SYS-->>HS: Bước 5: Xem bảng điểm Rubric 7.5đ tại /result
+    Note over HS,GV: 3. ĐÁNH GIÁ
+    SYS-->>HS: Bước 5: Hiện "Bản chép đã xác nhận — Chờ đánh giá" (chưa chấm AI)
     HS->>SYS: Quay lại /assignments -> Đề tự chuyển sang tab "Bài đã nộp"
     GV->>SYS: Vào /reports -> Bộ đếm bài đã nộp & đã chấm của lớp tăng lên
     Note over GV,HS: Bấm "⚡ Khôi phục Demo (Reset)" để khôi phục trạng thái ban đầu bất cứ lúc nào
@@ -184,7 +184,7 @@ Tại màn hình đăng nhập, hệ thống tích hợp sẵn **2 tài khoản 
   1. Thấy đề bài mới giao xuất hiện với huy hiệu **`✨ Đề mới được giao • Cô Đặng Loan`**.
   2. Bấm **"Bắt đầu lập dàn ý Socratic"** &rarr; trò chuyện với AI để xây dựng dàn ý 3 phần &rarr; chuyển sang viết tay.
   3. Tại bước **Nộp ảnh**, thử nghiệm cơ chế **PII-Shield** che mờ danh tính &rarr; nộp ảnh.
-  4. Tại bước **Kiểm tra OCR**, đối chiếu ảnh chụp với văn bản số hóa &rarr; bấm *"Xác nhận bản chép & Nộp bài"*.
+  4. Tại bước **Kiểm tra OCR**, đối chiếu ảnh với bản chép, sửa nếu cần &rarr; bấm *"Xác nhận bản chép"*. Bài chuyển sang chờ đánh giá; chưa có điểm mock.
   5. Xem bảng điểm Rubric 7.5đ, nhận xét chi tiết và các bài tập luyện tập khắc phục lỗi.
   6. Quay lại danh sách bài tập &rarr; đề bài đã chuyển sang tab **"Bài đã nộp & Lịch sử chấm"**.
 

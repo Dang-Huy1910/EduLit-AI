@@ -1,185 +1,250 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
-import { CENTRAL_ASSIGNMENT_ID, CENTRAL_ASSIGNMENT } from '@/lib/mock/assignmentData';
-import { SUBMISSION_MANIFEST } from '@/lib/mock/submissionsManifest';
+import { AuthApiError } from '@/lib/auth-types';
+import { submissionApi } from '@/features/submission/api';
+import type { MaskRegion, SubmissionPage, SubmissionPayload } from '@/features/submission/types';
 
-function compressImage(file: File): Promise<{ dataUrl: string; sizeMb: string }> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxDim = 1600;
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
-          const sizeKb = Math.round((compressedDataUrl.length * 3) / 4 / 1024);
-          const sizeMb = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
-          resolve({ dataUrl: compressedDataUrl, sizeMb });
-          return;
-        }
-        resolve({
-          dataUrl: e.target?.result as string,
-          sizeMb: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
-        });
-      };
-      img.onerror = () => {
-        resolve({
-          dataUrl: e.target?.result as string,
-          sizeMb: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
-        });
-      };
-      img.src = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
+function formatDue(value: string | null | undefined): string {
+  if (!value) return 'Chưa có hạn nộp';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('vi-VN');
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof AuthApiError ? err.message : fallback;
 }
 
 export default function SubmitPhotosPage() {
   const router = useRouter();
   const params = useParams();
-  const assignmentId = (params?.id as string) || CENTRAL_ASSIGNMENT_ID;
+  const assignmentId = (params?.id as string) || '';
+  const { addToast, currentUser } = useAppStore();
 
-  const {
-    assignments,
-    uploadedPages,
-    loadStudentPages,
-    addCustomUploadedPage,
-    removeUploadedPage,
-    reorderUploadedPages,
-    submitHandwrittenEssay,
-    addToast,
-    currentUser,
-  } = useAppStore();
-
-  const assignment = assignments.find((a) => a.id === assignmentId) || (assignmentId === CENTRAL_ASSIGNMENT_ID ? CENTRAL_ASSIGNMENT : assignments[0]);
-
-  const [previewModalPage, setPreviewModalPage] = useState<number | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [payload, setPayload] = useState<SubmissionPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [previewPage, setPreviewPage] = useState<SubmissionPage | null>(null);
+  const [maskDraft, setMaskDraft] = useState<MaskRegion[]>([]);
+  const [drawing, setDrawing] = useState<{ x: number; y: number } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replacePageId = useRef<string | null>(null);
+  const previewBoxRef = useRef<HTMLDivElement>(null);
 
-  // Close preview modal on Escape
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setPreviewModalPage(null);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const data = await submissionApi.get(assignmentId);
+        if (cancelled) return;
+        setPayload(data);
+        if (['queued', 'processing', 'review'].includes(data.status)) {
+          router.replace(`/assignments/${assignmentId}/ocr`);
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(errorMessage(err, 'Không tải được bài nộp.'));
+      } finally {
+        if (!cancelled) setLoading(false);
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [assignmentId, router]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewPage(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Prefetch OCR page for instant transition
-  useEffect(() => {
-    router.prefetch(`/assignments/${assignmentId}/ocr`);
-  }, [router, assignmentId]);
+  const pages = payload?.pages || [];
+  const canEdit = payload?.canEditPages !== false && payload?.status === 'draft';
 
-  // Auto-load student scanned pages if empty
-  useEffect(() => {
-    if (uploadedPages.length === 0) {
-      loadStudentPages(assignmentId, currentUser?.id || 'user-student-11a14-001');
+  const run = async (work: () => Promise<SubmissionPayload>, ok?: string) => {
+    setBusy(true);
+    try {
+      const next = await work();
+      setPayload(next);
+      if (ok) addToast(ok, 'success');
+      return next;
+    } catch (err) {
+      addToast(errorMessage(err, 'Không thực hiện được thao tác.'), 'error');
+      return null;
+    } finally {
+      setBusy(false);
     }
-  }, [uploadedPages.length, loadStudentPages, assignmentId, currentUser?.id]);
+  };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    if (uploadedPages.length + files.length > 4) {
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    if (pages.length + fileList.length > 4) {
       addToast('Mỗi bài nộp tối đa 4 trang ảnh.', 'warning');
       return;
     }
-
-    const fileList = Array.from(files);
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      const { dataUrl, sizeMb } = await compressImage(file);
-      addCustomUploadedPage({
-        pageIndex: uploadedPages.length + i + 1,
-        imageUrl: dataUrl,
-        size: sizeMb,
-        caption: `Ảnh tải lên: ${file.name}`,
-        isCustomUpload: true,
-      });
-      addToast(`Đã thêm ảnh ${file.name} vào danh sách bài nộp.`, 'success');
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    setBusy(true);
+    try {
+      let next: SubmissionPayload | null = payload;
+      for (const file of Array.from(fileList)) {
+        if (!file.type.includes('jpeg') && !file.type.includes('jpg') && !file.type.includes('png')) {
+          addToast('Chỉ nhận ảnh JPEG hoặc PNG.', 'warning');
+          continue;
+        }
+        next = await submissionApi.uploadPage(assignmentId, file);
+        setPayload(next);
+        addToast(`Đã thêm ảnh ${file.name}.`, 'success');
+      }
+    } catch (err) {
+      addToast(errorMessage(err, 'Không tải được ảnh lên máy chủ.'), 'error');
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
     }
   };
 
-  const handleLoadDemo = () => {
-    const studentId = currentUser?.id || 'user-student-11a14-001';
-    loadStudentPages(assignmentId, studentId);
-    const count = (SUBMISSION_MANIFEST[studentId] || SUBMISSION_MANIFEST['user-student-11a14-001'])?.pages?.length || 2;
-    addToast(`Đã đồng bộ ${count} trang bài viết tay của ${currentUser?.name || 'học sinh'} từ ứng dụng quét!`, 'success');
+  const handleRotate = (page: SubmissionPage) => {
+    void run(
+      () =>
+        submissionApi.updatePage(assignmentId, page.id, {
+          rotationDegrees: (page.rotationDegrees + 90) % 360,
+        }),
+      'Đã xoay trang. Ảnh gửi OCR đã được xuất lại.'
+    );
   };
 
-  const handleSubmit = () => {
-    if (uploadedPages.length === 0) {
-      addToast('Vui lòng chọn hoặc tải lên ít nhất 1 ảnh bài viết tay.', 'error');
+  const handleDelete = (page: SubmissionPage) => {
+    void run(() => submissionApi.deletePage(assignmentId, page.id), 'Đã xóa trang.');
+  };
+
+  const handleReorder = (index: number, nextIndex: number) => {
+    const ids = pages.map((p) => p.id);
+    const [moved] = ids.splice(index, 1);
+    ids.splice(nextIndex, 0, moved);
+    void run(() => submissionApi.reorder(assignmentId, ids));
+  };
+
+  const handleReplace = (pageId: string) => {
+    replacePageId.current = pageId;
+    replaceInputRef.current?.click();
+  };
+
+  const handleReplaceFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const pageId = replacePageId.current;
+    e.target.value = '';
+    if (!file || !pageId) return;
+    await run(() => submissionApi.replacePage(assignmentId, pageId, file), 'Đã thay ảnh trang này.');
+  };
+
+  const openPreview = (page: SubmissionPage) => {
+    setPreviewPage(page);
+    setMaskDraft(page.maskRegions || []);
+    setDrawing(null);
+  };
+
+  const pointerPos = (event: React.PointerEvent) => {
+    const box = previewBoxRef.current;
+    if (!box) return null;
+    const rect = box.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (event.clientY - rect.top) / rect.height)),
+    };
+  };
+
+  const onMaskDown = (event: React.PointerEvent) => {
+    if (!canEdit) return;
+    const pos = pointerPos(event);
+    if (!pos) return;
+    (event.target as HTMLElement).setPointerCapture?.(event.pointerId);
+    setDrawing(pos);
+  };
+
+  const onMaskUp = (event: React.PointerEvent) => {
+    if (!drawing) return;
+    const pos = pointerPos(event);
+    setDrawing(null);
+    if (!pos) return;
+    const x = Math.min(drawing.x, pos.x);
+    const y = Math.min(drawing.y, pos.y);
+    const width = Math.abs(pos.x - drawing.x);
+    const height = Math.abs(pos.y - drawing.y);
+    if (width < 0.02 || height < 0.02) return;
+    setMaskDraft((prev) => [...prev, { x, y, width, height }]);
+  };
+
+  const saveMasks = async () => {
+    if (!previewPage) return;
+    const next = await run(
+      () => submissionApi.updatePage(assignmentId, previewPage.id, { maskRegions: maskDraft }),
+      'Đã che vùng thông tin cá nhân trên ảnh gửi OCR.'
+    );
+    if (next) {
+      const updated = next.pages.find((p) => p.id === previewPage.id) || null;
+      setPreviewPage(updated);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!pages.length) {
+      addToast('Vui lòng chọn hoặc chụp ít nhất 1 ảnh bài viết tay.', 'error');
       return;
     }
-
-    setIsSubmitting(true);
-    try {
-      submitHandwrittenEssay(assignmentId);
-    } catch (err) {
-      console.warn('submitHandwrittenEssay warning:', err);
-    }
-
-    const targetUrl = `/assignments/${assignmentId}/ocr`;
-    router.push(targetUrl);
-
-    // Guaranteed fallback navigation in 200ms
-    setTimeout(() => {
-      if (typeof window !== 'undefined' && window.location.pathname.endsWith('/submit')) {
-        window.location.assign(targetUrl);
-      }
-    }, 200);
+    const next = await run(() => submissionApi.submit(assignmentId), 'Đã nộp bài. Đang số hóa...');
+    if (next) router.push(`/assignments/${assignmentId}/ocr`);
   };
 
-  const previewTarget = uploadedPages.find((p) => p.pageIndex === previewModalPage);
+  const handleNewAttempt = async () => {
+    await run(() => submissionApi.newAttempt(assignmentId), 'Đã tạo lượt nộp mới. Hãy tải ảnh.');
+  };
+
+  if (loading) {
+    return (
+      <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle="Đang tải...">
+        <div className="max-w-3xl mx-auto p-10 text-sm text-on-surface-variant">Đang tải bài nộp...</div>
+      </StudentShell>
+    );
+  }
+
+  if (loadError || !payload) {
+    return (
+      <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle="Không tải được đề">
+        <div className="max-w-3xl mx-auto p-6 bg-surface-container-lowest rounded-xl border text-sm text-error">
+          {loadError || 'Không tải được bài tập.'}
+        </div>
+      </StudentShell>
+    );
+  }
+
+  const assignment = payload.assignment;
 
   return (
-    <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle={`${assignment?.code}: ${assignment?.title}`}>
+    <StudentShell headerTitle="Nộp ảnh bài viết tay" headerSubtitle={`${assignment.code}: ${assignment.title}`}>
       <div className="max-w-6xl mx-auto space-y-5">
-        {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs bg-primary-fixed text-primary font-bold px-2.5 py-0.5 rounded-full">
                 Bước 3: Viết tay &amp; Nộp ảnh bài làm
               </span>
-              <span className="text-xs text-on-surface-variant font-medium">Hạn nộp: {assignment?.deadline}</span>
+              <span className="text-xs text-on-surface-variant font-medium">Hạn nộp: {formatDue(assignment.dueAt)}</span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">
-              Nộp ảnh bài viết tay &amp; Bảo vệ thông tin học sinh
+              Nộp ảnh bài viết tay &amp; Che thông tin cá nhân
             </h1>
           </div>
-
           <Link
             href={`/assignments/${assignmentId}/socratic`}
             className="px-3.5 py-1.5 rounded-lg border border-outline-variant/60 text-xs font-semibold text-on-surface hover:bg-surface-container transition-all flex items-center gap-1 shadow-sm shrink-0"
@@ -189,186 +254,225 @@ export default function SubmitPhotosPage() {
           </Link>
         </div>
 
-        {/* 5-Step Workflow Stepper */}
         <AssignmentWorkflowStepper currentStep="submit" assignmentId={assignmentId} />
 
-        {/* Upload & Instructions Grid */}
+        {payload.status === 'failed' && (
+          <div className="p-3 rounded-xl border border-error/40 bg-error-container/30 text-xs space-y-2">
+            <p className="font-semibold text-error">Không số hóa được bài với bộ ảnh này.</p>
+            <p>{payload.ocrError || 'Một hoặc nhiều trang lỗi. Em thử lại OCR cùng bộ ảnh, hoặc tạo lượt mới để thay ảnh.'}</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void run(() => submissionApi.retryOcr(assignmentId), 'Đã gửi lại OCR.').then((next) => {
+                  if (next) router.push(`/assignments/${assignmentId}/ocr`);
+                })}
+                className="px-3 py-1.5 bg-primary text-white rounded-lg font-semibold"
+              >
+                Thử lại OCR
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleNewAttempt()}
+                className="px-3 py-1.5 border rounded-lg font-semibold"
+              >
+                Tạo lượt nộp ảnh mới
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* Left Upload Action & Info (5 cols) */}
           <div className="lg:col-span-5 space-y-4">
             <div className="p-5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
               <div>
                 <h3 className="font-bold text-sm text-on-surface font-merriweather">
-                  Tải lên trang bài viết tay từ thiết bị
+                  Tải lên hoặc chụp trang bài viết tay
                 </h3>
                 <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                  Đề bài yêu cầu bài viết khoảng 600 chữ (tương đương 1–4 trang viết tay tuỳ nét chữ). Chụp ảnh đủ sáng, giữ phẳng trang giấy và rõ chữ.
+                  Mỗi bài 1–4 trang JPEG/PNG. Chụp đủ sáng, giữ phẳng trang giấy và rõ chữ. Ảnh được lưu trên máy chủ theo tài khoản của em.
                 </p>
               </div>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/png, image/jpeg, image/jpg"
+                accept="image/png,image/jpeg"
                 multiple
-                onChange={handleFileUpload}
+                onChange={(e) => void handleFiles(e.target.files)}
+                className="hidden"
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                capture="environment"
+                onChange={(e) => void handleFiles(e.target.files)}
+                className="hidden"
+              />
+              <input
+                ref={replaceInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={(e) => void handleReplaceFile(e)}
                 className="hidden"
               />
 
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
+                  disabled={!canEdit || busy}
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-3 px-4 border-2 border-dashed border-primary/40 rounded-xl bg-primary-container/10 hover:bg-primary-container/20 text-primary text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-3 px-4 border-2 border-dashed border-primary/40 rounded-xl bg-primary-container/10 hover:bg-primary-container/20 text-primary text-xs font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 >
                   <span className="material-symbols-outlined text-xl">upload_file</span>
                   <span>Chọn file ảnh từ máy tính (JPG, PNG)</span>
                 </button>
-
                 <button
                   type="button"
-                  onClick={handleLoadDemo}
-                  className="w-full py-2.5 px-4 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold rounded-xl border border-outline-variant/40 flex items-center justify-center gap-2 transition-all"
+                  disabled={!canEdit || busy}
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="w-full py-2.5 px-4 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs font-semibold rounded-xl border border-outline-variant/40 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-base text-secondary">sync</span>
-                  <span>Đồng bộ từ camera / EduLit Scanner ({currentUser?.name || 'Học sinh'})</span>
+                  <span className="material-symbols-outlined text-base text-secondary">photo_camera</span>
+                  <span>Chụp ảnh từ camera ({currentUser?.name || payload.student.displayName})</span>
                 </button>
               </div>
 
-              {/* Privacy Shield Notice */}
               <div className="p-3 bg-surface-container-low rounded-lg border border-outline-variant/30 space-y-1.5 text-[11px] text-on-surface-variant">
                 <div className="flex items-center gap-1.5 font-bold text-secondary">
                   <span className="material-symbols-outlined text-sm">shield</span>
-                  <span>Bảo vệ quyền riêng tư học sinh (PII Shield):</span>
+                  <span>Quyền riêng tư trước khi gửi OCR:</span>
                 </div>
                 <p className="leading-relaxed">
-                  • Vùng tên và mã định danh trên bài thi được che mờ tự động để đảm bảo tính khách quan trước khi gửi sang hội đồng chấm.
+                  Em xem trước ảnh sẽ gửi, xoay cho thẳng chữ, rồi khoanh vùng che kín họ tên / lớp / mã định danh nếu có trên trang. Hệ thống xuất ảnh đã che thành file thật rồi mới gửi dịch vụ OCR. Hệ thống không tự che mờ danh tính.
                 </p>
               </div>
             </div>
 
-            {/* Assignment instructions recap card */}
             <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm space-y-2 text-xs">
               <span className="font-bold text-primary flex items-center gap-1">
                 <span className="material-symbols-outlined text-sm">checklist</span>
                 <span>Nhắc nhở trước khi nộp bài:</span>
               </span>
               <ul className="space-y-1 text-on-surface-variant text-[11px]">
-                <li>✓ Đúng thứ tự trang bài làm (đã đánh số trang hoặc theo mạch triển khai).</li>
-                <li>✓ Đã có phân tích nghịch lí &ldquo;không thoát ly bùn đất&rdquo;.</li>
-                <li>✓ Đã có dẫn chứng liên hệ tác phẩm ngoài (Đồng chí / Quê hương / Bếp lửa...).</li>
-                <li>✓ Dung lượng bài viết tay tương ứng khoảng 600 chữ (1–4 trang).</li>
+                <li>✓ Đúng thứ tự trang bài làm.</li>
+                <li>✓ Đã xem ảnh đã xử lý (xoay/che) — đúng bản sẽ gửi OCR.</li>
+                <li>✓ Dung lượng bài viết tay tương ứng khoảng 1–4 trang.</li>
+                {assignment.writingTask ? <li>✓ {assignment.writingTask}</li> : null}
               </ul>
             </div>
           </div>
 
-          {/* Right Uploaded Pages Grid & Thumbnails (7 cols) */}
           <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-4 flex flex-col justify-between min-h-[480px]">
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-4">
                 <div>
                   <h3 className="font-bold text-sm text-on-surface font-merriweather">
-                    Danh sách trang đã tải lên ({uploadedPages.length} trang)
+                    Danh sách trang đã tải lên ({pages.length} trang)
                   </h3>
                   <span className="text-[11px] text-on-surface-variant">
-                    {uploadedPages.length > 0
-                      ? `Đã nạp ${uploadedPages.length} trang bài làm, sẵn sàng đối chiếu OCR.`
-                      : 'Vui lòng chọn ảnh bài làm hoặc bấm đồng bộ từ máy quét (hỗ trợ 1–4 trang).'}
+                    {pages.length > 0
+                      ? 'Đây là ảnh đã xử lý sẽ gửi OCR. Bấm ảnh để phóng to, xoay hoặc che vùng riêng tư.'
+                      : 'Vui lòng chọn hoặc chụp ảnh bài làm (1–4 trang).'}
                   </span>
                 </div>
-
-                {uploadedPages.length > 0 && (
-                  <button
-                    onClick={() => {
-                      useAppStore.setState({ uploadedPages: [] });
-                      addToast('Đã xóa tất cả các trang.', 'info');
-                    }}
-                    className="text-[11px] text-error hover:underline flex items-center gap-0.5"
-                  >
-                    <span className="material-symbols-outlined text-sm">delete_sweep</span>
-                    <span>Xóa hết</span>
-                  </button>
-                )}
               </div>
 
-              {uploadedPages.length === 0 ? (
+              {pages.length === 0 ? (
                 <div className="p-12 text-center border-2 border-dashed border-outline-variant/40 rounded-xl space-y-3">
                   <div className="w-12 h-12 rounded-full bg-surface-container-low flex items-center justify-center text-outline mx-auto">
                     <span className="material-symbols-outlined text-2xl">image</span>
                   </div>
                   <h4 className="font-bold text-xs text-on-surface">Chưa có trang bài làm nào</h4>
                   <p className="text-[11px] text-on-surface-variant max-w-sm mx-auto">
-                    Bấm &ldquo;Đồng bộ từ camera&rdquo; hoặc tải file ảnh từ thiết bị để bắt đầu.
+                    Bấm chụp ảnh hoặc tải file từ thiết bị. Refresh trang vẫn tải lại ảnh đã lưu.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {uploadedPages.map((page, idx) => (
+                  {pages.map((page, idx) => (
                     <div
-                      key={page.pageIndex}
+                      key={page.id}
                       className="p-3 bg-surface-container-low/50 rounded-xl border border-outline-variant/30 space-y-2 group hover:border-secondary transition-all"
                     >
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-primary font-mono">
-                          Trang 0{page.pageIndex} / 0{uploadedPages.length}
+                          Trang 0{page.pageIndex} / 0{pages.length}
                         </span>
                         <span className="text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded">
                           {page.size}
                         </span>
                       </div>
-
-                      {/* Thumbnail Container */}
                       <div
-                        onClick={() => setPreviewModalPage(page.pageIndex)}
+                        onClick={() => openPreview(page)}
                         className="relative h-56 rounded-lg overflow-hidden border border-outline-variant/30 bg-surface cursor-pointer group-hover:shadow-md transition-all flex items-center justify-center"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
+                          key={page.processedSha256 || page.id}
                           src={page.imageUrl}
-                          alt={page.caption}
+                          alt={page.filename}
                           className="w-full h-full object-contain"
                         />
                         <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-semibold transition-opacity gap-1">
                           <span className="material-symbols-outlined text-base">zoom_in</span>
-                          <span>Bấm để phóng to</span>
+                          <span>Bấm để phóng to &amp; rà soát</span>
                         </div>
                       </div>
-
                       <div className="flex items-center justify-between text-[11px] pt-1">
                         <span className="text-on-surface-variant truncate max-w-[140px] text-[10px]">
-                          {page.isCustomUpload ? 'Ảnh tải lên từ tệp' : 'Bản quét camera'}
+                          {page.filename || 'Ảnh đã tải'}
                         </span>
-
-                        <div className="flex items-center gap-1">
-                          {idx > 0 && (
+                        {canEdit && (
+                          <div className="flex items-center gap-1">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleReorder(idx, idx - 1)}
+                                title="Đưa lên trước"
+                                className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary"
+                              >
+                                <span className="material-symbols-outlined text-sm">arrow_back</span>
+                              </button>
+                            )}
+                            {idx < pages.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleReorder(idx, idx + 1)}
+                                title="Đưa ra sau"
+                                className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary"
+                              >
+                                <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                              </button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => reorderUploadedPages(idx, idx - 1)}
-                              title="Đổi thứ tự trang trước"
+                              onClick={() => handleRotate(page)}
+                              title="Xoay 90 độ (xuất lại ảnh OCR)"
                               className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary"
                             >
-                              <span className="material-symbols-outlined text-sm">arrow_back</span>
+                              <span className="material-symbols-outlined text-sm">rotate_right</span>
                             </button>
-                          )}
-                          {idx < uploadedPages.length - 1 && (
                             <button
                               type="button"
-                              onClick={() => reorderUploadedPages(idx, idx + 1)}
-                              title="Đổi thứ tự trang sau"
+                              onClick={() => handleReplace(page.id)}
+                              title="Thay ảnh"
                               className="p-1 hover:bg-surface-container rounded text-on-surface-variant hover:text-primary"
                             >
-                              <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                              <span className="material-symbols-outlined text-sm">swap_horiz</span>
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeUploadedPage(page.pageIndex)}
-                            title="Xóa trang này"
-                            className="p-1 hover:bg-error-container/40 rounded text-error"
-                          >
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(page)}
+                              title="Xóa trang này"
+                              className="p-1 hover:bg-error-container/40 rounded text-error"
+                            >
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -376,79 +480,112 @@ export default function SubmitPhotosPage() {
               )}
             </div>
 
-            {/* Bottom Submit Action */}
             <div className="pt-4 mt-4 border-t border-outline-variant/20 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-3">
                 <span className="text-xs text-on-surface-variant">
-                  {uploadedPages.length > 0
-                    ? `Đã sẵn sàng nộp ${uploadedPages.length} trang.`
-                    : 'Vui lòng thêm ảnh trước khi nộp.'}
+                  {pages.length > 0 ? `Đã sẵn sàng nộp ${pages.length} trang.` : 'Vui lòng thêm ảnh trước khi nộp.'}
                 </span>
-
-                {isSubmitting && (
+                {busy && (
                   <div className="flex items-center gap-1.5 text-[11px] text-primary">
                     <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin"></span>
-                    <span>Đang xử lý nộp bài...</span>
+                    <span>Đang lưu...</span>
                   </div>
                 )}
               </div>
-
-              <button
-                type="button"
-                disabled={uploadedPages.length === 0 || isSubmitting}
-                onClick={handleSubmit}
-                className="py-2.5 px-6 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                ) : (
+              {canEdit ? (
+                <button
+                  type="button"
+                  disabled={pages.length === 0 || busy}
+                  onClick={() => void handleSubmit()}
+                  className="py-2.5 px-6 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
                   <span className="material-symbols-outlined text-base">check_circle</span>
-                )}
-                <span>Xác nhận Nộp &amp; Chuyển sang Đối chiếu OCR</span>
-              </button>
+                  <span>Xác nhận Nộp &amp; Chuyển sang Đối chiếu OCR</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleNewAttempt()}
+                  className="py-2.5 px-6 border border-outline-variant text-xs font-bold rounded-lg"
+                >
+                  Tạo lượt nộp ảnh mới
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Large Page Preview Modal */}
-      {previewModalPage !== null && previewTarget && (
+      {previewPage && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-surface-container-lowest rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-outline-variant/40">
             <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container-low/70 rounded-t-2xl">
               <div>
                 <h3 className="font-bold text-sm text-on-surface font-merriweather">
-                  Xem trước: {previewTarget.caption}
+                  Ảnh sẽ gửi OCR — Trang 0{previewPage.pageIndex}
                 </h3>
                 <span className="text-[11px] text-on-surface-variant">
-                  Kích thước: {previewTarget.size} • Giữ nguyên tỉ lệ hiển thị chữ viết tay
+                  {previewPage.size} • Kéo chuột để che vùng tên/lớp nếu cần
                 </span>
               </div>
-              <button
-                onClick={() => setPreviewModalPage(null)}
-                className="p-1 text-on-surface-variant hover:text-on-surface rounded-lg"
-              >
+              <button onClick={() => setPreviewPage(null)} className="p-1 text-on-surface-variant rounded-lg">
                 <span className="material-symbols-outlined text-xl">close</span>
               </button>
             </div>
-
             <div className="p-4 overflow-auto flex-1 flex items-center justify-center bg-surface-container">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewTarget.imageUrl}
-                alt={previewTarget.caption}
-                className="max-h-[70vh] object-contain rounded-lg shadow-sm"
-              />
-            </div>
-
-            <div className="p-3 border-t border-outline-variant/20 flex items-center justify-between bg-surface-container-low/40 rounded-b-2xl text-xs">
-              <span className="text-on-surface-variant">Phím tắt: Bấm Esc để đóng xem trước</span>
-              <button
-                onClick={() => setPreviewModalPage(null)}
-                className="px-4 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold"
+              <div
+                ref={previewBoxRef}
+                onPointerDown={onMaskDown}
+                onPointerUp={onMaskUp}
+                className="relative max-h-[70vh] cursor-crosshair"
               >
-                Đóng
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewPage.imageUrl}
+                  alt={previewPage.filename}
+                  className="max-h-[70vh] object-contain rounded-lg shadow-sm select-none"
+                  draggable={false}
+                />
+                {maskDraft.map((region, idx) => (
+                  <div
+                    key={`${region.x}-${idx}`}
+                    className="absolute bg-black/80 border border-black"
+                    style={{
+                      left: `${region.x * 100}%`,
+                      top: `${region.y * 100}%`,
+                      width: `${region.width * 100}%`,
+                      height: `${region.height * 100}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="p-3 border-t border-outline-variant/20 flex items-center justify-between bg-surface-container-low/40 rounded-b-2xl text-xs gap-2">
+              <button
+                type="button"
+                className="text-error"
+                onClick={() => setMaskDraft([])}
+                disabled={!canEdit}
+              >
+                Xóa vùng che
               </button>
+              <div className="flex gap-2">
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => void saveMasks()}
+                    className="px-4 py-1.5 bg-secondary text-white rounded-lg text-xs font-semibold"
+                  >
+                    Lưu ảnh đã che
+                  </button>
+                )}
+                <button
+                  onClick={() => setPreviewPage(null)}
+                  className="px-4 py-1.5 bg-primary text-white rounded-lg text-xs font-semibold"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>

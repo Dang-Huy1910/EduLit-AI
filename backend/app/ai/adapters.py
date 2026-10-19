@@ -8,13 +8,14 @@ The adapter maps errors and does not add a second retry loop.
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import re
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, TypeVar
+from typing import Any, Sequence, TypeVar
 
 import httpx
 from openai import (
@@ -29,12 +30,20 @@ from openai import (
 from pydantic import BaseModel, ValidationError
 
 from app.ai.fake_document_extract import fake_document_analysis_json
-from app.ai.schemas import DocumentAnalysisResult, SocraticOutlineInit
+from app.ai.schemas import DocumentAnalysisResult, OcrPageModel, SocraticOutlineInit
 from app.config import Settings, get_settings
 
 logger = logging.getLogger("edulit.ai")
 
 OutputT = TypeVar("OutputT", bound=BaseModel)
+
+
+@dataclass(frozen=True)
+class ImagePart:
+    """In-memory image for a vision request. Never logged."""
+
+    data: bytes
+    mime_type: str = "image/jpeg"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -142,6 +151,17 @@ class AiPort(ABC):
     async def close(self) -> None:
         return None
 
+    async def generate_with_images(
+        self,
+        prompt: str,
+        images: Sequence[ImagePart],
+        system_prompt: str | None = None,
+        structured_output: type[BaseModel] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AiResponse:
+        raise AiUnavailableError("AI adapter does not accept images")
+
 
 def validate_structured_output(
     raw_text: str,
@@ -222,10 +242,27 @@ class OpenAiAdapter(AiPort):
         system_prompt: str | None,
         temperature: float | None,
         max_tokens: int | None,
+        images: Sequence[ImagePart] | None = None,
     ) -> dict[str, Any]:
+        if images:
+            content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
+            for image in images:
+                mime = image.mime_type or "image/jpeg"
+                encoded = base64.standard_b64encode(image.data).decode("ascii")
+                content.append(
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:{mime};base64,{encoded}",
+                    }
+                )
+            payload: str | list[dict[str, Any]] = [
+                {"role": "user", "content": content}
+            ]
+        else:
+            payload = prompt
         kwargs: dict[str, Any] = {
             "model": self.model,
-            "input": prompt,
+            "input": payload,
         }
         if system_prompt:
             kwargs["instructions"] = system_prompt
@@ -359,6 +396,81 @@ class OpenAiAdapter(AiPort):
         )
         return AiResponse(content=str(output_text), raw=meta, usage=usage, latency_ms=latency_ms)
 
+    async def generate_with_images(
+        self,
+        prompt: str,
+        images: Sequence[ImagePart],
+        system_prompt: str | None = None,
+        structured_output: type[BaseModel] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AiResponse:
+        if not images:
+            raise AiInvalidOutputError("OCR request missing images")
+        kwargs = self._request_kwargs(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            images=images,
+        )
+        start = time.monotonic()
+        try:
+            if structured_output is not None:
+                response = await self.client.responses.parse(
+                    **kwargs,
+                    text_format=structured_output,
+                )
+            else:
+                response = await self.client.responses.create(**kwargs)
+        except AiError:
+            raise
+        except Exception as exc:
+            mapped = self._map_sdk_error(exc)
+            logger.error(
+                "openai_vision_failed code=%s type=%s model=%s",
+                mapped.code,
+                type(exc).__name__,
+                self.model,
+            )
+            raise mapped from exc
+
+        latency_ms = int((time.monotonic() - start) * 1000)
+        try:
+            self._inspect_status(response)
+        except AiError:
+            logger.error(
+                "openai_vision_status_error model=%s latency_ms=%s",
+                self.model,
+                latency_ms,
+            )
+            raise
+
+        usage = _usage_from_openai(getattr(response, "usage", None))
+        meta = _safe_response_meta(response)
+        if structured_output is not None:
+            parsed = getattr(response, "output_parsed", None)
+            if parsed is None:
+                raise AiInvalidOutputError("OpenAI structured output missing")
+            if not isinstance(parsed, structured_output):
+                try:
+                    parsed = structured_output.model_validate(parsed)
+                except ValidationError as exc:
+                    raise AiInvalidOutputError("OpenAI structured output invalid") from exc
+            logger.info(
+                "openai_vision_ok model=%s latency_ms=%s tokens=%s images=%s",
+                self.model,
+                latency_ms,
+                usage.total_tokens,
+                len(images),
+            )
+            return AiResponse(content=parsed, raw=meta, usage=usage, latency_ms=latency_ms)
+
+        output_text = getattr(response, "output_text", None) or ""
+        if not str(output_text).strip():
+            raise AiInvalidOutputError("Empty response from OpenAI")
+        return AiResponse(content=str(output_text), raw=meta, usage=usage, latency_ms=latency_ms)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Gemini Adapter
@@ -468,6 +580,99 @@ class GeminiAdapter(AiPort):
         )
         if structured_output:
             result.content = validate_structured_output(raw_text, structured_output)
+        return result
+
+    async def generate_with_images(
+        self,
+        prompt: str,
+        images: Sequence[ImagePart],
+        system_prompt: str | None = None,
+        structured_output: type[BaseModel] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AiResponse:
+        if not images:
+            raise AiInvalidOutputError("OCR request missing images")
+        url = f"{_GEMINI_BASE_URL}/models/{self.model}:generateContent"
+        params = {"key": self.api_key}
+        parts: list[dict[str, Any]] = [{"text": prompt}]
+        for image in images:
+            parts.append(
+                {
+                    "inline_data": {
+                        "mime_type": image.mime_type or "image/jpeg",
+                        "data": base64.standard_b64encode(image.data).decode("ascii"),
+                    }
+                }
+            )
+        generation_config: dict[str, Any] = {"candidateCount": 1}
+        if temperature is not None:
+            generation_config["temperature"] = temperature
+        if max_tokens:
+            generation_config["maxOutputTokens"] = max_tokens
+        payload: dict[str, Any] = {
+            "contents": [{"parts": parts}],
+            "generationConfig": generation_config,
+        }
+        if system_prompt:
+            payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+        if structured_output:
+            generation_config["responseSchema"] = structured_output.model_json_schema()
+            generation_config["responseMimeType"] = "application/json"
+
+        start = time.monotonic()
+        try:
+            response = await self._client.post(url, json=payload, params=params)
+        except httpx.TimeoutException as exc:
+            raise AiTimeoutError("Gemini request timed out") from exc
+        except httpx.HTTPError as exc:
+            raise AiUnavailableError("Gemini provider unavailable") from exc
+
+        latency_ms = int((time.monotonic() - start) * 1000)
+        if response.status_code == 429:
+            raise AiUnavailableError("Gemini rate limit exceeded")
+        if response.status_code in {401, 403}:
+            raise AiUnavailableError("Gemini authentication failed")
+        if response.status_code >= 500:
+            raise AiUnavailableError("Gemini provider unavailable")
+        if response.status_code != 200:
+            raise AiUnavailableError("Gemini request failed")
+
+        data = response.json()
+        candidates = data.get("candidates", [])
+        if not candidates:
+            raise AiInvalidOutputError("No candidates in Gemini response")
+        first = candidates[0]
+        finish_reason = first.get("finishReason", "")
+        if finish_reason == "MAX_TOKENS":
+            raise AiInvalidOutputError("Response truncated (max tokens)")
+        if finish_reason == "SAFETY":
+            raise AiRefusalError("Gemini safety filter triggered")
+        parts_out = first.get("content", {}).get("parts", [])
+        if not parts_out:
+            raise AiInvalidOutputError("No content parts in response")
+        raw_text = parts_out[0].get("text", "")
+        usage = AiUsage()
+        if "usageMetadata" in data:
+            um = data["usageMetadata"]
+            usage.prompt_tokens = um.get("promptTokenCount", 0)
+            usage.completion_tokens = um.get("candidatesTokenCount", 0)
+            usage.total_tokens = um.get("totalTokenCount", 0)
+        result = AiResponse(
+            content=raw_text,
+            raw={"status": "ok", "model": self.model},
+            usage=usage,
+            latency_ms=latency_ms,
+        )
+        if structured_output:
+            result.content = validate_structured_output(raw_text, structured_output)
+        logger.info(
+            "gemini_vision_ok model=%s latency_ms=%s tokens=%s images=%s",
+            self.model,
+            latency_ms,
+            usage.total_tokens,
+            len(images),
+        )
         return result
 
 
@@ -631,6 +836,56 @@ class FakeAiAdapter(AiPort):
             latency_ms=5,
         )
 
+    async def generate_with_images(
+        self,
+        prompt: str,
+        images: Sequence[ImagePart],
+        system_prompt: str | None = None,
+        structured_output: type[BaseModel] | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> AiResponse:
+        if structured_output is not None and (
+            structured_output is OcrPageModel
+            or getattr(structured_output, "__name__", "") == "OcrPageModel"
+        ):
+            fake = OcrPageModel.model_validate(
+                {
+                    "segments": [
+                        {
+                            "order": 1,
+                            "text": "[không rõ] Ảnh chưa được gửi tới mô hình OCR thật.",
+                            "needs_review": True,
+                            "review_reason": "Chế độ giả lập",
+                            "confidence": None,
+                        }
+                    ],
+                    "needs_review": True,
+                    "review_reason": "Chế độ giả lập không đọc ảnh thật.",
+                }
+            )
+            self.call_count += 1
+            self.last_prompt = prompt
+            self.last_system_prompt = system_prompt
+            self.last_structured_output = structured_output
+            return AiResponse(
+                content=fake,
+                raw={
+                    "fake": True,
+                    "provider": "fake",
+                    "model": self.model,
+                    "images": len(images),
+                },
+                latency_ms=5,
+            )
+        return await self.generate(
+            prompt,
+            system_prompt=system_prompt,
+            structured_output=structured_output,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Adapter Factory
@@ -642,16 +897,25 @@ def create_ai_adapter(
     *,
     allow_missing_key: bool = False,
     http_client: httpx.AsyncClient | None = None,
+    model_override: str | None = None,
+    timeout_override: float | None = None,
 ) -> AiPort:
     """Create an AI adapter from Settings.
 
     OpenAI SDK owns transport retries (`max_retries=settings.AI_MAX_RETRIES`).
+    `model_override` / `timeout_override` select a task-specific model
+    (OCR) without changing Socratic defaults.
     """
     if settings is None:
         settings = get_settings()
 
     provider = settings.AI_PROVIDER.lower().strip()
-    model = (settings.AI_MODEL or "").strip()
+    model = (model_override or settings.AI_MODEL or "").strip()
+    timeout_seconds = (
+        float(timeout_override)
+        if timeout_override is not None
+        else float(settings.AI_TIMEOUT_SECONDS)
+    )
 
     if provider == "openai":
         if not settings.OPENAI_API_KEY:
@@ -669,7 +933,7 @@ def create_ai_adapter(
             )
         client_kwargs: dict[str, Any] = {
             "api_key": settings.OPENAI_API_KEY,
-            "timeout": httpx.Timeout(settings.AI_TIMEOUT_SECONDS, connect=10.0),
+            "timeout": httpx.Timeout(timeout_seconds, connect=10.0),
             "max_retries": settings.AI_MAX_RETRIES,
         }
         if http_client is not None:
@@ -678,7 +942,7 @@ def create_ai_adapter(
         return OpenAiAdapter(
             client=client,
             model=model,
-            timeout_seconds=settings.AI_TIMEOUT_SECONDS,
+            timeout_seconds=timeout_seconds,
             max_retries=0,
         )
 
@@ -699,7 +963,7 @@ def create_ai_adapter(
         return GeminiAdapter(
             api_key=settings.GEMINI_API_KEY,
             model=model,
-            timeout_seconds=settings.AI_TIMEOUT_SECONDS,
+            timeout_seconds=timeout_seconds,
             max_retries=settings.AI_MAX_RETRIES,
         )
 

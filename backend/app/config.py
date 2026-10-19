@@ -82,6 +82,20 @@ class Settings(BaseSettings):
     IMPORT_AI_MAX_OUTPUT_TOKENS: int = 4096
     IMPORT_AI_MAX_INPUT_CHARS: int = 80_000
     IMPORT_STALE_SECONDS: int = 300
+    OCR_MODEL: str = ""
+    OCR_PROMPT_VERSION: str = "v1"
+    OCR_TIMEOUT_SECONDS: float = 90.0
+    OCR_MAX_OUTPUT_TOKENS: int = 4096
+    OCR_CONCURRENCY: int = 1
+    OCR_LEASE_SECONDS: int = 600
+    OCR_POLL_SECONDS: float = 2.0
+    OCR_MAX_ATTEMPTS: int = 3
+    OCR_WORKER_ENABLED: bool = True
+    OCR_MAX_PAGES: int = 4
+    OCR_MAX_PAGE_BYTES: int = 8_000_000
+    OCR_MIN_EDGE: int = 200
+    OCR_MAX_EDGE: int = 8000
+    OCR_PROCESS_MAX_EDGE: int = 2400
 
     BOOTSTRAP_TEACHER_LOGIN_ID: str = "dang.loan"
     BOOTSTRAP_TEACHER_EMAIL: str = "dang.loan@thptdanphuong.edu.vn"

@@ -16,7 +16,7 @@ Model không tự cung cấp cơ sở dữ liệu bộ nhớ học sinh. Profile
 | --- | --- | --- | --- |
 | `extract-rubric` | Barem/ngữ liệu đã kiểm tra PII, đoạn nguồn | Rubric draft + source refs | Schema, maxima, ID; giáo viên approve |
 | `socratic-turn` | Assignment revision, outline, context đúng đề, profile chọn lọc, chat đã lọc PII | Câu hỏi, nguồn, gợi ý chuyển FSM/outline | 4 câu, câu hỏi cuối, không viết hộ, source scope |
-| `transcribe-page` | Ảnh đã qua privacy gate, pageId/index | Segment nguyên văn + vùng không rõ | Thứ tự, ID, cấu trúc; người duyệt so ảnh |
+| `transcribe-page` | Ảnh học sinh đã rà soát (xoay/che vùng riêng tư), pageId/index | Segment nguyên văn + vùng không rõ | Thứ tự, ID, cấu trúc; học sinh đối chiếu/sửa/xác nhận |
 | `grade-transcription` | Bản chép CONFIRMED + đề/rubric/học liệu đã chốt | Điểm từng tiêu chí, evidence, lỗi, gợi ý | Bounds, criterion set, quote match; teacher review |
 | `extract-writing-observations` | Bản chép và assessment đã công bố, genre, observations trước | Đặc điểm/tiến bộ với evidence | Chỉ nguồn xác nhận; không suy diễn tính cách |
 | `recommend-teaching-actions` | Aggregate SQL, learning goals, taxonomy | Hành động sư phạm + metric refs | Không tạo/sửa con số; đề xuất đúng mục tiêu |
@@ -64,7 +64,7 @@ Ví dụ logical output để hoàn thiện JSON Schema:
 
 Đây là ví dụ thiết kế, chưa là schema thực thi. Server sinh/chuẩn hóa segment IDs ổn định trong revision, kiểm tra thứ tự và text. Prompt yêu cầu giữ nguyên lỗi dấu/chính tả/dấu câu; không đoán chữ không rõ, không dùng điểm/lập luận để tự sửa bản chép.
 
-Không coi `0.94` trong mock là độ đúng OCR đã đo. Nếu model trả self-confidence, lưu source `model-self-report`; không dùng trực tiếp để tự động bỏ qua teacher review. Trước automation, hiệu chuẩn trên dataset có bản chép chuẩn và báo cáo mức sai ở từng ngưỡng. Coordinates cần kiểm chứng trên ảnh; UI có thể dùng liên kết trang/đoạn thay bounding box chưa chính xác.
+Không coi `0.94` trong mock là độ đúng OCR đã đo. Nếu model trả self-confidence, lưu source `model-self-report`; để `null` khi không có căn cứ. Học sinh xác nhận bản chép trước khi bài sang `READY_TO_GRADE`. Coordinates cần kiểm chứng trên ảnh; UI dùng liên kết trang/đoạn.
 
 ## 5. Chấm và kiểm tra bằng chứng
 

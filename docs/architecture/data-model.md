@@ -33,8 +33,7 @@ Ngày: 12/10/2026. Đây là thiết kế logical cho PostgreSQL/Prisma, chưa p
 | `SubmissionAttempt` | submissionId, attemptNumber, assignmentRevisionId, outlineRevisionId?, state, submittedAt | assessment |
 | `SubmissionPage` | attemptId, pageIndex, assetId, checksum, privacyReviewedBy/At | assessment |
 | `TranscriptionRevision` | attemptId, revision, status, reviewedBy/At, aiRunId? | assessment |
-| `OcrSegment` | transcriptionRevisionId, pageId, segmentId, order, text, needsReview, reviewReason, confidence?, confidenceSource | assessment |
-| `OcrReviewIssue` | studentId, segmentRef, note, resolvedBy/At, resolution | assessment |
+| `OcrSegment` | stored in transcription revision JSON: pageId, segmentId, order, text, needsReview, reviewReason, confidence?, confidenceSource | assessment |
 | `AssessmentRevision` | attemptId, transcriptionRevisionId, rubricVersionId, aiProposal, finalResult, status, reviewedBy/At, publishedAt, aiRunId | assessment |
 | `StudentDeclaredGoal` | studentId, target, selfReportedStrength/Difficulty, updatedAt | writing-profile |
 | `WritingObservation` | studentId, kind, feature, genre, assessmentRevisionId, evidenceRefs, supportCount, eligibleCount, status | writing-profile |
@@ -93,13 +92,13 @@ erDiagram
 | MaterialVersion | `UPLOADED → PRIVACY_REVIEW → PROCESSING → READY`; lỗi xử lý → `FAILED` |
 | RubricVersion | `DRAFT → APPROVED`; thay đổi sau approve tạo version mới |
 | AssignmentRevision | `DRAFT → PUBLISHED → CLOSED`; việc đóng không xóa lịch sử |
-| SubmissionAttempt | `DRAFT → PRIVACY_REVIEW → QUEUED → OCR_PROCESSING → OCR_REVIEW → READY_TO_GRADE → GRADING → ASSESSMENT_REVIEW → PUBLISHED` |
+| SubmissionAttempt | `DRAFT → QUEUED → OCR_PROCESSING → OCR_REVIEW → READY_TO_GRADE` (chấm rubric chưa mở). Lỗi OCR → `FAILED`; retry cùng input; nộp bộ ảnh mới → attempt mới |
 | Attempt ngoại lệ | Từ bước nền → `FAILED`; retry về đúng bước với cùng input; privacy failure → `PRIVACY_REVIEW`; rút kết quả → `WITHDRAWN` |
-| TranscriptionRevision | `DRAFT → REVIEW_REQUIRED → CONFIRMED`; sửa bản đã xác nhận tạo revision mới |
+| TranscriptionRevision | `DRAFT → CONFIRMED`; sửa sau xác nhận → `SUPERSEDED` và tạo DRAFT mới; học sinh xác nhận lại |
 | AssessmentRevision | `AI_DRAFT → TEACHER_REVIEW → PUBLISHED`; rút → `WITHDRAWN`, thay thế → `SUPERSEDED` |
 | Observation | `PROVISIONAL → SUPPORTED`; có thể `RESOLVED`, `INVALIDATED`; giữ lịch sử bằng chứng |
 
-MVP dùng trạng thái review ngay cả khi model báo đọc rõ. Giáo viên xác nhận OCR để chấm; học sinh chỉ báo lỗi. OCR sửa sau chấm làm assessment cũ `SUPERSEDED`/không còn hiện hành và cần chấm lại trước công bố; revision cũ vẫn có thể xem trong audit.
+Học sinh tự đối chiếu ảnh với bản chép, sửa và xác nhận tại bước 4. Xác nhận chuyển attempt sang `READY_TO_GRADE`. Không có bảng `OcrReviewIssue` và không có màn giáo viên duyệt OCR. Sửa sau xác nhận tạo transcription revision mới và yêu cầu xác nhận lại; bản cũ giữ để truy vết.
 
 ## 6. Rubric, điểm và báo cáo
 

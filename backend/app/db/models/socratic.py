@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ENUM, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,6 +18,7 @@ from app.db.models.enums import (
     ChatRole,
     IdempotencyState,
     MessageStatus,
+    OutlinePrepStatus,
     OutlineRevisionStatus,
     SocraticState,
 )
@@ -352,4 +353,54 @@ class IdempotencyRecord(Base):
         ),
         Index("idempotency_records_user_route_key_idx", "user_id", "route", "key_hash"),
         Index("idempotency_records_expires_at_idx", "expires_at"),
+    )
+
+
+class StudentOutlinePrep(Base):
+    """Per-student durable outline-init job for a published assignment revision."""
+
+    __tablename__ = "student_outline_preps"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    assignment_revision_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("assignment_revisions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    student_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=OutlinePrepStatus.QUEUED.value
+    )
+    outline: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    sources: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    needs_clarification: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    clarification_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    model_metadata: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    lease_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "assignment_revision_id",
+            "student_id",
+            name="student_outline_preps_revision_student_key",
+        ),
+        Index("student_outline_preps_status_idx", "status"),
+        Index("student_outline_preps_claim_idx", "status", "lease_expires_at", "created_at"),
     )

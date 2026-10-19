@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 SOCRATIC_OUTPUT_SCHEMA_VERSION = "socratic_output.v1"
 SOCRATIC_OUTLINE_INIT_SCHEMA_VERSION = "socratic_outline_init.v1"
+OCR_PAGE_SCHEMA_VERSION = "ocr_page.v1"
 
 ConversationIntent = Literal["EXPLAIN", "PROPOSE", "EDIT", "MIXED", "CLARIFY"]
 OutlinePointKind = Literal["claim", "evidence", "note"]
@@ -24,6 +25,10 @@ class SourceReference(BaseModel):
 
     chunk_id: str = Field(..., min_length=1, description="ID of an allowed context chunk")
     quote: str = Field(..., min_length=1, description="Verbatim quote from that chunk")
+
+
+class OutlineSourceInit(SourceReference):
+    """Source citation on the one-shot outline-init payload."""
 
 
 class OutlinePoint(BaseModel):
@@ -223,3 +228,47 @@ class DocumentAnalysisResult(BaseModel):
     @classmethod
     def _coerce_lists(cls, value: object) -> object:
         return value or []
+
+
+class OcrSegmentModel(BaseModel):
+    """One ordered line or paragraph transcribed from a handwritten page."""
+
+    order: int = Field(..., ge=1)
+    text: str = Field(default="")
+    needs_review: bool = False
+    review_reason: str | None = None
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+
+    @field_validator("confidence", mode="before")
+    @classmethod
+    def _no_fake_confidence(cls, value: object) -> object:
+        if value == "" or value is False:
+            return None
+        return value
+
+    @field_validator("review_reason", mode="before")
+    @classmethod
+    def _empty_reason(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value
+
+
+class OcrPageModel(BaseModel):
+    """Structured OCR for a single handwritten page."""
+
+    segments: list[OcrSegmentModel] = Field(default_factory=list)
+    needs_review: bool = False
+    review_reason: str | None = None
+
+    @field_validator("segments", mode="before")
+    @classmethod
+    def _coerce_segments(cls, value: object) -> object:
+        return value or []
+
+    @field_validator("review_reason", mode="before")
+    @classmethod
+    def _empty_page_reason(cls, value: object) -> object:
+        if value == "":
+            return None
+        return value

@@ -64,6 +64,14 @@ ERROR_MESSAGES: dict[str, str] = {
     "IMPORT_STALE": "Phiên phân tích không khớp bản Markdown hiện tại. Hãy phân tích lại.",
     "IMPORT_NOT_READY": "Tài liệu chưa sẵn sàng để lưu vào kho.",
     "IMPORT_TIMEOUT": "Chuyển Markdown quá thời gian. File gốc vẫn còn.",
+    "SUBMISSION_IMAGE_TYPE": "Chỉ nhận ảnh JPEG hoặc PNG thật.",
+    "SUBMISSION_IMAGE_SIZE": "Ảnh vượt quá dung lượng hoặc kích thước cho phép.",
+    "SUBMISSION_PAGE_LIMIT": "Mỗi bài nộp từ 1 đến 4 trang ảnh.",
+    "SUBMISSION_NOT_DRAFT": "Bộ ảnh đã nộp. Hãy tạo lượt mới nếu muốn thay ảnh.",
+    "SUBMISSION_EMPTY": "Cần ít nhất một trang ảnh trước khi nộp.",
+    "OCR_IN_PROGRESS": "Bài đang được số hóa. Em chờ kết quả rồi đối chiếu.",
+    "REVISION_CONFLICT": "Bản chép đã được sửa ở tab khác. Hãy tải lại rồi lưu.",
+    "OCR_NOT_READY": "Bản chép chưa sẵn sàng để xác nhận.",
 }
 
 

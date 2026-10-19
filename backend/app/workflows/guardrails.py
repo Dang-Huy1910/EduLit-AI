@@ -298,6 +298,41 @@ def source_alias_retry_hint(alias_map: SourceAliasMap) -> str:
     )
 
 
+def source_alias_init_retry_hint(alias_map: SourceAliasMap) -> str:
+    return source_alias_retry_hint(alias_map)
+
+
+def materialize_init_sources(
+    sources: Any,
+    alias_map: SourceAliasMap,
+    context_chunks: list[dict[str, Any]] | None,
+) -> tuple[list[SourceReference], str]:
+    """Resolve aliases and store a verbatim excerpt from the cited chunk."""
+    normalized, err = normalize_cited_sources(sources, alias_map)
+    if err:
+        return [], err
+    by_id = {
+        context_chunk_id(chunk, index): chunk
+        for index, chunk in enumerate(context_chunks or [])
+    }
+    materialized: list[SourceReference] = []
+    for source in normalized:
+        chunk = by_id.get(source.chunk_id)
+        if chunk is None:
+            return [], f"chunk_id không thuộc ngữ cảnh: {source.chunk_id}"
+        raw = context_chunk_text(chunk)
+        haystack = normalize_quote(raw)
+        needle = normalize_quote(source.quote)
+        if needle and needle in haystack:
+            materialized.append(source)
+            continue
+        excerpt = raw.strip()[:280]
+        if not excerpt:
+            return [], "Trích dẫn không khớp nội dung nguồn"
+        materialized.append(SourceReference(chunk_id=source.chunk_id, quote=excerpt))
+    return materialized, ""
+
+
 def resolve_source_id(
     alias_map: SourceAliasMap,
     raw_id: str | None,
