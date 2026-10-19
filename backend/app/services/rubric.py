@@ -82,6 +82,21 @@ def decimal_to_number(value: Decimal) -> float:
     return float(value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP))
 
 
+def parse_score(value: Any, field: str) -> Decimal:
+    """Finite decimal, may be zero. Used when validating awarded scores."""
+    return _as_finite_decimal(value, field)
+
+
+def score_follows_step(value: Decimal, step: Decimal) -> bool:
+    return _multiple_of_step(value, step)
+
+
+def scale10(total: Decimal, max_score: Decimal) -> Decimal:
+    if max_score <= 0:
+        raise DomainError("RUBRIC_WEIGHT", "maxScore phải lớn hơn 0.")
+    return (total / max_score * Decimal("10")).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+
+
 def validate_rubric_payload(payload: Any) -> dict[str, Any]:
     """Validate a catalog/assignment rubric document. Returns a canonical dict."""
     if not isinstance(payload, dict):

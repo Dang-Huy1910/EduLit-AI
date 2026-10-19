@@ -76,12 +76,12 @@ sequenceDiagram
     HS->>SYS: Bước 1-2: Vào /socratic, tương tác với AI để hoàn thiện Dàn ý
     HS->>SYS: Bước 3: Vào /submit, chụp/tải 1–4 trang, rà soát/che vùng riêng tư, nộp
     HS->>SYS: Bước 4: Vào /ocr, đối chiếu ảnh với bản chép, sửa nếu cần, bấm "Xác nhận và nộp bài"
-    SYS-->>SYS: Attempt sang READY_TO_GRADE; bài đã nộp chính thức
+    SYS-->>SYS: Attempt sang READY_TO_GRADE; nộp chính thức; enqueue chấm rubric
 
-    Note over HS,GV: 3. ĐÃ NỘP
-    SYS-->>HS: Bước 5: Hiện "Bài đã nộp chính thức" (điểm rubric khi hệ thống mở chấm)
-    HS->>SYS: Quay lại /assignments -> Đề tự chuyển sang tab "Bài đã nộp"
-    GV->>SYS: Vào /reports -> Bộ đếm bài đã nộp & đã chấm của lớp tăng lên
+    Note over HS,GV: 3. CHẤM, CÔNG BỐ, BÁO CÁO
+    SYS-->>HS: Bước 5: đang chấm / chờ giáo viên công bố / điểm sau khi công bố
+    GV->>SYS: Rà soát điểm, lưu, công bố hoặc ẩn; mở lại bản chép nếu cần
+    GV->>SYS: /reports: thống kê bài đã nộp/công bố và gợi ý dạy học từ số liệu server
     Note over GV,HS: Bấm "⚡ Khôi phục Demo (Reset)" để khôi phục trạng thái ban đầu bất cứ lúc nào
 ```
 

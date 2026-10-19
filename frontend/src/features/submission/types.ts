@@ -70,6 +70,8 @@ export interface SubmissionPayload {
   ocrError: string | null;
   ocrPageErrors: Record<string, string>;
   submittedAt: string | null;
+  ocrSubmittedAt?: string | null;
+  officialSubmittedAt?: string | null;
   confirmedAt: string | null;
   pages: SubmissionPage[];
   ocrPages: TranscriptionPage[];
@@ -82,4 +84,5 @@ export interface SubmissionPayload {
   canRetryOcr: boolean;
   canConfirm: boolean;
   waitingForGrade: boolean;
+  canReopenTranscription?: boolean;
 }

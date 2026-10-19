@@ -42,7 +42,9 @@ from app.db.models import (
     User,
 )
 from app.services.ocr_normalize import apply_segment_edits, clone_pages, materialize_page
+from app.services.reopen_policy import consume_reopen_grant, student_may_reopen
 from app.services.submission_errors import SubmissionError
+from app.services.submission_locks import lock_attempt, lock_submission
 from app.services.submission_service import SubmissionService
 from app.workflows.guardrails import compact_log_reason
 
@@ -465,7 +467,9 @@ class OcrReviewService:
         body: dict[str, Any],
     ) -> dict[str, Any]:
         revision, submission, attempt = await self.submissions._require_owned(student, assignment_key)
+        submission, attempt = await self._lock_owned(submission, attempt)
         if attempt.state == ATTEMPT_CONFIRMED:
+            await self._assert_can_reopen(submission, attempt)
             return await self.reopen(student, assignment_key, body)
         if attempt.state != ATTEMPT_REVIEW:
             raise SubmissionError(409, "OCR_NOT_READY", ERROR_MESSAGES["OCR_NOT_READY"])
@@ -479,8 +483,10 @@ class OcrReviewService:
         body: dict[str, Any],
     ) -> dict[str, Any]:
         revision, submission, attempt = await self.submissions._require_owned(student, assignment_key)
+        submission, attempt = await self._lock_owned(submission, attempt)
         if attempt.state == ATTEMPT_CONFIRMED:
-            return await self.submissions._payload(revision, student, submission, attempt)
+            await self._ensure_grade_job(submission, attempt)
+            return await self.submissions.commit_payload(revision, student, submission, attempt)
         if attempt.state != ATTEMPT_REVIEW:
             raise SubmissionError(409, "OCR_NOT_READY", ERROR_MESSAGES["OCR_NOT_READY"])
         tx = await self._apply_edits(attempt, student, body, confirm=True)
@@ -489,8 +495,11 @@ class OcrReviewService:
         attempt.confirmed_at = now
         attempt.confirmed_by = student.id
         attempt.confirmed_revision_id = tx.id
+        attempt.official_submitted_at = now
         attempt.updated_at = now
+        consume_reopen_grant(submission)
         submission.updated_at = now
+        await self._ensure_grade_job(submission, attempt, transcription=tx)
         return await self.submissions.commit_payload(revision, student, submission, attempt)
 
     async def reopen(
@@ -500,6 +509,7 @@ class OcrReviewService:
         body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         revision, submission, attempt = await self.submissions._require_owned(student, assignment_key)
+        submission, attempt = await self._lock_owned(submission, attempt)
         if attempt.state not in {ATTEMPT_CONFIRMED, ATTEMPT_REVIEW}:
             raise SubmissionError(409, "OCR_NOT_READY", ERROR_MESSAGES["OCR_NOT_READY"])
         current = await self._current_tx(attempt)
@@ -512,6 +522,7 @@ class OcrReviewService:
                     revision, student, submission, attempt
                 )
             return await self.submissions._payload(revision, student, submission, attempt)
+        await self._assert_can_reopen(submission, attempt)
         now = utcnow()
         if current.status == CONFIRMED_TX:
             current.status = SUPERSEDED_TX
@@ -533,9 +544,50 @@ class OcrReviewService:
         attempt.confirmed_at = None
         attempt.confirmed_by = None
         attempt.confirmed_revision_id = None
+        attempt.official_submitted_at = None
         attempt.updated_at = now
+        submission.current_assessment_job_id = None
+        submission.current_assessment_result_id = None
+        consume_reopen_grant(submission)
         submission.updated_at = now
         return await self.submissions.commit_payload(revision, student, submission, attempt)
+
+    async def _lock_owned(
+        self, submission: Submission, attempt: SubmissionAttempt
+    ) -> tuple[Submission, SubmissionAttempt]:
+        locked_submission = await lock_submission(self.session, submission.id)
+        if locked_submission.current_attempt_id != attempt.id:
+            raise SubmissionError(409, "ASSESSMENT_STALE", ERROR_MESSAGES["ASSESSMENT_STALE"])
+        locked_attempt = await lock_attempt(self.session, attempt.id)
+        return locked_submission, locked_attempt
+
+    async def _assert_can_reopen(self, submission: Submission, attempt: SubmissionAttempt) -> None:
+        if attempt.state != ATTEMPT_CONFIRMED:
+            return
+        if await student_may_reopen(self.session, submission=submission, attempt=attempt):
+            return
+        raise SubmissionError(409, "TRANSCRIPTION_LOCKED", ERROR_MESSAGES["TRANSCRIPTION_LOCKED"])
+
+    async def _ensure_grade_job(
+        self,
+        submission: Submission,
+        attempt: SubmissionAttempt,
+        transcription: TranscriptionRevision | None = None,
+    ) -> None:
+        from app.services.assessment_jobs import enqueue_for_confirmed
+
+        tx = transcription
+        if tx is None and attempt.confirmed_revision_id:
+            tx = await self.session.get(TranscriptionRevision, attempt.confirmed_revision_id)
+        if tx is None:
+            return
+        await enqueue_for_confirmed(
+            self.session,
+            submission=submission,
+            attempt=attempt,
+            transcription=tx,
+            settings=self.settings,
+        )
 
     async def _current_tx(self, attempt: SubmissionAttempt) -> TranscriptionRevision | None:
         return (

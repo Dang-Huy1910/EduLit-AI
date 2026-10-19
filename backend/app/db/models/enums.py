@@ -119,3 +119,21 @@ class TranscriptionRevisionStatus(StrEnum):
 class PageBlobKind(StrEnum):
     ORIGINAL = "ORIGINAL"
     PROCESSED = "PROCESSED"
+
+
+class AssessmentJobStatus(StrEnum):
+    """Durable rubric-grading job, separate from OCR state."""
+
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"
+
+
+class ClassInsightStatus(StrEnum):
+    """Durable class-level teaching insight job."""
+
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    READY = "READY"
+    FAILED = "FAILED"

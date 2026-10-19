@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -252,6 +253,85 @@ class OcrSegmentModel(BaseModel):
         if value == "":
             return None
         return value
+
+
+ASSESSMENT_OUTPUT_SCHEMA_VERSION = "assessment_output.v1"
+CLASS_INSIGHT_SCHEMA_VERSION = "class_insight.v1"
+ISSUE_CODE_RE = re.compile(r"^[A-Z][A-Z0-9_]{1,62}$")
+
+
+class AssessmentIssueModel(BaseModel):
+    """One error or omission. `located` needs real segment ids; `missing` does not."""
+
+    code: str = Field(..., min_length=2, max_length=64)
+    kind: Literal["located", "missing"] = "located"
+    message: str = Field(..., min_length=1, max_length=500)
+    segment_ids: list[str] = Field(default_factory=list)
+
+    @field_validator("code")
+    @classmethod
+    def _code(cls, value: str) -> str:
+        text = (value or "").strip().upper().replace("-", "_").replace(" ", "_")
+        if not ISSUE_CODE_RE.match(text):
+            raise ValueError("issue code must be stable UPPER_SNAKE")
+        return text
+
+    @field_validator("segment_ids", mode="before")
+    @classmethod
+    def _seg_ids(cls, value: object) -> object:
+        return value or []
+
+
+class AssessmentCriterionModel(BaseModel):
+    criterion_id: str = Field(..., min_length=1, max_length=64)
+    awarded_score: float
+    comment: str = Field(default="", max_length=4000)
+    strengths: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
+    missing_elements: list[str] = Field(default_factory=list)
+    issues: list[AssessmentIssueModel] = Field(default_factory=list)
+    evidence_segment_ids: list[str] = Field(default_factory=list)
+
+    @field_validator(
+        "strengths", "weaknesses", "missing_elements", "issues", "evidence_segment_ids", mode="before"
+    )
+    @classmethod
+    def _lists(cls, value: object) -> object:
+        return value or []
+
+
+class AssessmentOutput(BaseModel):
+    """Structured rubric scoring. Server recomputes the total from criteria."""
+
+    criteria: list[AssessmentCriterionModel] = Field(default_factory=list)
+    overall_comment: str = Field(..., min_length=1, max_length=4000)
+    improvement_guidance: list[str] = Field(default_factory=list)
+
+    @field_validator("criteria", "improvement_guidance", mode="before")
+    @classmethod
+    def _coerce(cls, value: object) -> object:
+        return value or []
+
+
+class InsightPriorityModel(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    evidence: str = Field(..., min_length=1, max_length=1000)
+    suggested_activities: list[str] = Field(default_factory=list)
+
+    @field_validator("suggested_activities", mode="before")
+    @classmethod
+    def _acts(cls, value: object) -> object:
+        return value or []
+
+
+class ClassInsightOutput(BaseModel):
+    priorities: list[InsightPriorityModel] = Field(default_factory=list)
+    notes: str = Field(default="", max_length=4000)
+
+    @field_validator("priorities", mode="before")
+    @classmethod
+    def _pri(cls, value: object) -> object:
+        return value or []
 
 
 class OcrPageModel(BaseModel):

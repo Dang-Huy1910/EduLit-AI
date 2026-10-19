@@ -19,8 +19,10 @@ SOCRATIC_SCHEMA_VERSION = "socratic_output.v1"
 OUTLINE_INIT_SCHEMA_VERSION = "socratic_outline_init.v1"
 DOCUMENT_ANALYSIS_SCHEMA_VERSION = "document_analysis.v1"
 OCR_PAGE_SCHEMA_VERSION = "ocr_page.v1"
+ASSESSMENT_OUTPUT_SCHEMA_VERSION = "assessment_output.v1"
+CLASS_INSIGHT_SCHEMA_VERSION = "class_insight.v1"
 CANONICAL_DIRNAME = Path("prompts") / "socratic"
-ALLOWED_FAMILIES = {"socratic", "catalog", "ocr"}
+ALLOWED_FAMILIES = {"socratic", "catalog", "ocr", "assessment"}
 ALLOWED_KINDS = {"system", "outline-init"}
 KIND_SCHEMA_VERSION = {
     "system": SOCRATIC_SCHEMA_VERSION,
@@ -31,11 +33,14 @@ FAMILY_KIND_SCHEMA = {
     ("socratic", "outline-init"): OUTLINE_INIT_SCHEMA_VERSION,
     ("catalog", "document-extract"): DOCUMENT_ANALYSIS_SCHEMA_VERSION,
     ("ocr", "transcribe-page"): OCR_PAGE_SCHEMA_VERSION,
+    ("assessment", "grade-essay"): ASSESSMENT_OUTPUT_SCHEMA_VERSION,
+    ("assessment", "class-insight"): CLASS_INSIGHT_SCHEMA_VERSION,
 }
 FAMILY_ALLOWED_KINDS = {
     "socratic": {"system", "outline-init"},
     "catalog": {"document-extract"},
     "ocr": {"transcribe-page"},
+    "assessment": {"grade-essay", "class-insight"},
 }
 
 _VERSION_RE = re.compile(r"^v?\d+(\.\d+)*$")

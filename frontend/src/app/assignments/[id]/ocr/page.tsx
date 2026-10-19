@@ -262,9 +262,20 @@ export default function OcrVerificationPage() {
         {confirmed && (
           <div className="p-3 rounded-xl border border-tertiary/40 bg-tertiary-container/30 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <span className="font-semibold text-tertiary">Bài đã nộp chính thức. Giáo viên nhận được bài của em.</span>
-            <button type="button" onClick={() => void handleReopen()} className="px-3 py-1.5 border rounded-lg font-semibold">
-              Sửa bản chép rồi nộp lại
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href={`/assignments/${assignmentId}/result`} className="px-3 py-1.5 border rounded-lg font-semibold">
+                Xem bước 5
+              </Link>
+              {payload.canReopenTranscription ? (
+                <button type="button" onClick={() => void handleReopen()} className="px-3 py-1.5 border rounded-lg font-semibold">
+                  Sửa bản chép rồi nộp lại
+                </button>
+              ) : (
+                <span className="text-[11px] text-on-surface-variant">
+                  Bài đã công bố. Em cần giáo viên mở lại quyền sửa bản chép.
+                </span>
+              )}
+            </div>
           </div>
         )}
 

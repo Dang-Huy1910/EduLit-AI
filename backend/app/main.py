@@ -17,12 +17,15 @@ from app.core.http import SENSITIVE_FIELDS
 from app.db.session import close_db
 from app.workers.outline_prep import start_outline_prep_worker
 from app.workers.ocr import start_ocr_worker
+from app.workers.assessment import start_assessment_worker
 from app.identity.router import router as auth_router
 from app.api.routers.socratic import router as socratic_router
 from app.api.routers.catalog import router as catalog_router
 from app.api.routers.assignments import student_router as assignments_router
 from app.api.routers.assignments import teacher_router as teacher_assignments_router
 from app.api.routers.submissions import router as submissions_router
+from app.api.routers.assessments import student_router as assessment_student_router
+from app.api.routers.assessments import teacher_router as assessment_teacher_router
 
 logger = logging.getLogger("edulit.api")
 
@@ -43,12 +46,17 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     stop_worker = None
     ocr_task = None
     stop_ocr = None
+    grade_task = None
+    stop_grade = None
     if settings.OUTLINE_PREP_WORKER_ENABLED and not settings.is_test:
         worker_task, stop_worker = start_outline_prep_worker(settings=settings)
         logger.info("outline_prep worker attached to api process")
     if settings.OCR_WORKER_ENABLED and not settings.is_test:
         ocr_task, stop_ocr = start_ocr_worker(settings=settings)
         logger.info("ocr worker attached to api process")
+    if settings.ASSESSMENT_WORKER_ENABLED and not settings.is_test:
+        grade_task, stop_grade = start_assessment_worker(settings=settings)
+        logger.info("assessment worker attached to api process")
     try:
         yield
     finally:
@@ -56,6 +64,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             stop_worker()
         if stop_ocr is not None:
             stop_ocr()
+        if stop_grade is not None:
+            stop_grade()
         if worker_task is not None:
             worker_task.cancel()
             try:
@@ -66,6 +76,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             ocr_task.cancel()
             try:
                 await ocr_task
+            except asyncio.CancelledError:
+                pass
+        if grade_task is not None:
+            grade_task.cancel()
+            try:
+                await grade_task
             except asyncio.CancelledError:
                 pass
         await close_db()
@@ -140,6 +156,8 @@ def create_app() -> FastAPI:
     app.include_router(teacher_assignments_router, prefix="/api")
     app.include_router(assignments_router, prefix="/api")
     app.include_router(submissions_router, prefix="/api")
+    app.include_router(assessment_student_router, prefix="/api")
+    app.include_router(assessment_teacher_router, prefix="/api")
     return app
 
 

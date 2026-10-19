@@ -31,7 +31,9 @@ from app.db.models import (
 from app.services.document_convert import safe_filename
 from app.services.image_process import ImageProcessError, validate_and_process
 from app.services.ocr_normalize import public_page
+from app.services.reopen_policy import consume_reopen_grant, student_may_reopen
 from app.services.submission_errors import SubmissionError
+from app.services.submission_locks import lock_attempt, lock_submission
 
 logger = logging.getLogger("edulit.submission")
 
@@ -367,8 +369,22 @@ class SubmissionService:
 
     async def new_attempt(self, student: User, assignment_key: str) -> dict[str, Any]:
         revision, submission, current = await self._require_owned(student, assignment_key)
+        submission = await lock_submission(self.session, submission.id)
+        if submission.current_attempt_id != current.id:
+            raise SubmissionError(409, "ASSESSMENT_STALE", ERROR_MESSAGES["ASSESSMENT_STALE"])
+        current = await lock_attempt(self.session, current.id)
+        if submission.current_attempt_id != current.id:
+            raise SubmissionError(409, "ASSESSMENT_STALE", ERROR_MESSAGES["ASSESSMENT_STALE"])
         if current.state == DRAFT:
             return await self._payload(revision, student, submission, current)
+        if current.state == READY_TO_GRADE:
+            allowed = await student_may_reopen(
+                self.session, submission=submission, attempt=current
+            )
+            if not allowed:
+                raise SubmissionError(
+                    409, "TRANSCRIPTION_LOCKED", ERROR_MESSAGES["TRANSCRIPTION_LOCKED"]
+                )
         nxt = (
             await self.session.execute(
                 select(func.max(SubmissionAttempt.attempt_number)).where(
@@ -386,8 +402,12 @@ class SubmissionService:
         )
         self.session.add(attempt)
         await self.session.flush()
+        now = utcnow()
         submission.current_attempt_id = attempt.id
-        submission.updated_at = utcnow()
+        submission.current_assessment_job_id = None
+        submission.current_assessment_result_id = None
+        consume_reopen_grant(submission)
+        submission.updated_at = now
         return await self.commit_payload(revision, student, submission, attempt)
 
     def _process_image(self, data: bytes, rotation: int, masks: list, mime: str | None):
@@ -653,7 +673,17 @@ class SubmissionService:
             "ocrStatus": ocr_status,
             "ocrError": attempt.ocr_last_error if attempt else None,
             "ocrPageErrors": attempt.ocr_page_errors if attempt else {},
-            "submittedAt": attempt.submitted_at.isoformat() if attempt and attempt.submitted_at else None,
+            "ocrSubmittedAt": attempt.submitted_at.isoformat() if attempt and attempt.submitted_at else None,
+            "officialSubmittedAt": (
+                attempt.official_submitted_at.isoformat()
+                if attempt and attempt.official_submitted_at
+                else None
+            ),
+            "submittedAt": (
+                attempt.official_submitted_at.isoformat()
+                if attempt and attempt.official_submitted_at
+                else None
+            ),
             "confirmedAt": attempt.confirmed_at.isoformat() if attempt and attempt.confirmed_at else None,
             "pages": pages_out,
             "ocrPages": ocr_pages,
@@ -666,7 +696,13 @@ class SubmissionService:
             "canRetryOcr": state == FAILED or ocr_status == OcrJobStatus.FAILED.value,
             "canConfirm": state == OCR_REVIEW,
             "waitingForGrade": state == READY_TO_GRADE,
+            "canReopenTranscription": await self._can_reopen(submission, attempt),
         }
+
+    async def _can_reopen(
+        self, submission: Submission | None, attempt: SubmissionAttempt | None
+    ) -> bool:
+        return await student_may_reopen(self.session, submission=submission, attempt=attempt)
 
     async def commit_payload(
         self,

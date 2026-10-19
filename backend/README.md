@@ -104,9 +104,10 @@ uv run python -m app.cli reset-teacher-password --i-understand
 uv run python -m app.cli cleanup-expired
 uv run python -m app.cli outline-prep-worker
 uv run python -m app.cli ocr-worker
+uv run python -m app.cli assessment-worker
 ```
 
-API process đã gắn OCR worker khi `OCR_WORKER_ENABLED=true` (mặc định). Chỉ chạy CLI `ocr-worker` nếu tách worker ra process riêng và tắt worker trong API.
+API process đã gắn OCR worker khi `OCR_WORKER_ENABLED=true` và worker chấm/phân tích lớp khi `ASSESSMENT_WORKER_ENABLED=true` (mặc định). Chỉ chạy CLI `ocr-worker` / `assessment-worker` nếu tách worker ra process riêng và tắt worker tương ứng trong API. Chấm dùng `ASSESSMENT_MODEL` (trống thì kế thừa `AI_MODEL`). Migration `0011_assessment_grading` thêm job/kết quả/insights và backfill bài đã xác nhận.
 
 `reset-teacher-password` chỉ dành người vận hành; thu hồi mọi phiên của giáo viên.
 

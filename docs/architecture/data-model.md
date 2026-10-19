@@ -83,7 +83,7 @@ erDiagram
 - Unique active/publication pointer cho assessment của attempt; lịch sử assessment giữ đầy đủ, thay pointer trong transaction khi công bố lại.
 - Foreign keys: assessment rubric phải bằng rubric đã chốt trong assignment revision của attempt; reference consistency kiểm tra trong transaction và constraint khả thi.
 - Index theo `(classId, status)`, `(studentId, assignmentId)`, `(attemptId, state)`, `(studentId, genre, observedAt)`, outbox chưa giao, assets đến hạn xóa và session expiry.
-- Lock/version khi sửa rubric draft, outline, chốt attempt, publish assessment. Request dùng `expectedVersion`; xung đột trả `409` thay vì ghi đè.
+- Lock/version khi sửa rubric draft, outline, chốt attempt, publish assessment. Request chấm điểm dùng `resultId` + `transcriptionRevisionId` + `expectedVersion`; xung đột hoặc bản nộp đã đổi trả `409`, không chuyển thao tác sang result khác.
 
 ## 5. Lifecycle
 
@@ -92,13 +92,13 @@ erDiagram
 | MaterialVersion | `UPLOADED → PRIVACY_REVIEW → PROCESSING → READY`; lỗi xử lý → `FAILED` |
 | RubricVersion | `DRAFT → APPROVED`; thay đổi sau approve tạo version mới |
 | AssignmentRevision | `DRAFT → PUBLISHED → CLOSED`; việc đóng không xóa lịch sử |
-| SubmissionAttempt | `DRAFT → QUEUED → OCR_PROCESSING → OCR_REVIEW → READY_TO_GRADE` (chấm rubric chưa mở). Lỗi OCR → `FAILED`; retry cùng input; nộp bộ ảnh mới → attempt mới |
+| SubmissionAttempt | `DRAFT → QUEUED → OCR_PROCESSING → OCR_REVIEW → READY_TO_GRADE`. `submitted_at` = gửi OCR; `official_submitted_at` = xác nhận nộp chính thức. Lỗi OCR → `FAILED`; retry cùng input; nộp bộ ảnh mới → attempt mới |
 | Attempt ngoại lệ | Từ bước nền → `FAILED`; retry về đúng bước với cùng input; privacy failure → `PRIVACY_REVIEW`; rút kết quả → `WITHDRAWN` |
 | TranscriptionRevision | `DRAFT → CONFIRMED`; sửa sau xác nhận → `SUPERSEDED` và tạo DRAFT mới; học sinh xác nhận lại |
-| AssessmentRevision | `AI_DRAFT → TEACHER_REVIEW → PUBLISHED`; rút → `WITHDRAWN`, thay thế → `SUPERSEDED` |
+| AssessmentJob / AssessmentResult | Job `QUEUED → PROCESSING → READY/FAILED` tách khỏi kết quả. `ai_payload` bất biến; `teacher_payload` rà soát; `published_payload` + `current_published_result_id` là bản học sinh thấy. Công bố bản mới thay pointer trong transaction, giữ lịch sử. |
 | Observation | `PROVISIONAL → SUPPORTED`; có thể `RESOLVED`, `INVALIDATED`; giữ lịch sử bằng chứng |
 
-Học sinh tự đối chiếu ảnh với bản chép, sửa và xác nhận tại bước 4. Xác nhận chuyển attempt sang `READY_TO_GRADE`. Không có bảng `OcrReviewIssue` và không có màn giáo viên duyệt OCR. Sửa sau xác nhận tạo transcription revision mới và yêu cầu xác nhận lại; bản cũ giữ để truy vết.
+Học sinh tự đối chiếu ảnh với bản chép, sửa và xác nhận tại bước 4. Xác nhận là nộp chính thức: chốt transcription, ghi `official_submitted_at`, enqueue chấm cho đúng phiên bản. Không có bảng `OcrReviewIssue` và không có màn giáo viên duyệt OCR. Phiên bản chưa từng công bố thì học sinh mở lại được; phiên bản đã từng công bố (kể cả đang ẩn) cần giáo viên cấp quyền. Ẩn điểm không tự mở khóa. Grant tiêu thụ khi bắt đầu lượt sửa/nộp lại. Mở lại tạo DRAFT mới, bản cũ SUPERSEDED; kết quả cũ không thành kết quả của bản đang sửa. Worker chỉ đưa result thành hiện hành khi job còn thuộc `current_attempt_id` + `confirmed_revision_id` + job hiện hành. Báo cáo chính thức dùng `current_published_result_id` (một dòng/học sinh/bài tập). Occurrence lỗi cùng loại ở vị trí khác nhau được giữ; `studentCount` đếm mỗi học sinh một lần.
 
 ## 6. Rubric, điểm và báo cáo
 

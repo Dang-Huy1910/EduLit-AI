@@ -14,7 +14,7 @@ Hiện đây là prototype với mock data và Zustand/sessionStorage. [Kiến t
 | `src/app/assignments/` | Danh sách bài tập, Soạn đề & Cấu hình Rubric 10.0đ |
 | `src/app/assignments/[id]/` | Chu trình 5 bước làm bài: `/socratic`, `/submit`, `/ocr`, `/result` |
 | `src/app/materials/` | Kho học liệu & Quản lý ngữ liệu đọc hiểu, barem GDPT 2018 |
-| `src/app/reports/` | Báo cáo năng lực lớp 12A1 & Kế hoạch điều chỉnh giáo án |
+| `src/app/reports/` | Báo cáo lớp theo bài tập thật, chi tiết bài chấm giáo viên |
 | `src/app/login/` | Màn hình đăng nhập phong cách VLearn với nền trường THPT Đan Phượng |
 | `src/components/` | Shell giao diện (`TeacherShell`, `StudentShell`), Stepper 5 bước, Toasts |
 | `src/features/` | Components nghiệp vụ (`assignments`, `assessment`, `reports`) |
@@ -44,7 +44,7 @@ Tại màn hình đăng nhập, hệ thống cung cấp sẵn 2 nút đăng nh�
    - Theo dõi báo cáo năng lực lớp và điều chỉnh giáo án.
 2. **Học sinh:** Bấm **"Bùi Hà My"** (Học sinh Lớp 12A1 • Mã định danh: `VN-12A1-048`)
    - Xem bài tập cần làm & bài đã nộp.
-   - Trải nghiệm chu trình: Đọc hiểu &rarr; Lập dàn ý Socratic &rarr; Viết tay & Nộp ảnh &rarr; Học sinh đối chiếu OCR &rarr; Nộp bài chính thức.
+   - Trải nghiệm chu trình: Đọc hiểu &rarr; Lập dàn ý Socratic &rarr; Viết tay & Nộp ảnh &rarr; Đối chiếu OCR &rarr; Nộp chính thức &rarr; Xem điểm sau khi giáo viên công bố.
 
 ---
 

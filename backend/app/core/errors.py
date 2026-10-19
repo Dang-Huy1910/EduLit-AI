@@ -72,6 +72,12 @@ ERROR_MESSAGES: dict[str, str] = {
     "OCR_IN_PROGRESS": "Bài đang được số hóa. Em chờ kết quả rồi đối chiếu.",
     "REVISION_CONFLICT": "Bản chép đã được sửa ở tab khác. Hãy tải lại rồi lưu.",
     "OCR_NOT_READY": "Bản chép chưa sẵn sàng để xác nhận.",
+    "TRANSCRIPTION_LOCKED": "Bài đã công bố. Em cần giáo viên mở lại quyền sửa bản chép.",
+    "ASSESSMENT_NOT_READY": "Bài chưa có kết quả chấm để rà soát.",
+    "ASSESSMENT_FAILED": "Lượt chấm không thành công. Giáo viên có thể thử lại.",
+    "ASSESSMENT_STALE": "Kết quả không còn khớp bản nộp chính thức hiện hành.",
+    "VERSION_CONFLICT": "Kết quả đã được sửa ở tab khác. Hãy tải lại rồi lưu.",
+    "PUBLISH_STALE": "Không công bố được kết quả của bản nộp cũ. Hãy chấm bản hiện hành.",
 }
 
 

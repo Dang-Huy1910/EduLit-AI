@@ -30,7 +30,13 @@ from openai import (
 from pydantic import BaseModel, ValidationError
 
 from app.ai.fake_document_extract import fake_document_analysis_json
-from app.ai.schemas import DocumentAnalysisResult, OcrPageModel, SocraticOutlineInit
+from app.ai.schemas import (
+    AssessmentOutput,
+    ClassInsightOutput,
+    DocumentAnalysisResult,
+    OcrPageModel,
+    SocraticOutlineInit,
+)
 from app.config import Settings, get_settings
 
 logger = logging.getLogger("edulit.ai")
@@ -802,6 +808,14 @@ class FakeAiAdapter(AiPort):
             structured_output is DocumentAnalysisResult
             or getattr(structured_output, "__name__", "") == "DocumentAnalysisResult"
         )
+        wants_assessment = structured_output is not None and (
+            structured_output is AssessmentOutput
+            or getattr(structured_output, "__name__", "") == "AssessmentOutput"
+        )
+        wants_insight = structured_output is not None and (
+            structured_output is ClassInsightOutput
+            or getattr(structured_output, "__name__", "") == "ClassInsightOutput"
+        )
         if wants_outline:
             if self.outline_responses:
                 content = self.outline_responses[
@@ -812,6 +826,10 @@ class FakeAiAdapter(AiPort):
                 content = _fake_outline_init_for_prompt(system_prompt, prompt)
         elif wants_document and not self.responses:
             content = fake_document_analysis_json(prompt)
+        elif wants_assessment and not self.responses:
+            content = _fake_assessment_json(prompt)
+        elif wants_insight and not self.responses:
+            content = _fake_insight_json(prompt)
         elif self.responses:
             content = self.responses[self.response_index % len(self.responses)]
             self.response_index += 1
@@ -885,6 +903,97 @@ class FakeAiAdapter(AiPort):
             temperature=temperature,
             max_tokens=max_tokens,
         )
+
+
+def _extract_json_block(prompt: str) -> dict[str, Any]:
+    match = re.search(r"```json\s*(\{.*\})\s*```", prompt or "", re.DOTALL)
+    if not match:
+        return {}
+    try:
+        data = json.loads(match.group(1))
+    except json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _fake_assessment_json(prompt: str) -> str:
+    data = _extract_json_block(prompt)
+    rubric = data.get("rubric") if isinstance(data.get("rubric"), dict) else {}
+    criteria = rubric.get("criteria") if isinstance(rubric.get("criteria"), list) else []
+    pages = data.get("transcription") if isinstance(data.get("transcription"), list) else []
+    segment_ids: list[str] = []
+    for page in pages:
+        if not isinstance(page, dict):
+            continue
+        for segment in page.get("segments") or []:
+            if isinstance(segment, dict) and segment.get("segmentId"):
+                segment_ids.append(str(segment["segmentId"]))
+    out_criteria: list[dict[str, Any]] = []
+    for item in criteria:
+        if not isinstance(item, dict):
+            continue
+        cid = str(item.get("id") or "")
+        if not cid:
+            continue
+        try:
+            weight = float(item.get("weight") or 0)
+            step = float(rubric.get("scoreStep") or 0.25)
+        except (TypeError, ValueError):
+            weight, step = 0.0, 0.25
+        awarded = round(max(0.0, weight * 0.75) / step) * step if step else weight
+        awarded = min(weight, max(0.0, awarded))
+        evidence = segment_ids[:2]
+        out_criteria.append(
+            {
+                "criterion_id": cid,
+                "awarded_score": awarded,
+                "comment": "Bản chấm giả lập: tiêu chí được cấp khoảng 3/4 điểm tối đa.",
+                "strengths": ["Có triển khai luận điểm."],
+                "weaknesses": ["Cần dẫn chứng cụ thể hơn."] if weight > awarded else [],
+                "missing_elements": [],
+                "issues": [],
+                "evidence_segment_ids": evidence,
+            }
+        )
+    if not out_criteria:
+        out_criteria.append(
+            {
+                "criterion_id": "C1",
+                "awarded_score": 0,
+                "comment": "Barem giả lập thiếu tiêu chí.",
+                "strengths": [],
+                "weaknesses": [],
+                "missing_elements": [],
+                "issues": [],
+                "evidence_segment_ids": [],
+            }
+        )
+    return json.dumps(
+        {
+            "criteria": out_criteria,
+            "overall_comment": "Kết quả giả lập, không phải điểm thật từ mô hình.",
+            "improvement_guidance": ["Đối chiếu lại luận điểm với ngữ liệu đã giao."],
+        },
+        ensure_ascii=False,
+    )
+
+
+def _fake_insight_json(_prompt: str) -> str:
+    return json.dumps(
+        {
+            "priorities": [
+                {
+                    "title": "Ôn lại tiêu chí còn yếu (giả lập)",
+                    "evidence": "Số liệu lớp sẽ được diễn giải khi chạy mô hình thật.",
+                    "suggested_activities": [
+                        "Chữa một đoạn mẫu trên lớp theo barem đã giao."
+                    ],
+                }
+            ],
+            "notes": "Phân tích giả lập. Không dùng số liệu bịa.",
+        },
+        ensure_ascii=False,
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

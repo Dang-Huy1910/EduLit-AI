@@ -13,10 +13,13 @@ from app.db.models.catalog import (
     TeacherDocumentBlob,
     Topic,
 )
+from app.db.models.assessment import AssessmentJob, AssessmentResult, ClassInsight
 from app.db.models.enums import (
+    AssessmentJobStatus,
     AssignmentRevisionStatus,
     AuthTokenPurpose,
     ChatRole,
+    ClassInsightStatus,
     IdempotencyState,
     MessageStatus,
     OcrJobStatus,
@@ -53,6 +56,9 @@ from app.db.models.token import AuthToken
 from app.db.models.user import User
 
 __all__ = [
+    "AssessmentJob",
+    "AssessmentJobStatus",
+    "AssessmentResult",
     "Assignment",
     "AssignmentAccess",
     "AssignmentRevision",
@@ -62,6 +68,8 @@ __all__ = [
     "AuthTokenPurpose",
     "ChatMessage",
     "ChatRole",
+    "ClassInsight",
+    "ClassInsightStatus",
     "ClassMembership",
     "Classroom",
     "IdempotencyRecord",

@@ -226,6 +226,10 @@ def main(argv: list[str] | None = None) -> None:
         "ocr-worker",
         help="Run the durable OCR worker (resumes queued handwritten pages after restart).",
     )
+    sub.add_parser(
+        "assessment-worker",
+        help="Run the durable rubric-grading and class-insight worker.",
+    )
     args = parser.parse_args(argv)
     settings = get_settings()
 
@@ -245,6 +249,10 @@ def main(argv: list[str] | None = None) -> None:
         from app.workers.ocr import run_ocr_worker
 
         asyncio.run(run_ocr_worker(settings=settings))
+    elif args.command == "assessment-worker":
+        from app.workers.assessment import run_assessment_worker
+
+        asyncio.run(run_assessment_worker(settings=settings))
     else:
         parser.error("unknown command")
 

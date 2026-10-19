@@ -38,22 +38,24 @@ Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.
 
 **Hoàn thành khi:** hướng dẫn theo đúng đề/nguồn, giữ dàn ý học sinh, không xuất bản đoạn vi phạm guardrail; có báo cáo độ trễ thực tế. Ánh xạ FR-06–FR-10, BR-01–BR-04, AC-02/03.
 
-## M4 — OCR (học sinh xác nhận) và chấm sau này
+## M4 — OCR (học sinh xác nhận) rồi chấm rubric
 
 - Upload/che vùng riêng tư 1–4 trang, freeze attempt, queue OCR, segment mapping và transcription revision.
 - Học sinh đối chiếu/sửa/xác nhận bản chép; không có màn giáo viên duyệt OCR.
-- Chấm rubric AI chưa làm ở bước này; sau xác nhận bài đã nộp chính thức (`READY_TO_GRADE`).
-- Worker crash/re-delivery, trang lỗi phải báo rõ, retry cùng input, nộp bộ ảnh mới tạo attempt mới.
+- “Xác nhận bản chép & Nộp bài” là nộp chính thức (`READY_TO_GRADE`, `official_submitted_at`). Thời điểm gửi ảnh OCR (`submitted_at`) tách riêng.
+- Worker chấm durable trong API (`assessment_jobs`): concurrency/lease/retry; GET chỉ đọc; xác nhận lặp lại idempotent. Chấm theo AssignmentRevision đã giao + bản chép đã xác nhận, không dùng OCR thô hay barem catalog mới nhất.
+- Giáo viên rà soát/công bố/ẩn; CAS `resultId` + `transcriptionRevisionId` + `expectedVersion` → 409 nếu lệch bản đang xem. Học sinh chỉ xem điểm sau công bố. Phiên bản từng công bố (kể cả đang ẩn) cần giáo viên cấp quyền mới sửa; ẩn điểm không tự cấp quyền sửa. Grant bị tiêu thụ khi học sinh bắt đầu lượt sửa/nộp lại.
 
-**Hoàn thành khi:** một bài đi hết chụp → OCR → học sinh xác nhận → `READY_TO_GRADE`; job giao lại không nhân đôi. Ánh xạ FR-11–FR-14. Chấm/công bố điểm thuộc bước sau.
+**Hoàn thành khi:** một bài đi hết chụp → OCR → học sinh xác nhận → hàng đợi chấm → giáo viên công bố → học sinh xem điểm. Ánh xạ FR-11–FR-17.
 
-## M5 — Báo cáo và cá nhân hóa
+## M5 — Báo cáo lớp (và cá nhân hóa sau)
 
-- SQL metrics/heatmap theo taxonomy và tập bài hiện hành; denominator hiển thị rõ; teaching recommendations từ snapshot.
-- Goal survey, observations có evidence, profile snapshot và chọn context cho Socratic; không dùng profile để chấm.
-- Invalidation/rebuild khi sửa OCR, thay/rút assessment; theo dõi tiến bộ trong các bài so sánh được.
+- SQL metrics theo bài tập/lớp đã giao: sĩ số, đã nộp chính thức, đang xử lý, chờ rà soát, đã công bố, lỗi. Trung bình/phân bố chỉ từ kết quả hiện hành đã công bố; thiếu điểm không coi là 0; mỗi học sinh/bài tập một dòng.
+- Tổng hợp lỗi theo `code` ổn định, tách số học sinh và số lần xuất hiện, ghi rõ mẫu số; phân biệt AI phát hiện với giáo viên xác nhận.
+- Gợi ý điều chỉnh dạy học từ số liệu server đã tính; cache theo hash đầu vào; GET/refresh không gọi AI; lỗi phân tích không làm mất bảng điểm.
+- Hồ sơ văn phong (goal survey, observations, snapshot Socratic) vẫn là bước sau; không dùng profile để chấm.
 
-**Hoàn thành khi:** báo cáo khớp fixture có nộp lại/rút điểm; nhận xét profile trỏ đúng đoạn; không gán style ổn định theo số bài cố định. Ánh xạ FR-18–FR-21, AC-06/07; profile là mở rộng sản phẩm ngoài FR hiện tại.
+**Hoàn thành khi:** báo cáo khớp bài đã công bố, kể cả nộp lại chưa công bố vẫn giữ điểm cũ. Ánh xạ FR-18–FR-21. Profile là mở rộng ngoài FR hiện tại.
 
 ## M6 — Kiểm chứng và thí điểm
 
