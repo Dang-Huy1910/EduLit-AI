@@ -11,6 +11,7 @@ interface InsightPanelProps {
   mode?: StatsMode | string;
   issues: IssueStat[];
   busy: boolean;
+  heading?: string;
   onEnsure: () => void;
   onRetry: () => void;
 }
@@ -22,6 +23,7 @@ export default function InsightPanel({
   mode,
   issues,
   busy,
+  heading = 'Gợi ý điều chỉnh dạy học',
   onEnsure,
   onRetry,
 }: InsightPanelProps) {
@@ -50,7 +52,7 @@ export default function InsightPanel({
       <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20 gap-2">
         <span className="text-xs font-bold uppercase tracking-wider text-secondary flex items-center gap-1.5">
           <span className="material-symbols-outlined text-sm">psychology_alt</span>
-          <span>Gợi ý điều chỉnh dạy học</span>
+          <span>{heading}</span>
         </span>
         <div className="flex items-center gap-2">
           {showUpdate ? (

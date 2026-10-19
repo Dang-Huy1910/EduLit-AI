@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { assessmentApi } from './api';
-import type { CompetencyReport, StatsMode } from './types';
+import type { ClassReportAssignment, CompetencyReport, StatsMode } from './types';
 import { formatPercent, formatScore, modeLabel } from './labels';
 import StatsModeToggle from './StatsModeToggle';
 import ScoreDistributionChart from './ScoreDistributionChart';
@@ -138,11 +138,16 @@ export default function CompetencyReportView() {
   }, [classroomId, assignmentIds, studentId, dateFrom, dateTo, mode]);
 
   const availableAssignments = report?.available.assignments || [];
+  const classrooms = report?.available.classrooms || [];
+  const selectedClassroom = classrooms.find((item) => item.id === classroomId);
   const stats = report?.stats;
   const scored = stats?.scoredCount ?? 0;
   const students = report?.students;
   const totalPages = students?.totalPages || 1;
   const safePage = Math.min(Math.max(page, 1), totalPages);
+  const startIndex = students && students.total ? (students.page - 1) * students.pageSize : 0;
+  const fieldClass =
+    'w-full h-8 box-border px-2.5 text-xs leading-none rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-secondary';
 
   if (assignmentFromUrl) {
     return <div className="p-8 text-sm text-on-surface-variant">Đang chuyển tới thống kê bài tập...</div>;
@@ -156,28 +161,30 @@ export default function CompetencyReportView() {
             Quản lý bài tập
           </Link>
           <span className="text-outline-variant">/</span>
-          <span className="text-on-surface font-semibold">Báo cáo năng lực</span>
+          <span className="text-on-surface font-semibold">Báo cáo năng lực lớp &amp; Gợi ý dạy học</span>
         </div>
       }
     >
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2 py-0.5 rounded-full">
-              Tổng hợp nhiều bài tập
-            </span>
-            <h1 className="font-headline-lg text-2xl sm:text-3xl font-bold text-on-surface font-merriweather mt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2 py-0.5 rounded-full">
+                Báo cáo sư phạm GDPT 2018 (thang 10 quy đổi)
+              </span>
+              <span className="text-xs text-on-surface-variant font-medium">
+                {selectedClassroom?.name || 'Tất cả lớp phụ trách'}
+              </span>
+            </div>
+            <h1 className="font-headline-lg text-2xl sm:text-3xl font-bold text-on-surface font-merriweather">
               Báo cáo năng lực
             </h1>
-            <p className="text-xs text-on-surface-variant mt-1">
-              Lọc theo lớp, bài tập, thời điểm nộp chính thức và học sinh. Điểm các bài khác thang được quy về 10 trước khi trung bình.
-            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setUnavailableHint('Xuất PDF / Excel chưa khả dụng trong phiên bản này.')}
-              className="px-3.5 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface-variant cursor-not-allowed flex items-center gap-1.5 shadow-sm"
+              className="px-3.5 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all flex items-center gap-1.5 shadow-sm"
             >
               <span className="material-symbols-outlined text-[16px]">file_download</span>
               <span>Xuất PDF / Excel</span>
@@ -185,7 +192,7 @@ export default function CompetencyReportView() {
             <button
               type="button"
               onClick={() => setUnavailableHint('Gửi phản hồi chung chưa khả dụng trong phiên bản này.')}
-              className="px-4 py-2 rounded-lg bg-primary/40 text-white text-xs font-semibold cursor-not-allowed flex items-center gap-1.5 shadow-sm"
+              className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-all flex items-center gap-1.5 shadow-sm"
             >
               <span className="material-symbols-outlined text-[16px]">send</span>
               <span>Gửi phản hồi chung</span>
@@ -197,170 +204,186 @@ export default function CompetencyReportView() {
           <p className="text-xs text-on-surface-variant bg-surface-container-low px-3 py-2 rounded-lg">{unavailableHint}</p>
         ) : null}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <label className="text-xs space-y-1">
-            <span className="font-semibold">Lớp phụ trách</span>
-            <select
-              value={classroomId}
-              onChange={(e) => {
-                setClassroomId(e.target.value);
-                setAssignmentIds([]);
-                setStudentId('');
-                setPage(1);
-              }}
-              className="w-full px-2.5 py-1.5 rounded-lg border bg-surface"
-            >
-              <option value="">Tất cả lớp</option>
-              {(report?.available.classrooms || []).map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs space-y-1">
-            <span className="font-semibold">Học sinh</span>
-            <select
-              value={studentId}
-              onChange={(e) => {
-                setStudentId(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-2.5 py-1.5 rounded-lg border bg-surface"
-            >
-              <option value="">Toàn lớp</option>
-              {(report?.available.students || []).map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} ({item.code})
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs space-y-1">
-            <span className="font-semibold">Từ ngày nộp</span>
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-2.5 py-1.5 rounded-lg border bg-surface"
-            />
-          </label>
-          <label className="text-xs space-y-1">
-            <span className="font-semibold">Đến ngày nộp</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-2.5 py-1.5 rounded-lg border bg-surface"
-            />
-          </label>
-        </div>
-
-        <div className="space-y-2">
-          <span className="text-xs font-semibold">Bài tập đưa vào tổng hợp</span>
-          <div className="flex flex-wrap gap-2">
-            {availableAssignments.length === 0 ? (
-              <p className="text-xs text-on-surface-variant">Chưa có bài đã giao trong phạm vi này.</p>
-            ) : (
-              availableAssignments.map((item) => {
-                const checked = assignmentIds.length === 0 || assignmentIds.includes(item.id);
-                return (
-                  <label
-                    key={item.id}
-                    className={`px-2.5 py-1 rounded-full border text-[11px] cursor-pointer ${
-                      checked ? 'bg-primary-container text-on-primary-container border-transparent' : 'bg-surface-container-lowest'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={checked}
-                      onChange={(e) => {
-                        setPage(1);
-                        const all = availableAssignments.map((row) => row.id);
-                        setAssignmentIds((current) => {
-                          const selected = current.length === 0 ? all : current;
-                          if (e.target.checked) return Array.from(new Set([...selected, item.id]));
-                          return selected.filter((id) => id !== item.id);
-                        });
-                      }}
-                    />
-                    {item.code} — {item.title}
-                  </label>
-                );
-              })
-            )}
+        <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
+            <label className="text-xs space-y-1 xl:col-span-2">
+              <span className="font-semibold text-on-surface">Lớp phụ trách</span>
+              <select
+                value={classroomId}
+                onChange={(e) => {
+                  setClassroomId(e.target.value);
+                  setAssignmentIds([]);
+                  setStudentId('');
+                  setPage(1);
+                }}
+                className={fieldClass}
+              >
+                <option value="">Tất cả lớp</option>
+                {classrooms.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs space-y-1 xl:col-span-4">
+              <span className="font-semibold text-on-surface">Bài tập đưa vào tổng hợp</span>
+              <AssignmentPicker
+                assignments={availableAssignments}
+                selectedIds={assignmentIds}
+                onChange={(ids) => {
+                  setAssignmentIds(ids);
+                  setPage(1);
+                }}
+              />
+            </label>
+            <label className="text-xs space-y-1 xl:col-span-2">
+              <span className="font-semibold text-on-surface">Học sinh</span>
+              <select
+                value={studentId}
+                onChange={(e) => {
+                  setStudentId(e.target.value);
+                  setPage(1);
+                }}
+                className={fieldClass}
+              >
+                <option value="">Toàn lớp</option>
+                {(report?.available.students || []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name} ({item.code})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs space-y-1 xl:col-span-2">
+              <span className="font-semibold text-on-surface">Từ ngày nộp</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => {
+                  setDateFrom(e.target.value);
+                  setPage(1);
+                }}
+                className={fieldClass}
+              />
+            </label>
+            <label className="text-xs space-y-1 xl:col-span-2">
+              <span className="font-semibold text-on-surface">Đến ngày nộp</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => {
+                  setDateTo(e.target.value);
+                  setPage(1);
+                }}
+                className={fieldClass}
+              />
+            </label>
           </div>
           <p className="text-[11px] text-on-surface-variant">
-            Không chọn ô nào nghĩa là lấy tất cả bài đã giao trong lớp. Thời điểm lọc theo nộp chính thức của phiên bản đang thống kê.
+            Mặc định lấy tất cả bài đã giao trong phạm vi lọc. Thời điểm theo nộp chính thức của phiên bản đang thống kê.
           </p>
         </div>
-
-        <StatsModeToggle
-          mode={mode || report?.suggestedMode || 'provisional'}
-          onChange={(next) => {
-            userPickedMode.current = true;
-            setMode(next);
-          }}
-          hasProvisionalData={report?.hasProvisionalData}
-          hasOfficialData={report?.hasOfficialData}
-        />
 
         {error ? <p className="text-sm text-error">{error}</p> : null}
         {loading ? <p className="text-sm text-on-surface-variant">Đang tải báo cáo năng lực...</p> : null}
 
         {report && stats ? (
           <>
-            <div className="p-3 rounded-xl bg-[#FEF9C3]/70 border border-[#CA8A04]/30 text-xs text-[#854D0E]">
-              {modeLabel(report.mode)}. {stats.scoreFormula?.description}
+            <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center gap-4 text-on-surface">
+                <span>
+                  Số bài tập: <strong>{stats.assignmentCount ?? 0}</strong>
+                </span>
+                <span>•</span>
+                <span>
+                  Học sinh: <strong>{stats.assignedStudents ?? 0}</strong>
+                </span>
+                <span>•</span>
+                <span>
+                  Bài được giao: <strong>{stats.assignedPapers ?? 0}</strong>
+                </span>
+                <span>•</span>
+                <span className="text-tertiary font-semibold">
+                  Đã nộp chính thức: <strong>{stats.officialSubmitted}</strong>
+                </span>
+              </div>
+              <StatsModeToggle
+                compact
+                mode={mode || report.suggestedMode || 'provisional'}
+                onChange={(next) => {
+                  userPickedMode.current = true;
+                  setMode(next);
+                }}
+                hasProvisionalData={report.hasProvisionalData}
+                hasOfficialData={report.hasOfficialData}
+              />
             </div>
+            <p className="text-[11px] text-on-surface-variant -mt-3">
+              {modeLabel(report.mode)}. {stats.scoreFormula?.description}
+            </p>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatCard label="Số bài tập" value={`${stats.assignmentCount ?? 0}`} hint="Bài đã lọc" />
-              <StatCard
-                label="Học sinh / bài làm"
-                value={`${stats.assignedStudents ?? 0} / ${stats.assignedPapers ?? 0}`}
-                hint="Học sinh duy nhất và số bài được giao"
-              />
-              <StatCard
-                label="Điểm TB thang 10"
-                value={stats.meanScoreScale10 == null ? 'Chưa có dữ liệu' : formatScore(stats.meanScoreScale10)}
-                hint={
-                  stats.minScoreScale10 == null
+              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+                <span className="text-xs text-on-surface-variant block">Kết quả dùng thống kê</span>
+                <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
+                  {scored} / {stats.officialSubmitted}
+                </span>
+                <span className="text-[11px] text-tertiary font-semibold mt-1 block">
+                  {report.mode === 'provisional' ? 'Tạm tính, gồm chưa công bố' : 'Chỉ snapshot đã công bố'}
+                </span>
+              </div>
+              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+                <span className="text-xs text-on-surface-variant block">Điểm trung bình (thang 10)</span>
+                <span className="text-2xl font-bold text-secondary font-merriweather mt-1 block font-mono">
+                  {stats.meanScoreScale10 == null ? '—' : `${formatScore(stats.meanScoreScale10)} / 10`}
+                </span>
+                <span className="text-[11px] text-secondary font-semibold mt-1 block">
+                  {stats.minScoreScale10 == null
                     ? `n=${scored}`
-                    : `Thấp ${formatScore(stats.minScoreScale10)} · Cao ${formatScore(stats.maxScoreScale10)} · n=${scored}`
-                }
-              />
-              <StatCard
-                label="Nộp / công bố / lỗi"
-                value={`${stats.officialSubmitted} / ${stats.published} / ${stats.failed}`}
-                hint={`Chờ rà soát ${stats.awaitingReview} · Đang chấm ${stats.grading ?? 0}`}
-              />
+                    : `Thấp ${formatScore(stats.minScoreScale10)} · Cao ${formatScore(stats.maxScoreScale10)} · n=${scored}`}
+                </span>
+              </div>
+              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+                <span className="text-xs text-on-surface-variant block">Học sinh / bài làm</span>
+                <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
+                  {stats.assignedStudents ?? 0} / {stats.assignedPapers ?? 0}
+                </span>
+                <span className="text-[11px] text-on-surface-variant mt-1 block">
+                  Chờ rà soát {stats.awaitingReview} · Lỗi {stats.failed}
+                </span>
+              </div>
+              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+                <span className="text-xs text-on-surface-variant block">Trạng thái công bố</span>
+                <span className="text-2xl font-bold text-primary font-merriweather mt-1 block">
+                  {stats.published} / {stats.assignedStudents ?? stats.assigned}
+                </span>
+                <span className="text-[11px] text-on-surface-variant mt-1 block">Đã hiển thị phía học sinh</span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-6 space-y-4">
                 <ScoreDistributionChart bins={stats.distribution || []} scoredCount={scored} mode={report.mode} />
-                <div className="bg-surface-container-lowest p-5 rounded-xl border space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Diễn biến qua các bài</h3>
+                <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+                    <span className="text-xs font-bold uppercase tracking-wider text-primary">Diễn biến qua các bài</span>
+                  </div>
                   {(report.trend || []).length === 0 ? (
                     <p className="text-xs text-on-surface-variant">Chưa có dữ liệu</p>
                   ) : (
-                    (report.trend || []).map((item) => (
-                      <div key={item.id} className="flex items-center justify-between text-xs gap-3">
-                        <Link href={`/assignments/${item.id}?tab=statistics`} className="font-semibold hover:text-primary">
-                          {item.title}
-                        </Link>
-                        <span className="font-mono">
-                          {item.meanScoreScale10 == null ? '—' : formatScore(item.meanScoreScale10)} · n={item.scoredCount}
-                        </span>
-                      </div>
-                    ))
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {(report.trend || []).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between text-xs gap-3">
+                          <Link href={`/assignments/${item.id}?tab=statistics`} className="font-semibold hover:text-primary truncate">
+                            {item.title}
+                          </Link>
+                          <span className="font-mono shrink-0">
+                            {item.meanScoreScale10 == null ? '—' : formatScore(item.meanScoreScale10)} · n={item.scoredCount}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   )}
                   {(report.trend || []).filter((item) => item.scoredCount > 0).length < 2 ? (
                     <p className="text-[11px] text-on-surface-variant">Một bài không đủ để kết luận tiến bộ.</p>
@@ -369,6 +392,7 @@ export default function CompetencyReportView() {
               </div>
               <div className="lg:col-span-6">
                 <InsightPanel
+                  heading="Gợi ý điều chỉnh giáo án (Căn cứ lỗi phổ biến)"
                   insight={report.insight}
                   scoredCount={scored}
                   canAnalyze={report.canAnalyze}
@@ -383,8 +407,8 @@ export default function CompetencyReportView() {
 
             {(stats.recurringIssues || []).length > 0 || (stats.strengths || []).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border bg-surface-container-lowest space-y-2">
-                  <h3 className="text-xs font-bold uppercase">Điểm mạnh khi có căn cứ</h3>
+                <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-sm space-y-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Điểm mạnh khi có căn cứ</h3>
                   {(stats.strengths || []).length === 0 ? (
                     <p className="text-xs text-on-surface-variant">Chưa đủ dữ liệu so sánh.</p>
                   ) : (
@@ -395,8 +419,8 @@ export default function CompetencyReportView() {
                     ))
                   )}
                 </div>
-                <div className="p-4 rounded-xl border bg-surface-container-lowest space-y-2">
-                  <h3 className="text-xs font-bold uppercase">Vấn đề lặp lại</h3>
+                <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-sm space-y-2">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-secondary">Vấn đề lặp lại</h3>
                   {(stats.recurringIssues || []).length === 0 ? (
                     <p className="text-xs text-on-surface-variant">Chưa thấy mã lỗi xuất hiện trên từ hai bài tập.</p>
                   ) : (
@@ -410,18 +434,25 @@ export default function CompetencyReportView() {
               </div>
             ) : null}
 
-            <div className="bg-surface-container-lowest p-5 rounded-xl border space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <h3 className="font-bold text-sm font-merriweather">Theo học sinh ({students?.total ?? 0})</h3>
-                <div className="flex gap-2">
+            <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
+                <div>
+                  <h3 className="font-bold text-sm text-on-surface font-merriweather">
+                    Theo học sinh ({students?.total ?? 0})
+                  </h3>
+                  <p className="text-[11px] text-on-surface-variant">
+                    Mỗi dòng là một học sinh trên các bài đã lọc. Một bài không đủ để kết luận tiến bộ. Bấm mã bài để mở chi tiết chấm.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
                       setPage(1);
                     }}
-                    placeholder="Tìm học sinh..."
-                    className="px-3 py-1.5 text-xs rounded-lg border"
+                    placeholder="Tìm theo tên hoặc mã HS..."
+                    className="px-3 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary w-44 sm:w-52"
                   />
                   <select
                     value={sortOrder}
@@ -429,76 +460,101 @@ export default function CompetencyReportView() {
                       setSortOrder(e.target.value as 'default' | 'score_desc' | 'score_asc');
                       setPage(1);
                     }}
-                    className="px-2.5 py-1.5 text-xs rounded-lg border"
+                    className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none font-medium"
                   >
-                    <option value="default">Tên</option>
-                    <option value="score_desc">Điểm TB cao → thấp</option>
-                    <option value="score_asc">Điểm TB thấp → cao</option>
+                    <option value="default">Sắp xếp: Tên</option>
+                    <option value="score_desc">Điểm TB: Cao nhất → Thấp</option>
+                    <option value="score_asc">Điểm TB: Thấp nhất → Cao</option>
                   </select>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs text-left">
-                  <thead className="bg-surface-container-low text-[10px] uppercase text-on-surface-variant">
+                  <thead className="bg-surface-container-low text-on-surface-variant uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="py-2 px-3">Học sinh</th>
-                      <th className="py-2 px-3">Số bài có kết quả</th>
-                      <th className="py-2 px-3">Điểm TB / 10</th>
-                      <th className="py-2 px-3">Xu hướng</th>
-                      <th className="py-2 px-3">Từng bài</th>
+                      <th className="py-2.5 px-3 rounded-l-lg">Họ và tên học sinh</th>
+                      <th className="py-2.5 px-3">Mã học sinh</th>
+                      <th className="py-2.5 px-3">Số bài có kết quả</th>
+                      <th className="py-2.5 px-3">Điểm TB / 10</th>
+                      <th className="py-2.5 px-3">Xu hướng</th>
+                      <th className="py-2.5 px-3 rounded-r-lg">Từng bài</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/20">
-                    {(students?.items || []).map((row) => (
-                      <tr key={row.studentId}>
-                        <td className="py-3 px-3">
-                          <span className="font-bold block">{row.name}</span>
-                          <span className="font-mono text-outline">{row.code}</span>
-                        </td>
-                        <td className="py-3 px-3 font-mono">
-                          {row.resultCount}/{row.assignedCount}
-                        </td>
-                        <td className="py-3 px-3 font-mono font-bold">
-                          {row.meanScoreScale10 == null ? '—' : formatScore(row.meanScoreScale10)}
-                        </td>
-                        <td className="py-3 px-3">
-                          {row.trend == null
-                            ? 'Chưa đủ so sánh'
-                            : row.trend === 'up'
-                              ? 'Tăng'
-                              : row.trend === 'down'
-                                ? 'Giảm'
-                                : 'Ổn định'}
-                        </td>
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1.5">
-                            {row.assignments.map((item) => (
-                              <Link
-                                key={item.assignmentId}
-                                href={`/assignments/${item.assignmentId}/students/${row.studentId}/assessment`}
-                                className="px-2 py-0.5 rounded-full bg-surface-container-low border text-[10px] hover:text-primary"
-                              >
-                                {item.code}: {item.scoreScale10 == null ? '—' : formatScore(item.scoreScale10)}
-                              </Link>
-                            ))}
-                          </div>
+                    {(students?.items || []).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-on-surface-variant italic">
+                          Chưa có học sinh trong bộ lọc này.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      (students?.items || []).map((row) => (
+                        <tr key={row.studentId} className="hover:bg-surface-container-low/40 transition-colors">
+                          <td className="py-3 px-3">
+                            <span className="font-bold text-on-surface block">{row.name}</span>
+                          </td>
+                          <td className="py-3 px-3 font-mono text-outline">{row.code}</td>
+                          <td className="py-3 px-3 font-mono">
+                            {row.resultCount}/{row.assignedCount}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-bold text-secondary font-mono">
+                              {row.meanScoreScale10 == null ? '—' : `${formatScore(row.meanScoreScale10)} / 10`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3">
+                            {row.trend == null
+                              ? 'Chưa đủ so sánh'
+                              : row.trend === 'up'
+                                ? 'Tăng'
+                                : row.trend === 'down'
+                                  ? 'Giảm'
+                                  : 'Ổn định'}
+                          </td>
+                          <td className="py-3 px-3">
+                            <div className="flex gap-1.5 overflow-x-auto max-w-[280px] pb-0.5">
+                              {row.assignments.map((item) => (
+                                <Link
+                                  key={item.assignmentId}
+                                  href={`/assignments/${item.assignmentId}/students/${row.studentId}/assessment`}
+                                  title={item.title}
+                                  className="px-2 py-0.5 rounded-full bg-surface-container-low border border-outline-variant/30 text-[10px] hover:text-primary whitespace-nowrap"
+                                >
+                                  {item.code}: {item.scoreScale10 == null ? '—' : formatScore(item.scoreScale10)}
+                                </Link>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
               {(students?.total || 0) > 0 ? (
-                <div className="flex items-center justify-between text-xs">
-                  <span>
-                    Trang {safePage}/{totalPages}
-                  </span>
-                  <div className="flex gap-1">
-                    <button type="button" disabled={safePage === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-2 py-1 border rounded disabled:opacity-30">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-outline-variant/20 text-xs text-on-surface-variant">
+                  <div>
+                    Hiển thị{' '}
+                    <span className="font-semibold text-on-surface">
+                      {startIndex + 1}–{Math.min(startIndex + (students?.pageSize || PAGE_SIZE), students?.total || 0)}
+                    </span>{' '}
+                    trên tổng số <span className="font-semibold text-on-surface">{students?.total}</span> học sinh
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => setPage(1)} disabled={safePage === 1} className="p-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none">
+                      <span className="material-symbols-outlined text-[16px]">first_page</span>
+                    </button>
+                    <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1} className="px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none font-medium">
                       Trước
                     </button>
-                    <button type="button" disabled={safePage === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="px-2 py-1 border rounded disabled:opacity-30">
+                    <span className="px-2 font-semibold text-on-surface">
+                      {safePage}/{totalPages}
+                    </span>
+                    <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages} className="px-2.5 py-1 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none font-medium">
                       Sau
+                    </button>
+                    <button type="button" onClick={() => setPage(totalPages)} disabled={safePage === totalPages} className="p-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container disabled:opacity-30 disabled:pointer-events-none">
+                      <span className="material-symbols-outlined text-[16px]">last_page</span>
                     </button>
                   </div>
                 </div>
@@ -511,12 +567,121 @@ export default function CompetencyReportView() {
   );
 }
 
-function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+function AssignmentPicker({
+  assignments,
+  selectedIds,
+  onChange,
+}: {
+  assignments: ClassReportAssignment[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const allIds = assignments.map((item) => item.id);
+  const allSelected = selectedIds.length === 0;
+  const selectedCount = allSelected ? assignments.length : selectedIds.length;
+  const filtered = assignments.filter((item) => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return true;
+    return item.title.toLowerCase().includes(needle) || item.code.toLowerCase().includes(needle);
+  });
+  const label =
+    assignments.length === 0
+      ? 'Chưa có bài đã giao'
+      : allSelected
+        ? `Tất cả bài đã giao (${assignments.length})`
+        : `${selectedCount}/${assignments.length} bài đã chọn`;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (event: MouseEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const toggle = (id: string, checked: boolean) => {
+    const current = allSelected ? allIds : selectedIds;
+    if (checked) {
+      const next = Array.from(new Set([...current, id]));
+      onChange(next.length === allIds.length ? [] : next);
+      return;
+    }
+    onChange(current.filter((item) => item !== id));
+  };
+
   return (
-    <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
-      <span className="text-xs text-on-surface-variant block">{label}</span>
-      <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">{value}</span>
-      <span className="text-[11px] text-on-surface-variant mt-1 block">{hint}</span>
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={assignments.length === 0}
+        onClick={() => setOpen((value) => !value)}
+        className="w-full h-8 box-border px-2.5 text-xs leading-none rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-secondary inline-flex items-center justify-between gap-2 disabled:opacity-60"
+      >
+        <span className="truncate text-left leading-none">{label}</span>
+        <span className="material-symbols-outlined text-[16px] leading-none text-on-surface-variant shrink-0">
+          {open ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+      {open ? (
+        <div className="absolute z-30 mt-1 w-full min-w-[280px] max-w-lg rounded-xl border border-outline-variant/40 bg-surface-container-lowest shadow-lg p-2 space-y-2">
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Tìm mã hoặc tên bài..."
+            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary"
+          />
+          <div className="flex items-center justify-between px-1">
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="text-[11px] font-semibold text-secondary hover:underline"
+            >
+              Chọn tất cả
+            </button>
+            <span className="text-[11px] text-on-surface-variant">
+              {selectedCount}/{assignments.length}
+            </span>
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-0.5">
+            {filtered.length === 0 ? (
+              <p className="text-[11px] text-on-surface-variant px-2 py-3">Không khớp bài nào.</p>
+            ) : (
+              filtered.map((item) => {
+                const checked = allSelected || selectedIds.includes(item.id);
+                return (
+                  <label
+                    key={item.id}
+                    className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-surface-container-low/70 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={checked}
+                      onChange={(e) => toggle(item.id, e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      <span className="block font-mono text-[10px] text-outline">{item.code}</span>
+                      <span className="block text-xs text-on-surface leading-snug">{item.title}</span>
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

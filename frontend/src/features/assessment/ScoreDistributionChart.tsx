@@ -17,7 +17,7 @@ export default function ScoreDistributionChart({ bins, scoredCount, mode }: Scor
       <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
         <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
           <span className="material-symbols-outlined text-sm">bar_chart</span>
-          <span>Phổ điểm (thang 10 quy đổi)</span>
+          <span>Phổ điểm bài thi (thang 10 quy đổi)</span>
         </span>
         <span className="text-[11px] text-on-surface-variant font-medium">
           {modeShort(mode)} · n = {scoredCount} bài
@@ -26,20 +26,26 @@ export default function ScoreDistributionChart({ bins, scoredCount, mode }: Scor
       {scoredCount === 0 ? (
         <p className="text-xs text-on-surface-variant">Chưa có dữ liệu</p>
       ) : (
-        <div className="space-y-3 pt-1">
+        <div className="space-y-3 pt-2">
           {bins.map((item) => {
             const percent = distMax ? (item.count / distMax) * 100 : 0;
             return (
               <div key={item.range} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-mono font-medium text-on-surface">{item.range}</span>
+                  <span className="font-mono font-medium text-on-surface">
+                    {item.range}
+                    {item.label ? ` (${item.label})` : ''}
+                  </span>
                   <span className="font-bold text-secondary font-mono">
                     {item.count} bài
                     {item.rate != null ? ` · ${formatPercent(item.rate)}` : ''}
                   </span>
                 </div>
                 <div className="w-full bg-surface-container-low h-2.5 rounded-full overflow-hidden">
-                  <div className="bg-primary h-full rounded-full" style={{ width: `${percent}%` }} />
+                  <div
+                    className="bg-primary h-full rounded-full transition-all duration-500"
+                    style={{ width: `${percent}%` }}
+                  />
                 </div>
               </div>
             );
