@@ -43,12 +43,13 @@ export default function SocraticChatPage() {
     outlineConflict,
     isInitializingOutline,
     outlineInitFailed,
+    error,
+    errorCode,
     selectedPoint,
     highlightedPointIds,
     isSending,
     isAiResponding,
     pendingOperation,
-    error,
     initializeSession,
     ensureOutlineInit,
     loadMessages,
@@ -635,7 +636,14 @@ export default function SocraticChatPage() {
             )}
             {outlineInitFailed && !isInitializingOutline && (
               <div className="mx-3.5 mt-3 p-3 bg-error/5 border border-error/20 rounded-xl text-xs space-y-2">
-                <p className="text-error font-semibold">Không tạo được dàn ý ban đầu. Không dùng dàn ý giả.</p>
+                <p className="text-error font-semibold">
+                  {error || 'Chưa tạo được dàn ý gợi ý lần này.'}
+                </p>
+                <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                  {errorCode === 'AI_UNAVAILABLE' || errorCode === 'SERVICE_UNAVAILABLE'
+                    ? 'Em đợi một lát rồi bấm Thử lại. Đề, ngữ liệu và rubric vẫn còn trên bài tập.'
+                    : 'Em bấm Thử lại để hệ thống soạn lại từ đề, ngữ liệu và rubric đã có. Không cần import hay nhập lại đề.'}
+                </p>
                 <button
                   type="button"
                   onClick={() => ensureOutlineInit(true)}

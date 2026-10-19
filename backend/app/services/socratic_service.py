@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.adapters import (
     AiConfigurationError,
     AiError,
+    AiInvalidOutputError,
     AiPort,
     AiTimeoutError,
     AiUnavailableError,
@@ -103,6 +104,24 @@ class ConflictError(SocraticServiceError):
 class AiUnavailableServiceError(SocraticServiceError):
     def __init__(self, message: str = "AI service not available", code: str = "AI_UNAVAILABLE"):
         super().__init__(message, code)
+
+
+class AiInvalidOutputServiceError(SocraticServiceError):
+    def __init__(
+        self,
+        message: str = (
+            "Hệ thống chưa nhận được kết quả hợp lệ từ trợ lý. "
+            "Em bấm Thử lại giúp thầy/cô nhé."
+        ),
+        code: str = "AI_INVALID_OUTPUT",
+    ):
+        super().__init__(message, code)
+
+
+OUTLINE_INIT_INVALID_MESSAGE = (
+    "Hệ thống chưa soạn được dàn ý hợp lệ từ ngữ liệu lần này. "
+    "Em bấm Thử lại; đề và ngữ liệu đã có sẵn, không cần nhập lại."
+)
 
 
 def _hash_key(key: str) -> str:
@@ -569,6 +588,17 @@ class SocraticService:
                 max_output_tokens=self.settings.AI_MAX_OUTPUT_TOKENS,
                 selected_point=selected_point,
             )
+        except AiInvalidOutputError as exc:
+            await self._fail_inflight(
+                session_id, reservation_token, record.id if record else None
+            )
+            logger.warning(
+                "socratic turn invalid_output session_id=%s stage=process_turn code=%s reason=%s",
+                session_id,
+                exc.code,
+                (exc.message or str(exc))[:180],
+            )
+            raise AiInvalidOutputServiceError() from exc
         except (AiUnavailableError, AiTimeoutError, AiConfigurationError, AiError) as exc:
             await self._fail_inflight(
                 session_id, reservation_token, record.id if record else None
@@ -1311,7 +1341,33 @@ class SocraticService:
                 prompt_asset=prompt_asset,
                 max_output_tokens=max_tokens,
             )
-        except (AiUnavailableError, AiTimeoutError, AiConfigurationError, AiError) as exc:
+        except AiInvalidOutputError as exc:
+            logger.warning(
+                "outline_init failed session_id=%s stage=ensure_initial_outline "
+                "code=%s reason=%s",
+                session_id,
+                exc.code,
+                (exc.message or str(exc))[:180],
+            )
+            await self._fail_outline_init(session_id, reservation_token)
+            raise AiInvalidOutputServiceError(OUTLINE_INIT_INVALID_MESSAGE) from exc
+        except (AiUnavailableError, AiTimeoutError, AiConfigurationError) as exc:
+            logger.warning(
+                "outline_init unavailable session_id=%s stage=ensure_initial_outline "
+                "code=%s",
+                session_id,
+                getattr(exc, "code", type(exc).__name__),
+            )
+            await self._fail_outline_init(session_id, reservation_token)
+            raise AiUnavailableServiceError("AI provider is unavailable") from exc
+        except AiError as exc:
+            logger.warning(
+                "outline_init ai_error session_id=%s stage=ensure_initial_outline "
+                "code=%s reason=%s",
+                session_id,
+                getattr(exc, "code", "AI_ERROR"),
+                (getattr(exc, "message", None) or str(exc))[:180],
+            )
             await self._fail_outline_init(session_id, reservation_token)
             raise AiUnavailableServiceError("AI provider is unavailable") from exc
         except Exception:

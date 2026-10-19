@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any, Iterable
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Callable, Iterable
 
 from app.ai.schemas import SourceReference
 
@@ -195,6 +197,241 @@ def context_chunk_id(chunk: dict[str, Any], index: int) -> str:
 
 def context_chunk_text(chunk: dict[str, Any]) -> str:
     return str(chunk.get("text") or chunk.get("content") or "")
+
+
+_LEGACY_CHUNK_REF = re.compile(r"^chunk[-_]\d+$", re.IGNORECASE)
+_SOURCE_CHUNK_KEYS = ("source_chunk_id", "sourceChunkId")
+
+
+def compact_log_reason(reason: str, limit: int = 180) -> str:
+    """Short validation reason for logs. Never include documents or secrets."""
+    text = re.sub(r"\s+", " ", str(reason or "")).strip()
+    if len(text) > limit:
+        return text[:limit] + "…"
+    return text
+
+
+@dataclass(frozen=True)
+class SourceAliasMap:
+    """Per-request aliases (src_1, src_2, …) mapped to stored full chunk IDs."""
+
+    alias_to_full: dict[str, str]
+    full_to_alias: dict[str, str]
+    unique_short: dict[str, str]
+    ambiguous_short: frozenset[str]
+
+    @property
+    def aliases(self) -> list[str]:
+        return list(self.alias_to_full.keys())
+
+
+def _legacy_short_keys(full_id: str) -> set[str]:
+    """Old model forms such as chunk_2 / chunk-2 derived from a full ID."""
+    suffix = full_id.rsplit(":", 1)[-1].strip()
+    candidates = {suffix, suffix.replace("-", "_"), suffix.replace("_", "-")}
+    return {item for item in candidates if item and _LEGACY_CHUNK_REF.match(item)}
+
+
+def build_source_alias_map(
+    chunks: Iterable[dict[str, Any]] | None,
+) -> SourceAliasMap:
+    """Build unique src_N aliases for this request. Full IDs stay canonical."""
+    alias_to_full: dict[str, str] = {}
+    full_to_alias: dict[str, str] = {}
+    short_owners: dict[str, set[str]] = defaultdict(set)
+
+    for index, chunk in enumerate(chunks or []):
+        if not isinstance(chunk, dict):
+            continue
+        full_id = context_chunk_id(chunk, index)
+        alias = f"src_{index + 1}"
+        alias_to_full[alias] = full_id
+        if full_id not in full_to_alias:
+            full_to_alias[full_id] = alias
+        for short in _legacy_short_keys(full_id):
+            short_owners[short].add(full_id)
+
+    unique_short = {
+        key: next(iter(owners))
+        for key, owners in short_owners.items()
+        if len(owners) == 1
+    }
+    ambiguous = frozenset(key for key, owners in short_owners.items() if len(owners) > 1)
+    return SourceAliasMap(
+        alias_to_full=alias_to_full,
+        full_to_alias=full_to_alias,
+        unique_short=unique_short,
+        ambiguous_short=ambiguous,
+    )
+
+
+def format_aliased_chunks(
+    chunks: Iterable[dict[str, Any]] | None,
+    alias_map: SourceAliasMap,
+    *,
+    truncate: Callable[[str, int], str],
+    per_chunk_chars: int = 800,
+) -> str:
+    lines: list[str] = []
+    for index, chunk in enumerate(chunks or []):
+        if not isinstance(chunk, dict):
+            continue
+        alias = f"src_{index + 1}"
+        if alias not in alias_map.alias_to_full:
+            continue
+        text = truncate(context_chunk_text(chunk), per_chunk_chars)
+        lines.append(f"[{alias}]: {text}")
+    return "\n\n".join(lines)
+
+
+def source_alias_retry_hint(alias_map: SourceAliasMap) -> str:
+    aliases = alias_map.aliases
+    if not aliases:
+        return (
+            "Không có alias nguồn; để sources rỗng và không điền source_chunk_id."
+        )
+    listed = ", ".join(aliases)
+    return (
+        f"Chỉ dùng đúng các alias nguồn sau cho sources[].chunk_id và "
+        f"source_chunk_id: {listed}. Sao chép nguyên alias (ví dụ src_1). "
+        "Không rút gọn thành chunk_2 hay chunk-2."
+    )
+
+
+def resolve_source_id(
+    alias_map: SourceAliasMap,
+    raw_id: str | None,
+    *,
+    field: str = "chunk_id",
+) -> tuple[str | None, str]:
+    """Map an AI citation to the stored full chunk ID.
+
+    Accepts src_N aliases, already-valid full IDs, and a unique legacy
+    chunk_2 / chunk-2 form. Ambiguous short refs are rejected.
+    """
+    if raw_id is None:
+        return None, ""
+    key = str(raw_id).strip()
+    if not key:
+        return None, ""
+
+    full = alias_map.alias_to_full.get(key)
+    if full:
+        return full, ""
+    if key in alias_map.full_to_alias:
+        return key, ""
+    if key in alias_map.ambiguous_short:
+        return None, f"{field} mơ hồ, trùng nhiều nguồn: {key}"
+    unique = alias_map.unique_short.get(key)
+    if unique:
+        return unique, ""
+    return None, f"{field} không thuộc ngữ cảnh: {key}"
+
+
+def normalize_cited_sources(
+    sources: Any,
+    alias_map: SourceAliasMap,
+) -> tuple[list[SourceReference] | list[dict[str, Any]], str]:
+    parsed, error = parse_source_references(sources)
+    if error:
+        return [], error
+    assert parsed is not None
+    normalized: list[SourceReference] = []
+    for source in parsed:
+        full_id, err = resolve_source_id(alias_map, source.chunk_id, field="chunk_id")
+        if err:
+            return [], err
+        if not full_id:
+            return [], f"chunk_id không thuộc ngữ cảnh: {source.chunk_id}"
+        normalized.append(SourceReference(chunk_id=full_id, quote=source.quote))
+    return normalized, ""
+
+
+def _rewrite_source_chunk_field(data: dict[str, Any], alias_map: SourceAliasMap) -> str:
+    raw = None
+    for key in _SOURCE_CHUNK_KEYS:
+        value = data.get(key)
+        if value:
+            raw = value
+            break
+    if not raw:
+        return ""
+    full_id, err = resolve_source_id(alias_map, str(raw), field="source_chunk_id")
+    if err:
+        return err
+    if not full_id:
+        return ""
+    if "source_chunk_id" in data or "sourceChunkId" not in data:
+        data["source_chunk_id"] = full_id
+    if "sourceChunkId" in data:
+        data["sourceChunkId"] = full_id
+    return ""
+
+
+def normalize_outline_source_ids(
+    content: dict[str, Any] | None,
+    alias_map: SourceAliasMap,
+) -> str:
+    """Rewrite source_chunk_id on outline points to full IDs. Does not touch point.id."""
+    data = content or {}
+    for section in data.get("sections") or []:
+        if not isinstance(section, dict):
+            continue
+        for point in _iter_point_dicts(section.get("points")):
+            err = _rewrite_source_chunk_field(point, alias_map)
+            if err:
+                return err
+    return ""
+
+
+def normalize_turn_source_ids(
+    *,
+    sources: list[Any] | None,
+    outline_ops: list[Any] | None,
+    proposals: list[Any] | None,
+    alias_map: SourceAliasMap,
+) -> tuple[list[dict[str, Any]], list[Any], list[Any], str]:
+    """Normalize citations on a conversation turn. Does not touch target_id/section_id."""
+    normalized_sources, err = normalize_cited_sources(sources, alias_map)
+    if err:
+        return [], outline_ops or [], proposals or [], err
+    source_dicts: list[dict[str, Any]] = [
+        item.model_dump() if isinstance(item, SourceReference) else item
+        for item in normalized_sources
+    ]
+
+    next_ops: list[Any] = []
+    for op in outline_ops or []:
+        if isinstance(op, dict):
+            data = dict(op)
+            err = _rewrite_source_chunk_field(data, alias_map)
+            if err:
+                return source_dicts, outline_ops or [], proposals or [], err
+            next_ops.append(data)
+        else:
+            next_ops.append(op)
+
+    next_proposals: list[Any] = []
+    for proposal in proposals or []:
+        if isinstance(proposal, dict):
+            data = dict(proposal)
+            err = _rewrite_source_chunk_field(data, alias_map)
+            if err:
+                return source_dicts, next_ops, proposals or [], err
+            next_proposals.append(data)
+        elif hasattr(proposal, "source_chunk_id"):
+            raw = getattr(proposal, "source_chunk_id", None)
+            if raw:
+                full_id, err = resolve_source_id(
+                    alias_map, str(raw), field="source_chunk_id"
+                )
+                if err:
+                    return source_dicts, next_ops, proposals or [], err
+                proposal.source_chunk_id = full_id
+            next_proposals.append(proposal)
+        else:
+            next_proposals.append(proposal)
+    return source_dicts, next_ops, next_proposals, ""
 
 
 def parse_source_references(sources: Any) -> tuple[list[SourceReference] | None, str]:

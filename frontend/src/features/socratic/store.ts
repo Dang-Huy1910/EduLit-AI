@@ -24,7 +24,7 @@ import {
   CLARIFICATION_REASON_LABEL,
 } from './types';
 import * as api from './api';
-import { ApiErrorCode, SocraticApiError } from './api';
+import { ApiErrorCode, SocraticApiError, socraticStudentMessage } from './api';
 
 export { ApiErrorCode, SocraticApiError };
 
@@ -412,10 +412,17 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
       }
 
       if (!isCurrent()) return;
+      const failed = result.status === 'FAILED';
       set((state) => ({
         isInitializingOutline: false,
-        outlineInitFailed: result.status === 'FAILED',
+        outlineInitFailed: failed,
         outlineInitStatus: result.status,
+        error: failed
+          ? socraticStudentMessage(ApiErrorCode.AI_INVALID_OUTPUT, result.message || undefined)
+          : result.status === 'NEEDS_CLARIFICATION'
+            ? result.message || state.error
+            : state.error,
+        errorCode: failed ? ApiErrorCode.AI_INVALID_OUTPUT : state.errorCode,
         session: state.session
           ? {
               ...state.session,
@@ -459,7 +466,7 @@ export const useSocraticStore = create<SocraticState>((set, get) => ({
         isInitializingOutline: false,
         outlineInitFailed: true,
         outlineInitStatus: 'FAILED',
-        error: apiError.message,
+        error: socraticStudentMessage(apiError.code, apiError.message),
         errorCode: apiError.code,
       });
       if (apiError.status === 401 || apiError.code === ApiErrorCode.AUTH_INVALID || apiError.code === ApiErrorCode.SESSION_EXPIRED) {

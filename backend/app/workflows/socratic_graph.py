@@ -36,10 +36,14 @@ from app.ai.schemas import (
     SocraticOutput,
 )
 from app.workflows.guardrails import (
-    context_chunk_id,
+    build_source_alias_map,
+    compact_log_reason,
     detect_out_of_scope,
     detect_write_for_me,
+    format_aliased_chunks,
     get_fallback_response,
+    normalize_turn_source_ids,
+    source_alias_retry_hint,
     validate_response,
     validate_sources,
     validate_structured_turn,
@@ -151,14 +155,21 @@ def _history_block(state: SocraticGraphState) -> str:
 
 def build_system_prompt(state: SocraticGraphState) -> str:
     template = state.system_prompt_template.strip()
-    chunks_text = "\n\n".join(
-        f"[{context_chunk_id(c, i)}]: {_truncate(str(c.get('text') or c.get('content') or ''), 800)}"
-        for i, c in enumerate(state.context_chunks)
+    alias_map = build_source_alias_map(state.context_chunks)
+    chunks_text = format_aliased_chunks(
+        state.context_chunks, alias_map, truncate=_truncate, per_chunk_chars=800
     )
     chunks_text = _truncate(chunks_text, MAX_CHUNK_CHARS)
+    aliases = ", ".join(alias_map.aliases) or "(không có)"
 
     parts = [template]
     parts.append(f"\n\nTRẠNG THÁI HIỆN TẠI: {state.current_state}")
+    parts.append(
+        "\n\nALIAS NGUỒN: Khi điền sources[].chunk_id và source_chunk_id, "
+        f"sao chép đúng một trong các alias: {aliases}. "
+        "Không dùng UUID, không rút gọn thành chunk_2. "
+        "Không đổi point.id, target_id hay section_id."
+    )
     if state.instructions:
         parts.append(_dump_untrusted(f"{UNTRUSTED_MATERIAL_BANNER} INSTRUCTIONS", state.instructions))
     parts.append(_dump_untrusted(f"{UNTRUSTED_MATERIAL_BANNER} RUBRIC", state.rubric or {}))
@@ -186,9 +197,10 @@ def build_system_prompt(state: SocraticGraphState) -> str:
 def build_user_prompt(state: SocraticGraphState) -> str:
     prompt = f"[Trạng thái: {state.current_state}] {state.student_input}"
     if state.retry_count > 0 and state.retry_reason:
+        alias_map = build_source_alias_map(state.context_chunks)
         prompt += (
             "\n\nLẦN SỬA BẮT BUỘC: Phản hồi trước bị từ chối vì: "
-            f"{state.retry_reason}. "
+            f"{state.retry_reason}. {source_alias_retry_hint(alias_map)} "
             "Hãy viết lại đúng schema, không viết hộ, chỉ trích nguồn khớp ngữ liệu. "
             "Tuân thủ quy tắc độ dài theo intent; CLARIFY phải kết thúc bằng câu hỏi."
         )
@@ -251,7 +263,11 @@ async def call_ai(state: SocraticGraphState, ai_port: AiPort) -> SocraticGraphSt
     except (AiUnavailableError, AiTimeoutError, AiConfigurationError):
         raise
     except (AiInvalidOutputError, AiRefusalError) as exc:
-        logger.warning("socratic_graph call_ai content_error code=%s", exc.code)
+        logger.warning(
+            "socratic_graph call_ai content_error stage=generate attempt=%s code=%s",
+            state.retry_count + 1,
+            compact_log_reason(exc.code),
+        )
         state.ai_response = ""
         state.sources = []
         state.outline_ops = []
@@ -307,14 +323,32 @@ def _filter_ops_by_intent(state: SocraticGraphState) -> None:
 
 
 def post_guardrail(state: SocraticGraphState) -> SocraticGraphState:
+    alias_map = build_source_alias_map(state.context_chunks)
+    stage = "validate_response"
     is_valid, error_msg = validate_response(
         state.ai_response, task="turn", intent=state.intent
     )
+    if is_valid:
+        sources, ops, proposals, norm_err = normalize_turn_source_ids(
+            sources=state.sources,
+            outline_ops=state.outline_ops,
+            proposals=state.proposals,
+            alias_map=alias_map,
+        )
+        if norm_err:
+            is_valid = False
+            error_msg = norm_err
+            stage = "normalize_sources"
+        else:
+            state.sources = sources
+            state.outline_ops = ops
+            state.proposals = proposals
     if is_valid:
         src_ok, src_err = validate_sources(state.sources, state.context_chunks)
         if not src_ok:
             is_valid = False
             error_msg = src_err
+            stage = "validate_sources"
     if is_valid:
         structured_ok, structured_err = validate_structured_turn(
             outline_ops=state.outline_ops,
@@ -324,6 +358,7 @@ def post_guardrail(state: SocraticGraphState) -> SocraticGraphState:
         if not structured_ok:
             is_valid = False
             error_msg = structured_err
+            stage = "validate_structured_turn"
 
     if is_valid:
         state.response_status = "VALIDATED"
@@ -332,8 +367,10 @@ def post_guardrail(state: SocraticGraphState) -> SocraticGraphState:
         return state
 
     logger.warning(
-        "socratic_graph post_guardrail failed retry_count=%s",
-        state.retry_count,
+        "socratic_graph post_guardrail failed stage=%s attempt=%s reason=%s",
+        stage,
+        state.retry_count + 1,
+        compact_log_reason(error_msg),
     )
     state.retry_reason = error_msg
     state.error = error_msg

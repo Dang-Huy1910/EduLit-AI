@@ -45,6 +45,10 @@ ERROR_MESSAGES: dict[str, str] = {
     "NOT_FOUND": "Không tìm thấy tài nguyên.",
     "INTERNAL": "Hệ thống gặp sự cố. Vui lòng thử lại sau.",
     "AI_UNAVAILABLE": "Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau.",
+    "AI_INVALID_OUTPUT": (
+        "Hệ thống chưa soạn được dàn ý hợp lệ từ ngữ liệu lần này. "
+        "Em bấm Thử lại; đề và ngữ liệu đã có sẵn, không cần nhập lại."
+    ),
     "TEACHER_REQUIRED": "Chỉ giáo viên mới thực hiện được thao tác này.",
     "STUDENT_REQUIRED": "Chỉ học sinh mới thực hiện được thao tác này.",
     "ACCESS_DENIED": "Thầy/cô không có quyền với tài nguyên này.",

@@ -18,6 +18,7 @@ from app.db.models import User
 from app.identity.deps import get_session_context, require_mutation_guards
 from app.identity.service import SessionContext
 from app.services.socratic_service import (
+    AiInvalidOutputServiceError,
     AiUnavailableServiceError,
     ConflictError,
     ForbiddenError,
@@ -146,6 +147,8 @@ def _map_error(e: SocraticServiceError) -> None:
         raise ApiHttpException(status.HTTP_403_FORBIDDEN, e.code, e.message)
     if isinstance(e, ConflictError):
         raise ApiHttpException(status.HTTP_409_CONFLICT, e.code, e.message)
+    if isinstance(e, AiInvalidOutputServiceError):
+        raise ApiHttpException(status.HTTP_502_BAD_GATEWAY, e.code, e.message)
     if isinstance(e, AiUnavailableServiceError):
         raise ApiHttpException(status.HTTP_503_SERVICE_UNAVAILABLE, e.code, e.message)
     if e.code == "VALIDATION":

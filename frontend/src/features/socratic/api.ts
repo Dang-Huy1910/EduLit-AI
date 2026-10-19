@@ -35,6 +35,7 @@ export const ApiErrorCode = {
   ASSIGNMENT_CLOSED: 'ASSIGNMENT_CLOSED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   AI_UNAVAILABLE: 'AI_UNAVAILABLE',
+  AI_INVALID_OUTPUT: 'AI_INVALID_OUTPUT',
   VALIDATION: 'VALIDATION',
   RATE_LIMIT: 'RATE_LIMIT',
   AUTH_RATE_LIMIT: 'AUTH_RATE_LIMIT',
@@ -43,6 +44,28 @@ export const ApiErrorCode = {
 } as const;
 
 export type ApiErrorCode = typeof ApiErrorCode[keyof typeof ApiErrorCode] | string;
+
+const STUDENT_ERROR_MESSAGES: Record<string, string> = {
+  AI_INVALID_OUTPUT:
+    'Hệ thống chưa soạn được dàn ý hợp lệ từ ngữ liệu lần này. Em bấm Thử lại; đề và ngữ liệu đã có sẵn, không cần nhập lại.',
+  AI_UNAVAILABLE:
+    'Trợ lý đang bận hoặc gián đoạn. Em bấm Thử lại sau một lát. Đề và ngữ liệu vẫn còn, không cần nhập lại.',
+  SERVICE_UNAVAILABLE:
+    'Trợ lý đang bận hoặc gián đoạn. Em bấm Thử lại sau một lát. Đề và ngữ liệu vẫn còn, không cần nhập lại.',
+  AI_TIMEOUT:
+    'Trợ lý phản hồi chậm. Em bấm Thử lại nhé; không cần nhập lại đề hay ngữ liệu.',
+  OUTLINE_INIT_IN_PROGRESS: 'Đang soạn dàn ý gợi ý. Em chờ một chút rồi thử lại nếu chưa thấy kết quả.',
+};
+
+export function socraticStudentMessage(code: string | null | undefined, fallback?: string): string {
+  if (code && STUDENT_ERROR_MESSAGES[code]) {
+    return STUDENT_ERROR_MESSAGES[code];
+  }
+  if (fallback && fallback.trim()) {
+    return fallback;
+  }
+  return 'Chưa tạo được dàn ý gợi ý lần này. Em bấm Thử lại; đề, ngữ liệu và rubric vẫn còn trên bài tập.';
+}
 
 export class SocraticApiError extends Error {
   public readonly status: number;
@@ -98,6 +121,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
           break;
         case 429:
           code = ApiErrorCode.RATE_LIMIT;
+          break;
+        case 502:
+          code = ApiErrorCode.AI_INVALID_OUTPUT;
           break;
         case 503:
           code = ApiErrorCode.SERVICE_UNAVAILABLE;
