@@ -115,7 +115,7 @@ async def seed_demo(settings: Settings) -> None:
         # 2. Seed student
         student_login = "nguyen.van.an"
         student_email = "nguyen.van.an@thptdanphuong.edu.vn"
-        student_pw = "HocSinh@2024"
+        student_pw = "123456"
         res = await session.execute(select(User).where(User.login_id == student_login))
         student = res.scalar_one_or_none()
         if student is None:

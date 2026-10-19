@@ -3,7 +3,7 @@
 Additive and idempotent. Does not reset the live database and does not call AI.
 
 Creates/updates:
-- 41 student accounts from roster_11a14.json (password HocSinh@2024)
+- 41 student accounts from roster_11a14.json (password 123456)
 - memberships in classroom 11A14 (owned by dang.loan)
 - published assignment VAN11-NLVH-01 with the 4-criterion GDPT rubric
 - 41 official submissions (pages + confirmed OCR + published grades)
@@ -100,7 +100,7 @@ from app.ai.schemas import OcrPageModel, OcrSegmentModel  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("seed_classroom_demo")
 
-DEMO_PASSWORD = "HocSinh@2024"
+DEMO_PASSWORD = "123456"
 DEMO_ASSIGNMENT_CODE = "VAN11-NLVH-01"
 DEMO_ASSIGNMENT_TITLE = 'Phân tích "Màu tự do của đất" — Trần Quang Quý'
 PROMPT_TITLE = 'Cảm nhận tự do trong "Màu tự do của đất"'

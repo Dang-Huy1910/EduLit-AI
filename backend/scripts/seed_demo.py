@@ -1,9 +1,9 @@
 """Seed demo data for EduLit-AI Socratic testing.
 
 Creates:
-1. Teacher account: dang.loan / DanPhuong@2024
-2. Student account: nguyen.van.an / HocSinh@2024 (lớp 11A14)
-3. Student outside class: bui.hamy / HocSinh@2024 (không nhận bài của 11A14)
+1. Teacher account: dang.loan / 123456
+2. Student account: nguyen.van.an / 123456 (lớp 11A14)
+3. Student outside class: bui.hamy / 123456 (không nhận bài của 11A14)
 4. Published legacy assignments: VAN12-NLXH-SOC, VAN11-NLVH-01
 5. Catalog: chuyên đề, ngữ liệu, đề nguồn, barem, lớp 11A14
 """
@@ -16,7 +16,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import LOCAL_PROTOTYPE_TEACHER_PASSWORD, Settings, get_settings
+from app.config import Settings, get_settings
 from app.core.http import utcnow
 from app.core.passwords import hash_password
 from app.db.models import (
@@ -41,12 +41,14 @@ from app.identity.domain import normalize_email, normalize_login_id
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("seed_demo")
 
+DEMO_PASSWORD = "123456"
+
 
 async def seed_teacher(session: AsyncSession, settings: Settings) -> User:
     login_id = normalize_login_id(settings.BOOTSTRAP_TEACHER_LOGIN_ID)
     email = normalize_email(settings.BOOTSTRAP_TEACHER_EMAIL)
     display_name = settings.BOOTSTRAP_TEACHER_DISPLAY_NAME.strip() or "Cô Đặng Loan"
-    password = settings.BOOTSTRAP_TEACHER_PASSWORD or LOCAL_PROTOTYPE_TEACHER_PASSWORD
+    password = DEMO_PASSWORD
 
     result = await session.execute(select(User).where(User.login_id == login_id))
     user = result.scalar_one_or_none()
@@ -74,7 +76,7 @@ async def seed_student(session: AsyncSession) -> User:
     login_id = "nguyen.van.an"
     email = "nguyen.van.an@thptdanphuong.edu.vn"
     display_name = "Nguyễn Văn An (12A1)"
-    password = "HocSinh@2024"
+    password = DEMO_PASSWORD
 
     result = await session.execute(select(User).where(User.login_id == login_id))
     user = result.scalar_one_or_none()
@@ -281,7 +283,7 @@ async def seed_student_named(
     login_id: str,
     email: str,
     display_name: str,
-    password: str = "HocSinh@2024",
+    password: str = DEMO_PASSWORD,
 ) -> User:
     result = await session.execute(select(User).where(User.login_id == login_id))
     user = result.scalar_one_or_none()
