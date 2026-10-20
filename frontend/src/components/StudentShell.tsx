@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
+import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 
@@ -16,7 +17,7 @@ interface StudentShellProps {
 
 export default function StudentShell({
   children,
-  headerTitle = 'Khối 11 - Lớp 11A14',
+  headerTitle = `Khối ${SCHOOL_CONTEXT.gradeLevel} - Lớp ${SCHOOL_CONTEXT.classroomCode}`,
   headerSubtitle = 'Bài viết số 1 — Nghị luận xã hội',
 }: StudentShellProps) {
   const pathname = usePathname();
@@ -310,7 +311,7 @@ export default function StudentShell({
                   {currentUser?.name || 'Học sinh'}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
-                  {currentUser?.classId ? `Lớp ${currentUser.classId}` : 'Lớp 11A14'} • THPT Đan Phượng
+                  Lớp {currentUser?.classId || SCHOOL_CONTEXT.classroomCode} • THPT Đan Phượng
                 </div>
               </div>
               <Link

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
+import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import { assessmentApi } from '@/features/assessment/api';
@@ -123,10 +124,10 @@ export default function StudentAssignmentsView() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2.5 py-0.5 rounded-full">
-                Học sinh {currentUser?.name || 'Lớp 11A14'}
+                Học sinh {currentUser?.name || `Lớp ${SCHOOL_CONTEXT.classroomCode}`}
               </span>
               <span className="text-xs bg-surface-container text-on-surface-variant font-medium px-2.5 py-0.5 rounded-full">
-                Học kỳ II • Năm học 2025 - 2026
+                {SCHOOL_CONTEXT.semester} • Năm học {SCHOOL_CONTEXT.academicYear}
               </span>
             </div>
             <h1 className="font-headline-lg text-2xl sm:text-3xl font-bold text-on-surface font-merriweather tracking-tight">

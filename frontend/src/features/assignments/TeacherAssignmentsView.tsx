@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
+import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import { beginNewAssignmentDraft, clearAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
@@ -150,7 +151,7 @@ export default function TeacherAssignmentsView() {
               </select>
               <span className="text-[11px] text-secondary font-semibold block mt-0.5">
                 {selectedClassroom
-                  ? `${selectedClassroom.studentCount} học sinh • ${selectedClassroom.academicYear || '2025 - 2026'}`
+                  ? `${selectedClassroom.studentCount} học sinh • ${selectedClassroom.academicYear || SCHOOL_CONTEXT.academicYear}`
                   : 'Chưa có lớp'}
               </span>
             </div>
@@ -352,7 +353,7 @@ export default function TeacherAssignmentsView() {
                     </div>
                     <div>
                       <span className="text-[10px] text-outline block">Lớp</span>
-                      <span className="font-semibold">{assignment.classroomCode || '11A14'}</span>
+                      <span className="font-semibold">{assignment.classroomCode || SCHOOL_CONTEXT.classroomCode}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-outline block">Học sinh</span>

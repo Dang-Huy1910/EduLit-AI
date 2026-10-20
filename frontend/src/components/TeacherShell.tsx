@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
+import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 
@@ -210,14 +211,14 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             {breadcrumb || (
               <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
                 <span className="material-symbols-outlined text-[18px] text-outline">school</span>
-                <span>Lớp 11A14 • THPT Đan Phượng</span>
+                <span>Lớp {SCHOOL_CONTEXT.classroomCode} • THPT Đan Phượng</span>
                 <span className="text-outline-variant">/</span>
                 <span className="text-on-surface font-semibold">Nghị luận xã hội GDPT 2018</span>
               </div>
             )}
             <span className="font-caption text-xs bg-primary-container/20 text-primary px-2.5 py-0.5 rounded-full font-semibold border border-primary/20 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-              <span>Học kỳ II • 2025 - 2026</span>
+              <span>{SCHOOL_CONTEXT.semester} • {SCHOOL_CONTEXT.academicYear}</span>
             </span>
           </div>
 

@@ -302,7 +302,7 @@ export default function SocraticChatPage() {
   const isLoading = (isLoadingMessages && messages.length === 0 && !isInitializingOutline);
 
   return (
-    <StudentShell headerTitle="Khối 11 - Lớp 11A14" headerSubtitle="Trợ lý gợi mở Socratic & Lập dàn ý">
+    <StudentShell headerSubtitle="Trợ lý gợi mở Socratic & Lập dàn ý">
       <div className="max-w-7xl mx-auto space-y-4">
         {/* Top Breadcrumb & Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
