@@ -198,11 +198,11 @@ async def class_report(
     status_filter: Annotated[str, Query(alias="status")] = "all",
     sort: str = "default",
     page: int = 1,
-    page_size: int = 10,
+    page_size: Annotated[int, Query(alias="pageSize", ge=1, le=100)] = 10,
     mode: str | None = None,
     date_from: Annotated[str | None, Query(alias="from")] = None,
     date_to: Annotated[str | None, Query(alias="to")] = None,
-    student_id: uuid.UUID | None = None,
+    student_id: Annotated[uuid.UUID | None, Query(alias="studentId")] = None,
 ) -> dict[str, Any]:
     try:
         return await service.class_report(

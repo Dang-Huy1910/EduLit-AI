@@ -121,16 +121,16 @@ export default function CompetencyReportView() {
   const enqueue = useCallback(async () => {
     setBusyInsight(true);
     try {
-      setReport(
-        await assessmentApi.enqueueCompetencyInsight({
-          classroomId: classroomId || undefined,
-          assignmentIds: assignmentIds.length ? assignmentIds : undefined,
-          studentId: studentId || undefined,
-          from: dateFrom || undefined,
-          to: dateTo || undefined,
-          mode: mode || undefined,
-        })
-      );
+      const next = await assessmentApi.enqueueCompetencyInsight({
+        classroomId: classroomId || undefined,
+        assignmentIds: assignmentIds.length ? assignmentIds : undefined,
+        studentId: studentId || undefined,
+        from: dateFrom || undefined,
+        to: dateTo || undefined,
+        mode: mode || undefined,
+      });
+      // The insight endpoint knows nothing about the table's page, search or sort, so keep the rows on screen.
+      setReport((prev) => (prev ? { ...next, students: prev.students } : next));
     } catch (err) {
       setError(err instanceof AuthApiError ? err.message : 'Không tạo được phân tích.');
     } finally {

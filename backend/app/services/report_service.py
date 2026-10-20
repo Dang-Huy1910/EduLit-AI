@@ -186,7 +186,7 @@ class ReportService:
         search: str = "",
         sort: str = "default",
         page: int = 1,
-        page_size: int = 20,
+        page_size: int = 10,
     ) -> dict[str, Any]:
         self._require_teacher(teacher)
         if classroom_id:
