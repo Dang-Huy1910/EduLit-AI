@@ -446,18 +446,12 @@ export default function FloatingChatWidget() {
       {/* 2. Floating Action Button (FAB) - Draggable */}
       <div
         ref={containerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={() => {
-          isDraggingRef.current = false;
-        }}
         style={
           position
             ? { left: `${position.x}px`, top: `${position.y}px`, bottom: 'auto', right: 'auto' }
             : { bottom: '24px', right: '24px' }
         }
-        className="fixed z-50 flex items-center gap-2 select-none touch-none cursor-grab active:cursor-grabbing group"
+        className="fixed z-50 flex items-center gap-2 select-none group"
       >
         {!isOpen && (
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/50 shadow-md text-xs font-semibold text-on-surface animate-in fade-in slide-in-from-right-3 duration-200 pointer-events-none">
@@ -468,9 +462,15 @@ export default function FloatingChatWidget() {
 
         <button
           type="button"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={() => {
+            isDraggingRef.current = false;
+          }}
           onClick={handleButtonClick}
           title={isOpen ? 'Đóng hộp thoại AI' : isTeacher ? 'Mở Trợ lý sư phạm (Kéo để di chuyển vị trí)' : 'Mở trợ lý EduLit AI (Kéo để di chuyển vị trí)'}
-          className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform duration-200 cursor-grab active:cursor-grabbing ${
+          className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform duration-200 cursor-grab active:cursor-grabbing touch-none ${
             isOpen
               ? 'bg-on-surface text-surface'
               : isTeacher
