@@ -2,6 +2,7 @@
 
 import React from 'react';
 import ToastContainer from './ToastContainer';
+import EduLitMark from './EduLitMark';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -15,8 +16,8 @@ const FEATURES = [
 
 function BrandMark() {
   return (
-    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 text-white flex items-center justify-center shadow-[0_10px_30px_-8px_rgba(217,119,6,0.7)] ring-1 ring-white/30 shrink-0">
-      <span className="material-symbols-outlined text-[26px]">auto_stories</span>
+    <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center ring-1 ring-white/25 shrink-0">
+      <EduLitMark className="w-8 h-8" />
     </div>
   );
 }

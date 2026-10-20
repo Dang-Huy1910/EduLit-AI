@@ -21,6 +21,13 @@ const merriweather = Merriweather({
 export const metadata: Metadata = {
   title: 'EduLit-AI — Ngữ văn THPT Đan Phượng (GDPT 2018)',
   description: 'Trợ lý số hóa và đánh giá bài viết môn Ngữ văn THPT Đan Phượng theo định hướng GDPT 2018.',
+  icons: {
+    icon: [
+      { url: '/brand/favicon.ico', sizes: '16x16 32x32 48x48' },
+      { url: '/brand/edulit-app-icon-small.svg', type: 'image/svg+xml' },
+    ],
+    apple: { url: '/brand/apple-touch-icon.png', sizes: '180x180' },
+  },
 };
 
 export default function RootLayout({

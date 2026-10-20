@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
+import EduLitMark from './EduLitMark';
 
 interface StudentShellProps {
   children: React.ReactNode;
@@ -82,9 +83,7 @@ export default function StudentShell({
             <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-md bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm">
-              E
-            </div>
+            <EduLitMark className="w-6 h-6 text-primary shrink-0" />
             <span className="font-headline-sm text-headline-sm text-primary">EduLit-AI</span>
           </div>
         </div>
@@ -111,9 +110,7 @@ export default function StudentShell({
             } border-b border-outline-variant/20`}
           >
             <div className="flex items-center gap-space-sm overflow-hidden">
-              <div className="w-8 h-8 rounded-lg bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-base shadow-sm shrink-0">
-                E
-              </div>
+              <EduLitMark className="w-8 h-8 text-primary shrink-0" />
               {!sidebarCollapsed && (
                 <div className="flex flex-col truncate">
                   <div className="flex items-center gap-1.5">

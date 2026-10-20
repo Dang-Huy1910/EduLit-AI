@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
+import EduLitMark from './EduLitMark';
 
 interface TeacherShellProps {
   children: React.ReactNode;
@@ -64,7 +65,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
           </button>
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-2xl">auto_stories</span>
+            <EduLitMark className="w-6 h-6 text-primary shrink-0" />
             <span className="font-headline-sm text-headline-sm text-primary">EduLit-AI</span>
           </div>
         </div>
@@ -91,9 +92,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             } border-b border-outline-variant/20`}
           >
             <div className="flex items-center gap-space-sm overflow-hidden">
-              <div className="w-9 h-9 rounded-full bg-surface-container-low flex items-center justify-center text-primary shadow-sm shrink-0">
-                <span className="material-symbols-outlined text-xl">auto_stories</span>
-              </div>
+              <EduLitMark className="w-8 h-8 text-primary shrink-0" />
               {!sidebarCollapsed && (
                 <div className="flex flex-col truncate">
                   <span className="font-headline-sm text-headline-sm text-primary tracking-tight">EduLit-AI</span>
