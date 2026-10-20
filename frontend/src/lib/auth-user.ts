@@ -20,7 +20,7 @@ export function mapPublicUser(user: PublicUser): User {
     email: user.email,
     school: 'THPT Đan Phượng',
     classId: SCHOOL_CONTEXT.classroomCode,
-    code: isTeacherPersona ? 'GV-VAN-01' : (user.loginId || 'VN-11A14-001'),
+    code: isTeacherPersona ? 'GV-VAN-01' : (user.loginId || 'VN-12A14-001'),
     avatarInitials: initialsFromName(user.displayName),
   };
 }

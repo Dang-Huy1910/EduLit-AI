@@ -30,7 +30,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionId": "sub-user-student-11a14-001",
     "pages": [
       {
@@ -110,7 +110,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-002",
     "studentName": "Nguyễn Thu An",
-    "studentCode": "VN-11A14-002",
+    "studentCode": "VN-12A14-002",
     "submissionId": "sub-user-student-11a14-002",
     "pages": [
       {
@@ -199,7 +199,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-003",
     "studentName": "Nguyễn Thị Ngọc Anh",
-    "studentCode": "VN-11A14-003",
+    "studentCode": "VN-12A14-003",
     "submissionId": "sub-user-student-11a14-003",
     "pages": [
       {
@@ -314,7 +314,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-004",
     "studentName": "Bùi Hà Chi",
-    "studentCode": "VN-11A14-004",
+    "studentCode": "VN-12A14-004",
     "submissionId": "sub-user-student-11a14-004",
     "pages": [
       {
@@ -405,7 +405,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-005",
     "studentName": "Trần Quỳnh Chi",
-    "studentCode": "VN-11A14-005",
+    "studentCode": "VN-12A14-005",
     "submissionId": "sub-user-student-11a14-005",
     "pages": [
       {
@@ -500,7 +500,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-006",
     "studentName": "Trần Diệp Diệp",
-    "studentCode": "VN-11A14-006",
+    "studentCode": "VN-12A14-006",
     "submissionId": "sub-user-student-11a14-006",
     "pages": [
       {
@@ -597,7 +597,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-007",
     "studentName": "Nguyễn Trung Dũng",
-    "studentCode": "VN-11A14-007",
+    "studentCode": "VN-12A14-007",
     "submissionId": "sub-user-student-11a14-007",
     "pages": [
       {
@@ -694,7 +694,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-008",
     "studentName": "Đỗ Quang Duy",
-    "studentCode": "VN-11A14-008",
+    "studentCode": "VN-12A14-008",
     "submissionId": "sub-user-student-11a14-008",
     "pages": [
       {
@@ -796,13 +796,13 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
         ]
       }
     ],
-    "notes": "Họ tên ghi trên mẫu giấy kiểm tra ClassMate là 'Ngọc Linh', Lớp '12A14' (khác với tên hồ sơ user-student-11a14-008: Đỗ Quang Duy - 11A14). Chữ viết tròn, rõ ràng, dễ đọc. Học sinh thường chừa một khoảng trắng trước dấu ngoặc kép và dấu chấm/phẩy (ví dụ: '\" Màu tự do của đất \"', 'mộc mạc , giản dị'). Dùng từ/chính tả sai sót: 'bức ảnh làng quê' (trang 1 dòng 6), 'thủa' thay vì 'thuở' (trang 2 dòng 6), 'không thoát ly khỏi bùn đất' (thừa từ 'khỏi'), 'cánh đánh cá' (trang 2 dòng 29)."
+    "notes": "Họ tên ghi trên mẫu giấy kiểm tra ClassMate là 'Ngọc Linh', Lớp '12A14' (khác với tên hồ sơ user-student-11a14-008: Đỗ Quang Duy - 12A14). Chữ viết tròn, rõ ràng, dễ đọc. Học sinh thường chừa một khoảng trắng trước dấu ngoặc kép và dấu chấm/phẩy (ví dụ: '\" Màu tự do của đất \"', 'mộc mạc , giản dị'). Dùng từ/chính tả sai sót: 'bức ảnh làng quê' (trang 1 dòng 6), 'thủa' thay vì 'thuở' (trang 2 dòng 6), 'không thoát ly khỏi bùn đất' (thừa từ 'khỏi'), 'cánh đánh cá' (trang 2 dòng 29)."
   },
   "user-student-11a14-009": {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-009",
     "studentName": "Nguyễn Thu Hà",
-    "studentCode": "VN-11A14-009",
+    "studentCode": "VN-12A14-009",
     "submissionId": "sub-user-student-11a14-009",
     "pages": [
       {
@@ -912,7 +912,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-010",
     "studentName": "Nguyễn Thanh Hằng",
-    "studentCode": "VN-11A14-010",
+    "studentCode": "VN-12A14-010",
     "submissionId": "sub-user-student-11a14-010",
     "pages": [
       {
@@ -989,7 +989,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-011",
     "studentName": "Hà Bảo Hân",
-    "studentCode": "VN-11A14-011",
+    "studentCode": "VN-12A14-011",
     "submissionId": "sub-user-student-11a14-011",
     "pages": [
       {
@@ -1083,7 +1083,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-012",
     "studentName": "Đông Khánh Huyền",
-    "studentCode": "VN-11A14-012",
+    "studentCode": "VN-12A14-012",
     "submissionId": "sub-user-student-11a14-012",
     "pages": [
       {
@@ -1161,7 +1161,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-013",
     "studentName": "Tạ Thị Thu Hương",
-    "studentCode": "VN-11A14-013",
+    "studentCode": "VN-12A14-013",
     "submissionId": "sub-user-student-11a14-013",
     "pages": [
       {
@@ -1247,7 +1247,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-014",
     "studentName": "Bùi Thị Ngọc Khuê",
-    "studentCode": "VN-11A14-014",
+    "studentCode": "VN-12A14-014",
     "submissionId": "sub-user-student-11a14-014",
     "pages": [
       {
@@ -1408,7 +1408,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-015",
     "studentName": "Chu Nhật Linh",
-    "studentCode": "VN-11A14-015",
+    "studentCode": "VN-12A14-015",
     "submissionId": "sub-user-student-11a14-015",
     "pages": [
       {
@@ -1495,7 +1495,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-016",
     "studentName": "Lê Nguyễn Diệu Linh",
-    "studentCode": "VN-11A14-016",
+    "studentCode": "VN-12A14-016",
     "submissionId": "sub-user-student-11a14-016",
     "pages": [
       {
@@ -1588,7 +1588,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-017",
     "studentName": "Nguyễn Ngọc Linh",
-    "studentCode": "VN-11A14-017",
+    "studentCode": "VN-12A14-017",
     "submissionId": "sub-user-student-11a14-017",
     "pages": [
       {
@@ -1661,7 +1661,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-018",
     "studentName": "Trần Hà Linh",
-    "studentCode": "VN-11A14-018",
+    "studentCode": "VN-12A14-018",
     "submissionId": "sub-user-student-11a14-018",
     "pages": [
       {
@@ -1717,7 +1717,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-019",
     "studentName": "Trần Phương Linh",
-    "studentCode": "VN-11A14-019",
+    "studentCode": "VN-12A14-019",
     "submissionId": "sub-user-student-11a14-019",
     "pages": [
       {
@@ -1802,7 +1802,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-020",
     "studentName": "Phí Nguyên Mạnh",
-    "studentCode": "VN-11A14-020",
+    "studentCode": "VN-12A14-020",
     "submissionId": "sub-user-student-11a14-020",
     "pages": [
       {
@@ -1883,7 +1883,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-021",
     "studentName": "Nguyễn Hoa Tuệ Mẫn",
-    "studentCode": "VN-11A14-021",
+    "studentCode": "VN-12A14-021",
     "submissionId": "sub-user-student-11a14-021",
     "pages": [
       {
@@ -1978,7 +1978,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-022",
     "studentName": "Nguyễn Viết Bảo Minh",
-    "studentCode": "VN-11A14-022",
+    "studentCode": "VN-12A14-022",
     "submissionId": "sub-user-student-11a14-022",
     "pages": [
       {
@@ -2100,7 +2100,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-023",
     "studentName": "Nguyễn Hà My",
-    "studentCode": "VN-11A14-023",
+    "studentCode": "VN-12A14-023",
     "submissionId": "sub-user-student-11a14-023",
     "pages": [
       {
@@ -2182,7 +2182,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-024",
     "studentName": "Nguyễn Thị Ngân",
-    "studentCode": "VN-11A14-024",
+    "studentCode": "VN-12A14-024",
     "submissionId": "sub-user-student-11a14-024",
     "pages": [
       {
@@ -2284,7 +2284,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-025",
     "studentName": "Cao Thị Ánh Ngọc",
-    "studentCode": "VN-11A14-025",
+    "studentCode": "VN-12A14-025",
     "submissionId": "sub-user-student-11a14-025",
     "pages": [
       {
@@ -2379,7 +2379,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-026",
     "studentName": "Trần Vũ Thanh Ngọc",
-    "studentCode": "VN-11A14-026",
+    "studentCode": "VN-12A14-026",
     "submissionId": "sub-user-student-11a14-026",
     "pages": [
       {
@@ -2518,7 +2518,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-027",
     "studentName": "Đỗ Văn Nguyên",
-    "studentCode": "VN-11A14-027",
+    "studentCode": "VN-12A14-027",
     "submissionId": "sub-user-student-11a14-027",
     "pages": [
       {
@@ -2632,7 +2632,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-028",
     "studentName": "Nguyễn Ngọc Mẫn Nhi",
-    "studentCode": "VN-11A14-028",
+    "studentCode": "VN-12A14-028",
     "submissionId": "sub-user-student-11a14-028",
     "pages": [
       {
@@ -2746,7 +2746,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-029",
     "studentName": "Phạm Yến Nhi",
-    "studentCode": "VN-11A14-029",
+    "studentCode": "VN-12A14-029",
     "submissionId": "sub-user-student-11a14-029",
     "pages": [
       {
@@ -2882,7 +2882,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-030",
     "studentName": "Trần Yến Nhi",
-    "studentCode": "VN-11A14-030",
+    "studentCode": "VN-12A14-030",
     "submissionId": "sub-user-student-11a14-030",
     "pages": [
       {
@@ -3018,7 +3018,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-031",
     "studentName": "Bùi Hồng Nhung",
-    "studentCode": "VN-11A14-031",
+    "studentCode": "VN-12A14-031",
     "submissionId": "sub-user-student-11a14-031",
     "pages": [
       {
@@ -3080,7 +3080,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-032",
     "studentName": "Đoàn Nguyễn Mai Như",
-    "studentCode": "VN-11A14-032",
+    "studentCode": "VN-12A14-032",
     "submissionId": "sub-user-student-11a14-032",
     "pages": [
       {
@@ -3163,7 +3163,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-033",
     "studentName": "Trần Mai Phương",
-    "studentCode": "VN-11A14-033",
+    "studentCode": "VN-12A14-033",
     "submissionId": "sub-user-student-11a14-033",
     "pages": [
       {
@@ -3279,7 +3279,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-034",
     "studentName": "Nguyễn Thị Phượng",
-    "studentCode": "VN-11A14-034",
+    "studentCode": "VN-12A14-034",
     "submissionId": "sub-user-student-11a14-034",
     "pages": [
       {
@@ -3379,7 +3379,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-035",
     "studentName": "Phạm Minh Tâm",
-    "studentCode": "VN-11A14-035",
+    "studentCode": "VN-12A14-035",
     "submissionId": "sub-user-student-11a14-035",
     "pages": [
       {
@@ -3497,7 +3497,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-036",
     "studentName": "Đàm Thị Thu",
-    "studentCode": "VN-11A14-036",
+    "studentCode": "VN-12A14-036",
     "submissionId": "sub-user-student-11a14-036",
     "pages": [
       {
@@ -3563,7 +3563,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-037",
     "studentName": "Hoàng Thị Trang",
-    "studentCode": "VN-11A14-037",
+    "studentCode": "VN-12A14-037",
     "submissionId": "sub-user-student-11a14-037",
     "pages": [
       {
@@ -3628,7 +3628,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-038",
     "studentName": "Nguyễn Minh Trang",
-    "studentCode": "VN-11A14-038",
+    "studentCode": "VN-12A14-038",
     "submissionId": "sub-user-student-11a14-038",
     "pages": [
       {
@@ -3670,7 +3670,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-039",
     "studentName": "Nguyễn Thùy Trang",
-    "studentCode": "VN-11A14-039",
+    "studentCode": "VN-12A14-039",
     "submissionId": "sub-user-student-11a14-039",
     "pages": [
       {
@@ -3761,7 +3761,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-040",
     "studentName": "Lê Thuỳ Vân",
-    "studentCode": "VN-11A14-040",
+    "studentCode": "VN-12A14-040",
     "submissionId": "sub-user-student-11a14-040",
     "pages": [
       {
@@ -3850,7 +3850,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-041",
     "studentName": "Đặng Gia Vinh",
-    "studentCode": "VN-11A14-041",
+    "studentCode": "VN-12A14-041",
     "submissionId": "sub-user-student-11a14-041",
     "pages": [
       {
@@ -3924,7 +3924,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionId": "sub-user-student-11a14-001",
     "pages": [
       {
@@ -4004,7 +4004,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-002",
     "studentName": "Nguyễn Thu An",
-    "studentCode": "VN-11A14-002",
+    "studentCode": "VN-12A14-002",
     "submissionId": "sub-user-student-11a14-002",
     "pages": [
       {
@@ -4093,7 +4093,7 @@ export const SUBMISSION_MANIFEST: Record<string, SubmissionManifestEntry> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-003",
     "studentName": "Nguyễn Thị Ngọc Anh",
-    "studentCode": "VN-11A14-003",
+    "studentCode": "VN-12A14-003",
     "submissionId": "sub-user-student-11a14-003",
     "pages": [
       {
@@ -4212,7 +4212,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionDate": "24/10/2026 15:13",
     "status": "graded",
     "pages": [
@@ -4356,7 +4356,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-002",
     "studentName": "Nguyễn Thu An",
-    "studentCode": "VN-11A14-002",
+    "studentCode": "VN-12A14-002",
     "submissionDate": "24/10/2026 16:26",
     "status": "graded",
     "pages": [
@@ -4513,7 +4513,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-003",
     "studentName": "Nguyễn Thị Ngọc Anh",
-    "studentCode": "VN-11A14-003",
+    "studentCode": "VN-12A14-003",
     "submissionDate": "24/10/2026 17:39",
     "status": "graded",
     "pages": [
@@ -4691,7 +4691,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-004",
     "studentName": "Bùi Hà Chi",
-    "studentCode": "VN-11A14-004",
+    "studentCode": "VN-12A14-004",
     "submissionDate": "24/10/2026 18:52",
     "status": "graded",
     "pages": [
@@ -4852,7 +4852,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-005",
     "studentName": "Trần Quỳnh Chi",
-    "studentCode": "VN-11A14-005",
+    "studentCode": "VN-12A14-005",
     "submissionDate": "24/10/2026 19:05",
     "status": "graded",
     "pages": [
@@ -5017,7 +5017,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-006",
     "studentName": "Trần Diệp Diệp",
-    "studentCode": "VN-11A14-006",
+    "studentCode": "VN-12A14-006",
     "submissionDate": "24/10/2026 20:18",
     "status": "graded",
     "pages": [
@@ -5184,7 +5184,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-007",
     "studentName": "Nguyễn Trung Dũng",
-    "studentCode": "VN-11A14-007",
+    "studentCode": "VN-12A14-007",
     "submissionDate": "24/10/2026 14:31",
     "status": "graded",
     "pages": [
@@ -5349,7 +5349,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-008",
     "studentName": "Đỗ Quang Duy",
-    "studentCode": "VN-11A14-008",
+    "studentCode": "VN-12A14-008",
     "submissionDate": "24/10/2026 15:44",
     "status": "graded",
     "pages": [
@@ -5526,7 +5526,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-009",
     "studentName": "Nguyễn Thu Hà",
-    "studentCode": "VN-11A14-009",
+    "studentCode": "VN-12A14-009",
     "submissionDate": "24/10/2026 16:57",
     "status": "graded",
     "pages": [
@@ -5705,7 +5705,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-010",
     "studentName": "Nguyễn Thanh Hằng",
-    "studentCode": "VN-11A14-010",
+    "studentCode": "VN-12A14-010",
     "submissionDate": "24/10/2026 17:10",
     "status": "graded",
     "pages": [
@@ -5854,7 +5854,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-011",
     "studentName": "Hà Bảo Hân",
-    "studentCode": "VN-11A14-011",
+    "studentCode": "VN-12A14-011",
     "submissionDate": "24/10/2026 18:23",
     "status": "graded",
     "pages": [
@@ -6018,7 +6018,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-012",
     "studentName": "Đông Khánh Huyền",
-    "studentCode": "VN-11A14-012",
+    "studentCode": "VN-12A14-012",
     "submissionDate": "24/10/2026 19:36",
     "status": "graded",
     "pages": [
@@ -6166,7 +6166,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-013",
     "studentName": "Tạ Thị Thu Hương",
-    "studentCode": "VN-11A14-013",
+    "studentCode": "VN-12A14-013",
     "submissionDate": "24/10/2026 20:49",
     "status": "graded",
     "pages": [
@@ -6322,7 +6322,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-014",
     "studentName": "Bùi Thị Ngọc Khuê",
-    "studentCode": "VN-11A14-014",
+    "studentCode": "VN-12A14-014",
     "submissionDate": "24/10/2026 14:02",
     "status": "graded",
     "pages": [
@@ -6545,7 +6545,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-015",
     "studentName": "Chu Nhật Linh",
-    "studentCode": "VN-11A14-015",
+    "studentCode": "VN-12A14-015",
     "submissionDate": "24/10/2026 15:15",
     "status": "graded",
     "pages": [
@@ -6702,7 +6702,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-016",
     "studentName": "Lê Nguyễn Diệu Linh",
-    "studentCode": "VN-11A14-016",
+    "studentCode": "VN-12A14-016",
     "submissionDate": "24/10/2026 16:28",
     "status": "graded",
     "pages": [
@@ -6865,7 +6865,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-017",
     "studentName": "Nguyễn Ngọc Linh",
-    "studentCode": "VN-11A14-017",
+    "studentCode": "VN-12A14-017",
     "submissionDate": "24/10/2026 17:41",
     "status": "graded",
     "pages": [
@@ -7010,7 +7010,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-018",
     "studentName": "Trần Hà Linh",
-    "studentCode": "VN-11A14-018",
+    "studentCode": "VN-12A14-018",
     "submissionDate": "24/10/2026 18:54",
     "status": "graded",
     "pages": [
@@ -7139,7 +7139,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-019",
     "studentName": "Trần Phương Linh",
-    "studentCode": "VN-11A14-019",
+    "studentCode": "VN-12A14-019",
     "submissionDate": "24/10/2026 19:07",
     "status": "graded",
     "pages": [
@@ -7294,7 +7294,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-020",
     "studentName": "Phí Nguyên Mạnh",
-    "studentCode": "VN-11A14-020",
+    "studentCode": "VN-12A14-020",
     "submissionDate": "24/10/2026 20:20",
     "status": "graded",
     "pages": [
@@ -7445,7 +7445,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-021",
     "studentName": "Nguyễn Hoa Tuệ Mẫn",
-    "studentCode": "VN-11A14-021",
+    "studentCode": "VN-12A14-021",
     "submissionDate": "24/10/2026 14:33",
     "status": "graded",
     "pages": [
@@ -7608,7 +7608,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-022",
     "studentName": "Nguyễn Viết Bảo Minh",
-    "studentCode": "VN-11A14-022",
+    "studentCode": "VN-12A14-022",
     "submissionDate": "24/10/2026 15:46",
     "status": "graded",
     "pages": [
@@ -7799,7 +7799,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-023",
     "studentName": "Nguyễn Hà My",
-    "studentCode": "VN-11A14-023",
+    "studentCode": "VN-12A14-023",
     "submissionDate": "24/10/2026 16:59",
     "status": "graded",
     "pages": [
@@ -7945,7 +7945,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-024",
     "studentName": "Nguyễn Thị Ngân",
-    "studentCode": "VN-11A14-024",
+    "studentCode": "VN-12A14-024",
     "submissionDate": "24/10/2026 17:12",
     "status": "graded",
     "pages": [
@@ -8117,7 +8117,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-025",
     "studentName": "Cao Thị Ánh Ngọc",
-    "studentCode": "VN-11A14-025",
+    "studentCode": "VN-12A14-025",
     "submissionDate": "24/10/2026 18:25",
     "status": "graded",
     "pages": [
@@ -8282,7 +8282,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-026",
     "studentName": "Trần Vũ Thanh Ngọc",
-    "studentCode": "VN-11A14-026",
+    "studentCode": "VN-12A14-026",
     "submissionDate": "24/10/2026 19:38",
     "status": "graded",
     "pages": [
@@ -8490,7 +8490,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-027",
     "studentName": "Đỗ Văn Nguyên",
-    "studentCode": "VN-11A14-027",
+    "studentCode": "VN-12A14-027",
     "submissionDate": "24/10/2026 20:51",
     "status": "graded",
     "pages": [
@@ -8673,7 +8673,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-028",
     "studentName": "Nguyễn Ngọc Mẫn Nhi",
-    "studentCode": "VN-11A14-028",
+    "studentCode": "VN-12A14-028",
     "submissionDate": "24/10/2026 14:04",
     "status": "graded",
     "pages": [
@@ -8856,7 +8856,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-029",
     "studentName": "Phạm Yến Nhi",
-    "studentCode": "VN-11A14-029",
+    "studentCode": "VN-12A14-029",
     "submissionDate": "24/10/2026 15:17",
     "status": "graded",
     "pages": [
@@ -9057,7 +9057,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-030",
     "studentName": "Trần Yến Nhi",
-    "studentCode": "VN-11A14-030",
+    "studentCode": "VN-12A14-030",
     "submissionDate": "24/10/2026 16:30",
     "status": "graded",
     "pages": [
@@ -9258,7 +9258,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-031",
     "studentName": "Bùi Hồng Nhung",
-    "studentCode": "VN-11A14-031",
+    "studentCode": "VN-12A14-031",
     "submissionDate": "24/10/2026 17:43",
     "status": "graded",
     "pages": [
@@ -9391,7 +9391,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-032",
     "studentName": "Đoàn Nguyễn Mai Như",
-    "studentCode": "VN-11A14-032",
+    "studentCode": "VN-12A14-032",
     "submissionDate": "24/10/2026 18:56",
     "status": "graded",
     "pages": [
@@ -9544,7 +9544,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-033",
     "studentName": "Trần Mai Phương",
-    "studentCode": "VN-11A14-033",
+    "studentCode": "VN-12A14-033",
     "submissionDate": "24/10/2026 19:09",
     "status": "graded",
     "pages": [
@@ -9729,7 +9729,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-034",
     "studentName": "Nguyễn Thị Phượng",
-    "studentCode": "VN-11A14-034",
+    "studentCode": "VN-12A14-034",
     "submissionDate": "24/10/2026 20:22",
     "status": "graded",
     "pages": [
@@ -9899,7 +9899,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-035",
     "studentName": "Phạm Minh Tâm",
-    "studentCode": "VN-11A14-035",
+    "studentCode": "VN-12A14-035",
     "submissionDate": "24/10/2026 14:35",
     "status": "graded",
     "pages": [
@@ -10085,7 +10085,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-036",
     "studentName": "Đàm Thị Thu",
-    "studentCode": "VN-11A14-036",
+    "studentCode": "VN-12A14-036",
     "submissionDate": "24/10/2026 15:48",
     "status": "graded",
     "pages": [
@@ -10222,7 +10222,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-037",
     "studentName": "Hoàng Thị Trang",
-    "studentCode": "VN-11A14-037",
+    "studentCode": "VN-12A14-037",
     "submissionDate": "24/10/2026 16:01",
     "status": "graded",
     "pages": [
@@ -10358,7 +10358,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-038",
     "studentName": "Nguyễn Minh Trang",
-    "studentCode": "VN-11A14-038",
+    "studentCode": "VN-12A14-038",
     "submissionDate": "24/10/2026 17:14",
     "status": "graded",
     "pages": [
@@ -10471,7 +10471,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-039",
     "studentName": "Nguyễn Thùy Trang",
-    "studentCode": "VN-11A14-039",
+    "studentCode": "VN-12A14-039",
     "submissionDate": "24/10/2026 18:27",
     "status": "graded",
     "pages": [
@@ -10632,7 +10632,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-040",
     "studentName": "Lê Thuỳ Vân",
-    "studentCode": "VN-11A14-040",
+    "studentCode": "VN-12A14-040",
     "submissionDate": "24/10/2026 19:40",
     "status": "graded",
     "pages": [
@@ -10791,7 +10791,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-041",
     "studentName": "Đặng Gia Vinh",
-    "studentCode": "VN-11A14-041",
+    "studentCode": "VN-12A14-041",
     "submissionDate": "24/10/2026 20:53",
     "status": "graded",
     "pages": [
@@ -10935,7 +10935,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlxh-nguon-coi",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionDate": "14/09/2026 21:15",
     "status": "graded",
     "pages": [],
@@ -11015,7 +11015,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-bep-lua",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionDate": "01/10/2026 20:30",
     "status": "graded",
     "pages": [],
@@ -11093,7 +11093,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionDate": "24/10/2026 15:13",
     "status": "graded",
     "pages": [
@@ -11237,7 +11237,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-002",
     "studentName": "Nguyễn Thu An",
-    "studentCode": "VN-11A14-002",
+    "studentCode": "VN-12A14-002",
     "submissionDate": "24/10/2026 16:26",
     "status": "graded",
     "pages": [
@@ -11394,7 +11394,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-mau-tu-do-dat",
     "studentId": "user-student-11a14-003",
     "studentName": "Nguyễn Thị Ngọc Anh",
-    "studentCode": "VN-11A14-003",
+    "studentCode": "VN-12A14-003",
     "submissionDate": "24/10/2026 17:39",
     "status": "graded",
     "pages": [
@@ -11572,7 +11572,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlxh-nguon-coi",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionDate": "14/09/2026 21:15",
     "status": "graded",
     "pages": [],
@@ -11652,7 +11652,7 @@ export const INITIAL_SUBMISSIONS: Record<string, StudentSubmission> = {
     "assignmentId": "assign-nlvh-bep-lua",
     "studentId": "user-student-11a14-001",
     "studentName": "Đỗ Đăng An",
-    "studentCode": "VN-11A14-001",
+    "studentCode": "VN-12A14-001",
     "submissionDate": "01/10/2026 20:30",
     "status": "graded",
     "pages": [],

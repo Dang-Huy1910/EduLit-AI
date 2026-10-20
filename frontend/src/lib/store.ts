@@ -658,7 +658,7 @@ export const useAppStore = create<AppState>()(
         const { uploadedPages, currentUser } = get();
         const studentId = currentUser?.id || 'user-student-11a14-001';
         const studentName = currentUser?.name || 'Đỗ Đăng An';
-        const studentCode = currentUser?.code || 'VN-11A14-001';
+        const studentCode = currentUser?.code || 'VN-12A14-001';
         const submissionId = `sub-${studentId}`;
 
         const defaultManifest =

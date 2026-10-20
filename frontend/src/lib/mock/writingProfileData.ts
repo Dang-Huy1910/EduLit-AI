@@ -46,8 +46,8 @@ export interface StudentWritingProfile {
 export const MOCK_DO_DANG_AN_PROFILE: StudentWritingProfile = {
   studentId: 'user-student-11a14-001',
   studentName: 'Đỗ Đăng An',
-  studentCode: 'VN-11A14-001',
-  className: 'Lớp 11A14 • THPT Đan Phượng',
+  studentCode: 'VN-12A14-001',
+  className: 'Lớp 12A14 • THPT Đan Phượng',
   personaTitle: 'Cây bút suy tưởng & giàu cảm thức thẩm mỹ',
   personaSummary:
     'Học sinh có tư duy nghị luận chững chạc, vốn từ vựng phong phú và nhịp câu giàu cảm xúc chiêm nghiệm. Khả năng phát hiện và phân tích các hình tượng giàu tính triết luận rất tốt; cần tiếp tục rèn luyện kĩ năng so sánh đối chiếu đa chiều giữa các tác phẩm.',

@@ -2,10 +2,10 @@
 
 Creates:
 1. Teacher account: dang.loan / BOOTSTRAP_TEACHER_PASSWORD (fallback 123456)
-2. Student account: nguyen.van.an / 123456 (lớp 11A14)
-3. Student outside class: bui.hamy / 123456 (không nhận bài của 11A14)
+2. Student account: nguyen.van.an / 123456 (lớp 12A14)
+3. Student outside class: bui.hamy / 123456 (không nhận bài của 12A14)
 4. Published legacy assignments: VAN12-NLXH-SOC, VAN11-NLVH-01
-5. Catalog: chuyên đề, ngữ liệu, đề nguồn, barem, lớp 11A14
+5. Catalog: chuyên đề, ngữ liệu, đề nguồn, barem, lớp 12A14
 """
 
 from __future__ import annotations
@@ -480,22 +480,39 @@ async def _get_or_create_prompt(
     return prompt
 
 
+DEMO_CLASS_CODE = "12A14"
+DEMO_CLASS_NAME = "Lớp 12A14 • THPT Đan Phượng"
+LEGACY_CLASS_CODE = "11A14"
+
+
 async def seed_classroom(session: AsyncSession, teacher: User, student: User) -> Classroom:
     result = await session.execute(
-        select(Classroom).where(Classroom.owner_teacher_id == teacher.id, Classroom.code == "11A14")
+        select(Classroom).where(
+            Classroom.owner_teacher_id == teacher.id,
+            Classroom.code.in_((DEMO_CLASS_CODE, LEGACY_CLASS_CODE)),
+        )
     )
-    classroom = result.scalar_one_or_none()
+    found = {row.code: row for row in result.scalars().all()}
+    classroom = found.get(DEMO_CLASS_CODE)
+    if classroom is None and LEGACY_CLASS_CODE in found:
+        # Keep the classroom id so memberships and assignments stay linked.
+        classroom = found[LEGACY_CLASS_CODE]
+        classroom.code = DEMO_CLASS_CODE
+        classroom.name = DEMO_CLASS_NAME
+        classroom.grade_level = 12
+        await session.flush()
+        logger.info("Renamed classroom %s to %s", LEGACY_CLASS_CODE, DEMO_CLASS_CODE)
     if classroom is None:
         classroom = Classroom(
             owner_teacher_id=teacher.id,
-            code="11A14",
-            name="Lớp 11A14 • THPT Đan Phượng",
-            grade_level=11,
+            code=DEMO_CLASS_CODE,
+            name=DEMO_CLASS_NAME,
+            grade_level=12,
             academic_year="2026-2027",
         )
         session.add(classroom)
         await session.flush()
-        logger.info("Created classroom 11A14")
+        logger.info("Created classroom %s", DEMO_CLASS_CODE)
     for user, role in ((teacher, "TEACHER"), (student, "STUDENT")):
         existing = await session.execute(
             select(ClassMembership).where(

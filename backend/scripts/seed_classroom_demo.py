@@ -1,10 +1,10 @@
-"""Seed lớp 11A14 demo from frontend mock data.
+"""Seed lớp 12A14 demo from frontend mock data.
 
 Additive and idempotent. Does not reset the live database and does not call AI.
 
 Creates/updates:
 - 41 student accounts from roster_11a14.json (password 123456)
-- memberships in classroom 11A14 (owned by dang.loan)
+- memberships in classroom 12A14 (owned by dang.loan)
 - published assignment VAN11-NLVH-01 with the 4-criterion GDPT rubric
 - 41 official submissions (pages + confirmed OCR + published grades)
 - READY outline-prep rows so the outline worker does not call a live model
@@ -108,7 +108,7 @@ DEMO_PASSWORD = "123456"
 DEMO_ASSIGNMENT_CODE = "VAN11-NLVH-01"
 DEMO_ASSIGNMENT_TITLE = 'Phân tích "Màu tự do của đất" — Trần Quang Quý'
 PROMPT_TITLE = 'Cảm nhận tự do trong "Màu tự do của đất"'
-CLASS_CODE = "11A14"
+CLASS_CODE = "12A14"
 TZ_VN = ZoneInfo("Asia/Ho_Chi_Minh")
 DUE_AT = datetime(2026, 10, 28, 23, 59, tzinfo=TZ_VN)
 CRITERION_ID_MAP = {"C4_STRUCTURE_FORMAT": "C4_STRUCTURE_PRESENTATION"}
@@ -1126,7 +1126,7 @@ async def run(*, apply: bool, database_url: str | None = None, allow_remote: boo
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed 11A14 classroom demo data from mock files")
+    parser = argparse.ArgumentParser(description="Seed 12A14 classroom demo data from mock files")
     parser.add_argument("--apply", action="store_true", help="Write to the database")
     parser.add_argument("--dry-run", action="store_true", help="Parse and plan without writing (default)")
     parser.add_argument(

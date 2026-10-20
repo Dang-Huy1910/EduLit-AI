@@ -131,8 +131,8 @@ export function computeReportMetrics(
   });
 
   return {
-    classId: '11A14',
-    className: 'Lớp 11A14 • THPT Đan Phượng (Sĩ số 41 HS)',
+    classId: '12A14',
+    className: 'Lớp 12A14 • THPT Đan Phượng (Sĩ số 41 HS)',
     schoolName: SCHOOL_NAME,
     totalStudents,
     submittedCount,

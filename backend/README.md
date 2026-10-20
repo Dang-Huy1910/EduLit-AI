@@ -52,7 +52,7 @@ uv run python -m app.cli bootstrap-teacher
 uv run python scripts/seed_demo.py
 ```
 
-Seed idempotent: lớp 11A14, `nguyen.van.an` trong lớp, `bui.hamy` ngoài lớp, đề “Khói nhà máy…” khác đề thơ mẫu, barem 4 tiêu chí. Không truncate DB người dùng.
+Seed idempotent: lớp 12A14, `nguyen.van.an` trong lớp, `bui.hamy` ngoài lớp, đề “Khói nhà máy…” khác đề thơ mẫu, barem 4 tiêu chí. Không truncate DB người dùng.
 
 ### Định dạng import barem JSON
 
