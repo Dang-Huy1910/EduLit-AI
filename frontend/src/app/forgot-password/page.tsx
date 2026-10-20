@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-6 sm:p-8 border border-white/30 text-on-surface">
+      <div className="text-on-surface">
         <h2 className="text-xl font-extrabold font-merriweather text-slate-900 mb-2">Quên mật khẩu</h2>
         <p className="text-xs text-slate-500 mb-4">
           Nhập email tài khoản. Nếu email tồn tại, chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu.

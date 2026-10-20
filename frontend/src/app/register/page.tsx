@@ -61,7 +61,7 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-6 sm:p-8 border border-white/30 text-on-surface">
+      <div className="text-on-surface">
         <div className="mb-5">
           <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight font-merriweather text-slate-900">
             Đăng ký học sinh

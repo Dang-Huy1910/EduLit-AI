@@ -71,7 +71,7 @@ export default function VerifyEmailPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-6 sm:p-8 border border-white/30 text-on-surface space-y-4">
+      <div className="text-on-surface space-y-4">
         <h2 className="text-xl font-extrabold font-merriweather text-slate-900">Xác minh email</h2>
         <p className="text-xs text-slate-600" aria-live="polite">
           {status === 'verifying' ? 'Đang xác minh liên kết...' : message}

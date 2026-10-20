@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-6 sm:p-8 border border-white/30 text-on-surface">
+      <div className="text-on-surface">
         <h2 className="text-xl font-extrabold font-merriweather text-slate-900 mb-2">Đặt lại mật khẩu</h2>
         {!token && !done && (
           <p className="text-xs text-error">Thiếu liên kết đặt lại mật khẩu. Hãy yêu cầu email mới.</p>
