@@ -25,7 +25,6 @@ export default function StudentShell({
   const router = useRouter();
   const {
     currentUser,
-    resetDemoState,
     addToast,
     sidebarCollapsed,
     toggleSidebar,
@@ -60,12 +59,6 @@ export default function StudentShell({
     } catch {
       addToast('Không đăng xuất được vì mất kết nối. Hãy thử lại.', 'error');
     }
-  };
-
-  const handleResetDemo = () => {
-    resetDemoState('student');
-    addToast('Đã khôi phục toàn bộ dữ liệu demo ban đầu!', 'success');
-    window.location.href = '/assignments';
   };
 
   return (
@@ -214,8 +207,8 @@ export default function StudentShell({
         </div>
 
         {/* Footer Card */}
-        {!sidebarCollapsed ? (
-          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center justify-between">
+        {!sidebarCollapsed && (
+          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center">
             <div className="flex items-center gap-space-sm">
               <span className="material-symbols-outlined text-secondary text-[22px]">verified_user</span>
               <div>
@@ -225,25 +218,6 @@ export default function StudentShell({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              title="Khôi phục trạng thái ban đầu"
-              className="p-1.5 rounded-lg text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center shrink-0"
-            >
-              <span className="material-symbols-outlined text-lg">restart_alt</span>
-            </button>
-          </div>
-        ) : (
-          <div className="p-2 flex justify-center mb-3">
-            <button
-              type="button"
-              onClick={handleResetDemo}
-              title="Khôi phục trạng thái ban đầu"
-              className="p-2 rounded-xl text-outline hover:text-secondary hover:bg-surface-container transition-all flex items-center justify-center"
-            >
-              <span className="material-symbols-outlined text-xl">restart_alt</span>
-            </button>
           </div>
         )}
       </aside>
