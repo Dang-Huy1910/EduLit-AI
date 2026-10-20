@@ -163,6 +163,54 @@ async def test_search_normalizes_vietnamese_and_does_not_call_llm_without_match(
 
 
 @pytest.mark.asyncio
+async def test_user_guide_retrieval_keeps_submission_and_rubric_sections(
+    db_session: AsyncSession,
+) -> None:
+    """A multi-part usage question needs each concrete guide section."""
+    original_guide = _get_user_guide_content()
+    set_user_guide_content(
+        "# Hướng dẫn sử dụng EduLit-AI\n\n"
+        "## Nộp bài\nTải ảnh bài viết và xác nhận nộp bài.\n\n"
+        "## Tạo rubric\nThiết lập tiêu chí và cách tính điểm.\n\n"
+        "## Quy tắc sử dụng\nTuân thủ quy định và bảo mật tài khoản."
+    )
+
+    try:
+        chunks = await ChatbotService(db_session)._get_global_guide_chunks()
+        matches = _keyword_search("Quy định, cách tính điểm và nộp bài", chunks, max_results=3)
+    finally:
+        set_user_guide_content(original_guide)
+
+    assert {chunk.title for chunk in matches} == {"Nộp bài", "Tạo rubric", "Quy tắc sử dụng"}
+
+
+@pytest.mark.asyncio
+async def test_chatbot_falls_back_to_retrieved_text_when_model_claims_not_found(
+    db_session: AsyncSession,
+) -> None:
+    original_guide = _get_user_guide_content()
+    set_user_guide_content(
+        "# Hướng dẫn sử dụng EduLit-AI\n\n"
+        "## Nộp bài\nVào bài tập, tải ảnh bài viết rồi xác nhận nộp bài."
+    )
+
+    class EmptyKnowledgeService(ChatbotService):
+        async def _get_user_accessible_chunks(self, _user: User) -> list[RetrievedChunk]:
+            return []
+
+    try:
+        result = await EmptyKnowledgeService(
+            db_session,
+            FakeAiAdapter(responses=["Không tìm thấy thông tin trong tài liệu."]),
+        ).answer(_user(UserRole.STUDENT, "guide"), "Cách nộp bài")
+    finally:
+        set_user_guide_content(original_guide)
+
+    assert "Vào bài tập, tải ảnh bài viết" in result.answer
+    assert result.sources[0]["title"] == "Nộp bài"
+
+
+@pytest.mark.asyncio
 async def test_global_guide_is_not_hidden_by_assigned_material_matches(
     db_session: AsyncSession,
 ) -> None:

@@ -100,8 +100,16 @@ def _normalize_text(text: str) -> str:
 def _keyword_search(query: str, chunks: list[RetrievedChunk], max_results: int = 5) -> list[RetrievedChunk]:
     """Simple keyword search - case insensitive, Vietnamese-aware."""
     normalized_query = _normalize_text(query)
+    normalized_query_words = normalized_query.split()
     query_words = [
-        word for word in normalized_query.split() if len(word) >= 2 and word not in SEARCH_STOPWORDS
+        word for word in normalized_query_words if len(word) >= 2 and word not in SEARCH_STOPWORDS
+    ]
+    query_phrases = [
+        f"{left} {right}"
+        for left, right in zip(normalized_query_words, normalized_query_words[1:])
+        if len(left) >= 2
+        and len(right) >= 2
+        and (left not in SEARCH_STOPWORDS or right not in SEARCH_STOPWORDS)
     ]
 
     if not query_words:
@@ -114,18 +122,35 @@ def _keyword_search(query: str, chunks: list[RetrievedChunk], max_results: int =
         # Search in title and text
         normalized_title = _normalize_text(chunk.title)
         normalized_text_content = _normalize_text(chunk.text)
+        title_words = set(normalized_title.split())
+        text_words = set(normalized_text_content.split())
 
         score = 0
         matched_words = 0
 
         for word in query_words:
-            # Title matches are worth more
-            if word in normalized_title:
-                score += 10
+            # Match complete words.  Substring matches turn a question about
+            # a rule ("quy định") into a match for unrelated text and make
+            # the short user guide headings lose to broad material chunks.
+            # A heading is still more useful than a body-text match.
+            if word in title_words:
+                score += 20
                 matched_words += 1
-            if word in normalized_text_content:
-                score += 1
+            if word in text_words:
+                score += 2
                 matched_words += 1
+
+        # Operation questions normally contain meaningful two-word phrases
+        # such as "nộp bài", "tính điểm", or "quy định".  Give those
+        # phrases additional weight so a concrete help section wins over an
+        # incidental one-word match such as "tính năng".
+        for phrase in query_phrases:
+            if phrase in normalized_title:
+                score += 25
+                matched_words += 2
+            if phrase in normalized_text_content:
+                score += 8
+                matched_words += 2
 
         # Only include if at least one word matched
         if matched_words > 0:
@@ -154,6 +179,29 @@ def _build_context(chunks: list[RetrievedChunk]) -> str:
         context_parts.append(f"{source_label}\n{chunk.text}")
 
     return "\n\n---\n\n".join(context_parts)
+
+
+def _fallback_answer_from_chunks(chunks: list[RetrievedChunk]) -> str:
+    """Return a source-grounded answer when an LLM ignores retrieved context."""
+    summaries: list[str] = []
+    for chunk in chunks[:3]:
+        text = re.sub(r"\s+", " ", chunk.text).strip()
+        if len(text) > 320:
+            text = f"{text[:317].rstrip()}..."
+        summaries.append(f"- {chunk.title or chunk.material_title}: {text}")
+    return "Mình tìm thấy các thông tin liên quan:\n" + "\n".join(summaries)
+
+
+def _is_not_found_answer(answer: str) -> bool:
+    normalized_answer = _normalize_text(answer)
+    return any(
+        phrase in normalized_answer
+        for phrase in (
+            "khong tim thay",
+            "chua co thong tin",
+            "khong co thong tin",
+        )
+    )
 
 
 # Global user guide content
@@ -302,18 +350,25 @@ class ChatbotService:
         # Keep each user-facing sub-section independent.  A question about
         # submitting work should not send the entire student manual to the LLM.
         sections = re.split(r"(?m)^#{2,3}\s+", guide_content)
+        cleaned_sections = [section.strip() for section in sections if section.strip()]
+        section_titles = [section.splitlines()[0].lstrip("#").strip() for section in cleaned_sections]
         chunks: list[RetrievedChunk] = []
-        for index, section in enumerate(sections):
-            section = section.strip()
-            if not section:
-                continue
+        for index, section in enumerate(cleaned_sections):
             lines = section.splitlines()
             title = lines[0].lstrip("#").strip() if index else "Hướng dẫn sử dụng EduLit-AI"
+            text = section
+            if index == 0:
+                # The document title alone cannot answer a broad question
+                # such as "Hướng dẫn sử dụng".  Keep a short table of
+                # contents with that first chunk so the assistant can give a
+                # useful overview and suggest a concrete next question.
+                overview = "; ".join(section_titles[1:])
+                text = f"{section}\n\nNội dung hướng dẫn: {overview}."
             chunks.append(
                 RetrievedChunk(
                     chunk_id=f"user-guide-{index}",
                     title=title,
-                    text=section,
+                    text=text,
                     material_title="Hướng dẫn sử dụng",
                     source_name="Hướng dẫn sử dụng",
                 )
@@ -337,7 +392,10 @@ class ChatbotService:
         # matching guidance: otherwise five broad matches in an assigned text
         # (for example the author's name "Quý") can hide the instructions for
         # submitting work or using the application.
-        guide_matches = _keyword_search(question, guide_chunks, max_results=2)
+        # A usage question can legitimately ask for a rule, marking guidance
+        # and submission steps together.  Keep up to three focused guide
+        # sections so the model receives all of those facts.
+        guide_matches = _keyword_search(question, guide_chunks, max_results=4)
         material_matches = _keyword_search(question, user_chunks, max_results=5)
         retrieved_chunks = list(guide_matches)
         seen_ids = {chunk.chunk_id for chunk in retrieved_chunks}
@@ -367,7 +425,9 @@ class ChatbotService:
 ---YÊU CẦU TRẢ LỜI---
 - Trả lời ngắn gọn, bằng tiếng Việt.
 - Chỉ dựa trên thông tin trong tài liệu được cung cấp.
-- Nếu thông tin không có trong tài liệu, nói rõ là không tìm thấy.
+- Nếu ngữ cảnh có thông tin liên quan, hãy nêu thông tin đó; không nói "không tìm thấy" chỉ vì câu hỏi có nhiều ý.
+- Nếu người dùng hỏi chung về "hướng dẫn sử dụng", hãy tóm tắt các mục hướng dẫn đang có và mời họ nêu thao tác cần hỗ trợ.
+- Chỉ nói không tìm thấy khi không có phần nào của ngữ cảnh trả lời được câu hỏi.
 - Trích dẫn tên tài liệu nguồn."""
 
         try:
@@ -380,6 +440,11 @@ class ChatbotService:
             )
 
             answer = response.content if isinstance(response.content, str) else str(response.content)
+            if _is_not_found_answer(answer):
+                # The source list already proves that relevant material was
+                # retrieved.  Do not expose a contradictory "not found"
+                # answer just because the model missed part of the context.
+                answer = _fallback_answer_from_chunks(retrieved_chunks)
         except Exception as e:
             logger.error(f"LLM generation failed: {e}")
             # Fallback: return context summary
