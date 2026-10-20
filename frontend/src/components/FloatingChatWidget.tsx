@@ -4,12 +4,29 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
+import { apiSend } from '@/lib/api/http';
 
 interface QuickMessage {
   id: string;
   sender: 'ai' | 'user';
   text: string;
   timestamp: string;
+  sources?: {
+    chunk_id: string;
+    title: string;
+    material_title: string;
+    source_name: string;
+  }[];
+}
+
+interface ChatbotResponse {
+  answer: string;
+  sources: {
+    chunk_id: string;
+    title: string;
+    material_title: string;
+    source_name: string;
+  }[];
 }
 
 export default function FloatingChatWidget() {
@@ -205,7 +222,7 @@ export default function FloatingChatWidget() {
         { label: '🔥 Liên hệ Bếp lửa', text: 'Em muốn liên hệ với Bếp lửa của Bằng Việt để làm rõ nét riêng của tác giả.' },
       ];
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
     if (!text) return;
 
@@ -220,40 +237,33 @@ export default function FloatingChatWidget() {
     setInputMessage('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let reply = '';
-      const lower = text.toLowerCase();
-
-      if (isTeacher) {
-        if (lower.includes('barem') || lower.includes('4.0')) {
-          reply = `Dạ thưa Cô Đặng Hoàng Loan, thang 4.0 chuẩn gồm:\n• C1 (2.50đ): Phân tích tự do qua làng quê & Liên hệ tác phẩm ngoài\n• C2 (0.75đ): Nghịch lí bùn đất & chuỗi buộc-neo-cởi\n• C3 (0.50đ): Diễn đạt & ngữ pháp\n• C4 (0.25đ): Bố cục bài 600 chữ.`;
-        } else if (lower.includes('bài nộp') || lower.includes('11a14') || lower.includes('12a1') || lower.includes('tiến độ')) {
-          reply = `Dạ tiến độ chấm bài Lớp 11A14: Đã nộp 41/41 học sinh. Các bài nộp tiêu biểu: Đỗ Đăng An (3.60/4.00đ - Giỏi), Bùi Hà Chi (3.50/4.00đ - Giỏi), Nguyễn Trung Dũng (3.20/4.00đ - Khá).`;
-        } else {
-          reply = `Dạ em đã ghi nhận yêu cầu của cô Đặng Hoàng Loan: "${text}". Cô có thể bấm nút phóng to (⛶) để trao đổi chuyên sâu hơn cùng EduLit Co-Pilot nhé cô!`;
-        }
-      } else {
-        if (lower.includes('yêu cầu') || lower.includes('trọng tâm')) {
-          reply = `Trọng tâm là cảm nhận về 'tự do' qua hình ảnh làng quê trong bài thơ của Trần Quang Quý, sau đó liên hệ một bài thơ khác để làm nổi bật nét riêng của tác giả.`;
-        } else if (lower.includes('khói') || lower.includes('rơm') || lower.includes('hít thở')) {
-          reply = `Chi tiết rất đắt giá! Khói rơm rạ gợi mùi hương thân thuộc, còn 'hít thở mầu tự do' giúp cụ thể hóa tự do thành hơi thở của làng quê và sự sống.`;
-        } else if (lower.includes('bếp lửa') || lower.includes('liên hệ')) {
-          reply = `Rất phù hợp! Cả hai đều có hình ảnh ngọn khói và sự gắn bó cội rễ, nhưng Trần Quang Quý nhấn mạnh tự do trong lao động còn Bằng Việt gắn với ký ức tình bà cháu.`;
-        } else {
-          reply = `Ý kiến rất thú vị! Trong bài thơ "Màu tự do của đất", bạn có thể bám sát: hình ảnh làng quê, nghịch lí "không thoát ly bùn đất", chuỗi buộc – neo – cởi, hoặc liên hệ tác phẩm ngoài!`;
-        }
-      }
+    try {
+      const data = await apiSend<ChatbotResponse>('/chatbot', 'POST', { message: text });
 
       const aiMsg: QuickMessage = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: reply,
+        text: data.answer,
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        sources: data.sources,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra';
+      addToast(errorMessage, 'error');
+
+      // Add error message to chat
+      const aiMsg: QuickMessage = {
+        id: `ai-${Date.now()}`,
+        sender: 'ai',
+        text: 'Xin lỗi, mình gặp chút trục trặc khi xử lý câu hỏi. Bạn có thể thử lại sau không?',
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setIsTyping(false);
-    }, 600);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -346,6 +356,20 @@ export default function FloatingChatWidget() {
                   }`}
                 >
                   {msg.text}
+
+                  {/* Sources for AI messages */}
+                  {msg.sender === 'ai' && msg.sources && msg.sources.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-outline-variant/20">
+                      <p className="text-[9px] font-semibold text-on-surface-variant">Nguồn:</p>
+                      <div className="space-y-0.5">
+                        {msg.sources.slice(0, 2).map((source, idx) => (
+                          <div key={idx} className="text-[9px] text-secondary truncate">
+                            • {source.material_title}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -467,4 +491,3 @@ export default function FloatingChatWidget() {
     </>
   );
 }
-

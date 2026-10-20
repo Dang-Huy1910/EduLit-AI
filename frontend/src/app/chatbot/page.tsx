@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
+import { apiSend } from '@/lib/api/http';
 import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
 
@@ -13,10 +14,12 @@ interface Message {
   text: string;
   timestamp: string;
   modelBadge?: string;
-  suggestedAction?: {
-    label: string;
-    href: string;
-  };
+  sources?: {
+    chunk_id: string;
+    title: string;
+    material_title: string;
+    source_name: string;
+  }[];
 }
 
 interface ChatSession {
@@ -24,6 +27,16 @@ interface ChatSession {
   title: string;
   timeLabel: 'Hôm nay' | '7 ngày trước';
   preview: string;
+}
+
+interface ChatbotResponse {
+  answer: string;
+  sources: {
+    chunk_id: string;
+    title: string;
+    material_title: string;
+    source_name: string;
+  }[];
 }
 
 export default function ChatbotPage() {
@@ -37,6 +50,7 @@ export default function ChatbotPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -104,7 +118,14 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.\n\nEm đã sẵn sàng hỗ trợ cô:\n• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".\n• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.\n• Phân tích kết quả và tiến độ nộp bài của Lớp 11A14 (41 học sinh).\n\nCô muốn bắt đầu với nội dung nào ạ?`,
+          text: `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.
+
+Em đã sẵn sàng hỗ trợ cô:
+• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".
+• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.
+• Phân tích kết quả và tiến độ nộp bài của Lớp 11A14 (41 học sinh).
+
+Cô muốn bắt đầu với nội dung nào ạ?`,
           timestamp: '08:00',
           modelBadge: 'EduLit Co-Pilot v2.4',
         },
@@ -113,13 +134,16 @@ export default function ChatbotPage() {
         {
           id: 'm-1',
           sender: 'ai',
-          text: `Chào bạn Đỗ Đăng An! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 11 tại THPT Đan Phượng.\n\nTheo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:\n• Phân tích hình ảnh làng quê và cảm nhận tự do của Trần Quang Quý.\n• Khai thác nghịch lí "không thoát ly bùn đất" và chuỗi buộc – neo – cởi.\n• Liên hệ mở rộng bài thơ ngoài để làm nổi bật nét riêng của tác giả.\n\nBạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
+          text: `Chào bạn Đỗ Đăng An! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 11 tại THPT Đan Phượng.
+
+Theo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:
+• Phân tích hình ảnh làng quê và cảm nhận tự do của Trần Quang Quý.
+• Khai thác nghịch lí "không thoát ly bùn đất" và chuỗi buộc – neo – cởi.
+• Liên hệ mở rộng bài thơ ngoài để làm nổi bật nét riêng của tác giả.
+
+Bạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
           timestamp: '08:00',
           modelBadge: 'Socratic AI Engine',
-          suggestedAction: {
-            label: 'Xem đề bài & Lập dàn ý bài tập đang làm →',
-            href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
-          },
         },
       ];
 
@@ -206,7 +230,7 @@ export default function ChatbotPage() {
     },
   ];
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
     if (!text) return;
 
@@ -220,58 +244,38 @@ export default function ChatbotPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInputMessage('');
     setIsTyping(true);
+    setError(null);
 
-    // AI Response generation
-    setTimeout(() => {
-      let replyText = '';
-      let actionLink: { label: string; href: string } | undefined;
-      const lower = text.toLowerCase();
-
-      if (isTeacher) {
-        if (lower.includes('barem') || lower.includes('rubric') || lower.includes('4.0') || lower.includes('tiêu chí')) {
-          replyText = `Thưa Cô Đặng Hoàng Loan, thang điểm 4.0 chuẩn của đề bài được phân bổ như sau:\n\n1. **C1. Nội dung, nghệ thuật & Liên hệ (2.50 điểm):** Phân tích cảm nhận về tự do qua hình ảnh làng quê (1.50đ); liên hệ tác phẩm ngoài và làm rõ nét riêng của tác giả (1.00đ - thiếu phần này trừ điểm nặng).\n2. **C2. Phân tích & Lập luận (0.75 điểm):** Lập luận chặt chẽ, khai thác nghịch lí "không thoát ly bùn đất" và chuỗi "buộc – neo – cởi".\n3. **C3. Diễn đạt & Ngôn ngữ (0.50 điểm):** Đúng chính tả, dùng từ chính xác, câu văn truyền cảm (-0.25đ/lỗi).\n4. **C4. Cấu trúc & Quy cách (0.25 điểm):** Đảm bảo bố cục 3 phần Mở - Thân - Kết của bài nghị luận văn học ~600 chữ.`;
-        } else if (lower.includes('học sinh') || lower.includes('11a14') || lower.includes('12a1') || lower.includes('bài nộp') || lower.includes('phân tích')) {
-          replyText = `Thưa cô Đặng Hoàng Loan, kết quả đối chiếu bài nộp tiêu biểu của Lớp 11A14 (sĩ số 41 học sinh):\n\n• **Đỗ Đăng An (3.60/4.00đ - Giỏi):** Phân tích sâu nghịch lí tự do và chuỗi buộc – neo – cởi; liên hệ sắc sảo với nét riêng tác giả.\n• **Bùi Hà Chi (3.50/4.00đ - Giỏi):** Nắm chắc phong cách thơ Trần Quang Quý, diễn đạt biểu cảm.\n• **Nguyễn Trung Dũng (3.20/4.00đ - Khá):** Cảm nhận hình ảnh thơ tốt nhưng cần mở rộng liên hệ tác phẩm ngoài theo tiêu chí C1.`;
-          actionLink = {
-            label: 'Xem chi tiết bảng tổng hợp báo cáo lớp →',
-            href: '/reports',
-          };
-        } else if (lower.includes('hoạt động') || lower.includes('15 phút') || lower.includes('nhóm')) {
-          replyText = `💡 **Kế hoạch hoạt động 15 phút đầu tiết:** *"Đối thoại hai ngọn khói quê hương"*\n\n1. **Khởi động (3 phút):** Chiếu 2 đoạn thơ: ngọn khói rơm rạ trong *Màu tự do của đất* (Trần Quang Quý) và mùi khói bếp trong *Bếp lửa* (Bằng Việt).\n2. **Thảo luận cặp đôi (7 phút):** Tìm 1 điểm gặp gỡ (nỗi nhớ quê hương, cội nguồn) và 1 nét riêng (Trần Quang Quý gắn khói với suy tưởng tự do và lao động; Bằng Việt gắn với ký ức tình bà cháu).\n3. **Đúc kết (5 phút):** Giáo viên chốt bí quyết liên hệ: không chỉ chỉ ra điểm giống mà bắt buộc phải làm bật nét độc đáo của tác giả chính.`;
-        } else {
-          replyText = `Thưa cô Đặng Hoàng Loan, em đã ghi nhận yêu cầu: "${text}".\n\nEduLit Co-Pilot luôn sẵn sàng hỗ trợ cô đối chiếu rubric, rà soát văn bản thơ và xây dựng các câu hỏi gợi mở cho học sinh!`;
-        }
-      } else {
-        // Student
-        if (lower.includes('yêu cầu') || lower.includes('trọng tâm') || lower.includes('phân tích điều gì')) {
-          replyText = `Trọng tâm là cách Trần Quang Quý cảm nhận 'tự do' qua những hình ảnh làng quê. Em cần đi từ hình ảnh và ngôn ngữ cụ thể để giải thích cách hiểu ấy, sau đó liên hệ một bài thơ khác nhằm làm rõ nét riêng của tác giả. Em muốn bắt đầu từ ngọn khói quê hay nghịch lí 'không thoát ly bùn đất'?`;
-          actionLink = {
-            label: 'Mở không gian đối thoại Socratic hoàn chỉnh →',
-            href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
-          };
-        } else if (lower.includes('khói') || lower.includes('mùi') || lower.includes('hít thở')) {
-          replyText = `Em đã chọn được một chi tiết quan trọng. Khói rơm rạ gợi cảm giác cay và mùi hương, còn 'hít thở mầu tự do' khiến một khái niệm trừu tượng trở nên gần với cơ thể. Theo em, cách diễn đạt ấy cho thấy quê hương hiện diện trong con người như thế nào?`;
-        } else if (lower.includes('nghịch lí') || lower.includes('bùn đất') || lower.includes('thoát ly')) {
-          replyText = `Em hãy đặt câu này cạnh mong muốn 'được giải phóng mình khỏi nhọc nhằn cơ bắp'. Nhà thơ thừa nhận khát vọng bớt vất vả, đồng thời nhìn thấy giá trị của sự gắn bó với đất và lao động. Em có thể phân biệt mong muốn thoát nhọc nhằn với việc từ bỏ cội rễ ra sao?`;
-        } else if (lower.includes('bếp lửa') || lower.includes('liên hệ') || lower.includes('quê hương')) {
-          replyText = `Em có thể đặt hai tác phẩm cạnh nhau qua hình ảnh khói và sự gắn bó với cội nguồn. Với 'Bếp lửa', em cần chọn chi tiết phù hợp về kí ức và tình bà cháu; với 'Màu tự do của đất', cần trở lại suy tưởng về đất, lao động và tự do. Em sẽ nêu điểm khác biệt ấy bằng dẫn chứng nào?`;
-        } else {
-          replyText = `Câu hỏi của em gợi mở nhiều suy ngẫm! Trong bài thơ "Màu tự do của đất", em có thể tập trung vào các trục chính: hình ảnh làng quê (khói rơm, ngõ xóm), nghịch lí "không thoát ly bùn đất", chuỗi liên kết "buộc – neo – cởi", hoặc liên hệ với "Bếp lửa" / "Quê hương". Em muốn đi sâu vào ý nào trước?`;
-        }
-      }
+    try {
+      const data = await apiSend<ChatbotResponse>('/chatbot', 'POST', { message: text });
 
       const aiMsg: Message = {
         id: `ai-${Date.now()}`,
         sender: 'ai',
-        text: replyText,
+        text: data.answer,
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         modelBadge: isTeacher ? 'EduLit Co-Pilot' : 'Socratic AI Engine',
-        suggestedAction: actionLink,
+        sources: data.sources,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra';
+      setError(errorMessage);
+      addToast(errorMessage, 'error');
+
+      // Add error message to chat
+      const aiMsg: Message = {
+        id: `ai-${Date.now()}`,
+        sender: 'ai',
+        text: 'Xin lỗi, mình gặp chút trục trặc khi xử lý câu hỏi. Bạn có thể thử lại sau không?',
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        modelBadge: isTeacher ? 'EduLit Co-Pilot' : 'Socratic AI Engine',
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setIsTyping(false);
-    }, 700);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -466,15 +470,18 @@ export default function ChatbotPage() {
                         {msg.text}
                       </div>
 
-                      {msg.suggestedAction && (
+                      {/* Sources */}
+                      {msg.sender === 'ai' && msg.sources && msg.sources.length > 0 && (
                         <div className="pt-2 border-t border-outline-variant/20">
-                          <Link
-                            href={msg.suggestedAction.href}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-secondary-fixed/30 hover:bg-secondary-fixed/50 text-secondary text-xs font-bold transition-all"
-                          >
-                            <span>{msg.suggestedAction.label}</span>
-                            <span className="material-symbols-outlined text-xs">arrow_forward</span>
-                          </Link>
+                          <p className="text-[10px] font-semibold text-on-surface-variant mb-1">Nguồn:</p>
+                          <div className="space-y-1">
+                            {msg.sources.map((source, idx) => (
+                              <div key={idx} className="text-[10px] text-secondary">
+                                • {source.material_title}
+                                {source.title && ` - ${source.title}`}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
@@ -560,7 +567,7 @@ export default function ChatbotPage() {
                       type="button"
                       onClick={() => handleSend()}
                       disabled={!inputMessage.trim() || isTyping}
-                      className="w-7 h-7 rounded-lg bg-secondary text-white flex items-center justify-center hover:bg-secondary/90 active:scale-95 disabled:opacity-30 transition-all shadow-xs"
+                      className="w-7 h-7 rounded-lg bg-secondary text-white flex items-center justify-center hover:bg-secondary/90 disabled:opacity-30 transition-all shadow-xs"
                     >
                       <span className="material-symbols-outlined text-base">arrow_upward</span>
                     </button>
@@ -603,141 +610,141 @@ export default function ChatbotPage() {
                 </div>
 
                 {/* New Chat Button */}
-              <button
-                type="button"
-                onClick={handleNewChat}
-                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-primary to-amber-700 text-white font-bold text-xs hover:brightness-105 active:scale-98 transition-all flex items-center justify-between shadow-xs group"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base group-hover:rotate-90 transition-transform">
-                    add
+                <button
+                  type="button"
+                  onClick={handleNewChat}
+                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-primary to-amber-700 text-white font-bold text-xs hover:brightness-105 active:scale-98 transition-all flex items-center justify-between shadow-xs group"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-base group-hover:rotate-90 transition-transform">
+                      add
+                    </span>
+                    <span>+ Cuộc trò chuyện mới</span>
+                  </div>
+                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">
+                    Mới
                   </span>
-                  <span>+ Cuộc trò chuyện mới</span>
-                </div>
-                <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">
-                  Mới
-                </span>
-              </button>
+                </button>
 
-              {/* Search History Filter */}
-              <div className="relative">
-                <input
-                  type="text"
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  placeholder="Tìm kiếm chủ đề đã hỏi..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-outline-variant/50 bg-surface/80 text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary"
-                />
-                <span className="material-symbols-outlined text-base text-outline absolute left-2 top-2">
-                  search
-                </span>
+                {/* Search History Filter */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder="Tìm kiếm chủ đề đã hỏi..."
+                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-outline-variant/50 bg-surface/80 text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary"
+                  />
+                  <span className="material-symbols-outlined text-base text-outline absolute left-2 top-2">
+                    search
+                  </span>
+                </div>
+              </div>
+
+              {/* Scrollable Sessions List */}
+              <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin text-xs">
+                {/* Group: Hôm nay */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-outline px-1 block">
+                    Gần đây (Hôm nay)
+                  </span>
+                  <div className="space-y-1">
+                    {filteredSessions
+                      .filter((s) => s.timeLabel === 'Hôm nay')
+                      .map((session) => (
+                        <button
+                          key={session.id}
+                          onClick={() => {
+                            setActiveSessionId(session.id);
+                            addToast(`Đã mở lại phiên: ${session.title}`, 'info');
+                          }}
+                          className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
+                            activeSessionId === session.id
+                              ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
+                              : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-secondary">
+                            chat_bubble
+                          </span>
+                          <div className="truncate flex-1">
+                            <div className="truncate text-xs">{session.title}</div>
+                            <p className="text-[10px] text-on-surface-variant truncate font-normal mt-0.5">
+                              {session.preview}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+
+                {/* Group: 7 ngày trước */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-outline px-1 block">
+                    7 ngày trước
+                  </span>
+                  <div className="space-y-1">
+                    {filteredSessions
+                      .filter((s) => s.timeLabel === '7 ngày trước')
+                      .map((session) => (
+                        <button
+                          key={session.id}
+                          onClick={() => {
+                            setActiveSessionId(session.id);
+                            addToast(`Đã mở lại phiên: ${session.title}`, 'info');
+                          }}
+                          className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
+                            activeSessionId === session.id
+                              ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
+                              : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-outline">
+                            history
+                          </span>
+                          <div className="truncate flex-1">
+                            <div className="truncate text-xs">{session.title}</div>
+                            <p className="text-[10px] text-on-surface-variant truncate font-normal mt-0.5">
+                              {session.preview}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Rail Bottom: Tips Card & Quick Navigation */}
+              <div className="pt-3 border-t border-outline-variant/20 shrink-0 space-y-2.5 text-xs">
+                <div className="p-3 rounded-xl glass-card border border-secondary/20 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-secondary font-bold text-xs">
+                    <span className="material-symbols-outlined text-sm">psychology</span>
+                    <span>Nguyên tắc Socratic AI</span>
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                    Trợ lý EduLit định hướng đặt câu hỏi gợi ý để người học tự nâng cao năng lực viết văn, bảo đảm tính liêm chính học thuật GDPT 2018.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-0.5">
+                  <Link
+                    href="/assignments"
+                    className="w-1/2 py-2 rounded-xl border border-outline-variant/50 text-center text-xs font-semibold hover:bg-surface-container/60 text-on-surface transition-all active:scale-95"
+                  >
+                    Bài tập
+                  </Link>
+                  <Link
+                    href="/materials"
+                    className="w-1/2 py-2 rounded-xl bg-surface-container text-center text-xs font-semibold hover:bg-surface-container-high text-on-surface transition-all active:scale-95"
+                  >
+                    Kho học liệu
+                  </Link>
+                </div>
               </div>
             </div>
-
-            {/* Scrollable Sessions List */}
-            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin text-xs">
-              {/* Group: Hôm nay */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-outline px-1 block">
-                  Gần đây (Hôm nay)
-                </span>
-                <div className="space-y-1">
-                  {filteredSessions
-                    .filter((s) => s.timeLabel === 'Hôm nay')
-                    .map((session) => (
-                      <button
-                        key={session.id}
-                        onClick={() => {
-                          setActiveSessionId(session.id);
-                          addToast(`Đã mở lại phiên: ${session.title}`, 'info');
-                        }}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
-                          activeSessionId === session.id
-                            ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
-                            : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-secondary">
-                          chat_bubble
-                        </span>
-                        <div className="truncate flex-1">
-                          <div className="truncate text-xs">{session.title}</div>
-                          <p className="text-[10px] text-on-surface-variant truncate font-normal mt-0.5">
-                            {session.preview}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              </div>
-
-              {/* Group: 7 ngày trước */}
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-outline px-1 block">
-                  7 ngày trước
-                </span>
-                <div className="space-y-1">
-                  {filteredSessions
-                    .filter((s) => s.timeLabel === '7 ngày trước')
-                    .map((session) => (
-                      <button
-                        key={session.id}
-                        onClick={() => {
-                          setActiveSessionId(session.id);
-                          addToast(`Đã mở lại phiên: ${session.title}`, 'info');
-                        }}
-                        className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
-                          activeSessionId === session.id
-                            ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
-                            : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
-                        }`}
-                      >
-                        <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-outline">
-                          history
-                        </span>
-                        <div className="truncate flex-1">
-                          <div className="truncate text-xs">{session.title}</div>
-                          <p className="text-[10px] text-on-surface-variant truncate font-normal mt-0.5">
-                            {session.preview}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Rail Bottom: Tips Card & Quick Navigation */}
-            <div className="pt-3 border-t border-outline-variant/20 shrink-0 space-y-2.5 text-xs">
-              <div className="p-3 rounded-xl glass-card border border-secondary/20 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-secondary font-bold text-xs">
-                  <span className="material-symbols-outlined text-sm">psychology</span>
-                  <span>Nguyên tắc Socratic AI</span>
-                </div>
-                <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                  Trợ lý EduLit định hướng đặt câu hỏi gợi ý để người học tự nâng cao năng lực viết văn, bảo đảm tính liêm chính học thuật GDPT 2018.
-                </p>
-              </div>
-
-              <div className="flex items-center justify-between gap-2 pt-0.5">
-                <Link
-                  href="/assignments"
-                  className="w-1/2 py-2 rounded-xl border border-outline-variant/50 text-center text-xs font-semibold hover:bg-surface-container/60 text-on-surface transition-all active:scale-95"
-                >
-                  Bài tập
-                </Link>
-                <Link
-                  href="/materials"
-                  className="w-1/2 py-2 rounded-xl bg-surface-container text-center text-xs font-semibold hover:bg-surface-container-high text-on-surface transition-all active:scale-95"
-                >
-                  Kho học liệu
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  </Shell>
+    </Shell>
   );
 }
