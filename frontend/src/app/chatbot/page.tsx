@@ -1,750 +1,737 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiSend } from '@/lib/api/http';
+import { AuthApiError } from '@/lib/auth-types';
 import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
-
-interface Message {
-  id: string;
-  sender: 'ai' | 'user';
-  text: string;
-  timestamp: string;
-  modelBadge?: string;
-  sources?: {
-    chunk_id: string;
-    title: string;
-    material_title: string;
-    source_name: string;
-  }[];
-}
-
-interface ChatSession {
-  id: string;
-  title: string;
-  timeLabel: 'Hôm nay' | '7 ngày trước';
-  preview: string;
-}
+import {
+  MESSAGE_MAX_CHARS,
+  appendMessage,
+  createConversation,
+  groupByDay,
+  lastQuestion,
+  loadConversations,
+  newId,
+  saveConversations,
+  uniqueSources,
+  upsertConversation,
+  type ChatMessage,
+  type ChatSource,
+  type Conversation,
+} from '@/features/chatbot/conversations';
+import { parseRichText, type Inline } from '@/features/chatbot/rich-text';
+import { suggestionsFor } from '@/features/chatbot/suggestions';
 
 interface ChatbotResponse {
   answer: string;
-  sources: {
-    chunk_id: string;
-    title: string;
-    material_title: string;
-    source_name: string;
-  }[];
+  sources: ChatSource[];
+}
+
+const COUNTER_FROM = 1500;
+
+function timeLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function shortDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  if (date.toDateString() === new Date().toDateString()) return timeLabel(iso);
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+}
+
+function withoutKey<T>(state: Record<string, T>, key: string): Record<string, T> {
+  const next = { ...state };
+  delete next[key];
+  return next;
+}
+
+/** Vietnamese names put the given name last: "Nguyễn Hà My" → "My". */
+function givenName(name: string | undefined): string {
+  const words = (name || '').trim().split(/\s+/).filter(Boolean);
+  return words.length ? words[words.length - 1] : '';
+}
+
+function InlineText({ parts }: { parts: Inline[] }) {
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.kind === 'bold' ? (
+          <strong key={index} className="font-semibold text-on-surface">
+            {part.text}
+          </strong>
+        ) : part.kind === 'code' ? (
+          <code key={index} className="px-1 py-0.5 rounded bg-surface-container text-[0.9em] font-mono">
+            {part.text}
+          </code>
+        ) : (
+          <React.Fragment key={index}>{part.text}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
+function RichText({ text }: { text: string }) {
+  const blocks = useMemo(() => parseRichText(text), [text]);
+  return (
+    <div className="space-y-2.5">
+      {blocks.map((block, index) => {
+        if (block.kind === 'heading') {
+          return (
+            <p key={index} className="font-bold text-on-surface pt-1">
+              <InlineText parts={block.inlines} />
+            </p>
+          );
+        }
+        if (block.kind === 'bullets') {
+          return (
+            <ul key={index} className="space-y-1.5 pl-1">
+              {block.items.map((item, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="mt-[0.6em] w-1.5 h-1.5 rounded-full bg-secondary/70 shrink-0" />
+                  <span className="min-w-0">
+                    <InlineText parts={item} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+        if (block.kind === 'numbers') {
+          return (
+            <ol key={index} className="space-y-1.5">
+              {block.items.map((item, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span className="mt-0.5 w-5 h-5 rounded-full bg-secondary/10 text-secondary text-[11px] font-bold flex items-center justify-center shrink-0">
+                    {block.start + i}
+                  </span>
+                  <span className="min-w-0">
+                    <InlineText parts={item} />
+                  </span>
+                </li>
+              ))}
+            </ol>
+          );
+        }
+        return (
+          <p key={index} className="whitespace-pre-line">
+            <InlineText parts={block.inlines} />
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
+function Sources({ sources }: { sources?: ChatSource[] }) {
+  const items = uniqueSources(sources);
+  if (items.length === 0) return null;
+  return (
+    <div className="pt-3 mt-3 border-t border-outline-variant/25">
+      <p className="text-[11px] font-semibold text-on-surface-variant mb-1.5">Nguồn tham khảo</p>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((source) => {
+          const guide = source.source_name !== 'Ngữ liệu';
+          const label = source.title ? `${source.material_title} · ${source.title}` : source.material_title;
+          return (
+            <span
+              key={`${source.chunk_id}-${label}`}
+              title={label}
+              className="inline-flex items-center gap-1 max-w-full px-2 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 text-[11px] text-on-surface-variant"
+            >
+              <span className={`material-symbols-outlined text-[14px] ${guide ? 'text-primary' : 'text-secondary'}`}>
+                {guide ? 'help_center' : 'menu_book'}
+              </span>
+              <span className="truncate max-w-[240px]">{label}</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AssistantAvatar() {
+  return (
+    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+      <span className="material-symbols-outlined text-base">auto_awesome</span>
+    </div>
+  );
 }
 
 export default function ChatbotPage() {
-  const router = useRouter();
   const { currentUser, addToast } = useAppStore();
-
   const isTeacher = currentUser?.role === 'teacher';
+  const userId = currentUser?.id || '';
+  const suggestions = suggestionsFor(isTeacher);
 
-  const [activeSessionId, setActiveSessionId] = useState('session-1');
-  const [inputMessage, setInputMessage] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [draft, setDraft] = useState<Conversation>(() => createConversation());
+  const [activeId, setActiveId] = useState(draft.id);
+  const [input, setInput] = useState('');
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [mobileHistory, setMobileHistory] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState('');
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const userRef = useRef(userId);
+  const loadedFor = useRef('');
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initial sessions list
-  const initialSessions: ChatSession[] = isTeacher
-    ? [
-        {
-          id: 'session-1',
-          title: '📝 Gợi ý đề NLXH thời sự tuần 12',
-          timeLabel: 'Hôm nay',
-          preview: '3 đề bài về trí tuệ nhân tạo và tinh thần công dân số...',
-        },
-        {
-          id: 'session-2',
-          title: '📊 Đánh giá bài nộp Lớp 11A14',
-          timeLabel: 'Hôm nay',
-          preview: 'So sánh bài làm của Đỗ Đăng An, Bùi Hà Chi, Nguyễn Trung Dũng...',
-        },
-        {
-          id: 'session-3',
-          title: '🌱 Gợi mở nghịch lí bùn đất',
-          timeLabel: '7 ngày trước',
-          preview: 'Xây dựng câu hỏi Socratic giúp học sinh chạm vào chiều sâu tư tưởng...',
-        },
-        {
-          id: 'session-4',
-          title: '📖 Ngữ liệu Màu tự do của đất',
-          timeLabel: '7 ngày trước',
-          preview: 'Rà soát bài thơ Trần Quang Quý trên báo Văn nghệ số Tết 2019...',
-        },
-      ]
-    : [
-        {
-          id: 'session-1',
-          title: '💡 Phân tích hình ảnh khói rơm rạ',
-          timeLabel: 'Hôm nay',
-          preview: 'Sự chuyển đổi cảm giác trong "hít thở mầu tự do của đất"...',
-        },
-        {
-          id: 'session-2',
-          title: '🌾 Nghịch lí "không thoát ly bùn đất"',
-          timeLabel: 'Hôm nay',
-          preview: 'Phân biệt thoát nhọc nhằn cơ bắp với việc gắn bó cội rễ...',
-        },
-        {
-          id: 'session-3',
-          title: '🔗 Chuỗi liên kết buộc – neo – cởi',
-          timeLabel: '7 ngày trước',
-          preview: 'Đường dây tâm thức làng và kết cấu vòng tròn ngọn khói...',
-        },
-        {
-          id: 'session-4',
-          title: '🔥 Liên hệ mở rộng bài thơ Bếp lửa',
-          timeLabel: '7 ngày trước',
-          preview: 'Làm nổi bật nét riêng độc đáo của nhà thơ Trần Quang Quý...',
-        },
-      ];
-
-  const [sessions, setSessions] = useState<ChatSession[]>(initialSessions);
-
-  // Pre-loaded conversation for session-1
-  const initialMessages: Message[] = isTeacher
-    ? [
-        {
-          id: 'm-1',
-          sender: 'ai',
-          text: `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot của trường THPT Đan Phượng.
-
-Em đã sẵn sàng hỗ trợ cô:
-• Cấu hình thang điểm Rubric 4.0 điểm chuẩn cho đề bài "Màu tự do của đất".
-• Rà soát văn bản thơ và ghi chú đối chiếu ngữ liệu từ DOCX.
-• Phân tích kết quả và tiến độ nộp bài của Lớp 11A14 (41 học sinh).
-
-Cô muốn bắt đầu với nội dung nào ạ?`,
-          timestamp: '08:00',
-          modelBadge: 'EduLit Co-Pilot v2.4',
-        },
-      ]
-    : [
-        {
-          id: 'm-1',
-          sender: 'ai',
-          text: `Chào bạn Đỗ Đăng An! Mình là Trợ lý Socratic AI đồng hành môn Ngữ văn 11 tại THPT Đan Phượng.
-
-Theo định hướng GDPT 2018, mình sẽ không viết bài hộ, mà sẽ đặt các câu hỏi gợi mở giúp bạn:
-• Phân tích hình ảnh làng quê và cảm nhận tự do của Trần Quang Quý.
-• Khai thác nghịch lí "không thoát ly bùn đất" và chuỗi buộc – neo – cởi.
-• Liên hệ mở rộng bài thơ ngoài để làm nổi bật nét riêng của tác giả.
-
-Bạn đang muốn mài giũa ý tưởng cho phần nào trong bài viết?`,
-          timestamp: '08:00',
-          modelBadge: 'Socratic AI Engine',
-        },
-      ];
-
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-
-  // Sync when role switches
+  // Each account has its own history; entering the page always opens a new chat.
   useEffect(() => {
-    setSessions(initialSessions);
-    setMessages(initialMessages);
-  }, [currentUser?.role]);
+    userRef.current = userId;
+    const fresh = createConversation();
+    setDraft(fresh);
+    setActiveId(fresh.id);
+    setPending({});
+    setErrors({});
+    setInput('');
+    setConversations(userId ? loadConversations(userId) : []);
+    loadedFor.current = userId;
+  }, [userId]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+    if (userId && loadedFor.current === userId) saveConversations(userId, conversations);
+  }, [conversations, userId]);
 
-  // Handle new chat session
-  const handleNewChat = () => {
-    const newId = `session-${Date.now()}`;
-    const newSession: ChatSession = {
-      id: newId,
-      title: isTeacher ? '📝 Đoạn chat sư phạm mới' : '💭 Ý tưởng bài viết mới',
-      timeLabel: 'Hôm nay',
-      preview: 'Bắt đầu cuộc trò chuyện mới cùng EduLit AI...',
-    };
-    setSessions([newSession, ...sessions]);
-    setActiveSessionId(newId);
-    setMessages([]);
-    addToast('Đã tạo cuộc hội thoại mới.', 'info');
+  const active = conversations.find((item) => item.id === activeId) || draft;
+  const isPending = Boolean(pending[active.id]);
+  const activeError = errors[active.id] || '';
+
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
+  }, [active.messages.length, isPending, activeError, active.id]);
+
+  const resizeInput = useCallback(() => {
+    const node = textareaRef.current;
+    if (!node) return;
+    node.style.height = 'auto';
+    node.style.height = `${Math.min(node.scrollHeight, 168)}px`;
+  }, []);
+
+  useEffect(() => {
+    resizeInput();
+  }, [input, resizeInput]);
+
+  const focusInput = () => window.setTimeout(() => textareaRef.current?.focus(), 30);
+
+  const updateConversation = (id: string, change: (conversation: Conversation) => Conversation) => {
+    setConversations((list) => {
+      const current = list.find((item) => item.id === id) || (draftRef.current.id === id ? draftRef.current : null);
+      return current ? upsertConversation(list, change(current)) : list;
+    });
   };
 
-  // Quick Prompt Cards for Empty State
-  const quickCardsStudent = [
-    {
-      icon: 'lightbulb',
-      title: 'Xác định yêu cầu đề',
-      desc: 'Trọng tâm cảm nhận tự do qua hình ảnh làng quê',
-      prompt: 'Đề này yêu cầu em tập trung phân tích điều gì?',
-    },
-    {
-      icon: 'air',
-      title: 'Khói, mùi & cảm giác',
-      desc: 'Chi tiết khói rơm rạ và hít thở mầu tự do của đất',
-      prompt: 'Em thấy hình ảnh khói rơm rạ và câu "tôi hít thở mầu tự do của đất" rất đặc biệt.',
-    },
-    {
-      icon: 'psychology',
-      title: 'Nghịch lí của tự do',
-      desc: 'Vì sao tự do lại là không thoát ly bùn đất?',
-      prompt: 'Vì sao tự do lại là không thoát ly bùn đất?',
-    },
-    {
-      icon: 'compare_arrows',
-      title: 'Liên hệ Bếp lửa',
-      desc: 'Làm rõ nét riêng của Trần Quang Quý so với Bằng Việt',
-      prompt: 'Em muốn liên hệ với Bếp lửa của Bằng Việt.',
-    },
-  ];
-
-  const quickCardsTeacher = [
-    {
-      icon: 'assignment_add',
-      title: 'Thang điểm 4.0 chuẩn',
-      desc: 'Cấu trúc Barem 4 tiêu chí chuẩn GDPT 2018',
-      prompt: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học 600 chữ bài Màu tự do của đất.',
-    },
-    {
-      icon: 'analytics',
-      title: 'Phân tích bài nộp 11A14',
-      desc: 'Đỗ Đăng An, Bùi Hà Chi, Nguyễn Trung Dũng',
-      prompt: 'Phân tích điểm mạnh và lỗi phổ biến của các học sinh Lớp 11A14 trong bài Màu tự do của đất.',
-    },
-    {
-      icon: 'psychology',
-      title: 'Gợi mở nghịch lí bùn đất',
-      desc: 'Phương pháp Socratic không viết hộ bài',
-      prompt: 'Làm thế nào để hướng dẫn học sinh hiểu nghịch lí "không thoát ly bùn đất" mà không nói hộ lời giải?',
-    },
-    {
-      icon: 'groups',
-      title: 'Hoạt động nhóm 15 phút',
-      desc: 'Rèn luyện kỹ năng liên hệ tác phẩm ngoài',
-      prompt: 'Gợi ý 1 hoạt động dạy học 15 phút giúp học sinh rèn kỹ năng liên hệ tác phẩm ngoài làm nổi bật nét riêng của tác giả.',
-    },
-  ];
-
-  const handleSend = async (textToSend?: string) => {
-    const text = (textToSend || inputMessage).trim();
-    if (!text) return;
-
-    const userMessage: Message = {
-      id: `u-${Date.now()}`,
-      sender: 'user',
-      text,
-      timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInputMessage('');
-    setIsTyping(true);
-    setError(null);
-
+  const send = async (raw?: string, options: { retry?: boolean } = {}) => {
+    const text = (raw ?? input).trim();
+    const conversationId = active.id;
+    if (!text || !userId || pending[conversationId]) return;
+    if (text.length > MESSAGE_MAX_CHARS) {
+      addToast(`Câu hỏi tối đa ${MESSAGE_MAX_CHARS} ký tự.`, 'warning');
+      return;
+    }
+    if (!options.retry) {
+      const question: ChatMessage = { id: newId('m'), role: 'user', text, createdAt: new Date().toISOString() };
+      updateConversation(conversationId, (conversation) => appendMessage(conversation, question));
+      if (raw === undefined) setInput('');
+    }
+    const owner = userRef.current;
+    setPending((state) => ({ ...state, [conversationId]: true }));
+    setErrors((state) => withoutKey(state, conversationId));
     try {
       const data = await apiSend<ChatbotResponse>('/chatbot', 'POST', { message: text });
-
-      const aiMsg: Message = {
-        id: `ai-${Date.now()}`,
-        sender: 'ai',
-        text: data.answer,
-        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        modelBadge: isTeacher ? 'EduLit Co-Pilot' : 'Socratic AI Engine',
-        sources: data.sources,
+      if (userRef.current !== owner) return;
+      const answer: ChatMessage = {
+        id: newId('m'),
+        role: 'assistant',
+        text: (data.answer || '').trim() || 'Mình chưa có câu trả lời cho câu hỏi này.',
+        createdAt: new Date().toISOString(),
+        sources: data.sources || [],
       };
-
-      setMessages((prev) => [...prev, aiMsg]);
+      updateConversation(conversationId, (conversation) => appendMessage(conversation, answer));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Có lỗi xảy ra';
-      setError(errorMessage);
-      addToast(errorMessage, 'error');
-
-      // Add error message to chat
-      const aiMsg: Message = {
-        id: `ai-${Date.now()}`,
-        sender: 'ai',
-        text: 'Xin lỗi, mình gặp chút trục trặc khi xử lý câu hỏi. Bạn có thể thử lại sau không?',
-        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        modelBadge: isTeacher ? 'EduLit Co-Pilot' : 'Socratic AI Engine',
-      };
-      setMessages((prev) => [...prev, aiMsg]);
+      if (userRef.current !== owner) return;
+      const message =
+        err instanceof AuthApiError ? err.message : 'Không gửi được câu hỏi. Kiểm tra kết nối rồi thử lại.';
+      setErrors((state) => ({ ...state, [conversationId]: message }));
     } finally {
-      setIsTyping(false);
+      if (userRef.current === owner) setPending((state) => withoutKey(state, conversationId));
+    }
+  };
+
+  const openFresh = () => {
+    const fresh = createConversation();
+    setDraft(fresh);
+    setActiveId(fresh.id);
+  };
+
+  const startNewChat = () => {
+    setMobileHistory(false);
+    if (active.messages.length > 0) {
+      openFresh();
+      setInput('');
+    }
+    focusInput();
+  };
+
+  const openConversation = (id: string) => {
+    setActiveId(id);
+    setMobileHistory(false);
+    focusInput();
+  };
+
+  const deleteConversation = (conversation: Conversation) => {
+    if (!window.confirm(`Xóa cuộc trò chuyện “${conversation.title}”?`)) return;
+    setConversations((list) => list.filter((item) => item.id !== conversation.id));
+    if (conversation.id === activeId) openFresh();
+  };
+
+  const clearAll = () => {
+    if (!conversations.length || !window.confirm('Xóa toàn bộ lịch sử trò chuyện trên trình duyệt này?')) return;
+    setConversations([]);
+    openFresh();
+    addToast('Đã xóa lịch sử trò chuyện.', 'info');
+  };
+
+  const copyAnswer = async (message: ChatMessage) => {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      setCopiedId(message.id);
+      window.setTimeout(() => setCopiedId((current) => (current === message.id ? '' : current)), 1600);
+    } catch {
+      addToast('Không sao chép được. Hãy bôi đen nội dung rồi sao chép thủ công.', 'warning');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
-      handleSend();
+      void send();
     }
   };
 
-  const Shell = isTeacher ? TeacherShell : StudentShell;
+  const filtered = useMemo(() => {
+    const needle = historySearch.trim().toLocaleLowerCase('vi');
+    if (!needle) return conversations;
+    return conversations.filter(
+      (item) =>
+        item.title.toLocaleLowerCase('vi').includes(needle) ||
+        item.messages.some((message) => message.text.toLocaleLowerCase('vi').includes(needle))
+    );
+  }, [conversations, historySearch]);
+  const groups = useMemo(() => groupByDay(filtered), [filtered]);
 
-  const filteredSessions = sessions.filter(
-    (s) =>
-      s.title.toLowerCase().includes(historySearch.toLowerCase()) ||
-      s.preview.toLowerCase().includes(historySearch.toLowerCase())
+  const you = isTeacher ? 'thầy cô' : 'em';
+  const assistantSubtitle = isTeacher
+    ? 'Trả lời từ kho ngữ liệu của thầy cô và hướng dẫn sử dụng'
+    : 'Trả lời từ ngữ liệu bài tập được giao và hướng dẫn sử dụng';
+  const greetingName = isTeacher ? currentUser?.name || 'thầy cô' : givenName(currentUser?.name) || 'em';
+  const overLimit = input.length > MESSAGE_MAX_CHARS;
+
+  const historyPanel = (
+    <div className="flex flex-col h-full min-h-0">
+      <div className="p-4 space-y-3 border-b border-outline-variant/20 shrink-0">
+        <div className="flex items-center justify-between pr-8 lg:pr-0">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-lg text-secondary">history</span>
+            <h3 className="font-bold text-sm text-on-surface">Lịch sử trò chuyện</h3>
+          </div>
+          <span className="text-[11px] font-semibold text-outline">{conversations.length}</span>
+        </div>
+        <button
+          type="button"
+          onClick={startNewChat}
+          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-secondary to-primary text-white font-semibold text-sm hover:brightness-105 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm"
+        >
+          <span className="material-symbols-outlined text-lg">edit_square</span>
+          Cuộc trò chuyện mới
+        </button>
+        {conversations.length > 0 && (
+          <div className="relative">
+            <span className="material-symbols-outlined text-base text-outline absolute left-2.5 top-1/2 -translate-y-1/2">
+              search
+            </span>
+            <input
+              type="search"
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              aria-label="Tìm trong lịch sử"
+              placeholder="Tìm trong lịch sử..."
+              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-outline-variant/50 bg-surface text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary"
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-4 scrollbar-thin">
+        {conversations.length === 0 ? (
+          <div className="px-3 py-10 text-center space-y-2">
+            <span className="material-symbols-outlined text-3xl text-outline-variant">forum</span>
+            <p className="text-xs text-on-surface-variant leading-relaxed">
+              Chưa có cuộc trò chuyện nào. Câu hỏi của {you} sẽ xuất hiện ở đây.
+            </p>
+          </div>
+        ) : groups.length === 0 ? (
+          <p className="px-3 py-6 text-center text-xs text-on-surface-variant">Không tìm thấy cuộc trò chuyện phù hợp.</p>
+        ) : (
+          groups.map((group) => (
+            <div key={group.label} className="space-y-1">
+              <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-outline">{group.label}</p>
+              {group.items.map((conversation) => {
+                const selected = conversation.id === activeId;
+                return (
+                  <div
+                    key={conversation.id}
+                    className={`group relative rounded-xl border transition-all ${
+                      selected
+                        ? 'bg-secondary-fixed/35 border-secondary/40'
+                        : 'border-transparent hover:bg-surface-container-low hover:border-outline-variant/30'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => openConversation(conversation.id)}
+                      aria-current={selected ? 'true' : undefined}
+                      className="w-full text-left px-3 py-2.5 pr-9"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {pending[conversation.id] && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse shrink-0" />
+                        )}
+                        <span
+                          className={`text-xs truncate ${selected ? 'font-bold text-secondary' : 'font-medium text-on-surface'}`}
+                        >
+                          {conversation.title}
+                        </span>
+                      </span>
+                      <span className="block text-[10px] text-outline mt-0.5">
+                        {shortDate(conversation.updatedAt)} • {conversation.messages.length} tin nhắn
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteConversation(conversation)}
+                      aria-label={`Xóa cuộc trò chuyện ${conversation.title}`}
+                      title="Xóa cuộc trò chuyện"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-outline hover:text-error hover:bg-error/10 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="p-4 border-t border-outline-variant/20 shrink-0 space-y-3">
+        <div className="flex items-start gap-2 text-[11px] text-on-surface-variant leading-relaxed">
+          <span className="material-symbols-outlined text-sm text-outline shrink-0">lock</span>
+          <span>Lịch sử chỉ lưu trên trình duyệt này, theo tài khoản đang đăng nhập.</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/assignments"
+            className="flex-1 py-2 rounded-xl border border-outline-variant/50 text-center text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-all"
+          >
+            Bài tập
+          </Link>
+          <Link
+            href="/materials"
+            className="flex-1 py-2 rounded-xl border border-outline-variant/50 text-center text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-all"
+          >
+            {isTeacher ? 'Kho học liệu' : 'Ngữ liệu'}
+          </Link>
+        </div>
+        {conversations.length > 0 && (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="w-full text-[11px] font-semibold text-outline hover:text-error transition-colors"
+          >
+            Xóa toàn bộ lịch sử
+          </button>
+        )}
+      </div>
+    </div>
   );
 
-  return (
-    <Shell
-      breadcrumb={
-        <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
-          <Link href="/assignments" className="hover:text-primary">
-            {isTeacher ? 'Không gian Giáo viên' : 'Bài tập của em'}
-          </Link>
-          <span className="text-outline-variant">/</span>
-          <span className="text-on-surface font-semibold flex items-center gap-1.5">
-            <span className="material-symbols-outlined text-[18px] text-secondary">smart_toy</span>
-            <span>{isTeacher ? 'Trợ lý Sư phạm EduLit (Teacher Co-Pilot)' : 'Trợ lý Văn học Socratic AI'}</span>
-            <span className="text-[10px] bg-secondary-fixed/50 text-secondary font-bold px-1.5 py-0.2 rounded-full uppercase font-mono">
-              GPT
-            </span>
-          </span>
-        </div>
-      }
-    >
-      <div className="max-w-7xl mx-auto space-y-4">
-        {/* Main 2-Column Container: Chat Area (Center-Left) + History Rail (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-140px)] min-h-[640px]">
-          {/* 1. Left/Center Area (Main Chat Window - 8 cols when history open, 12 cols when collapsed) */}
-          <div
-            className={`${
-              isHistoryOpen ? 'lg:col-span-8' : 'lg:col-span-12'
-            } glass-panel rounded-2xl shadow-sm flex flex-col h-full overflow-hidden transition-all duration-300`}
-          >
-            {/* Chat Window Top Bar */}
-            <div className="p-3.5 px-4 sm:px-6 border-b border-outline-variant/20 bg-surface/30 backdrop-blur-xs flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs ${
-                    isTeacher
-                      ? 'bg-gradient-to-tr from-[#6B21A8] to-primary'
-                      : 'bg-gradient-to-tr from-secondary to-primary'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-xl">smart_toy</span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-bold text-sm text-on-surface">
-                      {isTeacher ? 'EduLit Teacher Co-Pilot' : 'Trợ lý Socratic AI'}
-                    </h2>
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[10px] text-secondary font-bold font-mono">v2.4</span>
-                  </div>
-                  <p className="text-[11px] text-on-surface-variant">
-                    {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : 'Đồng hành cùng Đỗ Đăng An • GDPT 2018'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Collapsible History Toggle Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsHistoryOpen((prev) => !prev)}
-                  title={isHistoryOpen ? 'Thu gọn thanh lịch sử hội thoại' : 'Mở thanh lịch sử hội thoại'}
-                  className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 ${
-                    isHistoryOpen
-                      ? 'border-outline-variant/60 hover:bg-surface-container/60 text-on-surface-variant'
-                      : 'border-secondary/40 bg-secondary-fixed/40 text-secondary hover:bg-secondary-fixed/60 font-bold'
-                  }`}
-                >
-                  <span className="material-symbols-outlined text-sm">
-                    {isHistoryOpen ? 'dock_to_right' : 'history'}
-                  </span>
-                  <span>{isHistoryOpen ? 'Thu gọn lịch sử' : `Lịch sử (${sessions.length})`}</span>
-                </button>
-
-                <button
-                  onClick={() => {
-                    setMessages([]);
-                    addToast('Đã làm mới khung trò chuyện.', 'info');
-                  }}
-                  title="Xóa ngữ cảnh hội thoại hiện tại"
-                  className="px-2.5 py-1.5 rounded-xl border border-outline-variant/50 hover:bg-surface-container/60 text-xs text-on-surface-variant flex items-center gap-1 transition-all active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-sm">delete_sweep</span>
-                  <span className="hidden sm:inline">Xóa chat</span>
-                </button>
-
-                <Link
-                  href="/assignments"
-                  className="px-3 py-1.5 rounded-xl bg-primary-container text-on-primary-container font-semibold text-xs hover:brightness-95 transition-all shadow-2xs flex items-center gap-1 active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-sm">assignment</span>
-                  <span className="hidden sm:inline">Vào bài tập</span>
-                </Link>
-              </div>
+  const body = (
+    <div className="max-w-7xl mx-auto flex gap-5 h-[calc(100dvh-7rem)] min-h-[560px]">
+      {/* Chat window */}
+      <section className="flex-1 min-w-0 glass-panel rounded-3xl shadow-sm flex flex-col overflow-hidden">
+        <header className="px-4 sm:px-6 py-3.5 border-b border-outline-variant/20 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-sm shrink-0">
+              <span className="material-symbols-outlined text-xl">auto_awesome</span>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
-
-            {/* Chat Messages Body Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin bg-surface/20">
-              {messages.length === 0 ? (
-                /* Empty Welcome State */
-                <div className="py-6 sm:py-10 text-center space-y-6 animate-in fade-in duration-300">
-                  <div className="space-y-2">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary via-amber-600 to-secondary text-white mx-auto flex items-center justify-center shadow-lg">
-                      <span className="material-symbols-outlined text-2xl">auto_stories</span>
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold font-merriweather text-on-surface">
-                      {isTeacher ? 'Trợ lý Sư phạm EduLit Co-Pilot' : 'Trợ lý Văn học Socratic AI'}
-                    </h3>
-                    <p className="text-xs text-on-surface-variant max-w-md mx-auto leading-relaxed">
-                      {isTeacher
-                        ? 'Hỗ trợ Cô Đặng Hoàng Loan soạn giảng, cấu hình thang điểm 4.0 và phân tích bài viết học sinh Lớp 11A14.'
-                        : 'Đồng hành cùng Đỗ Đăng An mài giũa tư duy phân tích, khai thác nghịch lí tự do và lập dàn ý đạt điểm cao.'}
-                    </p>
-                  </div>
-
-                  {/* 4 Prompt Cards Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left max-w-2xl mx-auto">
-                    {(isTeacher ? quickCardsTeacher : quickCardsStudent).map((card, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSend(card.prompt)}
-                        className="p-3.5 rounded-xl glass-card hover:border-secondary/60 hover:shadow-sm active:scale-98 transition-all text-left shadow-2xs group space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs text-on-surface group-hover:text-secondary flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-base text-secondary">
-                              {card.icon}
-                            </span>
-                            {card.title}
-                          </span>
-                          <span className="material-symbols-outlined text-sm text-outline opacity-0 group-hover:opacity-100 transition-opacity">
-                            arrow_forward
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                          {card.desc}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* Message List */
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in duration-200`}
-                  >
-                    {/* AI Avatar */}
-                    {msg.sender === 'ai' && (
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-amber-700 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                        <span className="material-symbols-outlined text-base">auto_awesome</span>
-                      </div>
-                    )}
-
-                    {/* Message Bubble */}
-                    <div
-                      className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 space-y-2 leading-relaxed text-xs sm:text-sm ${
-                        msg.sender === 'user'
-                          ? 'bg-secondary text-white rounded-tr-xs shadow-xs'
-                          : 'glass-card text-on-surface border border-outline-variant/30 rounded-tl-xs shadow-2xs'
-                      }`}
-                    >
-                      {msg.sender === 'ai' && msg.modelBadge && (
-                        <div className="flex items-center justify-between pb-1.5 border-b border-outline-variant/20 text-[10px] text-on-surface-variant">
-                          <span className="font-semibold text-secondary flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">smart_toy</span>
-                            {msg.modelBadge}
-                          </span>
-                          <span className="font-mono">{msg.timestamp}</span>
-                        </div>
-                      )}
-
-                      <div className="whitespace-pre-line font-normal leading-relaxed text-xs sm:text-sm">
-                        {msg.text}
-                      </div>
-
-                      {/* Sources */}
-                      {msg.sender === 'ai' && msg.sources && msg.sources.length > 0 && (
-                        <div className="pt-2 border-t border-outline-variant/20">
-                          <p className="text-[10px] font-semibold text-on-surface-variant mb-1">Nguồn:</p>
-                          <div className="space-y-1">
-                            {msg.sources.map((source, idx) => (
-                              <div key={idx} className="text-[10px] text-secondary">
-                                • {source.material_title}
-                                {source.title && ` - ${source.title}`}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {msg.sender === 'user' && (
-                        <div className="text-[10px] text-white/70 text-right font-mono">
-                          {msg.timestamp}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* User Avatar */}
-                    {msg.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shrink-0 shadow-xs mt-0.5">
-                        {currentUser?.avatarInitials}
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-
-              {/* Typing indicator */}
-              {isTyping && (
-                <div className="flex gap-3 items-center text-xs text-on-surface-variant animate-in fade-in duration-150">
-                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-amber-700 text-white flex items-center justify-center shrink-0">
-                    <span className="material-symbols-outlined text-sm animate-spin">sync</span>
-                  </div>
-                  <div className="p-3 glass-card rounded-2xl flex items-center gap-2 shadow-2xs">
-                    <span className="text-secondary font-medium">EduLit AI đang phản hồi...</span>
-                    <div className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 bg-secondary rounded-full animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 bg-secondary rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="w-1.5 h-1.5 bg-secondary rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Bottom Input Area */}
-            <div className="p-3 sm:p-4 bg-surface/30 backdrop-blur-xs border-t border-outline-variant/20 shrink-0 space-y-2">
-              <div className="relative rounded-xl border border-outline-variant/60 bg-surface/80 shadow-xs focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/30 transition-all flex flex-col p-1.5">
-                <textarea
-                  ref={textareaRef}
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  rows={2}
-                  placeholder={
-                    isTeacher
-                      ? 'Hỏi Cô Đặng Hoàng Loan: Cấu hình Barem 4.0, phân tích bài nộp 11A14, hoạt động nhóm 15 phút...'
-                      : 'Hỏi Socratic AI: Trọng tâm đề, khói rơm rạ, nghịch lí bùn đất, liên hệ tác phẩm ngoài...'
-                  }
-                  className="w-full px-3 py-1.5 text-xs sm:text-sm bg-transparent text-on-surface placeholder:text-outline focus:outline-none resize-none leading-relaxed"
-                />
-
-                <div className="flex items-center justify-between pt-1 px-1.5">
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => addToast('Đã đính kèm ngữ liệu chuẩn GDPT 2018.', 'success')}
-                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container/60 transition-all"
-                      title="Đính kèm tài liệu học liệu"
-                    >
-                      <span className="material-symbols-outlined text-base">attach_file</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => addToast('Đang kích hoạt micro nhận diện giọng nói tiếng Việt...', 'info')}
-                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container/60 transition-all"
-                      title="Nhập bằng giọng nói"
-                    >
-                      <span className="material-symbols-outlined text-base">mic</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-outline hidden sm:inline font-mono">
-                      Enter để gửi • Shift+Enter xuống dòng
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSend()}
-                      disabled={!inputMessage.trim() || isTyping}
-                      className="w-7 h-7 rounded-lg bg-secondary text-white flex items-center justify-center hover:bg-secondary/90 disabled:opacity-30 transition-all shadow-xs"
-                    >
-                      <span className="material-symbols-outlined text-base">arrow_upward</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-[10px] text-outline px-1">
-                <span>Tuân thủ nguyên tắc Socratic GDPT 2018 — Gợi mở tư duy, không viết hộ.</span>
-                <span>PII-Shield THPT Đan Phượng</span>
-              </div>
+            <div className="min-w-0">
+              <h1 className="font-bold text-sm sm:text-base text-on-surface truncate">Trợ lý EduLit AI</h1>
+              <p className="text-[11px] sm:text-xs text-on-surface-variant truncate">{assistantSubtitle}</p>
             </div>
           </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={startNewChat}
+              title="Cuộc trò chuyện mới"
+              className="h-9 px-3 rounded-xl border border-outline-variant/50 text-xs font-semibold text-on-surface hover:bg-surface-container-low active:scale-95 transition-all flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-base">edit_square</span>
+              <span className="hidden sm:inline">Trò chuyện mới</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileHistory(true)}
+              aria-label="Mở lịch sử trò chuyện"
+              className="lg:hidden h-9 w-9 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container-low flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-base">history</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((open) => !open)}
+              title={historyOpen ? 'Ẩn lịch sử' : 'Hiện lịch sử'}
+              aria-pressed={historyOpen}
+              className="hidden lg:flex h-9 w-9 rounded-xl border border-outline-variant/50 text-on-surface-variant hover:bg-surface-container-low items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-base">
+                {historyOpen ? 'right_panel_close' : 'right_panel_open'}
+              </span>
+            </button>
+          </div>
+        </header>
 
-          {/* 2. Right Rail: Lịch sử trò chuyện & Sổ tay ngữ liệu (4 cols when open) */}
-          {isHistoryOpen && (
-            <div className="lg:col-span-4 glass-panel rounded-2xl shadow-sm p-4 flex flex-col h-full overflow-hidden space-y-4 animate-in fade-in duration-200">
-              {/* Right Rail Top: Header & New Chat Button */}
-              <div className="space-y-3 pb-3 border-b border-outline-variant/20 shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg text-secondary">history</span>
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-on-surface">
-                      Lịch sử hội thoại AI
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-outline font-mono">
-                      {sessions.length} phiên
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 overflow-y-auto scrollbar-thin bg-gradient-to-b from-surface/40 to-surface-container-low/30"
+          aria-live="polite"
+        >
+          {active.messages.length === 0 && !isPending ? (
+            <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 text-center">
+              <div className="relative mb-5">
+                <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary to-primary blur-xl opacity-30" />
+                <div className="relative w-16 h-16 rounded-[22px] bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-lg">
+                  <span className="material-symbols-outlined text-3xl">auto_awesome</span>
+                </div>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold font-merriweather text-on-surface">Chào {greetingName}!</h2>
+              <p className="mt-2 text-sm text-on-surface-variant max-w-lg leading-relaxed">
+                {isTeacher
+                  ? 'Thầy cô có thể hỏi về ngữ liệu trong kho và cách dùng EduLit: import tài liệu, giao bài, chấm và công bố kết quả.'
+                  : 'Em có thể hỏi về ngữ liệu trong bài tập được giao và cách dùng EduLit. Trợ lý gợi mở để em tự viết, không viết bài hộ.'}
+              </p>
+
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl text-left">
+                {suggestions.map((card) => (
+                  <button
+                    key={card.title}
+                    type="button"
+                    onClick={() => void send(card.prompt)}
+                    disabled={!userId}
+                    className="group p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 hover:border-secondary/50 hover:shadow-md active:scale-[0.99] transition-all flex items-start gap-3 disabled:opacity-60"
+                  >
+                    <span className="w-9 h-9 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0 group-hover:bg-secondary group-hover:text-white transition-colors">
+                      <span className="material-symbols-outlined text-lg">{card.icon}</span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => setIsHistoryOpen(false)}
-                      title="Thu gọn cột lịch sử"
-                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container/60 transition-all flex items-center justify-center ml-1"
-                    >
-                      <span className="material-symbols-outlined text-base">dock_to_right</span>
-                    </button>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-on-surface">{card.title}</span>
+                      <span className="block text-xs text-on-surface-variant mt-0.5 leading-relaxed">{card.hint}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+              {active.messages.map((message) =>
+                message.role === 'user' ? (
+                  <div key={message.id} className="flex justify-end">
+                    <div className="max-w-[85%] sm:max-w-[75%] space-y-1">
+                      <div className="px-4 py-2.5 rounded-2xl rounded-br-md bg-secondary text-white text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm">
+                        {message.text}
+                      </div>
+                      <p className="text-[10px] text-outline text-right pr-1">{timeLabel(message.createdAt)}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={message.id} className="flex gap-3">
+                    <AssistantAvatar />
+                    <div className="min-w-0 flex-1">
+                      <div className="px-4 py-3 rounded-2xl rounded-tl-md bg-surface-container-lowest border border-outline-variant/35 shadow-xs text-sm text-on-surface leading-relaxed break-words">
+                        <RichText text={message.text} />
+                        <Sources sources={message.sources} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 pl-1 text-[10px] text-outline">
+                        <span>{timeLabel(message.createdAt)}</span>
+                        <button
+                          type="button"
+                          onClick={() => void copyAnswer(message)}
+                          className="inline-flex items-center gap-1 hover:text-secondary transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">
+                            {copiedId === message.id ? 'check' : 'content_copy'}
+                          </span>
+                          {copiedId === message.id ? 'Đã sao chép' : 'Sao chép'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
+
+              {isPending && (
+                <div className="flex gap-3" role="status">
+                  <AssistantAvatar />
+                  <div className="px-4 py-3 rounded-2xl rounded-tl-md bg-surface-container-lowest border border-outline-variant/35 shadow-xs flex items-center gap-2.5">
+                    <span className="flex items-center gap-1" aria-hidden="true">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce [animation-delay:0.15s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce [animation-delay:0.3s]" />
+                    </span>
+                    <span className="text-xs text-on-surface-variant">Đang tìm trong ngữ liệu và hướng dẫn…</span>
                   </div>
                 </div>
+              )}
 
-                {/* New Chat Button */}
-                <button
-                  type="button"
-                  onClick={handleNewChat}
-                  className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-primary to-amber-700 text-white font-bold text-xs hover:brightness-105 active:scale-98 transition-all flex items-center justify-between shadow-xs group"
+              {activeError && !isPending && (
+                <div
+                  role="alert"
+                  className="sm:ml-11 p-3 rounded-xl border border-error/30 bg-error-container/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-base group-hover:rotate-90 transition-transform">
-                      add
-                    </span>
-                    <span>+ Cuộc trò chuyện mới</span>
+                  <div className="flex items-start gap-2 text-xs text-on-error-container">
+                    <span className="material-symbols-outlined text-base text-error shrink-0">error</span>
+                    <span className="leading-relaxed">{activeError}</span>
                   </div>
-                  <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded font-mono">
-                    Mới
-                  </span>
-                </button>
-
-                {/* Search History Filter */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={historySearch}
-                    onChange={(e) => setHistorySearch(e.target.value)}
-                    placeholder="Tìm kiếm chủ đề đã hỏi..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-outline-variant/50 bg-surface/80 text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary"
-                  />
-                  <span className="material-symbols-outlined text-base text-outline absolute left-2 top-2">
-                    search
-                  </span>
-                </div>
-              </div>
-
-              {/* Scrollable Sessions List */}
-              <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin text-xs">
-                {/* Group: Hôm nay */}
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-outline px-1 block">
-                    Gần đây (Hôm nay)
-                  </span>
-                  <div className="space-y-1">
-                    {filteredSessions
-                      .filter((s) => s.timeLabel === 'Hôm nay')
-                      .map((session) => (
-                        <button
-                          key={session.id}
-                          onClick={() => {
-                            setActiveSessionId(session.id);
-                            addToast(`Đã mở lại phiên: ${session.title}`, 'info');
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
-                            activeSessionId === session.id
-                              ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
-                              : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-secondary">
-                            chat_bubble
-                          </span>
-                          <div className="truncate flex-1">
-                            <div className="truncate text-xs">{session.title}</div>
-                            <p className="text-[10px] text-on-surface-variant truncate font-normal mt-0.5">
-                              {session.preview}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-
-                {/* Group: 7 ngày trước */}
-                <div className="space-y-1.5 pt-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-outline px-1 block">
-                    7 ngày trước
-                  </span>
-                  <div className="space-y-1">
-                    {filteredSessions
-                      .filter((s) => s.timeLabel === '7 ngày trước')
-                      .map((session) => (
-                        <button
-                          key={session.id}
-                          onClick={() => {
-                            setActiveSessionId(session.id);
-                            addToast(`Đã mở lại phiên: ${session.title}`, 'info');
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
-                            activeSessionId === session.id
-                              ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
-                              : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
-                          }`}
-                        >
-                          <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-outline">
-                            history
-                          </span>
-                          <div className="truncate flex-1">
-                            <div className="truncate text-xs">{session.title}</div>
-                            <p className="text-[10px] text-on-surface-variant truncate font-normal mt-0.5">
-                              {session.preview}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Rail Bottom: Tips Card & Quick Navigation */}
-              <div className="pt-3 border-t border-outline-variant/20 shrink-0 space-y-2.5 text-xs">
-                <div className="p-3 rounded-xl glass-card border border-secondary/20 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-secondary font-bold text-xs">
-                    <span className="material-symbols-outlined text-sm">psychology</span>
-                    <span>Nguyên tắc Socratic AI</span>
-                  </div>
-                  <p className="text-[11px] text-on-surface-variant leading-relaxed">
-                    Trợ lý EduLit định hướng đặt câu hỏi gợi ý để người học tự nâng cao năng lực viết văn, bảo đảm tính liêm chính học thuật GDPT 2018.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-0.5">
-                  <Link
-                    href="/assignments"
-                    className="w-1/2 py-2 rounded-xl border border-outline-variant/50 text-center text-xs font-semibold hover:bg-surface-container/60 text-on-surface transition-all active:scale-95"
+                  <button
+                    type="button"
+                    onClick={() => void send(lastQuestion(active), { retry: true })}
+                    className="self-end sm:self-auto px-3 py-1.5 rounded-lg border border-error/40 text-error text-xs font-semibold hover:bg-error/5 shrink-0"
                   >
-                    Bài tập
-                  </Link>
-                  <Link
-                    href="/materials"
-                    className="w-1/2 py-2 rounded-xl bg-surface-container text-center text-xs font-semibold hover:bg-surface-container-high text-on-surface transition-all active:scale-95"
-                  >
-                    Kho học liệu
-                  </Link>
+                    Thử lại
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
-      </div>
-    </Shell>
+
+        {/* Composer */}
+        <div className="px-3 sm:px-6 pt-2 pb-3 sm:pb-4 shrink-0 border-t border-outline-variant/15 bg-surface/40">
+          <div className="max-w-3xl mx-auto">
+            <div
+              className={`flex items-end gap-2 p-2 pl-4 rounded-2xl bg-surface-container-lowest border shadow-sm transition-all focus-within:ring-2 ${
+                overLimit
+                  ? 'border-error/60 focus-within:ring-error/20'
+                  : 'border-outline-variant/50 focus-within:border-secondary/60 focus-within:ring-secondary/15'
+              }`}
+            >
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                rows={1}
+                aria-label="Nhập câu hỏi"
+                placeholder={
+                  isTeacher ? 'Hỏi về ngữ liệu hoặc cách dùng EduLit...' : 'Hỏi về bài tập, ngữ liệu hoặc cách dùng EduLit...'
+                }
+                className="flex-1 min-w-0 py-2 text-sm bg-transparent text-on-surface placeholder:text-outline focus:outline-none resize-none leading-relaxed max-h-[168px]"
+              />
+              <button
+                type="button"
+                onClick={() => void send()}
+                disabled={!input.trim() || isPending || overLimit || !userId}
+                aria-label="Gửi câu hỏi"
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-35 disabled:active:scale-100 transition-all shrink-0"
+              >
+                <span className="material-symbols-outlined text-xl">{isPending ? 'hourglass_top' : 'arrow_upward'}</span>
+              </button>
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-2 px-1 text-[10px] sm:text-[11px] text-outline">
+              <span className="line-clamp-2 sm:truncate">
+                Trợ lý trả lời từng câu hỏi dựa trên ngữ liệu được phép xem và hướng dẫn sử dụng. Hãy kiểm tra lại thông tin quan trọng.
+              </span>
+              {input.length >= COUNTER_FROM ? (
+                <span className={`shrink-0 font-mono ${overLimit ? 'text-error font-semibold' : ''}`}>
+                  {input.length}/{MESSAGE_MAX_CHARS}
+                </span>
+              ) : (
+                <span className="shrink-0 hidden sm:inline">Enter gửi · Shift+Enter xuống dòng</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* History rail (desktop) */}
+      {historyOpen && (
+        <aside className="hidden lg:flex w-80 shrink-0 glass-panel rounded-3xl shadow-sm overflow-hidden flex-col">
+          {historyPanel}
+        </aside>
+      )}
+
+      {/* History drawer (mobile) */}
+      {mobileHistory && (
+        <div className="lg:hidden fixed inset-0 z-50 flex justify-end" role="dialog" aria-modal="true" aria-label="Lịch sử trò chuyện">
+          <button
+            type="button"
+            aria-label="Đóng lịch sử"
+            onClick={() => setMobileHistory(false)}
+            className="absolute inset-0 bg-black/30"
+          />
+          <div className="relative w-[86%] max-w-sm h-full bg-surface-container-lowest shadow-2xl flex flex-col">
+            <button
+              type="button"
+              onClick={() => setMobileHistory(false)}
+              aria-label="Đóng"
+              className="absolute right-3 top-3 z-10 p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container"
+            >
+              <span className="material-symbols-outlined text-lg">close</span>
+            </button>
+            {historyPanel}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (isTeacher) {
+    return (
+      <TeacherShell
+        breadcrumb={
+          <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+            <Link href="/assignments" className="hover:text-primary">
+              Không gian giáo viên
+            </Link>
+            <span className="text-outline-variant">/</span>
+            <span className="text-on-surface font-semibold">Trợ lý EduLit AI</span>
+          </div>
+        }
+      >
+        {body}
+      </TeacherShell>
+    );
+  }
+
+  return (
+    <StudentShell headerTitle="Trợ lý học tập AI" headerSubtitle="Trợ lý EduLit AI">
+      {body}
+    </StudentShell>
   );
 }

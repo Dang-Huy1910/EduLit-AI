@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiSend } from '@/lib/api/http';
+import { suggestionsFor } from '@/features/chatbot/suggestions';
 
 interface QuickMessage {
   id: string;
@@ -27,6 +28,13 @@ interface ChatbotResponse {
     material_title: string;
     source_name: string;
   }[];
+}
+
+function greetingFor(isTeacher: boolean, name?: string): string {
+  const who = name ? ` ${name}` : '';
+  return isTeacher
+    ? `Chào${who}! Thầy cô có thể hỏi về ngữ liệu trong kho và cách dùng EduLit.`
+    : `Chào${who}! Em có thể hỏi về ngữ liệu bài tập được giao và cách dùng EduLit.`;
 }
 
 export default function FloatingChatWidget() {
@@ -174,9 +182,7 @@ export default function FloatingChatWidget() {
   const initialAIMessage: QuickMessage = {
     id: 'msg-init',
     sender: 'ai',
-    text: isTeacher
-      ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hướng dẫn Barem 4.0 điểm, phân tích tiến độ chấm bài Lớp 11A14 hay phương pháp gợi mở Socratic ạ?`
-      : `Chào bạn ${currentUser?.name || 'Đỗ Đăng An'}! Mình là Trợ lý Socratic AI. Bạn muốn trao đổi về trọng tâm đề bài, ngọn khói rơm rạ, nghịch lí bùn đất hay liên hệ tác phẩm ngoài hôm nay?`,
+    text: greetingFor(isTeacher, currentUser?.name),
     timestamp: 'Vừa xong',
   };
 
@@ -188,9 +194,7 @@ export default function FloatingChatWidget() {
       {
         id: `msg-${Date.now()}`,
         sender: 'ai',
-        text: isTeacher
-          ? `Kính chào Cô Đặng Hoàng Loan! Em là Trợ lý Sư phạm EduLit Co-Pilot. Cô cần hỗ trợ gì cho bài học Màu tự do của đất ạ?`
-          : `Chào bạn ${currentUser?.name || 'Đỗ Đăng An'}! Socratic AI sẵn sàng gợi mở ý tưởng phân tích bài thơ Màu tự do của đất giúp bạn!`,
+        text: greetingFor(isTeacher, currentUser?.name),
         timestamp: 'Vừa xong',
       },
     ]);
@@ -210,17 +214,7 @@ export default function FloatingChatWidget() {
     }
   }, [isOpen]);
 
-  const quickPrompts = isTeacher
-    ? [
-        { label: '⚖️ Barem 4.0 điểm', text: 'Hướng dẫn cấu trúc Barem chấm 4.0 điểm cho bài nghị luận văn học Màu tự do của đất.' },
-        { label: '📊 Tiến độ bài nộp 11A14', text: 'Tóm tắt kết quả chấm và các điểm cần lưu ý của Lớp 11A14.' },
-        { label: '🌱 Gợi mở nghịch lí', text: 'Gợi ý câu hỏi Socratic giúp học sinh hiểu nghịch lí "không thoát ly bùn đất".' },
-      ]
-    : [
-        { label: '🎯 Trọng tâm đề bài', text: 'Đề này yêu cầu em tập trung phân tích điều gì?' },
-        { label: '💨 Khói rơm & cảm giác', text: 'Em thấy hình ảnh khói rơm rạ và câu "tôi hít thở mầu tự do của đất" rất đặc biệt.' },
-        { label: '🔥 Liên hệ Bếp lửa', text: 'Em muốn liên hệ với Bếp lửa của Bằng Việt để làm rõ nét riêng của tác giả.' },
-      ];
+  const quickPrompts = suggestionsFor(isTeacher).map((item) => ({ label: item.title, text: item.prompt }));
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || inputMessage).trim();
@@ -298,15 +292,12 @@ export default function FloatingChatWidget() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-bold text-xs sm:text-sm leading-none">
-                    {isTeacher ? 'Trợ lý sư phạm' : 'Socratic AI'}
+                    Trợ lý EduLit AI
                   </h3>
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="text-[9px] bg-white/20 px-1 py-0.2 rounded font-mono font-bold">
-                    v2.4
-                  </span>
                 </div>
                 <p className="text-[10px] text-white/80 mt-0.5">
-                  {isTeacher ? 'Hỗ trợ Cô Đặng Hoàng Loan • THPT Đan Phượng' : `Đồng hành cùng ${currentUser?.name || 'Đỗ Đăng An'}`}
+                  {currentUser?.name ? `Đang hỗ trợ ${currentUser.name}` : 'Hỏi đáp theo ngữ liệu và hướng dẫn'}
                 </p>
               </div>
             </div>
@@ -414,7 +405,7 @@ export default function FloatingChatWidget() {
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={
-                  isTeacher ? 'Nhắn tin hỏi Trợ lý sư phạm...' : 'Hỏi Socratic AI về dàn ý, mở bài...'
+                  isTeacher ? 'Hỏi về ngữ liệu hoặc cách dùng EduLit...' : 'Hỏi về bài tập, ngữ liệu hoặc cách dùng EduLit...'
                 }
                 className="flex-1 bg-transparent text-xs text-on-surface placeholder:text-outline focus:outline-none py-1"
               />
@@ -456,7 +447,7 @@ export default function FloatingChatWidget() {
         {!isOpen && (
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/50 shadow-md text-xs font-semibold text-on-surface animate-in fade-in slide-in-from-right-3 duration-200 pointer-events-none">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-            <span>{isTeacher ? 'Trợ lý sư phạm' : 'Hỏi Socratic AI'}</span>
+            <span>Hỏi Trợ lý AI</span>
           </div>
         )}
 
