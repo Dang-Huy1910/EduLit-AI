@@ -46,11 +46,6 @@ export default function StudentShell({
       badge: 'GPT',
     },
     {
-      label: 'Phòng Lập dàn ý Socratic',
-      href: '/assignments/assign-nlvh-mau-tu-do-dat/socratic',
-      icon: 'psychology',
-    },
-    {
       label: 'Tra cứu ngữ liệu đọc hiểu',
       href: '/materials',
       icon: 'menu_book',
