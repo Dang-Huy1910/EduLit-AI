@@ -109,11 +109,20 @@ function MaterialsContent() {
   const [fullMaterial, setFullMaterial] = useState(false);
   const [previewNonce, setPreviewNonce] = useState(0);
   const [deletingPromptId, setDeletingPromptId] = useState('');
+  // Delete is confirmed inline on the card instead of a browser dialog.
+  const [confirmingPromptId, setConfirmingPromptId] = useState('');
+
+  useEffect(() => {
+    if (!confirmingPromptId) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setConfirmingPromptId('');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [confirmingPromptId]);
 
   const handleDeletePrompt = async (prompt: CatalogPrompt) => {
-    if (deletingPromptId || !window.confirm(
-      `Xóa đề nguồn “${prompt.title}” khỏi kho?\nCác bài tập đã giao từ đề này vẫn được giữ nguyên.`
-    )) return;
+    if (deletingPromptId) return;
     setDeletingPromptId(prompt.id);
     try {
       await catalogApi.deletePrompt(prompt.id);
@@ -124,6 +133,7 @@ function MaterialsContent() {
       addToast(err instanceof AuthApiError ? err.message : 'Không xóa được đề nguồn. Hãy thử lại.', 'error');
     } finally {
       setDeletingPromptId('');
+      setConfirmingPromptId('');
     }
   };
 
@@ -535,7 +545,10 @@ function MaterialsContent() {
               return (
                 <div
                   key={key}
-                  onClick={() => setSelectedKey(key)}
+                  onClick={() => {
+                    setSelectedKey(key);
+                    if (confirmingPromptId !== item.data.id) setConfirmingPromptId('');
+                  }}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
                     isSelected
                       ? 'glass-card border-secondary shadow-md ring-2 ring-secondary/30 scale-[1.01]'
@@ -554,29 +567,66 @@ function MaterialsContent() {
                   <h3 className="font-headline-sm text-sm font-bold text-on-surface font-merriweather line-clamp-2">
                     {item.data.title}
                   </h3>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-on-surface-variant">
-                    <span>
+                  <div className="mt-3 min-h-8 flex items-center justify-between gap-2 text-[11px] text-on-surface-variant">
+                    <span className="min-w-0 truncate">
                       {item.kind === 'prompt'
                         ? `${item.data.genre} • Khối ${item.data.gradeLevel} • ${item.data.materialCount} ngữ liệu`
                         : item.kind === 'material'
                           ? `${item.data.author || 'Chưa có tác giả'} • Khối ${item.data.gradeLevel}`
                           : `Thang ${item.data.maxScore}đ • ${item.data.criteriaCount} tiêu chí`}
                     </span>
-                    {item.kind === 'prompt' && (
-                      <button
-                        type="button"
-                        aria-label={`Xóa đề nguồn ${item.data.title}`}
-                        disabled={Boolean(deletingPromptId)}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleDeletePrompt(item.data);
-                        }}
-                        className="inline-flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg text-error text-xs font-semibold hover:bg-error/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
-                        {deletingPromptId === item.data.id ? 'Đang xóa...' : 'Xóa'}
-                      </button>
-                    )}
+                    {item.kind === 'prompt' &&
+                      (confirmingPromptId === item.data.id ? (
+                        <div
+                          className="flex items-center gap-1 shrink-0 pl-2"
+                          onClick={(event) => event.stopPropagation()}
+                          title="Các bài tập đã giao từ đề này vẫn được giữ nguyên."
+                        >
+                          <span className="text-[11px] font-medium text-on-surface-variant mr-1">Xóa khỏi kho?</span>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingPromptId('')}
+                            disabled={deletingPromptId === item.data.id}
+                            className="h-7 px-2.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container active:scale-95 transition-all disabled:opacity-50"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="button"
+                            autoFocus
+                            aria-label={`Xác nhận xóa đề nguồn ${item.data.title}`}
+                            onClick={() => void handleDeletePrompt(item.data)}
+                            disabled={Boolean(deletingPromptId)}
+                            className="h-7 px-2.5 rounded-lg bg-error text-white text-xs font-semibold inline-flex items-center gap-1 shadow-sm hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 focus-visible:ring-offset-1 transition-all disabled:opacity-70 disabled:cursor-wait"
+                          >
+                            {deletingPromptId === item.data.id ? (
+                              <>
+                                <span className="w-3 h-3 border-2 border-white/90 border-t-transparent rounded-full animate-spin" />
+                                Đang xóa
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined text-[15px]" aria-hidden="true">delete</span>
+                                Xóa
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          aria-label={`Xóa đề nguồn ${item.data.title}`}
+                          title="Xóa đề nguồn"
+                          disabled={Boolean(deletingPromptId)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setConfirmingPromptId(item.data.id);
+                          }}
+                          className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-outline hover:text-error hover:bg-error/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                        </button>
+                      ))}
                   </div>
                 </div>
               );
