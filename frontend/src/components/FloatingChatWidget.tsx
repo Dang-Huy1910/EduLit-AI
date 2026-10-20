@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiSend } from '@/lib/api/http';
 import { suggestionsFor } from '@/features/chatbot/suggestions';
+import AssistantMark from './AssistantMark';
 
 interface QuickMessage {
   id: string;
@@ -287,7 +288,7 @@ export default function FloatingChatWidget() {
           >
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white ring-1 ring-white/20">
-                <span className="material-symbols-outlined text-lg">smart_toy</span>
+                <AssistantMark className="w-[18px] h-[18px]" />
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
@@ -336,7 +337,7 @@ export default function FloatingChatWidget() {
               >
                 {msg.sender === 'ai' && (
                   <div className="w-6 h-6 rounded-lg bg-secondary text-white flex items-center justify-center shrink-0 mt-0.5 text-[11px] shadow-2xs">
-                    <span className="material-symbols-outlined text-xs">smart_toy</span>
+                    <AssistantMark className="w-3.5 h-3.5" />
                   </div>
                 )}
                 <div
@@ -473,7 +474,7 @@ export default function FloatingChatWidget() {
             <span className="material-symbols-outlined text-2xl">close</span>
           ) : (
             <>
-              <span className="material-symbols-outlined text-2xl animate-in zoom-in-50">smart_toy</span>
+              <AssistantMark className="w-[26px] h-[26px] animate-in zoom-in-50" />
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white ring-1 ring-green-600 animate-pulse"></span>
             </>
           )}

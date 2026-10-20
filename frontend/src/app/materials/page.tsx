@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
@@ -41,6 +41,27 @@ type ListItem =
   | { kind: 'prompt'; data: CatalogPrompt }
   | { kind: 'material'; data: CatalogMaterial }
   | { kind: 'rubric'; data: CatalogRubric };
+
+const KIND_TABS: { value: ListKind; label: string }[] = [
+  { value: 'all', label: 'Tất cả' },
+  { value: 'prompt', label: 'Đề nguồn' },
+  { value: 'material', label: 'Ngữ liệu' },
+  { value: 'rubric', label: 'Barem' },
+];
+
+const KIND_META: Record<ListItem['kind'], { label: string; icon: string; tone: string }> = {
+  prompt: { label: 'Đề nguồn', icon: 'description', tone: 'text-secondary' },
+  material: { label: 'Ngữ liệu', icon: 'menu_book', tone: 'text-on-surface-variant' },
+  rubric: { label: 'Barem', icon: 'fact_check', tone: 'text-primary' },
+};
+
+const GROUP_HEADER_HEIGHT = 32;
+
+function itemMeta(item: ListItem) {
+  if (item.kind === 'prompt') return `${item.data.genre} · Khối ${item.data.gradeLevel} · ${item.data.materialCount} ngữ liệu`;
+  if (item.kind === 'material') return `${item.data.author || 'Chưa có tác giả'} · Khối ${item.data.gradeLevel}`;
+  return `Thang ${item.data.maxScore}đ · ${item.data.criteriaCount} tiêu chí`;
+}
 
 function MaterialsContent() {
   const searchParams = useSearchParams();
@@ -182,6 +203,27 @@ function MaterialsContent() {
     }
   }, [pickMode, classroomId, assignmentId, currentUser?.id]);
 
+  const matchesFilters = useCallback(
+    (item: ListItem) => {
+      const title = item.data.title.toLowerCase();
+      if (searchQuery && !title.includes(searchQuery.toLowerCase())) return false;
+      if (filterTopic !== 'all') {
+        const topicId = 'topicId' in item.data ? item.data.topicId : null;
+        if (topicId !== filterTopic) return false;
+      }
+      if (filterGrade !== 'all' && 'gradeLevel' in item.data && String(item.data.gradeLevel) !== filterGrade) {
+        return false;
+      }
+      if (filterGenre !== 'all' && 'genre' in item.data && item.data.genre !== filterGenre) return false;
+      if (filterStatus !== 'all') {
+        const status = item.kind === 'prompt' ? (item.data.ready ? 'READY' : 'INCOMPLETE') : item.data.status;
+        if (status !== filterStatus) return false;
+      }
+      return true;
+    },
+    [searchQuery, filterTopic, filterGrade, filterGenre, filterStatus]
+  );
+
   const items: ListItem[] = useMemo(() => {
     const kind = pickMode ? 'prompt' : filterKind;
     const list: ListItem[] = [];
@@ -204,25 +246,58 @@ function MaterialsContent() {
     }
     return list.filter((item) => {
       if (pickMode && `${item.kind}:${item.data.id}` === selectedKey) return true;
-      const title = item.data.title.toLowerCase();
-      if (searchQuery && !title.includes(searchQuery.toLowerCase())) return false;
-      if (filterTopic !== 'all') {
-        const topicId = 'topicId' in item.data ? item.data.topicId : null;
-        if (topicId !== filterTopic) return false;
-      }
-      if (filterGrade !== 'all' && 'gradeLevel' in item.data && String(item.data.gradeLevel) !== filterGrade) {
-        return false;
-      }
-      if (filterGenre !== 'all' && 'genre' in item.data && item.data.genre !== filterGenre) return false;
-      if (filterStatus !== 'all') {
-        const status = item.kind === 'prompt' ? (item.data.ready ? 'READY' : 'INCOMPLETE') : item.data.status;
-        if (status !== filterStatus) return false;
-      }
-      return true;
+      return matchesFilters(item);
     });
-  }, [prompts, materials, rubrics, filterKind, filterTopic, filterGrade, filterGenre, filterStatus, searchQuery, pickMode, selectedKey]);
+  }, [prompts, materials, rubrics, filterKind, matchesFilters, pickMode, selectedKey]);
+
+  const kindCounts = useMemo(() => {
+    const prompt = prompts.filter((data) => matchesFilters({ kind: 'prompt', data })).length;
+    const material = materials.filter((data) => matchesFilters({ kind: 'material', data })).length;
+    const rubric = rubrics.filter((data) => matchesFilters({ kind: 'rubric', data })).length;
+    return { all: prompt + material + rubric, prompt, material, rubric };
+  }, [prompts, materials, rubrics, matchesFilters]);
+
+  const hasActiveFilters =
+    Boolean(searchQuery) || filterTopic !== 'all' || filterGrade !== 'all' || filterGenre !== 'all' || filterStatus !== 'all';
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterTopic('all');
+    setFilterGrade('all');
+    setFilterGenre('all');
+    setFilterStatus('all');
+  };
+
+  // Group by kind only when every kind is listed; pick mode stays a flat list of prompts.
+  const showGroups = !pickMode && filterKind === 'all';
+  const groups = showGroups
+    ? (['prompt', 'material', 'rubric'] as const)
+        .map((kind) => ({ key: kind, label: KIND_META[kind].label, items: items.filter((item) => item.kind === kind) }))
+        .filter((group) => group.items.length > 0)
+    : [{ key: 'list', label: '', items }];
 
   const selected = items.find((item) => `${item.kind}:${item.data.id}` === selectedKey) || items[0];
+
+  const listRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  const selectItem = (key: string) => {
+    setSelectedKey(key);
+    // Below lg the preview sits under the list, so bring it into view.
+    if (window.matchMedia('(max-width: 1023px)').matches) {
+      window.requestAnimationFrame(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  };
+
+  // Keep the selected row visible inside the list (after an import or a ?select= link) without scrolling the page.
+  useEffect(() => {
+    const list = listRef.current;
+    const row = selected ? document.getElementById(`catalog-row-${selected.kind}-${selected.data.id}`) : null;
+    if (!list || !row) return;
+    const top = row.offsetTop - (showGroups ? GROUP_HEADER_HEIGHT : 0);
+    const bottom = row.offsetTop + row.offsetHeight;
+    if (top < list.scrollTop) list.scrollTop = top;
+    else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+  }, [selected?.kind, selected?.data.id, showGroups]);
 
   useEffect(() => {
     setPreviewPrompt(null);
@@ -441,34 +516,49 @@ function MaterialsContent() {
         </div>
       )}
 
-      <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
-          <div className="relative flex-1 max-w-xs">
+      <div className="space-y-3">
+        {!pickMode && (
+          <div className="flex gap-1 border-b border-outline-variant/40 overflow-x-auto" aria-label="Phân loại học liệu">
+            {KIND_TABS.map((tab) => {
+              const active = filterKind === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setFilterKind(tab.value)}
+                  className={`-mb-px px-3 py-2 border-b-2 text-sm whitespace-nowrap transition-colors ${
+                    active
+                      ? 'border-primary text-on-surface font-semibold'
+                      : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                  }`}
+                >
+                  {tab.label}{' '}
+                  <span className="text-xs font-normal tabular-nums text-on-surface-variant">{kindCounts[tab.value]}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-64">
+            <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+              search
+            </span>
             <input
-              type="text"
+              type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo tiêu đề..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary"
+              aria-label="Tìm theo tiêu đề"
+              className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-secondary"
             />
-            <span className="material-symbols-outlined absolute left-2.5 top-2 text-outline text-base">search</span>
           </div>
-          {!pickMode && (
-            <select
-              value={filterKind}
-              onChange={(e) => setFilterKind(e.target.value as ListKind)}
-              className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface"
-            >
-              <option value="all">Tất cả phân loại</option>
-              <option value="prompt">Đề nguồn</option>
-              <option value="material">Ngữ liệu</option>
-              <option value="rubric">Barem</option>
-            </select>
-          )}
           <select
             value={filterTopic}
             onChange={(e) => setFilterTopic(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface"
+            aria-label="Chuyên đề"
+            className="h-9 max-w-[14rem] px-2.5 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface"
           >
             <option value="all">Tất cả chuyên đề</option>
             {topics.map((topic) => (
@@ -480,7 +570,8 @@ function MaterialsContent() {
           <select
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface"
+            aria-label="Khối lớp"
+            className="h-9 px-2.5 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface"
           >
             <option value="all">Tất cả khối</option>
             <option value="10">Khối 10</option>
@@ -490,7 +581,8 @@ function MaterialsContent() {
           <select
             value={filterGenre}
             onChange={(e) => setFilterGenre(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface"
+            aria-label="Dạng bài"
+            className="h-9 px-2.5 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface"
           >
             <option value="all">Tất cả dạng bài</option>
             <option value="NLVH">NLVH</option>
@@ -499,17 +591,24 @@ function MaterialsContent() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface"
+            aria-label="Trạng thái"
+            className="h-9 px-2.5 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="READY">Sẵn sàng</option>
             <option value="INCOMPLETE">Chưa đủ dữ liệu</option>
             <option value="DRAFT">Bản nháp</option>
           </select>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="h-9 px-2 text-sm font-semibold text-secondary hover:underline"
+            >
+              Bỏ lọc
+            </button>
+          )}
         </div>
-        <span className="text-xs text-on-surface-variant">
-          Hiển thị <strong>{items.length}</strong> mục
-        </span>
       </div>
 
       {error && (
@@ -524,67 +623,101 @@ function MaterialsContent() {
       {loading ? (
         <div className="p-12 text-center text-sm text-on-surface-variant">Đang tải kho học liệu...</div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-5 space-y-3">
-            {items.map((item) => {
-              const key = `${item.kind}:${item.data.id}`;
-              const isSelected = selected && key === `${selected.kind}:${selected.data.id}`;
-              const purpose = item.kind === 'prompt' ? 'Đề nguồn' : item.kind === 'material' ? 'Ngữ liệu' : 'Barem';
-              const badge = statusBadge(item);
-              return (
-                <div
-                  key={key}
-                  onClick={() => setSelectedKey(key)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'glass-card border-secondary shadow-md ring-2 ring-secondary/30 scale-[1.01]'
-                      : 'glass-card border-outline-variant/30 hover:border-secondary/40 shadow-xs'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${purposeBadge(item.kind)}`}>
-                      {purpose}
-                    </span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${badge.className}`}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
-                      {badge.label}
-                    </span>
-                  </div>
-                  <h3 className="font-headline-sm text-sm font-bold text-on-surface font-merriweather line-clamp-2">
-                    {item.data.title}
-                  </h3>
-                  <div className="mt-3 min-h-8 flex items-center justify-between gap-2 text-[11px] text-on-surface-variant">
-                    <span className="min-w-0 truncate">
-                      {item.kind === 'prompt'
-                        ? `${item.data.genre} • Khối ${item.data.gradeLevel} • ${item.data.materialCount} ngữ liệu`
-                        : item.kind === 'material'
-                          ? `${item.data.author || 'Chưa có tác giả'} • Khối ${item.data.gradeLevel}`
-                          : `Thang ${item.data.maxScore}đ • ${item.data.criteriaCount} tiêu chí`}
-                    </span>
-                    {item.kind === 'prompt' && (
-                      <InlineDeleteButton
-                        label={`Xóa đề nguồn ${item.data.title}`}
-                        title="Xóa đề nguồn khỏi kho?"
-                        description="Các bài tập đã giao từ đề này vẫn được giữ nguyên."
-                        busy={deletingPromptId === item.data.id}
-                        disabled={Boolean(deletingPromptId)}
-                        onConfirm={() => handleDeletePrompt(item.data)}
-                      />
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 items-start">
+          {/* The list and the preview each scroll on their own and stay pinned under the header, so a large
+              catalog never makes the page itself long. */}
+          <section
+            aria-label="Danh sách học liệu"
+            className="flex flex-col rounded-xl border border-outline-variant/40 bg-surface-container-lowest overflow-hidden max-h-[60vh] lg:max-h-[calc(100dvh-6.5rem)] lg:sticky lg:top-20"
+          >
+            <div className="px-4 py-2.5 border-b border-outline-variant/30 text-xs text-on-surface-variant">
+              <strong className="font-semibold text-on-surface tabular-nums">{items.length}</strong> mục
+              {hasActiveFilters ? ' khớp bộ lọc' : ''}
+            </div>
+            <div ref={listRef} className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain">
+              {items.length === 0 ? (
+                <p className="p-8 text-center text-sm text-on-surface-variant">Chưa có mục phù hợp.</p>
+              ) : (
+                groups.map((group) => (
+                  <div key={group.key} role={showGroups ? 'group' : undefined} aria-label={showGroups ? group.label : undefined}>
+                    {showGroups && (
+                      <p className="sticky top-0 z-20 h-8 px-4 flex items-center gap-1.5 bg-surface-container-low border-b border-outline-variant/30 text-xs font-semibold text-on-surface-variant">
+                        {group.label}
+                        <span className="font-normal tabular-nums">{group.items.length}</span>
+                      </p>
                     )}
+                    <ul>
+                      {group.items.map((item) => {
+                        const key = `${item.kind}:${item.data.id}`;
+                        const isSelected = selected && key === `${selected.kind}:${selected.data.id}`;
+                        const kind = KIND_META[item.kind];
+                        const badge = statusBadge(item);
+                        const meta = itemMeta(item);
+                        return (
+                          <li
+                            key={key}
+                            id={`catalog-row-${item.kind}-${item.data.id}`}
+                            className={`relative flex items-start gap-3 px-4 py-3 border-b border-outline-variant/20 last:border-b-0 transition-colors ${
+                              isSelected ? 'bg-surface-container-low' : 'hover:bg-surface-container-low/60'
+                            }`}
+                          >
+                            {isSelected && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
+                            <span aria-hidden="true" className={`material-symbols-outlined text-[20px] mt-0.5 shrink-0 ${kind.tone}`}>
+                              {kind.icon}
+                            </span>
+                            {/* The button's ::after covers the row, so the whole row selects; actions sit above it. */}
+                            <button
+                              type="button"
+                              onClick={() => selectItem(key)}
+                              aria-current={isSelected ? 'true' : undefined}
+                              className="flex-1 min-w-0 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-secondary"
+                            >
+                              <span className="block text-sm font-semibold text-on-surface leading-snug line-clamp-2">
+                                {item.data.title}
+                              </span>
+                              <span className="mt-0.5 flex items-center gap-2 min-w-0 text-xs text-on-surface-variant">
+                                <span className="truncate">
+                                  {showGroups || item.kind === filterKind ? meta : `${kind.label} · ${meta}`}
+                                </span>
+                                {/* Narrow screens: status moves under the title so it does not squeeze it. */}
+                                <span className={`sm:hidden shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${badge.className}`}>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                  {badge.label}
+                                </span>
+                              </span>
+                            </button>
+                            <div className="relative z-10 flex items-center gap-1 shrink-0">
+                              <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${badge.className}`}>
+                                <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                                {badge.label}
+                              </span>
+                              {item.kind === 'prompt' && (
+                                <InlineDeleteButton
+                                  label={`Xóa đề nguồn ${item.data.title}`}
+                                  title="Xóa đề nguồn khỏi kho?"
+                                  description="Các bài tập đã giao từ đề này vẫn được giữ nguyên."
+                                  busy={deletingPromptId === item.data.id}
+                                  disabled={Boolean(deletingPromptId)}
+                                  onConfirm={() => handleDeletePrompt(item.data)}
+                                />
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                </div>
-              );
-            })}
-            {items.length === 0 && (
-              <div className="p-8 text-center text-sm text-on-surface-variant border border-dashed rounded-xl">
-                Chưa có mục phù hợp.
-              </div>
-            )}
-          </div>
+                ))
+              )}
+            </div>
+          </section>
 
-          <div className="lg:col-span-7">
+          <div
+            ref={previewRef}
+            className="scroll-mt-20 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto overscroll-contain rounded-xl"
+          >
             {selected ? (
-              <div className="glass-panel rounded-2xl p-6 sm:p-7 border border-white/60 shadow-sm space-y-5">
+              <div className="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-5 sm:p-6 space-y-5">
                 <div className="flex items-start justify-between gap-4 pb-4 border-b border-outline-variant/20">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -653,24 +786,24 @@ function MaterialsContent() {
                   <>
                     {selectedPrompt.writingTaskSummary && (
                       <div className="space-y-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-outline block">Tóm tắt yêu cầu</span>
+                        <span className="text-xs font-semibold text-on-surface-variant block">Tóm tắt yêu cầu</span>
                         <p className="text-sm leading-relaxed whitespace-pre-line">{selectedPrompt.writingTaskSummary}</p>
                       </div>
                     )}
                     <div className="space-y-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-outline block">Yêu cầu viết</span>
+                      <span className="text-xs font-semibold text-on-surface-variant block">Yêu cầu viết</span>
                       <p className="text-sm leading-relaxed whitespace-pre-line">
                         {selectedPrompt.writingTask || 'Chưa có yêu cầu viết.'}
                       </p>
                     </div>
                     {selectedPrompt.extraGuidance && (
                       <div className="space-y-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-outline block">Gợi ý / các ý còn lại</span>
+                        <span className="text-xs font-semibold text-on-surface-variant block">Gợi ý / các ý còn lại</span>
                         <p className="text-sm leading-relaxed whitespace-pre-line">{selectedPrompt.extraGuidance}</p>
                       </div>
                     )}
                     <div className="space-y-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-outline block">Ngữ liệu liên kết</span>
+                      <span className="text-xs font-semibold text-on-surface-variant block">Ngữ liệu liên kết</span>
                       {selectedPrompt.materials.map((material) => (
                         <div key={material.id} className="p-3 rounded-lg bg-surface-container-low/50 text-xs space-y-1">
                           <p className="font-semibold">{material.title}</p>
@@ -739,10 +872,6 @@ function MaterialsContent() {
 
                 {selected.kind === 'material' && selectedMaterial && previewReady && (
                   <>
-                    <p className="text-xs text-on-surface-variant">
-                      {selectedMaterial.author ? `${selectedMaterial.author} • ` : ''}
-                      {selectedMaterial.sourceInfo || 'Chưa có thông tin nguồn'}
-                    </p>
                     <div className="p-4 bg-surface-container-low/40 rounded-xl border-l-4 border-primary text-sm font-merriweather whitespace-pre-wrap">
                       {fullMaterial
                         ? selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.'

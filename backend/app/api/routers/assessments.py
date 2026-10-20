@@ -111,17 +111,17 @@ def _uuid_list(values: list[uuid.UUID] | None, csv: str | None) -> list[uuid.UUI
 async def competency_report(
     teacher: Annotated[User, Depends(get_teacher)],
     service: Annotated[ReportService, Depends(get_report_service)],
-    classroom_id: uuid.UUID | None = None,
+    classroom_id: Annotated[uuid.UUID | None, Query(alias="classroomId")] = None,
     assignment_ids: Annotated[list[uuid.UUID] | None, Query(alias="assignmentId")] = None,
     assignment_ids_csv: Annotated[str | None, Query(alias="assignmentIds")] = None,
-    student_id: uuid.UUID | None = None,
+    student_id: Annotated[uuid.UUID | None, Query(alias="studentId")] = None,
     date_from: Annotated[str | None, Query(alias="from")] = None,
     date_to: Annotated[str | None, Query(alias="to")] = None,
     mode: str | None = None,
     search: str = "",
     sort: str = "default",
     page: int = 1,
-    page_size: int = 20,
+    page_size: Annotated[int, Query(alias="pageSize", ge=1, le=100)] = 10,
 ) -> dict[str, Any]:
     try:
         return await service.competency_report(

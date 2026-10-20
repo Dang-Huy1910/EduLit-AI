@@ -13,7 +13,7 @@ import { FormulaNote, HeroScore, PipelineStrip, StatTile } from './StatsBlocks';
 import InsightPanel from './InsightPanel';
 import { AuthApiError } from '@/lib/auth-types';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export default function CompetencyReportView() {
   const router = useRouter();

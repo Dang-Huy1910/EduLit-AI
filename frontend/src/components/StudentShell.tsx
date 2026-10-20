@@ -9,6 +9,7 @@ import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 import EduLitMark from './EduLitMark';
+import AssistantMark from './AssistantMark';
 
 interface StudentShellProps {
   children: React.ReactNode;
@@ -42,7 +43,6 @@ export default function StudentShell({
     {
       label: 'Chatbot Trợ lý Socratic',
       href: '/chatbot',
-      icon: 'smart_toy',
       badge: 'GPT',
     },
     {
@@ -191,7 +191,11 @@ export default function StudentShell({
                     }`}
                   >
                     <div className="flex items-center gap-space-sm">
-                      <span className="material-symbols-outlined text-[20px] text-secondary">{item.icon}</span>
+                      {item.icon ? (
+                        <span className="material-symbols-outlined text-[20px] text-secondary">{item.icon}</span>
+                      ) : (
+                        <AssistantMark outline className="w-5 h-5 shrink-0 text-secondary" />
+                      )}
                       {!sidebarCollapsed && <span>{item.label}</span>}
                     </div>
                     {!sidebarCollapsed && item.badge && (
@@ -258,7 +262,7 @@ export default function StudentShell({
               href="/chatbot"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-secondary via-secondary-container to-primary text-white font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm"
             >
-              <span className="material-symbols-outlined text-[16px]">smart_toy</span>
+              <AssistantMark className="w-4 h-4 shrink-0" />
               <span>EduLit Chatbot AI</span>
               <span className="text-[10px] bg-white/20 px-1 py-0.2 rounded-full uppercase font-mono">GPT</span>
             </Link>

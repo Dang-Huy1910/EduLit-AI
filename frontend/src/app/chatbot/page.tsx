@@ -7,6 +7,7 @@ import { apiSend } from '@/lib/api/http';
 import { AuthApiError } from '@/lib/auth-types';
 import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
+import AssistantMark from '@/components/AssistantMark';
 import {
   MESSAGE_MAX_CHARS,
   appendMessage,
@@ -160,7 +161,7 @@ function Sources({ sources }: { sources?: ChatSource[] }) {
 function AssistantAvatar() {
   return (
     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-      <span className="material-symbols-outlined text-base">auto_awesome</span>
+      <AssistantMark className="w-[18px] h-[18px]" />
     </div>
   );
 }
@@ -477,7 +478,7 @@ export default function ChatbotPage() {
         <header className="px-4 sm:px-6 py-3.5 border-b border-outline-variant/20 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-sm shrink-0">
-              <span className="material-symbols-outlined text-xl">auto_awesome</span>
+              <AssistantMark className="w-[22px] h-[22px]" />
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
             <div className="min-w-0">
@@ -527,7 +528,7 @@ export default function ChatbotPage() {
               <div className="relative mb-5">
                 <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary to-primary blur-xl opacity-30" />
                 <div className="relative w-16 h-16 rounded-[22px] bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-lg">
-                  <span className="material-symbols-outlined text-3xl">auto_awesome</span>
+                  <AssistantMark className="w-8 h-8" />
                 </div>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold font-merriweather text-on-surface">Chào {greetingName}!</h2>
