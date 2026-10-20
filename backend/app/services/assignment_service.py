@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,7 +96,7 @@ class AssignmentService:
 
     async def _owned_assignment(self, teacher: User, assignment_id: uuid.UUID) -> Assignment:
         assignment = await self.session.get(Assignment, assignment_id)
-        if assignment is None or assignment.teacher_id != teacher.id:
+        if assignment is None or assignment.teacher_id != teacher.id or assignment.status == "DELETED":
             raise CatalogError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
         return assignment
 
@@ -129,7 +129,7 @@ class AssignmentService:
         _require_teacher(teacher)
         result = await self.session.execute(
             select(Assignment)
-            .where(Assignment.teacher_id == teacher.id)
+            .where(Assignment.teacher_id == teacher.id, Assignment.status != "DELETED")
             .order_by(Assignment.updated_at.desc())
         )
         rows = list(result.scalars().all())
@@ -155,6 +155,32 @@ class AssignmentService:
         _require_teacher(teacher)
         assignment = await self._owned_assignment(teacher, assignment_id)
         return await self._teacher_dict(assignment, full=True)
+
+    async def delete_assignment(self, teacher: User, assignment_id: uuid.UUID) -> None:
+        _require_teacher(teacher)
+        result = await self.session.execute(
+            select(Assignment)
+            .where(Assignment.id == assignment_id, Assignment.teacher_id == teacher.id)
+            .with_for_update()
+        )
+        assignment = result.scalar_one_or_none()
+        if assignment is None:
+            raise CatalogError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
+        now = utcnow()
+        assignment.status = "DELETED"
+        assignment.updated_at = now
+        revision_ids = select(AssignmentRevision.id).where(AssignmentRevision.assignment_id == assignment.id)
+        await self.session.execute(
+            update(AssignmentAccess)
+            .where(AssignmentAccess.assignment_revision_id.in_(revision_ids), AssignmentAccess.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )
+        await self.session.execute(
+            update(AssignmentRevision)
+            .where(AssignmentRevision.assignment_id == assignment.id)
+            .values(status="DELETED", updated_at=now)
+        )
+        await self.session.commit()
 
     async def create_draft(self, teacher: User, body: dict[str, Any]) -> dict[str, Any]:
         _require_teacher(teacher)
@@ -270,7 +296,7 @@ class AssignmentService:
             select(Assignment).where(Assignment.id == assignment_id).with_for_update()
         )
         assignment = result.scalar_one_or_none()
-        if assignment is None or assignment.teacher_id != teacher.id:
+        if assignment is None or assignment.teacher_id != teacher.id or assignment.status == "DELETED":
             raise CatalogError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
 
         if assignment.status == "PUBLISHED" and assignment.published_revision_id:
@@ -420,7 +446,7 @@ class AssignmentService:
         if student.role != UserRole.STUDENT:
             raise CatalogError(403, "STUDENT_REQUIRED", ERROR_MESSAGES["STUDENT_REQUIRED"])
         revision = await self._find_published_revision(assignment_key)
-        if revision is None:
+        if revision is None or revision.status != "PUBLISHED":
             raise CatalogError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
         access = await self.session.execute(
             select(AssignmentAccess).where(
@@ -431,8 +457,6 @@ class AssignmentService:
         )
         if access.scalar_one_or_none() is None:
             raise CatalogError(403, "ACCESS_DENIED", "Em chưa được giao bài tập này.")
-        if revision.status != "PUBLISHED":
-            raise CatalogError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
         return self._student_dict(revision, student_id=student.id, full=True)
 
     async def get_public_teacher_or_student(
@@ -443,7 +467,11 @@ class AssignmentService:
                 assignment_id = uuid.UUID(assignment_key)
             except ValueError:
                 result = await self.session.execute(
-                    select(Assignment).where(Assignment.code == assignment_key.upper(), Assignment.teacher_id == user.id)
+                    select(Assignment).where(
+                        Assignment.code == assignment_key.upper(),
+                        Assignment.teacher_id == user.id,
+                        Assignment.status != "DELETED",
+                    )
                 )
                 assignment = result.scalar_one_or_none()
                 if assignment is None:

@@ -582,7 +582,7 @@ class AssessmentService:
         if teacher.role != UserRole.TEACHER:
             raise SubmissionError(403, "TEACHER_REQUIRED", ERROR_MESSAGES["TEACHER_REQUIRED"])
         assignment = await self.session.get(Assignment, assignment_id)
-        if assignment is None or assignment.teacher_id != teacher.id:
+        if assignment is None or assignment.teacher_id != teacher.id or assignment.status == "DELETED":
             raise SubmissionError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
         if not assignment.published_revision_id:
             raise SubmissionError(404, "NOT_FOUND", "Bài tập chưa được giao.")

@@ -107,6 +107,24 @@ function MaterialsContent() {
   const [importError, setImportError] = useState('');
   const [fullMaterial, setFullMaterial] = useState(false);
   const [previewNonce, setPreviewNonce] = useState(0);
+  const [deletingPromptId, setDeletingPromptId] = useState('');
+
+  const handleDeletePrompt = async (prompt: CatalogPrompt) => {
+    if (deletingPromptId || !window.confirm(
+      `Xóa đề nguồn “${prompt.title}” khỏi kho?\nCác bài tập đã giao từ đề này vẫn được giữ nguyên.`
+    )) return;
+    setDeletingPromptId(prompt.id);
+    try {
+      await catalogApi.deletePrompt(prompt.id);
+      setPrompts((current) => current.filter((item) => item.id !== prompt.id));
+      setSelectedKey((current) => current === `prompt:${prompt.id}` ? '' : current);
+      addToast('Đã xóa đề nguồn.', 'success');
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không xóa được đề nguồn. Hãy thử lại.', 'error');
+    } finally {
+      setDeletingPromptId('');
+    }
+  };
 
   const load = async () => {
     if (!isTeacher) {
@@ -395,62 +413,7 @@ function MaterialsContent() {
               : 'Ngữ liệu, chuyên đề và đề nguồn lưu trên máy chủ. Làm mới trang vẫn giữ nguyên dữ liệu đã lưu.'}
           </p>
         </div>
-        {isTeacher && !pickMode && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => {
-                setImportFile(null);
-                setImportError('');
-                setImportIntent('MIXED');
-                setImportOpen(true);
-              }}
-              className="px-4 py-2 bg-primary-container text-on-primary-container font-semibold rounded-lg text-sm hover:brightness-95 flex items-center gap-2 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              {IMPORT_DOCUMENT_LABEL}
-            </button>
-            <button
-              onClick={() => {
-                setEditingId('');
-                setMaterialTitle('');
-                setMaterialAuthor('');
-                setMaterialSource('');
-                setMaterialContent('');
-                setMaterialTopicId('');
-                setMaterialGradeLevel(11);
-                setDrawer('material');
-              }}
-              className="px-4 py-2 bg-primary-container text-on-primary-container font-semibold rounded-lg text-sm hover:brightness-95 flex items-center gap-2 shadow-sm"
-            >
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              Thêm ngữ liệu
-            </button>
-            <button
-              onClick={() => openPromptForm()}
-              className="px-4 py-2 border border-outline-variant/60 bg-surface-container-lowest font-semibold rounded-lg text-sm hover:bg-surface-container flex items-center gap-2"
-            >
-              Thêm đề nguồn
-            </button>
-            <button
-              onClick={() => {
-                setTopicTitle('');
-                setTopicGradeLevel(11);
-                setTopicGenre('NLXH');
-                setDrawer('topic');
-              }}
-              className="px-4 py-2 border border-outline-variant/60 bg-surface-container-lowest font-semibold rounded-lg text-sm hover:bg-surface-container flex items-center gap-2"
-            >
-              Thêm chuyên đề
-            </button>
-            <button
-              onClick={() => setDrawer('rubric')}
-              className="px-4 py-2 border border-outline-variant/60 bg-surface-container-lowest font-semibold rounded-lg text-sm hover:bg-surface-container flex items-center gap-2"
-            >
-              Nhập barem JSON
-            </button>
-          </div>
-        )}
-        {isTeacher && pickMode && (
+        {isTeacher && (
           <button
             onClick={() => {
               setImportFile(null);
@@ -574,8 +537,8 @@ function MaterialsContent() {
                   onClick={() => setSelectedKey(key)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
                     isSelected
-                      ? 'bg-surface-container-lowest border-secondary shadow-md ring-1 ring-secondary'
-                      : 'bg-surface-container-lowest border-outline-variant/30 hover:border-outline-variant/70 shadow-sm'
+                      ? 'glass-card border-secondary shadow-md ring-2 ring-secondary/30 scale-[1.01]'
+                      : 'glass-card border-outline-variant/30 hover:border-secondary/40 shadow-xs'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -598,13 +561,21 @@ function MaterialsContent() {
                           ? `${item.data.author || 'Chưa có tác giả'} • Khối ${item.data.gradeLevel}`
                           : `Thang ${item.data.maxScore}đ • ${item.data.criteriaCount} tiêu chí`}
                     </span>
-                    <span>
-                      {item.data.updatedAt
-                        ? new Date(item.data.updatedAt).toLocaleDateString('vi-VN')
-                        : item.kind === 'material'
-                          ? `Phiên bản ${item.data.version}`
-                          : ''}
-                    </span>
+                    {item.kind === 'prompt' && (
+                      <button
+                        type="button"
+                        aria-label={`Xóa đề nguồn ${item.data.title}`}
+                        disabled={Boolean(deletingPromptId)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleDeletePrompt(item.data);
+                        }}
+                        className="inline-flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg text-error text-xs font-semibold hover:bg-error/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+                        {deletingPromptId === item.data.id ? 'Đang xóa...' : 'Xóa'}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -618,7 +589,7 @@ function MaterialsContent() {
 
           <div className="lg:col-span-7">
             {selected ? (
-              <div className="bg-surface-container-lowest rounded-xl p-6 border border-outline-variant/30 shadow-sm space-y-5">
+              <div className="glass-panel rounded-2xl p-6 sm:p-7 border border-white/60 shadow-sm space-y-5">
                 <div className="flex items-start justify-between gap-4 pb-4 border-b border-outline-variant/20">
                   <div>
                     <div className="flex items-center gap-2 mb-1">

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
-import { beginNewAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
+import { beginNewAssignmentDraft, clearAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
 import type { ClassroomSummary, TeacherAssignment } from '@/features/catalog/types';
 
 export default function TeacherAssignmentsView() {
@@ -17,6 +17,8 @@ export default function TeacherAssignmentsView() {
   const [activeFilter, setActiveFilter] = useState<'all' | 'PUBLISHED' | 'DRAFT'>('all');
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState('');
+  const [deletingId, setDeletingId] = useState('');
+  const deletedIds = useRef(new Set<string>());
 
   useEffect(() => {
     void (async () => {
@@ -25,7 +27,7 @@ export default function TeacherAssignmentsView() {
           catalogApi.listTeacherAssignments(),
           catalogApi.listClassrooms(),
         ]);
-        setAssignments(assignmentRes.items);
+        setAssignments(assignmentRes.items.filter((item) => !deletedIds.current.has(item.id)));
         setClassrooms(classroomRes.items);
         if (classroomRes.items[0]) setClassroomId(classroomRes.items[0].id);
       } catch (err) {
@@ -42,7 +44,9 @@ export default function TeacherAssignmentsView() {
   useEffect(() => {
     if (!hasActivePrep) return;
     const timer = window.setInterval(() => {
-      void catalogApi.listTeacherAssignments().then((res) => setAssignments(res.items)).catch(() => undefined);
+      void catalogApi.listTeacherAssignments()
+        .then((res) => setAssignments(res.items.filter((item) => !deletedIds.current.has(item.id))))
+        .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
   }, [hasActivePrep]);
@@ -56,6 +60,24 @@ export default function TeacherAssignmentsView() {
   const publishedCount = assignments.filter((item) => item.status === 'PUBLISHED').length;
   const draftCount = assignments.filter((item) => item.status === 'DRAFT').length;
   const createHref = pickPromptHref({ classroomId });
+
+  const handleDeleteAssignment = async (assignment: TeacherAssignment) => {
+    if (deletingId || !window.confirm(
+      `Xóa bài tập “${assignment.title}”?\nBài tập sẽ được gỡ khỏi danh sách và học sinh không thể tiếp tục truy cập.`
+    )) return;
+    setDeletingId(assignment.id);
+    try {
+      await catalogApi.deleteAssignment(assignment.id);
+      deletedIds.current.add(assignment.id);
+      setAssignments((current) => current.filter((item) => item.id !== assignment.id));
+      clearAssignmentDraft({ userId: currentUser?.id, assignmentId: assignment.id });
+      addToast('Đã xóa bài tập.', 'success');
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không xóa được bài tập. Hãy thử lại.', 'error');
+    } finally {
+      setDeletingId('');
+    }
+  };
 
   const handleRetryOutlinePreps = async (assignmentId: string) => {
     setRetryingId(assignmentId);
@@ -107,36 +129,76 @@ export default function TeacherAssignmentsView() {
           </div>
         </div>
 
+        {/* Class Selector & Metric Banner */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-surface-container-lowest rounded-xl border">
-            <span className="text-xs text-on-surface-variant font-medium">Lớp phụ trách</span>
-            <select
-              value={classroomId}
-              onChange={(e) => {
-                setClassroomId(e.target.value);
-                beginNewAssignmentDraft({ classroomId: e.target.value }, { userId: currentUser?.id });
-              }}
-              className="mt-1 w-full text-sm font-bold bg-transparent"
-            >
-              {classrooms.map((classroom) => (
-                <option key={classroom.id} value={classroom.id}>
-                  {classroom.name}
-                </option>
-              ))}
-            </select>
-            <span className="text-[11px] text-secondary font-semibold">
-              {selectedClassroom
-                ? `${selectedClassroom.studentCount} học sinh • ${selectedClassroom.academicYear}`
-                : 'Chưa có lớp'}
+          <div className="glass-card p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between">
+            <div className="flex-1 mr-2">
+              <span className="text-xs text-on-surface-variant font-medium block">Lớp phụ trách</span>
+              <select
+                value={classroomId}
+                onChange={(e) => {
+                  setClassroomId(e.target.value);
+                  beginNewAssignmentDraft({ classroomId: e.target.value }, { userId: currentUser?.id });
+                }}
+                className="mt-0.5 w-full text-base font-bold bg-transparent text-on-surface font-merriweather focus:outline-none cursor-pointer"
+              >
+                {classrooms.map((classroom) => (
+                  <option key={classroom.id} value={classroom.id}>
+                    {classroom.name} • THPT Đan Phượng
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-secondary font-semibold block mt-0.5">
+                {selectedClassroom
+                  ? `${selectedClassroom.studentCount} học sinh • ${selectedClassroom.academicYear || '2025 - 2026'}`
+                  : 'Chưa có lớp'}
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-primary-container/30 text-primary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined">school</span>
+            </div>
+          </div>
+
+          <div className="glass-card p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-on-surface-variant font-medium block">Trạng thái bài tập</span>
+              <div className="text-xl font-bold text-on-surface font-merriweather mt-0.5">
+                {publishedCount} bài đã giao
+              </div>
+              <span className="text-[11px] text-tertiary font-semibold block mt-0.5">
+                {draftCount > 0 ? `${draftCount} bài đang soạn bản nháp` : 'Đã phát hành tới học sinh'}
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-tertiary-container/30 text-tertiary flex items-center justify-center font-bold text-xs shrink-0">
+              <span className="material-symbols-outlined">task_alt</span>
+            </div>
+          </div>
+
+          <div className="glass-card p-4 rounded-xl border border-outline-variant/30 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-on-surface-variant font-medium block">Tiến độ chấm Rubric AI</span>
+              <div className="text-xl font-bold text-primary font-merriweather mt-0.5">
+                Barem GDPT 2018
+              </div>
+              <span className="text-[11px] text-[#CA8A04] font-semibold block mt-0.5">
+                Thang 4,0đ • 4 tiêu chí chuẩn
+              </span>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-secondary-fixed/50 text-secondary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined">auto_awesome</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pedagogical Guideline Callout */}
+        <div className="p-4 bg-surface-container-low/70 border border-secondary/20 rounded-xl flex items-start gap-3 text-xs leading-relaxed">
+          <span className="material-symbols-outlined text-secondary text-xl mt-0.5 shrink-0">lightbulb</span>
+          <div className="text-on-surface">
+            <span className="font-semibold text-secondary">Nguyên tắc triển khai sư phạm GDPT 2018:</span>
+            <span className="text-on-surface-variant ml-1">
+              Mỗi bài viết cần gắn với ít nhất <strong>01 học liệu chuẩn</strong> và <strong>Barem Rubric đã xác nhận</strong>.
+              Trợ lý Socratic đồng hành gợi mở câu hỏi để học sinh tự lập dàn ý cá nhân mà không viết thay.
             </span>
-          </div>
-          <div className="p-4 bg-surface-container-lowest rounded-xl border">
-            <span className="text-xs text-on-surface-variant">Đã giao</span>
-            <div className="text-base font-bold">{publishedCount} bài</div>
-          </div>
-          <div className="p-4 bg-surface-container-lowest rounded-xl border">
-            <span className="text-xs text-on-surface-variant">Bản nháp</span>
-            <div className="text-base font-bold">{draftCount} bài</div>
           </div>
         </div>
 
@@ -145,28 +207,36 @@ export default function TeacherAssignmentsView() {
             <button
               key={filter}
               onClick={() => setActiveFilter(filter)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeFilter === filter
-                  ? 'bg-primary-container text-on-primary-container'
-                  : 'bg-surface-container-lowest border border-outline-variant/40'
+                  ? 'bg-primary text-white shadow-sm ring-2 ring-primary/20'
+                  : 'bg-surface-container-lowest text-on-surface-variant border border-outline-variant/40 hover:bg-surface-container'
               }`}
             >
-              {filter === 'all' ? `Tất cả (${assignments.length})` : filter === 'PUBLISHED' ? `Đã giao (${publishedCount})` : `Bản nháp (${draftCount})`}
+              {filter === 'all'
+                ? `Tất cả (${assignments.length})`
+                : filter === 'PUBLISHED'
+                ? `Đã giao (${publishedCount})`
+                : `Bản nháp (${draftCount})`}
             </button>
           ))}
         </div>
 
         {loading ? (
-          <div className="p-12 text-center text-sm text-on-surface-variant">Đang tải bài tập...</div>
+          <div className="p-16 text-center text-sm text-on-surface-variant flex flex-col items-center justify-center gap-3">
+            <span className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></span>
+            <span>Đang tải danh sách bài tập...</span>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-surface-container-lowest rounded-xl p-12 text-center border max-w-md mx-auto">
-            <h3 className="text-base font-bold mb-1">Lớp này chưa có bài tập nào</h3>
-            <p className="text-xs text-on-surface-variant mb-6">
-              Chọn đề nguồn từ kho, rồi chọn barem, người nhận và hạn nộp.
+          <div className="glass-panel rounded-2xl p-12 text-center border max-w-md mx-auto space-y-3">
+            <span className="material-symbols-outlined text-4xl text-outline">assignment_late</span>
+            <h3 className="text-base font-bold font-merriweather">Lớp này chưa có bài tập nào</h3>
+            <p className="text-xs text-on-surface-variant">
+              Chọn đề nguồn từ kho, rồi cấu hình barem, học sinh nhận bài và hạn nộp.
             </p>
             <Link
               href={createHref}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary-container text-on-primary-container rounded-lg text-xs font-semibold"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-semibold shadow-sm hover:bg-primary/90 transition-all"
             >
               Tạo bài tập đầu tiên
             </Link>
@@ -174,81 +244,162 @@ export default function TeacherAssignmentsView() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {filtered.map((assignment) => (
-              <div key={assignment.id} className="bg-surface-container-lowest rounded-xl p-5 border flex flex-col justify-between">
+              <div
+                key={assignment.id}
+                className="glass-card rounded-2xl p-5 sm:p-6 border border-outline-variant/30 flex flex-col justify-between space-y-4"
+              >
                 <div>
-                  <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
                     <span
-                      className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
                         assignment.status === 'PUBLISHED'
                           ? 'bg-tertiary-container/30 text-tertiary'
                           : 'bg-surface-container-high text-on-surface-variant'
                       }`}
                     >
-                      {assignment.status === 'PUBLISHED' ? 'Đã giao' : 'Bản nháp'}
+                      {assignment.status === 'PUBLISHED' ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                          Đã giao
+                        </>
+                      ) : (
+                        'Bản nháp'
+                      )}
                     </span>
-                    <span className="text-[11px] text-on-surface-variant">
-                      {assignment.dueAt ? `Hạn: ${new Date(assignment.dueAt).toLocaleString('vi-VN')}` : 'Chưa đặt hạn'}
-                    </span>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span className="text-[11px] text-on-surface-variant font-mono">
+                        {assignment.dueAt ? `Hạn: ${new Date(assignment.dueAt).toLocaleString('vi-VN')}` : 'Chưa đặt hạn'}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Xóa bài tập ${assignment.title}`}
+                        disabled={Boolean(deletingId)}
+                        onClick={() => void handleDeleteAssignment(assignment)}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-error text-xs font-semibold hover:bg-error/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
+                        {deletingId === assignment.id ? 'Đang xóa...' : 'Xóa'}
+                      </button>
+                    </div>
                   </div>
-                  <h3 className="font-headline-sm text-base font-bold font-merriweather mb-1">{assignment.title}</h3>
-                  <p className="text-xs text-on-surface-variant line-clamp-2 mb-4">
-                    {assignment.sourcePromptTitle || assignment.extraInstructions}
+
+                  <h3 className="font-headline-sm text-base font-bold font-merriweather text-on-surface mb-1.5 leading-snug">
+                    {assignment.title}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant line-clamp-2 mb-3 leading-relaxed">
+                    {assignment.sourcePromptTitle || assignment.extraInstructions || 'Đề bài chưa có mô tả chi tiết.'}
                   </p>
+
                   {assignment.status === 'PUBLISHED' && assignment.outlinePrep && assignment.outlinePrep.total > 0 && (
-                    <div className="mb-3 p-2.5 rounded-lg bg-secondary/5 border border-secondary/15 text-xs">
-                      <p className="font-semibold text-on-surface">
-                        Dàn ý sẵn sàng {assignment.outlinePrep.ready}/{assignment.outlinePrep.total} học sinh
-                      </p>
+                    <div className="mb-3 p-2.5 rounded-xl bg-secondary/5 border border-secondary/15 text-xs space-y-1">
+                      <div className="flex items-center justify-between font-semibold text-on-surface">
+                        <span className="flex items-center gap-1 text-secondary">
+                          <span className="material-symbols-outlined text-[15px]">psychology</span>
+                          Dàn ý Socratic sẵn sàng:
+                        </span>
+                        <span className="font-mono text-secondary">
+                          {assignment.outlinePrep.ready}/{assignment.outlinePrep.total} học sinh
+                        </span>
+                      </div>
                       {assignment.outlinePrep.failed > 0 && (
-                        <p className="text-error mt-0.5">{assignment.outlinePrep.failed} trường hợp thất bại</p>
+                        <p className="text-error text-[11px]">{assignment.outlinePrep.failed} trường hợp lỗi khởi tạo</p>
                       )}
                       {(assignment.outlinePrep.needsClarification ?? 0) > 0 && (
-                        <p className="text-amber-800 dark:text-amber-400 mt-0.5">
+                        <p className="text-amber-800 dark:text-amber-400 text-[11px]">
                           {assignment.outlinePrep.needsClarification} trường hợp cần làm rõ đề hoặc ngữ liệu
                         </p>
                       )}
                       {assignment.outlinePrep.queued + assignment.outlinePrep.processing > 0 && (
-                        <p className="text-on-surface-variant mt-0.5">
-                          Đang soạn {assignment.outlinePrep.queued + assignment.outlinePrep.processing} dàn ý
+                        <p className="text-on-surface-variant text-[11px] flex items-center gap-1">
+                          <span className="w-2.5 h-2.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
+                          Đang soạn {assignment.outlinePrep.queued + assignment.outlinePrep.processing} dàn ý...
                         </p>
                       )}
                     </div>
                   )}
+
                   {assignment.status === 'PUBLISHED' && assignment.submissionProgress ? (
-                    <div className="mb-3 p-2.5 rounded-lg bg-surface-container-low/50 border border-outline-variant/20 text-xs">
-                      <p className="font-semibold text-on-surface">
-                        Đã nộp {assignment.submissionProgress.officialSubmitted}/{assignment.submissionProgress.assigned}
-                        {' · '}Chờ rà soát {assignment.submissionProgress.awaitingReview}
-                        {' · '}Đã công bố {assignment.submissionProgress.published}
-                      </p>
+                    <div className="mb-3 p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/20 text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-semibold text-on-surface">Tiến độ nộp bài:</span>
+                        <span className="font-mono font-bold text-primary">
+                          {assignment.submissionProgress.officialSubmitted}/{assignment.submissionProgress.assigned} HS
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{
+                            width: `${
+                              assignment.submissionProgress.assigned > 0
+                                ? (assignment.submissionProgress.officialSubmitted / assignment.submissionProgress.assigned) * 100
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-on-surface-variant mt-1.5">
+                        <span>Chờ rà soát: {assignment.submissionProgress.awaitingReview}</span>
+                        <span>Đã công bố: {assignment.submissionProgress.published}</span>
+                      </div>
                     </div>
                   ) : null}
-                  <div className="grid grid-cols-3 gap-2 text-xs p-2.5 bg-surface-container-low/40 rounded-lg">
+
+                  <div className="grid grid-cols-3 gap-2 text-xs p-2.5 bg-surface-container-low/40 rounded-xl border border-outline-variant/20">
                     <div>
-                      <span className="text-[10px] text-outline block">Mã truy cập</span>
+                      <span className="text-[10px] text-outline block">Mã đề thi</span>
                       <span className="font-mono font-semibold text-secondary">{assignment.code}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-outline block">Lớp</span>
-                      <span className="font-semibold">{assignment.classroomCode || '—'}</span>
+                      <span className="font-semibold">{assignment.classroomCode || '11A14'}</span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-outline block">Người nhận</span>
-                      <span className="font-semibold">{assignment.recipientCount}</span>
+                      <span className="text-[10px] text-outline block">Học sinh</span>
+                      <span className="font-semibold">{assignment.recipientCount || 'Toàn lớp'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="pt-3 border-t mt-4 flex items-center justify-between gap-2">
-                  <Link
-                    href={
-                      assignment.status === 'DRAFT'
-                        ? `/assignments/${assignment.id}`
-                        : `/assignments/${assignment.id}?tab=details`
-                    }
-                    className="px-3 py-1.5 rounded-lg bg-primary-container text-on-primary-container text-xs font-semibold"
-                  >
-                    {assignment.status === 'DRAFT' ? 'Tiếp tục soạn đề' : 'Chi tiết bài tập'}
-                  </Link>
+
+                <div className="pt-3 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    {assignment.status === 'PUBLISHED' ? (
+                      <>
+                        <Link
+                          href={`/assignments/${assignment.id}?tab=submissions`}
+                          className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-xs flex items-center gap-1 active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">assignment_turned_in</span>
+                          <span>Chấm bài</span>
+                        </Link>
+                        <Link
+                          href={`/assignments/${assignment.id}?tab=statistics`}
+                          className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition-all border border-outline-variant/40 flex items-center gap-1"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">bar_chart</span>
+                          <span>Thống kê</span>
+                        </Link>
+                      </>
+                    ) : (
+                      <Link
+                        href={`/assignments/${assignment.id}`}
+                        className="px-3.5 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-xs"
+                      >
+                        Tiếp tục soạn đề
+                      </Link>
+                    )}
+                  </div>
+
+                  {assignment.status === 'PUBLISHED' && (
+                    <Link
+                      href={`/assignments/${assignment.id}?tab=details`}
+                      className="text-[11px] font-semibold text-secondary hover:underline flex items-center gap-0.5"
+                    >
+                      <span>Xem cấu hình &amp; Barem</span>
+                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    </Link>
+                  )}
+
                   {assignment.status === 'PUBLISHED' &&
                     ((assignment.outlinePrep?.failed ?? 0) > 0 ||
                       (assignment.outlinePrep?.needsClarification ?? 0) > 0) && (
@@ -256,9 +407,9 @@ export default function TeacherAssignmentsView() {
                       type="button"
                       onClick={() => void handleRetryOutlinePreps(assignment.id)}
                       disabled={retryingId === assignment.id}
-                      className="px-3 py-1.5 rounded-lg border border-error/30 text-error text-xs font-semibold disabled:opacity-50"
+                      className="px-3 py-1 rounded-lg border border-error/30 text-error text-xs font-semibold hover:bg-error/5 transition-all disabled:opacity-50"
                     >
-                      {retryingId === assignment.id ? 'Đang thử lại...' : 'Thử lại dàn ý lỗi / cần làm rõ'}
+                      {retryingId === assignment.id ? 'Đang thử lại...' : 'Thử lại dàn ý lỗi'}
                     </button>
                   )}
                 </div>
@@ -270,3 +421,4 @@ export default function TeacherAssignmentsView() {
     </TeacherShell>
   );
 }
+

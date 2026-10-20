@@ -54,13 +54,18 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-6 sm:p-8 border border-white/30 text-on-surface">
-        <div className="mb-5">
+      <div className="glass-panel rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] p-6 sm:p-8 border border-white/60 text-on-surface">
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary-fixed/50 border border-secondary/20 px-2.5 py-0.5 rounded-full">
+              Cổng xác thực GDPT 2018
+            </span>
+          </div>
           <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight font-merriweather text-slate-900">
-            CHÀO MỪNG <span className="text-error font-extrabold">TRỞ LẠI</span>
+            CHÀO MỪNG <span className="text-primary font-extrabold">TRỞ LẠI</span>
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Học sinh tự đăng ký. Giáo viên dùng tài khoản được cấp sẵn.
+            Đăng nhập để vào không gian học tập và giảng dạy Ngữ văn.
           </p>
         </div>
 
@@ -81,15 +86,15 @@ export default function LoginPage() {
               value={loginId}
               onChange={(e) => setLoginId(e.target.value)}
               autoComplete="username"
-              placeholder="dang.loan hoặc email nhà trường"
-              className="w-full px-3 py-2.5 rounded-lg border border-yellow-200 bg-amber-50/50 text-slate-900 text-xs font-medium focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
+              placeholder="Tên đăng nhập hoặc email trường cấp"
+              className="w-full px-3 py-2.5 rounded-lg border border-outline-variant/60 bg-white/90 text-slate-900 text-xs font-medium focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/30 transition-all shadow-2xs"
             />
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
               <span className="font-semibold text-slate-800">Mật khẩu</span>
-              <Link href="/forgot-password" className="text-secondary hover:underline text-[11px]">
+              <Link href="/forgot-password" className="text-secondary hover:underline text-[11px] font-medium">
                 Quên mật khẩu?
               </Link>
             </div>
@@ -99,6 +104,7 @@ export default function LoginPage() {
               value={password}
               onChange={setPassword}
               autoComplete="current-password"
+              placeholder="Nhập mật khẩu..."
             />
           </div>
 
@@ -118,7 +124,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 rounded-lg bg-secondary text-white font-bold text-xs hover:bg-secondary/90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+            className="w-full py-2.5 px-4 rounded-lg bg-secondary text-white font-bold text-xs hover:bg-secondary/90 hover:shadow-lg active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
           >
             {loading ? (
               <>
@@ -126,19 +132,24 @@ export default function LoginPage() {
                 <span>Đang xác thực...</span>
               </>
             ) : (
-              <span>Đăng nhập hệ thống</span>
+              <>
+                <span>Đăng nhập hệ thống</span>
+                <span className="material-symbols-outlined text-base">arrow_forward</span>
+              </>
             )}
           </button>
         </form>
 
-        <div className="mt-5 pt-3 border-t border-slate-100 text-[11px] text-slate-600 space-y-2">
-          <p>
-            Học sinh chưa có tài khoản?{' '}
-            <Link href="/register" className="text-secondary font-semibold hover:underline">
-              Đăng ký
+        <div className="mt-6 pt-4 border-t border-slate-200/60 text-[11px] text-slate-600 space-y-2">
+          <div className="flex items-center justify-between">
+            <span>Chưa có tài khoản học sinh?</span>
+            <Link href="/register" className="text-secondary font-bold hover:underline">
+              Đăng ký ngay &rarr;
             </Link>
+          </div>
+          <p className="text-slate-500">
+            Giáo viên không cần đăng ký — sử dụng tài khoản được nhà trường phân quyền.
           </p>
-          <p>Giáo viên không đăng ký công khai — dùng tài khoản được nhà trường cấp.</p>
         </div>
       </div>
     </AuthLayout>

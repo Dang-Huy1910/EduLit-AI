@@ -8,6 +8,7 @@ interface PasswordFieldProps {
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  placeholder?: string;
   error?: string;
   describedBy?: string;
 }
@@ -18,6 +19,7 @@ export default function PasswordField({
   value,
   onChange,
   autoComplete = 'current-password',
+  placeholder = 'Nhập mật khẩu...',
   error,
   describedBy,
 }: PasswordFieldProps) {
@@ -41,9 +43,10 @@ export default function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete={autoComplete}
+          placeholder={placeholder}
           aria-invalid={Boolean(error)}
           aria-describedby={[errorId, describedBy].filter(Boolean).join(' ') || undefined}
-          className="w-full px-3 py-2.5 pr-9 rounded-lg border border-yellow-200 bg-amber-50/50 text-slate-900 text-xs font-medium focus:outline-none focus:border-secondary focus:ring-1 focus:ring-secondary transition-all"
+          className="w-full px-3 py-2.5 pr-9 rounded-lg border border-outline-variant/60 bg-white/90 text-slate-900 text-xs font-medium focus:outline-none focus:border-secondary focus:ring-2 focus:ring-secondary/30 transition-all shadow-2xs"
         />
         <button
           type="button"

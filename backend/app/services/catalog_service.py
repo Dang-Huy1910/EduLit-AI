@@ -164,14 +164,19 @@ class CatalogService:
             raise CatalogError(404, "NOT_FOUND", "Không tìm thấy ngữ liệu.")
         return material
 
-    async def _owned_prompt(self, teacher: User, prompt_id: uuid.UUID) -> SourcePrompt:
-        result = await self.session.execute(
+    async def _owned_prompt(
+        self, teacher: User, prompt_id: uuid.UUID, *, for_update: bool = False
+    ) -> SourcePrompt:
+        stmt = (
             select(SourcePrompt)
             .options(selectinload(SourcePrompt.links))
             .where(SourcePrompt.id == prompt_id)
         )
+        if for_update:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        result = await self.session.execute(stmt)
         prompt = result.scalar_one_or_none()
-        if prompt is None or prompt.owner_teacher_id != teacher.id:
+        if prompt is None or prompt.owner_teacher_id != teacher.id or prompt.status == "DELETED":
             raise CatalogError(404, "NOT_FOUND", "Không tìm thấy đề nguồn.")
         return prompt
 
@@ -488,7 +493,7 @@ class CatalogService:
         stmt = (
             select(SourcePrompt)
             .options(selectinload(SourcePrompt.links))
-            .where(SourcePrompt.owner_teacher_id == teacher.id)
+            .where(SourcePrompt.owner_teacher_id == teacher.id, SourcePrompt.status != "DELETED")
         )
         if topic_id:
             stmt = stmt.where(SourcePrompt.topic_id == topic_id)
@@ -514,6 +519,21 @@ class CatalogService:
         _require_teacher(teacher)
         prompt = await self._owned_prompt(teacher, prompt_id)
         return await self._prompt_dict(prompt, full=True)
+
+    async def delete_prompt(self, teacher: User, prompt_id: uuid.UUID) -> None:
+        _require_teacher(teacher)
+        result = await self.session.execute(
+            select(SourcePrompt)
+            .where(SourcePrompt.id == prompt_id, SourcePrompt.owner_teacher_id == teacher.id)
+            .with_for_update()
+        )
+        prompt = result.scalar_one_or_none()
+        if prompt is None:
+            raise CatalogError(404, "NOT_FOUND", "Không tìm thấy đề nguồn.")
+        # Keep references and published snapshots intact when removing a reusable source.
+        prompt.status = "DELETED"
+        prompt.updated_at = _now()
+        await self.session.commit()
 
     async def create_prompt(
         self, teacher: User, body: dict[str, Any], *, commit: bool = True
@@ -552,7 +572,7 @@ class CatalogService:
         self, teacher: User, prompt_id: uuid.UUID, body: dict[str, Any]
     ) -> dict[str, Any]:
         _require_teacher(teacher)
-        prompt = await self._owned_prompt(teacher, prompt_id)
+        prompt = await self._owned_prompt(teacher, prompt_id, for_update=True)
         if "title" in body:
             prompt.title = _text(body.get("title"), "title")
         if "writingTask" in body:
@@ -741,6 +761,8 @@ class CatalogService:
     async def _prompt_dict(self, prompt: SourcePrompt, *, full: bool = False) -> dict[str, Any]:
         ready_count = await self._ready_material_count(prompt)
         status, missing = prompt_readiness(prompt.writing_task, ready_count)
+        if prompt.status == "DELETED":
+            status = "DELETED"
         materials = []
         for link in await self._prompt_links(prompt.id):
             material = await self.session.get(Material, link.material_id)

@@ -28,6 +28,7 @@ export const catalogApi = {
   createPrompt: (body: unknown) => apiSend<CatalogPrompt>('/api/teacher/prompts', 'POST', body),
   updatePrompt: (id: string, body: unknown) =>
     apiSend<CatalogPrompt>(`/api/teacher/prompts/${id}`, 'PATCH', body),
+  deletePrompt: (id: string) => apiSend<void>(`/api/teacher/prompts/${encodeURIComponent(id)}`, 'DELETE'),
   listRubrics: () => apiGet<{ items: CatalogRubric[] }>('/api/teacher/rubrics'),
   getRubric: (id: string) => apiGet<CatalogRubric>(`/api/teacher/rubrics/${id}`),
   createRubric: (body: unknown) => apiSend<CatalogRubric>('/api/teacher/rubrics', 'POST', body),
@@ -39,6 +40,7 @@ export const catalogApi = {
     apiSend<TeacherAssignment>('/api/teacher/assignments', 'POST', body),
   updateAssignment: (id: string, body: unknown) =>
     apiSend<TeacherAssignment>(`/api/teacher/assignments/${id}`, 'PATCH', body),
+  deleteAssignment: (id: string) => apiSend<void>(`/api/teacher/assignments/${encodeURIComponent(id)}`, 'DELETE'),
   publishAssignment: (id: string) =>
     apiSend<TeacherAssignment>(`/api/teacher/assignments/${id}/publish`, 'POST', {}),
   retryFailedOutlinePreps: (id: string) =>

@@ -62,7 +62,7 @@ export default function AssignmentWorkflowStepper({
   const currentIdx = STEPS.findIndex((s) => s.id === currentStep);
 
   return (
-    <div className="w-full bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-3 sm:p-3.5 overflow-x-auto">
+    <div className="w-full glass-panel rounded-2xl border border-white/60 shadow-sm p-3 sm:p-4 overflow-x-auto">
       <div className="flex items-center justify-between min-w-[820px] gap-2">
         {STEPS.map((step, idx) => {
           const isDone = idx < currentIdx;
@@ -71,7 +71,7 @@ export default function AssignmentWorkflowStepper({
           // Target URL
           const targetHref =
             step.id === 'reading'
-              ? '/materials'
+              ? `/assignments/${assignmentId}/socratic`
               : `/assignments/${assignmentId}/${step.id}`;
 
           return (
@@ -79,9 +79,9 @@ export default function AssignmentWorkflowStepper({
               {/* Step Item */}
               <Link
                 href={targetHref}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all shrink-0 select-none ${
+                className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all shrink-0 select-none ${
                   isCurrent
-                    ? 'bg-primary-container text-on-primary-container font-bold shadow-sm ring-2 ring-primary-container/40'
+                    ? 'bg-primary text-white font-bold shadow-sm ring-2 ring-primary/30 scale-[1.02]'
                     : isDone
                     ? 'text-tertiary hover:bg-surface-container font-medium'
                     : 'text-on-surface-variant/70 hover:bg-surface-container hover:text-on-surface font-medium'
@@ -92,9 +92,9 @@ export default function AssignmentWorkflowStepper({
                   <div
                     className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-all ${
                       isCurrent
-                        ? 'bg-on-primary-container text-primary-container shadow-xs ring-1 ring-primary/40'
+                        ? 'bg-white/20 text-white shadow-xs ring-1 ring-white/40'
                         : isDone
-                        ? 'bg-tertiary-container/50 text-tertiary border border-tertiary/30'
+                        ? 'bg-tertiary-container/40 text-tertiary border border-tertiary/30'
                         : 'bg-surface-container text-outline border border-outline-variant/30'
                     }`}
                   >
@@ -107,21 +107,21 @@ export default function AssignmentWorkflowStepper({
                   {isDone ? (
                     <span
                       title="Đã hoàn thành"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-tertiary text-white rounded-full flex items-center justify-center shadow-xs ring-1 ring-surface-container-lowest"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-tertiary text-white rounded-full flex items-center justify-center shadow-xs ring-1 ring-white"
                     >
                       <span className="material-symbols-outlined text-[9px] font-bold">check</span>
                     </span>
                   ) : isCurrent ? (
                     <span
                       title="Đang thực hiện"
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-primary text-white rounded-full flex items-center justify-center text-[9px] font-bold font-mono shadow-xs ring-1 ring-surface-container-lowest animate-pulse"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-white text-primary rounded-full flex items-center justify-center text-[9px] font-bold font-mono shadow-xs ring-1 ring-primary animate-pulse"
                     >
                       {step.stepNumber}
                     </span>
                   ) : (
                     <span
                       title={`Bước ${step.stepNumber}`}
-                      className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-surface-container-high text-on-surface-variant/80 rounded-full flex items-center justify-center text-[9px] font-medium font-mono ring-1 ring-surface-container-lowest"
+                      className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-surface-container-high text-on-surface-variant/80 rounded-full flex items-center justify-center text-[9px] font-medium font-mono ring-1 ring-white"
                     >
                       {step.stepNumber}
                     </span>
@@ -134,8 +134,8 @@ export default function AssignmentWorkflowStepper({
                     {step.stepNumber}. {step.label}
                   </span>
                   {isCurrent && (
-                    <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded-full border border-primary/20">
-                      Hiện tại
+                    <span className="text-[10px] bg-white/20 text-white font-bold px-1.5 py-0.2 rounded-full font-mono uppercase">
+                      Đang ở đây
                     </span>
                   )}
                 </div>
@@ -144,7 +144,11 @@ export default function AssignmentWorkflowStepper({
               {/* Connecting Divider Arrow */}
               {idx < STEPS.length - 1 && (
                 <div className="flex-1 flex items-center justify-center min-w-[20px] px-1 text-outline-variant/60">
-                  <span className="material-symbols-outlined text-sm">trending_flat</span>
+                  <div className="w-full h-[1px] bg-outline-variant/40 relative flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[12px] bg-surface-container-lowest px-0.5 text-outline">
+                      chevron_right
+                    </span>
+                  </div>
                 </div>
               )}
             </React.Fragment>

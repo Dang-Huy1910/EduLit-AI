@@ -323,11 +323,11 @@ export default function EvaluationResultView({
         </div>
       ) : null}
 
-      <div className="p-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="glass-panel p-5 sm:p-6 rounded-2xl border border-white/60 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary-container/40 flex flex-col items-center justify-center text-primary border border-primary/30">
-            <span className="text-xl font-bold font-mono leading-none">{formatScore(totalScore)}</span>
-            <span className="text-[10px] text-outline font-medium">/ {formatScore(maxScore)}đ</span>
+          <div className="w-16 h-16 rounded-2xl bg-primary-container/30 flex flex-col items-center justify-center text-primary border border-primary/30 shadow-2xs">
+            <span className="text-2xl font-bold font-mono leading-none">{formatScore(totalScore)}</span>
+            <span className="text-[11px] text-outline font-medium mt-0.5">/ {formatScore(maxScore)}đ</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -523,7 +523,7 @@ export default function EvaluationResultView({
               return (
                 <div
                   key={ev.criterionId}
-                  className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm space-y-3"
+                  className="glass-card p-4 sm:p-5 rounded-2xl border border-outline-variant/30 space-y-3"
                 >
                   <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                     <span className="font-bold text-xs text-on-surface font-merriweather flex items-center gap-1.5">

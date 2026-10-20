@@ -352,7 +352,7 @@ export default function SocraticChatPage() {
         {/* Main Desktop Split View: Left Chat (55%), Right Outline (45%) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Left Chat Area (7 cols) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-col h-[670px]">
+          <div className="lg:col-span-7 glass-panel rounded-2xl border border-white/60 shadow-sm flex flex-col h-[680px]">
             {/* Chat Messages Scroll */}
             <div ref={chatScrollRef} className="flex-1 p-4 overflow-y-auto space-y-4">
               {/* Pagination button for older turns */}
@@ -573,7 +573,7 @@ export default function SocraticChatPage() {
           </div>
 
           {/* Right Outline Canvas (5 cols) */}
-          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-col h-[670px]">
+          <div className="lg:col-span-5 glass-panel rounded-2xl border border-white/60 shadow-sm flex flex-col h-[680px]">
             {/* Outline Header */}
             <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
               <div>
@@ -909,7 +909,7 @@ export default function SocraticChatPage() {
               <button
                 type="button"
                 onClick={() => router.push(`/assignments/${assignmentId}/submit`)}
-                className="w-full py-2.5 px-4 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                className="w-full py-3 px-4 bg-primary text-white font-bold text-xs rounded-xl hover:bg-primary/90 transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <span>Chuyển sang bước viết bài &amp; Nộp ảnh</span>
                 <span className="material-symbols-outlined text-base">arrow_forward</span>
@@ -921,8 +921,8 @@ export default function SocraticChatPage() {
 
       {/* Reading Material Modal */}
       {readingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setReadingModalOpen(false)}>
-          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setReadingModalOpen(false)}>
+          <div className="glass-panel rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-white/50" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
               <h2 className="font-headline-sm text-lg font-bold text-on-surface font-merriweather">
                 Đề bài &amp; Ngữ liệu
@@ -965,8 +965,8 @@ export default function SocraticChatPage() {
 
       {/* Rubric Modal */}
       {rubricModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setRubricModalOpen(false)}>
-          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setRubricModalOpen(false)}>
+          <div className="glass-panel rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-white/50" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b border-outline-variant/20 flex items-center justify-between">
               <h2 className="font-headline-sm text-lg font-bold text-on-surface font-merriweather">
                 Barem Rubric {assignmentRubric?.maxScore ? `(${assignmentRubric.maxScore}đ)` : ''}

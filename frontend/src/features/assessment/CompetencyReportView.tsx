@@ -204,7 +204,7 @@ export default function CompetencyReportView() {
           <p className="text-xs text-on-surface-variant bg-surface-container-low px-3 py-2 rounded-lg">{unavailableHint}</p>
         ) : null}
 
-        <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 space-y-3">
+        <div className="glass-panel p-4 rounded-2xl shadow-xs space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
             <label className="text-xs space-y-1 xl:col-span-2">
               <span className="font-semibold text-on-surface">Lớp phụ trách</span>
@@ -290,7 +290,7 @@ export default function CompetencyReportView() {
 
         {report && stats ? (
           <>
-            <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+            <div className="glass-panel p-4 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
               <div className="flex flex-wrap items-center gap-4 text-on-surface">
                 <span>
                   Số bài tập: <strong>{stats.assignmentCount ?? 0}</strong>
@@ -324,7 +324,7 @@ export default function CompetencyReportView() {
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
                 <span className="text-xs text-on-surface-variant block">Kết quả dùng thống kê</span>
                 <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
                   {scored} / {stats.officialSubmitted}
@@ -333,7 +333,7 @@ export default function CompetencyReportView() {
                   {report.mode === 'provisional' ? 'Tạm tính, gồm chưa công bố' : 'Chỉ snapshot đã công bố'}
                 </span>
               </div>
-              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
                 <span className="text-xs text-on-surface-variant block">Điểm trung bình (thang 10)</span>
                 <span className="text-2xl font-bold text-secondary font-merriweather mt-1 block font-mono">
                   {stats.meanScoreScale10 == null ? '—' : `${formatScore(stats.meanScoreScale10)} / 10`}
@@ -344,7 +344,7 @@ export default function CompetencyReportView() {
                     : `Thấp ${formatScore(stats.minScoreScale10)} · Cao ${formatScore(stats.maxScoreScale10)} · n=${scored}`}
                 </span>
               </div>
-              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
                 <span className="text-xs text-on-surface-variant block">Học sinh / bài làm</span>
                 <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
                   {stats.assignedStudents ?? 0} / {stats.assignedPapers ?? 0}
@@ -353,7 +353,7 @@ export default function CompetencyReportView() {
                   Chờ rà soát {stats.awaitingReview} · Lỗi {stats.failed}
                 </span>
               </div>
-              <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
                 <span className="text-xs text-on-surface-variant block">Trạng thái công bố</span>
                 <span className="text-2xl font-bold text-primary font-merriweather mt-1 block">
                   {stats.published} / {stats.assignedStudents ?? stats.assigned}
@@ -365,7 +365,7 @@ export default function CompetencyReportView() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-6 space-y-4">
                 <ScoreDistributionChart bins={stats.distribution || []} scoredCount={scored} mode={report.mode} />
-                <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-3">
+                <div className="glass-panel p-5 rounded-2xl shadow-xs space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                     <span className="text-xs font-bold uppercase tracking-wider text-primary">Diễn biến qua các bài</span>
                   </div>
@@ -407,7 +407,7 @@ export default function CompetencyReportView() {
 
             {(stats.recurringIssues || []).length > 0 || (stats.strengths || []).length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-sm space-y-2">
+                <div className="p-4 rounded-2xl glass-card shadow-xs space-y-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Điểm mạnh khi có căn cứ</h3>
                   {(stats.strengths || []).length === 0 ? (
                     <p className="text-xs text-on-surface-variant">Chưa đủ dữ liệu so sánh.</p>
@@ -419,7 +419,7 @@ export default function CompetencyReportView() {
                     ))
                   )}
                 </div>
-                <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-lowest shadow-sm space-y-2">
+                <div className="p-4 rounded-2xl glass-card shadow-xs space-y-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-secondary">Vấn đề lặp lại</h3>
                   {(stats.recurringIssues || []).length === 0 ? (
                     <p className="text-xs text-on-surface-variant">Chưa thấy mã lỗi xuất hiện trên từ hai bài tập.</p>
@@ -434,7 +434,7 @@ export default function CompetencyReportView() {
               </div>
             ) : null}
 
-            <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
+            <div className="glass-panel p-5 rounded-2xl shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
                 <div>
                   <h3 className="font-bold text-sm text-on-surface font-merriweather">

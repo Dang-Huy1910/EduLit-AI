@@ -305,7 +305,7 @@ export default function SubmitPhotosPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           <div className="lg:col-span-5 space-y-4">
-            <div className="p-5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
+            <div className="p-5 sm:p-6 glass-panel rounded-2xl border border-white/60 shadow-sm space-y-4">
               <div>
                 <h3 className="font-bold text-sm text-on-surface font-merriweather">
                   Tải lên hoặc chụp trang bài viết tay
@@ -385,7 +385,7 @@ export default function SubmitPhotosPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm p-4 flex flex-col justify-between min-h-[480px]">
+          <div className="lg:col-span-7 glass-panel rounded-2xl border border-white/60 shadow-sm p-5 sm:p-6 flex flex-col justify-between min-h-[480px]">
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20 mb-4">
                 <div>

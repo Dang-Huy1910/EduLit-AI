@@ -314,10 +314,10 @@ export default function ChatbotPage() {
           <div
             className={`${
               isHistoryOpen ? 'lg:col-span-8' : 'lg:col-span-12'
-            } bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col h-full overflow-hidden transition-all duration-300`}
+            } glass-panel rounded-2xl shadow-sm flex flex-col h-full overflow-hidden transition-all duration-300`}
           >
             {/* Chat Window Top Bar */}
-            <div className="p-3.5 px-4 sm:px-6 border-b border-outline-variant/20 bg-surface-container-low/30 flex items-center justify-between shrink-0">
+            <div className="p-3.5 px-4 sm:px-6 border-b border-outline-variant/20 bg-surface/30 backdrop-blur-xs flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div
                   className={`w-9 h-9 rounded-xl flex items-center justify-center text-white shadow-xs ${
@@ -333,7 +333,10 @@ export default function ChatbotPage() {
                     <h2 className="font-bold text-sm text-on-surface">
                       {isTeacher ? 'EduLit Teacher Co-Pilot' : 'Trợ lý Socratic AI'}
                     </h2>
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
                     <span className="text-[10px] text-secondary font-bold font-mono">v2.4</span>
                   </div>
                   <p className="text-[11px] text-on-surface-variant">
@@ -348,9 +351,9 @@ export default function ChatbotPage() {
                   type="button"
                   onClick={() => setIsHistoryOpen((prev) => !prev)}
                   title={isHistoryOpen ? 'Thu gọn thanh lịch sử hội thoại' : 'Mở thanh lịch sử hội thoại'}
-                  className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs ${
+                  className={`px-2.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 ${
                     isHistoryOpen
-                      ? 'border-outline-variant/60 hover:bg-surface-container text-on-surface-variant'
+                      ? 'border-outline-variant/60 hover:bg-surface-container/60 text-on-surface-variant'
                       : 'border-secondary/40 bg-secondary-fixed/40 text-secondary hover:bg-secondary-fixed/60 font-bold'
                   }`}
                 >
@@ -366,7 +369,7 @@ export default function ChatbotPage() {
                     addToast('Đã làm mới khung trò chuyện.', 'info');
                   }}
                   title="Xóa ngữ cảnh hội thoại hiện tại"
-                  className="px-2.5 py-1.5 rounded-lg border border-outline-variant/50 hover:bg-surface-container text-xs text-on-surface-variant flex items-center gap-1 transition-all"
+                  className="px-2.5 py-1.5 rounded-xl border border-outline-variant/50 hover:bg-surface-container/60 text-xs text-on-surface-variant flex items-center gap-1 transition-all active:scale-95"
                 >
                   <span className="material-symbols-outlined text-sm">delete_sweep</span>
                   <span className="hidden sm:inline">Xóa chat</span>
@@ -374,7 +377,7 @@ export default function ChatbotPage() {
 
                 <Link
                   href="/assignments"
-                  className="px-3 py-1.5 rounded-lg bg-primary-container text-on-primary-container font-semibold text-xs hover:brightness-95 transition-all shadow-2xs flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-primary-container text-on-primary-container font-semibold text-xs hover:brightness-95 transition-all shadow-2xs flex items-center gap-1 active:scale-95"
                 >
                   <span className="material-symbols-outlined text-sm">assignment</span>
                   <span className="hidden sm:inline">Vào bài tập</span>
@@ -383,7 +386,7 @@ export default function ChatbotPage() {
             </div>
 
             {/* Chat Messages Body Area */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin bg-surface/40">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 scrollbar-thin bg-surface/20">
               {messages.length === 0 ? (
                 /* Empty Welcome State */
                 <div className="py-6 sm:py-10 text-center space-y-6 animate-in fade-in duration-300">
@@ -407,7 +410,7 @@ export default function ChatbotPage() {
                       <button
                         key={idx}
                         onClick={() => handleSend(card.prompt)}
-                        className="p-3.5 rounded-xl bg-surface-container-lowest hover:bg-surface-container-low border border-outline-variant/40 hover:border-secondary transition-all text-left shadow-2xs group space-y-1"
+                        className="p-3.5 rounded-xl glass-card hover:border-secondary/60 hover:shadow-sm active:scale-98 transition-all text-left shadow-2xs group space-y-1"
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-xs text-on-surface group-hover:text-secondary flex items-center gap-1.5">
@@ -446,7 +449,7 @@ export default function ChatbotPage() {
                       className={`max-w-[85%] sm:max-w-[80%] rounded-2xl p-4 space-y-2 leading-relaxed text-xs sm:text-sm ${
                         msg.sender === 'user'
                           ? 'bg-secondary text-white rounded-tr-xs shadow-xs'
-                          : 'bg-surface-container-lowest text-on-surface border border-outline-variant/30 rounded-tl-xs shadow-2xs'
+                          : 'glass-card text-on-surface border border-outline-variant/30 rounded-tl-xs shadow-2xs'
                       }`}
                     >
                       {msg.sender === 'ai' && msg.modelBadge && (
@@ -498,7 +501,7 @@ export default function ChatbotPage() {
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-amber-700 text-white flex items-center justify-center shrink-0">
                     <span className="material-symbols-outlined text-sm animate-spin">sync</span>
                   </div>
-                  <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline-variant/30 flex items-center gap-2 shadow-2xs">
+                  <div className="p-3 glass-card rounded-2xl flex items-center gap-2 shadow-2xs">
                     <span className="text-secondary font-medium">EduLit AI đang phản hồi...</span>
                     <div className="flex items-center gap-1">
                       <span className="w-1.5 h-1.5 bg-secondary rounded-full animate-bounce"></span>
@@ -513,8 +516,8 @@ export default function ChatbotPage() {
             </div>
 
             {/* Bottom Input Area */}
-            <div className="p-3 sm:p-4 bg-surface-container-lowest border-t border-outline-variant/20 shrink-0 space-y-2">
-              <div className="relative rounded-xl border border-outline-variant/60 bg-surface shadow-xs focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/30 transition-all flex flex-col p-1.5">
+            <div className="p-3 sm:p-4 bg-surface/30 backdrop-blur-xs border-t border-outline-variant/20 shrink-0 space-y-2">
+              <div className="relative rounded-xl border border-outline-variant/60 bg-surface/80 shadow-xs focus-within:border-secondary focus-within:ring-1 focus-within:ring-secondary/30 transition-all flex flex-col p-1.5">
                 <textarea
                   ref={textareaRef}
                   value={inputMessage}
@@ -534,7 +537,7 @@ export default function ChatbotPage() {
                     <button
                       type="button"
                       onClick={() => addToast('Đã đính kèm ngữ liệu chuẩn GDPT 2018.', 'success')}
-                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all"
+                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container/60 transition-all"
                       title="Đính kèm tài liệu học liệu"
                     >
                       <span className="material-symbols-outlined text-base">attach_file</span>
@@ -542,7 +545,7 @@ export default function ChatbotPage() {
                     <button
                       type="button"
                       onClick={() => addToast('Đang kích hoạt micro nhận diện giọng nói tiếng Việt...', 'info')}
-                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all"
+                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container/60 transition-all"
                       title="Nhập bằng giọng nói"
                     >
                       <span className="material-symbols-outlined text-base">mic</span>
@@ -574,7 +577,7 @@ export default function ChatbotPage() {
 
           {/* 2. Right Rail: Lịch sử trò chuyện & Sổ tay ngữ liệu (4 cols when open) */}
           {isHistoryOpen && (
-            <div className="lg:col-span-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm p-4 flex flex-col h-full overflow-hidden space-y-4 animate-in fade-in duration-200">
+            <div className="lg:col-span-4 glass-panel rounded-2xl shadow-sm p-4 flex flex-col h-full overflow-hidden space-y-4 animate-in fade-in duration-200">
               {/* Right Rail Top: Header & New Chat Button */}
               <div className="space-y-3 pb-3 border-b border-outline-variant/20 shrink-0">
                 <div className="flex items-center justify-between">
@@ -592,7 +595,7 @@ export default function ChatbotPage() {
                       type="button"
                       onClick={() => setIsHistoryOpen(false)}
                       title="Thu gọn cột lịch sử"
-                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container transition-all flex items-center justify-center ml-1"
+                      className="p-1 rounded-lg text-outline hover:text-on-surface hover:bg-surface-container/60 transition-all flex items-center justify-center ml-1"
                     >
                       <span className="material-symbols-outlined text-base">dock_to_right</span>
                     </button>
@@ -623,7 +626,7 @@ export default function ChatbotPage() {
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
                   placeholder="Tìm kiếm chủ đề đã hỏi..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-outline-variant/50 bg-surface text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary"
+                  className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-outline-variant/50 bg-surface/80 text-on-surface placeholder:text-outline focus:outline-none focus:border-secondary"
                 />
                 <span className="material-symbols-outlined text-base text-outline absolute left-2 top-2">
                   search
@@ -650,8 +653,8 @@ export default function ChatbotPage() {
                         }}
                         className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
                           activeSessionId === session.id
-                            ? 'bg-secondary-fixed/20 border-secondary/40 text-secondary font-bold shadow-2xs'
-                            : 'bg-surface-container-low/40 border-outline-variant/20 text-on-surface hover:bg-surface-container'
+                            ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
+                            : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
                         }`}
                       >
                         <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-secondary">
@@ -685,8 +688,8 @@ export default function ChatbotPage() {
                         }}
                         className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-2.5 border ${
                           activeSessionId === session.id
-                            ? 'bg-secondary-fixed/20 border-secondary/40 text-secondary font-bold shadow-2xs'
-                            : 'bg-surface-container-low/40 border-outline-variant/20 text-on-surface hover:bg-surface-container'
+                            ? 'bg-secondary-fixed/30 border-secondary/50 text-secondary font-bold shadow-2xs'
+                            : 'glass-card border-outline-variant/20 text-on-surface hover:bg-surface-container/60'
                         }`}
                       >
                         <span className="material-symbols-outlined text-base mt-0.5 shrink-0 text-outline">
@@ -706,7 +709,7 @@ export default function ChatbotPage() {
 
             {/* Right Rail Bottom: Tips Card & Quick Navigation */}
             <div className="pt-3 border-t border-outline-variant/20 shrink-0 space-y-2.5 text-xs">
-              <div className="p-3 rounded-xl bg-surface-container-low/70 border border-secondary/20 space-y-1.5">
+              <div className="p-3 rounded-xl glass-card border border-secondary/20 space-y-1.5">
                 <div className="flex items-center gap-1.5 text-secondary font-bold text-xs">
                   <span className="material-symbols-outlined text-sm">psychology</span>
                   <span>Nguyên tắc Socratic AI</span>
@@ -719,13 +722,13 @@ export default function ChatbotPage() {
               <div className="flex items-center justify-between gap-2 pt-0.5">
                 <Link
                   href="/assignments"
-                  className="w-1/2 py-2 rounded-lg border border-outline-variant/50 text-center text-xs font-semibold hover:bg-surface-container text-on-surface transition-all"
+                  className="w-1/2 py-2 rounded-xl border border-outline-variant/50 text-center text-xs font-semibold hover:bg-surface-container/60 text-on-surface transition-all active:scale-95"
                 >
                   Bài tập
                 </Link>
                 <Link
                   href="/materials"
-                  className="w-1/2 py-2 rounded-lg bg-surface-container text-center text-xs font-semibold hover:bg-surface-container-high text-on-surface transition-all"
+                  className="w-1/2 py-2 rounded-xl bg-surface-container text-center text-xs font-semibold hover:bg-surface-container-high text-on-surface transition-all active:scale-95"
                 >
                   Kho học liệu
                 </Link>

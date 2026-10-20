@@ -269,7 +269,7 @@ export default function FloatingChatWidget() {
       {isOpen && (
         <div
           style={getPanelStyle()}
-          className={`fixed w-[92vw] sm:w-[390px] h-[520px] max-h-[80vh] z-50 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/40 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${
+          className={`fixed w-[92vw] sm:w-[390px] h-[520px] max-h-[80vh] z-50 glass-panel rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] border border-white/60 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${
             !position ? 'bottom-24 right-4 sm:right-6' : ''
           }`}
         >

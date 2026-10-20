@@ -44,8 +44,10 @@ async function request<T>(
 ): Promise<T> {
   let response: Response;
   try {
+    const signal = init.signal || (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal ? AbortSignal.timeout(6000) : undefined);
     response = await fetch(authUrl(path), {
       ...init,
+      signal,
       credentials: 'include',
     });
   } catch {

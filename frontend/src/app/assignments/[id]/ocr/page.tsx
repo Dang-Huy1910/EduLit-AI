@@ -331,7 +331,7 @@ export default function OcrVerificationPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-6 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-col h-[650px] overflow-hidden">
+          <div className="lg:col-span-6 glass-panel rounded-2xl border border-white/60 shadow-sm flex flex-col h-[660px] overflow-hidden">
             <div className="p-3 bg-surface-container-low/60 border-b border-outline-variant/20 flex items-center justify-between text-xs">
               <span className="font-bold text-primary flex items-center gap-1.5 font-merriweather">
                 <span className="material-symbols-outlined text-sm">photo_camera</span>
@@ -339,7 +339,7 @@ export default function OcrVerificationPage() {
               </span>
               <span className="text-[11px] text-on-surface-variant font-mono">{activeImage?.size || ''}</span>
             </div>
-            <div className="flex-1 bg-surface-container p-4 overflow-auto flex items-center justify-center relative">
+            <div className="flex-1 bg-surface-container/60 p-4 overflow-auto flex items-center justify-center relative">
               {activeImage ? (
                 <div
                   style={{ transform: `scale(${zoomScale}) rotate(${rotationAngle}deg)`, transition: 'transform 0.15s ease-out' }}
@@ -359,7 +359,7 @@ export default function OcrVerificationPage() {
             </div>
           </div>
 
-          <div className="lg:col-span-6 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm flex flex-col h-[650px]">
+          <div className="lg:col-span-6 glass-panel rounded-2xl border border-white/60 shadow-sm flex flex-col h-[660px]">
             <div className="p-3 bg-surface-container-low/60 border-b border-outline-variant/20 flex items-center justify-between text-xs">
               <div>
                 <span className="font-bold text-secondary flex items-center gap-1.5 font-merriweather">

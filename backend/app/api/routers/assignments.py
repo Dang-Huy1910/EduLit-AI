@@ -6,6 +6,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
+from fastapi.responses import Response
 
 from app.core.errors import ApiHttpException
 from app.db.models import User, UserRole
@@ -102,6 +103,19 @@ async def update_teacher_assignment(
 ) -> dict[str, Any]:
     try:
         return await service.update_draft(teacher, assignment_id, body)
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@teacher_router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_teacher_assignment(
+    assignment_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[AssignmentService, Depends(get_assignment_service)],
+) -> Response:
+    try:
+        await service.delete_assignment(teacher, assignment_id)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     except CatalogError as exc:
         _raise(exc)
 

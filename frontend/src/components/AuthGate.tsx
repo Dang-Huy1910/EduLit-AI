@@ -49,10 +49,16 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [status, pathname, isPublicAuth, router, user]);
 
   if (status === 'initializing') {
+    if (isPublicAuth) {
+      return <>{children}</>;
+    }
     return <Spinner label="Đang kiểm tra phiên đăng nhập..." />;
   }
 
   if (status === 'error') {
+    if (isPublicAuth) {
+      return <>{children}</>;
+    }
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center px-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-6 space-y-4">

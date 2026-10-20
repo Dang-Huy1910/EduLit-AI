@@ -116,9 +116,11 @@ export default function WritingProfilePage() {
     >
       <div className="max-w-7xl mx-auto space-y-6 pb-12">
         {/* Top Demo Bar */}
-        <div className="bg-surface-container-lowest p-3 sm:p-4 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-secondary text-xl">fingerprint</span>
+        <div className="glass-panel p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
+              <span className="material-symbols-outlined text-lg">fingerprint</span>
+            </div>
             <div>
               <span className="text-xs font-bold text-on-surface">
                 Hồ sơ Chân dung Cây bút của em
@@ -134,7 +136,7 @@ export default function WritingProfilePage() {
               type="button"
               onClick={handleResetFilters}
               title="Khôi phục bộ lọc"
-              className="p-1.5 rounded-lg border border-outline-variant/40 hover:bg-surface-container text-on-surface-variant text-xs flex items-center gap-1"
+              className="p-1.5 px-2.5 rounded-xl border border-outline-variant/40 hover:bg-surface-container/60 text-on-surface-variant text-xs flex items-center gap-1 transition-all active:scale-95"
             >
               <span className="material-symbols-outlined text-base">restart_alt</span>
               <span className="hidden sm:inline">Khôi phục lọc</span>
@@ -142,7 +144,7 @@ export default function WritingProfilePage() {
 
             <Link
               href={`/assignments/${CENTRAL_ASSIGNMENT_ID}/socratic`}
-              className="px-3 py-1.5 bg-gradient-to-r from-secondary to-primary text-white rounded-xl text-xs font-semibold hover:brightness-105 transition-all shadow-sm flex items-center gap-1"
+              className="px-3.5 py-1.5 bg-gradient-to-r from-secondary to-primary text-white rounded-xl text-xs font-semibold hover:brightness-105 active:scale-95 transition-all shadow-sm flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-sm">psychology</span>
               <span>Thử phòng Socratic</span>
@@ -151,10 +153,10 @@ export default function WritingProfilePage() {
         </div>
 
         {/* Hero: Student Persona Header Card */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-surface-container-lowest via-surface-container-low/40 to-secondary-container/20 border border-outline-variant/30 p-6 sm:p-8 shadow-sm">
+        <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-8 shadow-sm">
           {/* Ambient decorative elements */}
-          <div className="absolute -top-12 -right-12 w-64 h-64 bg-secondary/5 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -top-16 -right-16 w-72 h-72 bg-secondary/8 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 right-1/4 w-56 h-56 bg-primary/8 rounded-full blur-2xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             {/* Avatar & Title */}
@@ -194,7 +196,7 @@ export default function WritingProfilePage() {
 
             {/* KPI Metrics */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 lg:w-96 shrink-0">
-              <div className="p-3 bg-surface-container-lowest/90 backdrop-blur rounded-xl border border-outline-variant/30 text-center space-y-0.5 shadow-sm">
+              <div className="p-3 glass-card rounded-2xl text-center space-y-0.5 shadow-xs">
                 <div className="text-2xl font-bold text-on-surface font-merriweather">
                   {observations.length}
                 </div>
@@ -203,7 +205,7 @@ export default function WritingProfilePage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-surface-container-lowest/90 backdrop-blur rounded-xl border border-outline-variant/30 text-center space-y-0.5 shadow-sm">
+              <div className="p-3 glass-card rounded-2xl text-center space-y-0.5 shadow-xs">
                 <div className="text-2xl font-bold text-blue-600 font-merriweather">
                   {supportedCount}
                 </div>
@@ -212,7 +214,7 @@ export default function WritingProfilePage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-surface-container-lowest/90 backdrop-blur rounded-xl border border-outline-variant/30 text-center space-y-0.5 shadow-sm">
+              <div className="p-3 glass-card rounded-2xl text-center space-y-0.5 shadow-xs">
                 <div className="text-2xl font-bold text-emerald-600 font-merriweather">
                   {resolvedCount}
                 </div>
@@ -221,7 +223,7 @@ export default function WritingProfilePage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-surface-container-lowest/90 backdrop-blur rounded-xl border border-outline-variant/30 text-center space-y-0.5 shadow-sm">
+              <div className="p-3 glass-card rounded-2xl text-center space-y-0.5 shadow-xs">
                 <div className="text-2xl font-bold text-purple-600 font-merriweather">
                   {styleCount}
                 </div>
@@ -234,14 +236,14 @@ export default function WritingProfilePage() {
         </div>
 
         {/* Synthesis Pipeline Visualizer Accordion */}
-        <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 shadow-sm overflow-hidden">
+        <div className="glass-panel rounded-2xl shadow-xs overflow-hidden">
           <button
             type="button"
             onClick={() => setExpandedPipeline(!expandedPipeline)}
             className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-surface-container-low/40 transition-colors"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-secondary-fixed/60 text-secondary flex items-center justify-center">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-base">hub</span>
               </div>
               <div>
@@ -262,9 +264,9 @@ export default function WritingProfilePage() {
           </button>
 
           {expandedPipeline && (
-            <div className="p-5 border-t border-outline-variant/20 bg-surface-container-low/20 space-y-4 text-xs">
+            <div className="p-5 border-t border-outline-variant/20 bg-surface/30 space-y-4 text-xs">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-1.5">
+                <div className="p-3.5 glass-card rounded-xl space-y-1.5">
                   <div className="flex items-center gap-2 text-secondary font-bold">
                     <span className="w-5 h-5 rounded-full bg-secondary text-white text-[10px] flex items-center justify-center">1</span>
                     <span>Bài viết đã công bố</span>
@@ -274,7 +276,7 @@ export default function WritingProfilePage() {
                   </p>
                 </div>
 
-                <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-1.5">
+                <div className="p-3.5 glass-card rounded-xl space-y-1.5">
                   <div className="flex items-center gap-2 text-primary font-bold">
                     <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] flex items-center justify-center">2</span>
                     <span>Agent trích dẫn nguyên văn</span>
@@ -284,7 +286,7 @@ export default function WritingProfilePage() {
                   </p>
                 </div>
 
-                <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-1.5">
+                <div className="p-3.5 glass-card rounded-xl space-y-1.5">
                   <div className="flex items-center gap-2 text-tertiary font-bold">
                     <span className="w-5 h-5 rounded-full bg-tertiary text-white text-[10px] flex items-center justify-center">3</span>
                     <span>Giáo viên thẩm định</span>
@@ -294,7 +296,7 @@ export default function WritingProfilePage() {
                   </p>
                 </div>
 
-                <div className="p-3.5 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-1.5">
+                <div className="p-3.5 glass-card rounded-xl space-y-1.5">
                   <div className="flex items-center gap-2 text-secondary font-bold">
                     <span className="w-5 h-5 rounded-full bg-secondary text-white text-[10px] flex items-center justify-center">4</span>
                     <span>Cầu nối Socratic gợi mở</span>
@@ -305,8 +307,8 @@ export default function WritingProfilePage() {
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-surface-container-lowest border border-secondary/20 flex items-center gap-3">
-                <span className="material-symbols-outlined text-secondary text-xl">shield_with_heart</span>
+              <div className="p-3 rounded-xl glass-card border border-secondary/20 flex items-center gap-3">
+                <span className="material-symbols-outlined text-secondary text-xl shrink-0">shield_with_heart</span>
                 <p className="text-[11px] text-on-surface-variant leading-relaxed">
                   <strong>Nguyên tắc sư phạm bảo mật:</strong> Hồ sơ văn phong chỉ dùng để hỗ trợ em rèn luyện kĩ năng viết, tuyệt đối không can thiệp làm sai lệch điểm số chấm rubric khách quan ở bài tiếp theo.
                 </p>
@@ -316,7 +318,7 @@ export default function WritingProfilePage() {
         </div>
 
         {/* Writing Traits Spectrum (8 Dimensions of Expression) */}
-        <div className="bg-surface-container-lowest p-5 sm:p-6 rounded-2xl border border-outline-variant/30 shadow-sm space-y-4">
+        <div className="glass-panel p-5 sm:p-6 rounded-2xl shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <h2 className="text-sm sm:text-base font-bold font-merriweather text-on-surface">
@@ -351,8 +353,8 @@ export default function WritingProfilePage() {
                   }
                   className={`text-left p-3.5 rounded-xl border transition-all ${
                     isSelected
-                      ? 'border-secondary bg-secondary-fixed/20 shadow-sm ring-1 ring-secondary'
-                      : 'border-outline-variant/30 bg-surface-container-low/30 hover:bg-surface-container-low/70'
+                      ? 'border-secondary bg-secondary-fixed/30 shadow-xs ring-1 ring-secondary'
+                      : 'border-outline-variant/30 glass-card hover:bg-surface-container-low/80'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -387,17 +389,17 @@ export default function WritingProfilePage() {
         {/* Observations Section with Interactive Filters */}
         <div className="space-y-4">
           {/* Filter Bar */}
-          <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div className="glass-panel p-4 rounded-2xl shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             {/* Genre & Kind Filters */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Genre Filter */}
-              <div className="flex items-center bg-surface-container-low p-1 rounded-xl border border-outline-variant/30 text-xs">
+              <div className="flex items-center bg-surface-container-low/70 p-1 rounded-xl border border-outline-variant/30 text-xs">
                 <button
                   type="button"
                   onClick={() => setSelectedGenre('ALL')}
                   className={`px-3 py-1 rounded-lg font-medium transition-all ${
                     selectedGenre === 'ALL'
-                      ? 'bg-surface-container-lowest text-primary font-bold shadow-sm'
+                      ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -408,7 +410,7 @@ export default function WritingProfilePage() {
                   onClick={() => setSelectedGenre('NLVH')}
                   className={`px-3 py-1 rounded-lg font-medium transition-all ${
                     selectedGenre === 'NLVH'
-                      ? 'bg-surface-container-lowest text-primary font-bold shadow-sm'
+                      ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -419,7 +421,7 @@ export default function WritingProfilePage() {
                   onClick={() => setSelectedGenre('NLXH')}
                   className={`px-3 py-1 rounded-lg font-medium transition-all ${
                     selectedGenre === 'NLXH'
-                      ? 'bg-surface-container-lowest text-primary font-bold shadow-sm'
+                      ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
                       : 'text-on-surface-variant hover:text-on-surface'
                   }`}
                 >
@@ -535,13 +537,13 @@ export default function WritingProfilePage() {
                 return (
                   <div
                     key={obs.id}
-                    className="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-5 shadow-sm space-y-3.5 flex flex-col justify-between hover:border-secondary/50 transition-all"
+                    className="glass-card rounded-2xl p-5 shadow-xs space-y-3.5 flex flex-col justify-between hover:border-secondary/50 hover:shadow-md transition-all group"
                   >
                     <div className="space-y-3">
                       {/* Header tags */}
                       <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-outline-variant/20">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-secondary bg-surface-container-low px-2 py-0.5 rounded-md border border-outline-variant/20">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-secondary bg-surface-container-low/80 px-2 py-0.5 rounded-md border border-outline-variant/20">
                             {obs.genre === 'NLVH' ? 'Nghị luận Văn học' : 'Nghị luận Xã hội'}
                           </span>
                           <span className="text-xs font-bold text-on-surface">
@@ -565,7 +567,7 @@ export default function WritingProfilePage() {
                       </p>
 
                       {/* Verbatim quote callout */}
-                      <div className="rounded-xl border border-secondary/20 bg-surface-container-low/50 p-3.5 space-y-2">
+                      <div className="rounded-xl border border-secondary/20 bg-surface-container-low/40 backdrop-blur-xs p-3.5 space-y-2">
                         <div className="flex items-center justify-between text-[11px] text-on-surface-variant">
                           <span className="font-semibold text-secondary flex items-center gap-1">
                             <span className="material-symbols-outlined text-xs">format_quote</span>
@@ -627,7 +629,7 @@ export default function WritingProfilePage() {
                       <div className="flex items-center gap-2 self-end sm:self-auto">
                         <Link
                           href={`/assignments/${obs.assessmentId}`}
-                          className="text-xs text-secondary hover:underline font-semibold flex items-center gap-0.5"
+                          className="text-xs text-secondary hover:underline font-semibold flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform"
                         >
                           <span>Xem bài viết</span>
                           <span className="material-symbols-outlined text-xs">arrow_forward</span>
@@ -642,10 +644,11 @@ export default function WritingProfilePage() {
         </div>
 
         {/* Socratic Bridge Live Action Card */}
-        <div className="rounded-3xl bg-gradient-to-r from-secondary/90 via-secondary to-primary p-6 sm:p-8 text-white shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
+        <div className="rounded-3xl bg-gradient-to-r from-secondary/95 via-secondary to-primary/95 p-6 sm:p-8 text-white shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
+          <div className="absolute -right-16 -top-16 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="space-y-2 max-w-2xl relative z-10">
             <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center font-bold">
+              <span className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-bold">
                 <span className="material-symbols-outlined text-lg">psychology</span>
               </span>
               <span className="text-xs font-bold uppercase tracking-wider bg-white/15 px-2.5 py-0.5 rounded-full">
@@ -664,7 +667,7 @@ export default function WritingProfilePage() {
 
           <Link
             href={`/assignments/${CENTRAL_ASSIGNMENT_ID}/socratic`}
-            className="px-6 py-3 bg-white text-secondary hover:bg-white/95 rounded-2xl font-bold text-sm shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shrink-0"
+            className="px-6 py-3 bg-white text-secondary hover:bg-white/95 rounded-2xl font-bold text-sm shadow-md hover:shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shrink-0 relative z-10"
           >
             <span>Vào phòng Lập dàn ý Socratic</span>
             <span className="material-symbols-outlined text-base">arrow_forward</span>

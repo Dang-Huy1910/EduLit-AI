@@ -203,6 +203,19 @@ async def update_prompt(
         _raise(exc)
 
 
+@router.delete("/prompts/{prompt_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_prompt(
+    prompt_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[CatalogService, Depends(get_catalog_service)],
+) -> Response:
+    try:
+        await service.delete_prompt(teacher, prompt_id)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except CatalogError as exc:
+        _raise(exc)
+
+
 @router.get("/rubrics")
 async def list_rubrics(
     teacher: Annotated[User, Depends(get_teacher)],

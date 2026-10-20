@@ -54,7 +54,7 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
     <div className="space-y-4">
       {error ? <p className="text-sm text-error">{error}</p> : null}
       {stats ? (
-        <div className="p-4 bg-surface-container-low/80 rounded-xl border border-outline-variant/30 flex flex-wrap gap-4 text-xs">
+        <div className="p-4 glass-panel rounded-2xl shadow-xs flex flex-wrap gap-4 text-xs">
           <span>
             Được giao: <strong>{stats.assignedStudents ?? stats.assigned}</strong>
           </span>
@@ -65,7 +65,7 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
         </div>
       ) : null}
 
-      <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
+      <div className="glass-panel p-5 rounded-2xl shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-outline-variant/20">
           <div>
             <h3 className="font-bold text-sm text-on-surface font-merriweather">

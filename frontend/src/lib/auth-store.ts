@@ -16,6 +16,9 @@ interface AuthState {
   logout: () => Promise<void>;
 }
 
+// A completed login, registration, or logout supersedes any pending session check.
+let initializationGeneration = 0;
+
 function syncAppUser(user: PublicUser | null): void {
   if (user) {
     useAppStore.getState().setUser(mapPublicUser(user));
@@ -29,13 +32,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   errorMessage: null,
   initialize: async () => {
+    const generation = ++initializationGeneration;
     set({ status: 'initializing', errorMessage: null });
     try {
       const user = await authClient.me();
+      if (generation !== initializationGeneration) return;
       syncAppUser(user);
       set({ status: 'authenticated', user, errorMessage: null });
     } catch (err) {
-      if (err instanceof AuthApiError && (err.status === 401 || err.code === 'AUTH_INVALID')) {
+      if (generation !== initializationGeneration) return;
+      const isUnauthorized =
+        (err instanceof AuthApiError && (err.status === 401 || err.code === 'AUTH_INVALID')) ||
+        (typeof err === 'object' && err !== null && (('status' in err && (err as { status?: number }).status === 401) || ('code' in err && (err as { code?: string }).code === 'AUTH_INVALID')));
+
+      if (isUnauthorized) {
         syncAppUser(null);
         set({ status: 'unauthenticated', user: null, errorMessage: null });
         return;
@@ -43,19 +53,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const message =
         err instanceof AuthApiError
           ? err.message
-          : 'Không kết nối được máy chủ xác thực.';
+          : err instanceof Error
+            ? err.message
+            : 'Không kết nối được máy chủ xác thực.';
       set({ status: 'error', user: null, errorMessage: message });
     }
   },
   setAuthenticated: (user: PublicUser) => {
+    initializationGeneration += 1;
     syncAppUser(user);
     set({ status: 'authenticated', user, errorMessage: null });
   },
   clear: () => {
+    initializationGeneration += 1;
     syncAppUser(null);
     set({ status: 'unauthenticated', user: null, errorMessage: null });
   },
   logout: async () => {
+    initializationGeneration += 1;
     try {
       await authClient.logout();
     } catch (err) {

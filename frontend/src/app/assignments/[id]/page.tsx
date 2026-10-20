@@ -257,7 +257,9 @@ function AssignmentEditorPage() {
     existing?: TeacherAssignment
   ) {
     try {
-      const loaded = await catalogApi.getPrompt(id);
+      const loaded = existing?.status === 'PUBLISHED' && existing.sourcePrompt?.id === id
+        ? existing.sourcePrompt
+        : await catalogApi.getPrompt(id);
       if (!stillActive()) return;
       setPrompt(loaded);
       applyPromptFields(draft, loaded, existing);
@@ -648,10 +650,10 @@ function AssignmentEditorPage() {
                 key={id}
                 type="button"
                 onClick={() => setActiveTab(id)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
                   activeTab === id
-                    ? 'bg-primary-container text-on-primary-container'
-                    : 'bg-surface-container-lowest border border-outline-variant/40'
+                    ? 'bg-gradient-to-r from-secondary to-primary text-white shadow-sm font-bold'
+                    : 'glass-card text-on-surface hover:bg-surface-container/60'
                 }`}
               >
                 <span className="material-symbols-outlined text-[16px]">{icon}</span>
@@ -661,7 +663,7 @@ function AssignmentEditorPage() {
           </div>
         ) : null}
 
-        <div className="p-3.5 bg-surface-container-low/70 border border-outline-variant/30 rounded-xl flex items-center gap-3 text-xs text-on-surface-variant">
+        <div className="p-3.5 glass-panel rounded-2xl flex items-center gap-3 text-xs text-on-surface-variant shadow-xs">
           <span className="material-symbols-outlined text-secondary text-lg">history_edu</span>
           <span>
             <strong>Bảo toàn phiên bản:</strong> Khi phát hành, hệ thống lưu bản sao đề, ngữ liệu và barem. Sửa kho sau đó
@@ -685,7 +687,7 @@ function AssignmentEditorPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-8 space-y-6">
-              <section className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
+              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                   <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">menu_book</span>
@@ -757,7 +759,7 @@ function AssignmentEditorPage() {
                 )}
               </section>
 
-              <section className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm space-y-4">
+              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                   <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-sm">edit_document</span>
@@ -845,33 +847,35 @@ function AssignmentEditorPage() {
                   {memberIssue && (
                     <InlineRetry message={memberIssue} onRetry={() => setMemberNonce((value) => value + 1)} />
                   )}
-                  <div className="mt-2 max-h-40 overflow-y-auto space-y-1 text-xs border rounded-lg p-2">
-                    {members.map((member) => (
-                      <label key={member.userId} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={recipientIds.includes(member.userId)}
-                          disabled={isPublished}
-                          onChange={(e) => {
-                            setAssignToWholeClass(false);
-                            setRecipientIds((prev) =>
-                              e.target.checked
-                                ? [...prev, member.userId]
-                                : prev.filter((id) => id !== member.userId)
-                            );
-                          }}
-                        />
-                        <span>
-                          {member.displayName} ({member.loginId})
-                        </span>
-                      </label>
-                    ))}
-                    {members.length === 0 && !memberIssue && (
-                      <p className="text-on-surface-variant">
-                        {classroomId ? 'Lớp chưa có học sinh.' : 'Chưa có học sinh trong các lớp của giáo viên.'}
-                      </p>
-                    )}
-                  </div>
+                  {!assignToWholeClass && (
+                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1 text-xs border rounded-lg p-2">
+                      {members.map((member) => (
+                        <label key={member.userId} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={recipientIds.includes(member.userId)}
+                            disabled={isPublished}
+                            onChange={(e) => {
+                              setAssignToWholeClass(false);
+                              setRecipientIds((prev) =>
+                                e.target.checked
+                                  ? [...prev, member.userId]
+                                  : prev.filter((id) => id !== member.userId)
+                              );
+                            }}
+                          />
+                          <span>
+                            {member.displayName} ({member.loginId})
+                          </span>
+                        </label>
+                      ))}
+                      {members.length === 0 && !memberIssue && (
+                        <p className="text-on-surface-variant">
+                          {classroomId ? 'Lớp chưa có học sinh.' : 'Chưa có học sinh trong các lớp của giáo viên.'}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </section>
 

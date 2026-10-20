@@ -696,7 +696,7 @@ class ReportService:
     ) -> tuple[Assignment, AssignmentRevision, Classroom | None]:
         self._require_teacher(teacher)
         assignment = await self.session.get(Assignment, assignment_id)
-        if assignment is None or assignment.teacher_id != teacher.id:
+        if assignment is None or assignment.teacher_id != teacher.id or assignment.status == "DELETED":
             raise SubmissionError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
         if not assignment.published_revision_id:
             raise SubmissionError(404, "NOT_FOUND", "Bài tập chưa được giao.")

@@ -95,7 +95,7 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
       {loading ? <p className="text-sm text-on-surface-variant">Đang tải thống kê...</p> : null}
       {report && stats ? (
         <>
-          <div className="p-3 rounded-xl bg-[#FEF9C3]/70 border border-[#CA8A04]/30 text-xs text-[#854D0E]">
+          <div className="p-3.5 rounded-2xl glass-card border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 shadow-xs">
             {modeLabel(report.mode)}. {stats.scoreFormula?.description}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -153,14 +153,14 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
               />
             </div>
           </div>
-          <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/30 shadow-sm space-y-3">
+          <div className="glass-panel p-5 rounded-2xl shadow-xs space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Kết quả theo tiêu chí</h3>
             {(stats.criteria || []).length === 0 ? (
               <p className="text-xs text-on-surface-variant">Chưa có dữ liệu</p>
             ) : (
               <div className="space-y-2">
                 {(stats.criteria || []).map((item) => (
-                  <div key={`${item.groupKey}-${item.criterionId}`} className="p-3 rounded-lg bg-surface-container-low/50 text-xs">
+                  <div key={`${item.groupKey}-${item.criterionId}`} className="p-3 rounded-xl glass-card text-xs">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">{item.criterionName}</span>
                       <span className="font-mono">
@@ -181,7 +181,7 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
 
 function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="p-4 bg-surface-container-lowest rounded-xl border border-outline-variant/30 shadow-sm">
+    <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1 hover:shadow-sm transition-all">
       <span className="text-xs text-on-surface-variant block">{label}</span>
       <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">{value}</span>
       <span className="text-[11px] text-on-surface-variant mt-1 block">{hint}</span>

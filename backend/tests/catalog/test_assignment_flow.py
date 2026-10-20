@@ -668,3 +668,133 @@ async def test_prompt_keeps_topic_and_grade_on_update(
     assert updated.status_code == 200
     assert updated.json()["gradeLevel"] == 10
     assert updated.json()["topicId"] == topic.json()["id"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("published", [False, True])
+async def test_delete_assignment_removes_visibility_and_revokes_access(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+    settings: Settings,
+    published: bool,
+) -> None:
+    classroom = await seed_classroom_with_student(db_session, teacher_user, student_user)
+    catalog = await _create_ready_prompt(client)
+    created = await client.post(
+        "/api/teacher/assignments", headers=HEADERS,
+        json={
+            "sourcePromptId": catalog["prompt"]["id"],
+            "rubricId": catalog["rubric"]["id"],
+            "classroomId": str(classroom.id),
+            "assignToWholeClass": True,
+        },
+    )
+    assert created.status_code == 201
+    assignment = created.json()
+    session_id = None
+    if published:
+        response = await client.post(
+            f"/api/teacher/assignments/{assignment['id']}/publish", headers=HEADERS, json={}
+        )
+        assert response.status_code == 200
+        assignment = response.json()
+        await login_as(client, settings, db_session, student_user)
+        opened = await client.post(
+            "/api/socratic-sessions", headers=HEADERS, json={"assignmentCode": assignment["code"]}
+        )
+        assert opened.status_code == 201
+        session_id = opened.json()["id"]
+        await login_as(client, settings, db_session, teacher_user)
+
+    path = f"/api/teacher/assignments/{assignment['id']}"
+    assert (await client.delete(path, headers=HEADERS)).status_code == 204
+    assert (await client.delete(path, headers=HEADERS)).status_code == 204
+    assert (await client.get(path, headers=HEADERS)).status_code == 404
+    assert (await client.patch(path, headers=HEADERS, json={"title": "Khôi phục"})).status_code == 404
+    assert (await client.post(f"{path}/publish", headers=HEADERS, json={})).status_code == 404
+    assert (await client.get(f"/api/assignments/{assignment['code']}", headers=HEADERS)).status_code == 404
+    listed = (await client.get("/api/teacher/assignments", headers=HEADERS)).json()["items"]
+    assert assignment["id"] not in {item["id"] for item in listed}
+    assert (await client.get(f"/api/teacher/prompts/{catalog['prompt']['id']}", headers=HEADERS)).status_code == 200
+
+    await login_as(client, settings, db_session, student_user)
+    assert (await client.get("/api/assignments", headers=HEADERS)).json()["items"] == []
+    for key in [assignment["id"], assignment["code"], assignment.get("publishedRevisionId")]:
+        if key:
+            assert (await client.get(f"/api/assignments/{key}", headers=HEADERS)).status_code == 404
+    if published:
+        assert (await client.get(f"/api/assignments/{assignment['id']}/assessment", headers=HEADERS)).status_code == 404
+        assert (await client.get(f"/api/socratic-sessions/{session_id}", headers=HEADERS)).status_code in {403, 404}
+        async with get_session_factory()() as fresh:
+            revision = await fresh.get(AssignmentRevision, uuid.UUID(assignment["publishedRevisionId"]))
+            assert revision is not None and revision.status == "DELETED"
+            grants = (await fresh.execute(select(AssignmentAccess).where(
+                AssignmentAccess.assignment_revision_id == revision.id
+            ))).scalars().all()
+            assert grants and all(grant.revoked_at is not None for grant in grants)
+
+
+@pytest.mark.asyncio
+async def test_delete_source_prompt_preserves_published_assignment(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+    settings: Settings,
+) -> None:
+    classroom = await seed_classroom_with_student(db_session, teacher_user, student_user)
+    catalog = await _create_ready_prompt(client)
+    body = {
+        "sourcePromptId": catalog["prompt"]["id"],
+        "rubricId": catalog["rubric"]["id"],
+        "classroomId": str(classroom.id),
+        "assignToWholeClass": True,
+    }
+    created = await client.post("/api/teacher/assignments", headers=HEADERS, json=body)
+    assignment_id = created.json()["id"]
+    published = await client.post(f"/api/teacher/assignments/{assignment_id}/publish", headers=HEADERS, json={})
+    assert published.status_code == 200
+    path = f"/api/teacher/prompts/{catalog['prompt']['id']}"
+    assert (await client.delete(path, headers=HEADERS)).status_code == 204
+    assert (await client.delete(path, headers=HEADERS)).status_code == 204
+    assert (await client.get(path, headers=HEADERS)).status_code == 404
+    assert (await client.patch(path, headers=HEADERS, json={"title": "Khôi phục"})).status_code == 404
+    assert (await client.get("/api/teacher/prompts", headers=HEADERS)).json()["items"] == []
+    assert (await client.post("/api/teacher/assignments", headers=HEADERS, json=body)).status_code == 404
+    existing = await client.get(f"/api/teacher/assignments/{assignment_id}", headers=HEADERS)
+    assert existing.status_code == 200
+    assert existing.json()["sourcePrompt"]["status"] == "DELETED"
+    assert existing.json()["publishedWritingTask"] == catalog["prompt"]["writingTask"]
+
+    await login_as(client, settings, db_session, student_user)
+    detail = await client.get(f"/api/assignments/{assignment_id}", headers=HEADERS)
+    assert detail.status_code == 200
+    assert detail.json()["writingTask"] == catalog["prompt"]["writingTask"]
+
+
+@pytest.mark.asyncio
+async def test_delete_requires_owner_teacher(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+    settings: Settings,
+) -> None:
+    catalog = await _create_ready_prompt(client)
+    created = await client.post("/api/teacher/assignments", headers=HEADERS, json={
+        "sourcePromptId": catalog["prompt"]["id"], "rubricId": catalog["rubric"]["id"],
+    })
+    assert created.status_code == 201
+    paths = [f"/api/teacher/assignments/{created.json()['id']}", f"/api/teacher/prompts/{catalog['prompt']['id']}"]
+    await login_as(client, settings, db_session, student_user)
+    for path in paths:
+        assert (await client.delete(path, headers=HEADERS)).status_code == 403
+    other = await create_user(db_session, settings, client, role=UserRole.TEACHER, prefix="other_gv")
+    await login_as(client, settings, db_session, other)
+    for path in paths:
+        assert (await client.delete(path, headers=HEADERS)).status_code == 404
+    await login_as(client, settings, db_session, teacher_user)
+    for path in paths:
+        assert (await client.get(path, headers=HEADERS)).status_code == 200
