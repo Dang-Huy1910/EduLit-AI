@@ -134,9 +134,12 @@ async def test_search_normalizes_vietnamese_and_does_not_call_llm_without_match(
     )
     assert _keyword_search("duong", [chunk]) == [chunk]
     assert _keyword_search("đường?", [chunk]) == [chunk]
+    assert _keyword_search("Cách nộp bài?", [chunk]) == []
 
     original_guide = _get_user_guide_content()
-    set_user_guide_content("## Nộp bài\nHọc sinh vào bài tập để nộp bài.")
+    set_user_guide_content(
+        "# Hướng dẫn\n\n## Dành cho học sinh\n\n### Nộp bài\nHọc sinh vào bài tập để nộp bài."
+    )
     adapter = FakeAiAdapter(responses=["không được gọi"])
 
     class EmptyKnowledgeService(ChatbotService):
@@ -144,12 +147,16 @@ async def test_search_normalizes_vietnamese_and_does_not_call_llm_without_match(
             return []
 
     try:
+        guide_matches = _keyword_search(
+            "Cách nộp bài?", await EmptyKnowledgeService(db_session, adapter)._get_global_guide_chunks()
+        )
         result = await EmptyKnowledgeService(db_session, adapter).answer(
             _user(UserRole.STUDENT, "empty"), "zzzxqv987654321"
         )
     finally:
         set_user_guide_content(original_guide)
 
+    assert [chunk.title for chunk in guide_matches] == ["Nộp bài"]
     assert result.answer == "Mình chưa tìm thấy thông tin này trong tài liệu hiện có."
     assert result.sources == []
     assert adapter.call_count == 0
