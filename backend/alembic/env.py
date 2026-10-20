@@ -69,7 +69,15 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        # The classroom demo data migration opens its own async connection.
+        # Committing each preceding revision lets that connection see the
+        # schema it seeds on a freshly created database.
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            transaction_per_migration=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 
