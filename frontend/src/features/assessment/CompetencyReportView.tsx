@@ -6,9 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { assessmentApi } from './api';
 import type { ClassReportAssignment, CompetencyReport, StatsMode } from './types';
-import { formatPercent, formatScore, modeLabel } from './labels';
+import { formatPercent, formatScore } from './labels';
 import StatsModeToggle from './StatsModeToggle';
 import ScoreDistributionChart from './ScoreDistributionChart';
+import { FormulaNote, HeroScore, PipelineStrip, StatTile } from './StatsBlocks';
 import InsightPanel from './InsightPanel';
 import { AuthApiError } from '@/lib/auth-types';
 
@@ -319,52 +320,47 @@ export default function CompetencyReportView() {
                 hasOfficialData={report.hasOfficialData}
               />
             </div>
-            <p className="text-[11px] text-on-surface-variant -mt-3">
-              {modeLabel(report.mode)}. {stats.scoreFormula?.description}
-            </p>
+            <FormulaNote mode={report.mode} description={stats.scoreFormula?.description} />
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
-                <span className="text-xs text-on-surface-variant block">Kết quả dùng thống kê</span>
-                <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
-                  {scored} / {stats.officialSubmitted}
-                </span>
-                <span className="text-[11px] text-tertiary font-semibold mt-1 block">
-                  {report.mode === 'provisional' ? 'Tạm tính, gồm chưa công bố' : 'Chỉ snapshot đã công bố'}
-                </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr] gap-4">
+              <div className="sm:col-span-2 lg:col-span-1">
+                <HeroScore
+                  mean={stats.meanScoreScale10}
+                  min={stats.minScoreScale10}
+                  max={stats.maxScoreScale10}
+                  count={scored}
+                  mode={report.mode}
+                />
               </div>
-              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
-                <span className="text-xs text-on-surface-variant block">Điểm trung bình (thang 10)</span>
-                <span className="text-2xl font-bold text-secondary font-merriweather mt-1 block font-mono">
-                  {stats.meanScoreScale10 == null ? '—' : `${formatScore(stats.meanScoreScale10)} / 10`}
-                </span>
-                <span className="text-[11px] text-secondary font-semibold mt-1 block">
-                  {stats.minScoreScale10 == null
-                    ? `n=${scored}`
-                    : `Thấp ${formatScore(stats.minScoreScale10)} · Cao ${formatScore(stats.maxScoreScale10)} · n=${scored}`}
-                </span>
-              </div>
-              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
-                <span className="text-xs text-on-surface-variant block">Học sinh / bài làm</span>
-                <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">
-                  {stats.assignedStudents ?? 0} / {stats.assignedPapers ?? 0}
-                </span>
-                <span className="text-[11px] text-on-surface-variant mt-1 block">
-                  Chờ rà soát {stats.awaitingReview} · Lỗi {stats.failed}
-                </span>
-              </div>
-              <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1">
-                <span className="text-xs text-on-surface-variant block">Trạng thái công bố</span>
-                <span className="text-2xl font-bold text-primary font-merriweather mt-1 block">
-                  {stats.published} / {stats.assignedStudents ?? stats.assigned}
-                </span>
-                <span className="text-[11px] text-on-surface-variant mt-1 block">Đã hiển thị phía học sinh</span>
-              </div>
+              <StatTile
+                label="Đã nộp chính thức"
+                value={stats.officialSubmitted}
+                total={stats.assignedPapers ?? stats.assigned}
+                hint={`${stats.assignedStudents ?? 0} học sinh · ${stats.assignmentCount ?? 0} bài tập`}
+              />
+              <StatTile
+                label="Đã công bố"
+                value={stats.published}
+                total={stats.assignedStudents ?? stats.assigned}
+                hint="Đã hiển thị phía học sinh"
+              />
             </div>
+            <PipelineStrip
+              items={[
+                { label: 'Đang xử lý', count: stats.processing ?? 0, icon: 'hourglass_top' },
+                { label: 'Chấm xong, chờ rà soát', count: stats.awaitingReview ?? 0, icon: 'rate_review' },
+                { label: 'Lỗi xử lý', count: stats.failed ?? 0, icon: 'error', tone: 'error' },
+              ]}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-6 space-y-4">
-                <ScoreDistributionChart bins={stats.distribution || []} scoredCount={scored} mode={report.mode} />
+                <ScoreDistributionChart
+                  bins={stats.distribution || []}
+                  scoredCount={scored}
+                  mode={report.mode}
+                  mean={stats.meanScoreScale10}
+                />
                 <div className="glass-panel p-5 rounded-2xl shadow-xs space-y-3">
                   <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
                     <span className="text-xs font-bold uppercase tracking-wider text-primary">Diễn biến qua các bài</span>
@@ -378,8 +374,11 @@ export default function CompetencyReportView() {
                           <Link href={`/assignments/${item.id}?tab=statistics`} className="font-semibold hover:text-primary truncate">
                             {item.title}
                           </Link>
-                          <span className="font-mono shrink-0">
-                            {item.meanScoreScale10 == null ? '—' : formatScore(item.meanScoreScale10)} · n={item.scoredCount}
+                          <span className="shrink-0 tabular-nums text-on-surface-variant">
+                            <strong className="font-semibold text-on-surface">
+                              {item.meanScoreScale10 == null ? '—' : formatScore(item.meanScoreScale10)}
+                            </strong>{' '}
+                            · {item.scoredCount} bài
                           </span>
                         </div>
                       ))}

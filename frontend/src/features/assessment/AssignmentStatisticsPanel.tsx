@@ -4,10 +4,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { assessmentApi } from './api';
 import type { ClassReport, StatsMode } from './types';
-import { formatPercent, formatScore, modeLabel } from './labels';
 import StatsModeToggle from './StatsModeToggle';
 import ScoreDistributionChart from './ScoreDistributionChart';
 import InsightPanel from './InsightPanel';
+import { CriteriaBars, FormulaNote, HeroScore, PipelineStrip, StatTile } from './StatsBlocks';
 import { AuthApiError } from '@/lib/auth-types';
 
 export default function AssignmentStatisticsPanel({ assignmentId }: { assignmentId: string }) {
@@ -82,6 +82,7 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
 
   const stats = report?.stats;
   const scored = stats?.scoredCount ?? 0;
+  const assigned = stats?.assignedStudents ?? stats?.assigned ?? 0;
 
   return (
     <div className="space-y-5">
@@ -95,50 +96,42 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
       {loading ? <p className="text-sm text-on-surface-variant">Đang tải thống kê...</p> : null}
       {report && stats ? (
         <>
-          <div className="p-3.5 rounded-2xl glass-card border border-amber-500/30 bg-amber-500/10 text-xs text-amber-900 shadow-xs">
-            {modeLabel(report.mode)}. {stats.scoreFormula?.description}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard label="Được giao" value={`${stats.assignedStudents ?? stats.assigned}`} hint="Học sinh được giao đề này" />
-            <StatCard
+          <FormulaNote mode={report.mode} description={stats.scoreFormula?.description} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr] gap-4">
+            <div className="sm:col-span-2 lg:col-span-1">
+              <HeroScore
+                mean={stats.meanScoreScale10}
+                min={stats.minScoreScale10}
+                max={stats.maxScoreScale10}
+                count={scored}
+                mode={report.mode}
+              />
+            </div>
+            <StatTile
               label="Đã nộp chính thức"
-              value={`${stats.officialSubmitted} / ${stats.assignedStudents ?? stats.assigned}`}
-              hint="Xác nhận bản chép OCR"
+              value={stats.officialSubmitted}
+              total={assigned}
+              hint="Đã xác nhận bản chép để chấm"
             />
-            <StatCard
-              label="Chờ / đang chấm"
-              value={`${stats.grading ?? 0}`}
-              hint={`Đang xử lý ${stats.processing ?? 0}`}
-            />
-            <StatCard
-              label="Chấm xong, chờ rà soát"
-              value={`${stats.awaitingReview}`}
-              hint="Kết quả hợp lệ chưa công bố"
-            />
-            <StatCard
-              label="Đã công bố"
-              value={`${stats.published} / ${stats.assignedStudents ?? stats.assigned}`}
-              hint="Snapshot học sinh đang xem"
-            />
-            <StatCard label="Lỗi xử lý" value={`${stats.failed}`} hint="OCR hoặc chấm thất bại" />
-            <StatCard
-              label="Kết quả dùng thống kê"
-              value={`${scored}`}
-              hint={report.mode === 'provisional' ? 'Tạm tính, gồm chưa công bố' : 'Chỉ snapshot đã công bố'}
-            />
-            <StatCard
-              label="Điểm trung bình thang 10"
-              value={stats.meanScoreScale10 == null ? 'Chưa có dữ liệu' : formatScore(stats.meanScoreScale10)}
-              hint={
-                stats.minScoreScale10 == null
-                  ? `n=${scored} kết quả`
-                  : `Thấp nhất ${formatScore(stats.minScoreScale10)} · Cao nhất ${formatScore(stats.maxScoreScale10)} · n=${scored}`
-              }
-            />
+            <StatTile label="Đã công bố" value={stats.published} total={assigned} hint="Học sinh đã xem được kết quả" />
           </div>
+          <PipelineStrip
+            items={[
+              { label: 'Đang xử lý OCR', count: stats.processing ?? 0, icon: 'document_scanner' },
+              { label: 'Chờ / đang chấm', count: stats.grading ?? 0, icon: 'hourglass_top' },
+              { label: 'Chấm xong, chờ rà soát', count: stats.awaitingReview ?? 0, icon: 'rate_review' },
+              { label: 'Lỗi xử lý', count: stats.failed ?? 0, icon: 'error', tone: 'error' },
+            ]}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-6">
-              <ScoreDistributionChart bins={stats.distribution || []} scoredCount={scored} mode={report.mode} />
+            <div className="lg:col-span-6 space-y-6">
+              <ScoreDistributionChart
+                bins={stats.distribution || []}
+                scoredCount={scored}
+                mode={report.mode}
+                mean={stats.meanScoreScale10}
+              />
+              <CriteriaBars criteria={stats.criteria || []} />
             </div>
             <div className="lg:col-span-6">
               <InsightPanel
@@ -153,38 +146,8 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
               />
             </div>
           </div>
-          <div className="glass-panel p-5 rounded-2xl shadow-xs space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-primary">Kết quả theo tiêu chí</h3>
-            {(stats.criteria || []).length === 0 ? (
-              <p className="text-xs text-on-surface-variant">Chưa có dữ liệu</p>
-            ) : (
-              <div className="space-y-2">
-                {(stats.criteria || []).map((item) => (
-                  <div key={`${item.groupKey}-${item.criterionId}`} className="p-3 rounded-xl glass-card text-xs">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold">{item.criterionName}</span>
-                      <span className="font-mono">
-                        {formatScore(item.meanAwarded)} / {formatScore(item.meanMax)}
-                        {item.meanRate != null ? ` · ${formatPercent(item.meanRate)}` : ''} · n={item.n}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </>
       ) : null}
-    </div>
-  );
-}
-
-function StatCard({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <div className="p-4 glass-card rounded-2xl shadow-xs space-y-1 hover:shadow-sm transition-all">
-      <span className="text-xs text-on-surface-variant block">{label}</span>
-      <span className="text-2xl font-bold text-on-surface font-merriweather mt-1 block">{value}</span>
-      <span className="text-[11px] text-on-surface-variant mt-1 block">{hint}</span>
     </div>
   );
 }
