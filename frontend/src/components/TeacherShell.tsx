@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
@@ -10,6 +10,7 @@ import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 import EduLitMark from './EduLitMark';
 import AssistantMark from './AssistantMark';
+import { useMobileDrawer } from './useMobileDrawer';
 
 interface TeacherShellProps {
   children: React.ReactNode;
@@ -26,7 +27,9 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
     toggleSidebar,
   } = useAppStore();
   const authLogout = useAuthStore((s) => s.logout);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useMobileDrawer();
+  // The phone drawer always shows labels, whatever the desktop collapse setting is.
+  const collapsed = sidebarCollapsed && !mobileMenuOpen;
 
   const navItems = [
     { label: 'Quản lý bài tập', href: '/assignments', icon: 'assignment' },
@@ -50,44 +53,67 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
       <FloatingChatWidget />
 
       {/* Mobile Top Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest border-b border-outline-variant/30 z-50 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-surface-container-lowest border-b border-outline-variant/30 z-50 flex items-center justify-between gap-2 px-2 sm:px-4">
+        <div className="flex items-center gap-1.5 min-w-0">
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-on-surface hover:bg-surface-container rounded-lg"
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Mở menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="app-sidebar"
+            className="w-10 h-10 flex items-center justify-center text-on-surface hover:bg-surface-container rounded-lg"
           >
-            <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
+            <span className="material-symbols-outlined">menu</span>
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <EduLitMark className="w-6 h-6 text-primary shrink-0" />
-            <span className="font-headline-sm text-headline-sm text-primary">EduLit-AI</span>
+            <span className="font-headline-sm text-headline-sm text-primary truncate">EduLit-AI</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="font-caption text-secondary bg-secondary-fixed/50 px-2.5 py-0.5 rounded-full text-xs font-semibold truncate max-w-[9rem]">
             Giáo viên
           </span>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            aria-label="Đăng xuất"
+            title="Đăng xuất"
+            className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-error hover:bg-surface-container transition-colors"
+          >
+            <span className="material-symbols-outlined text-[22px]">logout</span>
+          </button>
         </div>
       </div>
 
+      {/* Tap outside the open drawer to close it. */}
+      {mobileMenuOpen && (
+        <div
+          aria-hidden="true"
+          onClick={() => setMobileMenuOpen(false)}
+          className="lg:hidden fixed inset-0 z-[55] bg-black/40"
+        />
+      )}
+
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed left-0 top-0 h-full ${
+        id="app-sidebar"
+        className={`fixed left-0 top-0 h-full overflow-y-auto ${
           sidebarCollapsed ? 'lg:w-20' : 'lg:w-72'
-        } w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between transition-all duration-300 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-[60] lg:z-50 flex flex-col justify-between transition-all duration-300 ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full invisible lg:visible lg:translate-x-0'
         }`}
       >
         <div className="flex flex-col">
           {/* Logo Brand Header */}
           <div
             className={`h-16 px-4 flex items-center ${
-              sidebarCollapsed ? 'justify-center' : 'justify-between'
+              collapsed ? 'justify-center' : 'justify-between'
             } border-b border-outline-variant/20`}
           >
             <div className="flex items-center gap-space-sm overflow-hidden">
               <EduLitMark className="w-8 h-8 text-primary shrink-0" />
-              {!sidebarCollapsed && (
+              {!collapsed && (
                 <div className="flex flex-col truncate">
                   <span className="font-headline-sm text-headline-sm text-primary tracking-tight">EduLit-AI</span>
                   <span className="font-caption text-caption text-on-surface-variant truncate">
@@ -97,7 +123,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
               )}
             </div>
 
-            {!sidebarCollapsed && (
+            {!collapsed && (
               <button
                 type="button"
                 onClick={toggleSidebar}
@@ -107,11 +133,19 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 <span className="material-symbols-outlined text-lg">dock_to_left</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Đóng menu"
+              className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
 
           {/* Teacher Navigation Group */}
           <div className="px-3 py-space-sm">
-            {!sidebarCollapsed && (
+            {!collapsed && (
               <div className="px-space-sm pb-space-xs font-label-sm text-label-sm uppercase tracking-wider text-outline text-[11px]">
                 Không gian Giáo viên
               </div>
@@ -123,10 +157,10 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                   <Link
                     key={item.href}
                     href={item.href}
-                    title={sidebarCollapsed ? item.label : undefined}
+                    title={collapsed ? item.label : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center ${
-                      sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'justify-between px-space-md py-space-sm'
+                      collapsed ? 'justify-center px-2 py-2.5' : 'justify-between px-space-md py-space-sm'
                     } rounded-xl transition-all text-sm ${
                       isActive
                         ? 'bg-primary-container text-on-primary-container font-semibold shadow-sm'
@@ -139,9 +173,9 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                       ) : (
                         <AssistantMark outline className="w-5 h-5 shrink-0" />
                       )}
-                      {!sidebarCollapsed && <span>{item.label}</span>}
+                      {!collapsed && <span>{item.label}</span>}
                     </div>
-                    {!sidebarCollapsed && item.badge && (
+                    {!collapsed && item.badge && (
                       <span className="text-[10px] bg-secondary-fixed/50 text-secondary font-bold px-1.5 py-0.2 rounded-full uppercase">
                         {item.badge}
                       </span>
@@ -154,8 +188,8 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
         </div>
 
         {/* Footer Card */}
-        {!sidebarCollapsed && (
-          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 flex items-center">
+        {!collapsed && (
+          <div className="p-space-md bg-surface-container-low/60 m-space-md rounded-xl border border-outline-variant/20 hidden lg:flex items-center">
             <div className="flex items-center gap-space-sm">
               <span className="material-symbols-outlined text-primary text-[22px]">psychology</span>
               <div>
@@ -165,6 +199,27 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             </div>
           </div>
         )}
+
+        {/* Account and logout on phones, where the desktop header is hidden. */}
+        <div className="lg:hidden m-3 p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low/60 space-y-3">
+          <Link href="/account/security" className="flex items-center gap-3 min-w-0 rounded-lg">
+            <span className="w-9 h-9 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-xs shrink-0">
+              {currentUser?.avatarInitials || 'GV'}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-on-surface truncate">{currentUser?.name || 'Giáo viên'}</span>
+              <span className="block text-xs text-on-surface-variant truncate">GV Ngữ văn • THPT Đan Phượng</span>
+            </span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="w-full h-10 rounded-lg border border-error/40 bg-surface-container-lowest text-sm font-semibold text-error hover:bg-error-container/30 flex items-center justify-center gap-2 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+            Đăng xuất
+          </button>
+        </div>
       </aside>
 
       {/* Main Content Area */}
@@ -235,8 +290,10 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 {currentUser?.avatarInitials || 'GV'}
               </Link>
               <button
+                type="button"
                 onClick={() => void handleLogout()}
                 title="Đăng xuất"
+                aria-label="Đăng xuất"
                 className="ml-2 p-1 text-on-surface-variant hover:text-error transition-colors"
               >
                 <span className="material-symbols-outlined text-[20px]">logout</span>
