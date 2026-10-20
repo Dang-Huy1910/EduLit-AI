@@ -109,6 +109,17 @@ class Settings(BaseSettings):
     INSIGHT_TIMEOUT_SECONDS: float = 90.0
     INSIGHT_MAX_OUTPUT_TOKENS: int = 2048
 
+    # ── Student writing profile ────────────────────────────────────────────────
+    # One AI synthesis over the student's most recent published submissions.
+    WRITING_PROFILE_PROMPT_VERSION: str = "v1"
+    WRITING_PROFILE_MODEL: str = ""
+    WRITING_PROFILE_TIMEOUT_SECONDS: float = 90.0
+    WRITING_PROFILE_MAX_OUTPUT_TOKENS: int = 4096
+    WRITING_PROFILE_MAX_SOURCES: int = 5
+    WRITING_PROFILE_MAX_INPUT_CHARS: int = 60_000
+    WRITING_PROFILE_MAX_OBSERVATIONS: int = 8
+    WRITING_PROFILE_PAGE_CHAR_LIMIT: int = 12_000
+
     BOOTSTRAP_TEACHER_LOGIN_ID: str = "dang.loan"
     BOOTSTRAP_TEACHER_EMAIL: str = "dang.loan@thptdanphuong.edu.vn"
     BOOTSTRAP_TEACHER_DISPLAY_NAME: str = "Cô Đặng Loan"

@@ -27,6 +27,7 @@ from app.api.routers.assignments import teacher_router as teacher_assignments_ro
 from app.api.routers.submissions import router as submissions_router
 from app.api.routers.assessments import student_router as assessment_student_router
 from app.api.routers.assessments import teacher_router as assessment_teacher_router
+from app.api.routers.writing_profile import router as writing_profile_router
 
 logger = logging.getLogger("edulit.api")
 
@@ -162,6 +163,7 @@ def create_app() -> FastAPI:
     app.include_router(submissions_router, prefix="/api")
     app.include_router(assessment_student_router, prefix="/api")
     app.include_router(assessment_teacher_router, prefix="/api")
+    app.include_router(writing_profile_router, prefix="/api")
     return app
 
 

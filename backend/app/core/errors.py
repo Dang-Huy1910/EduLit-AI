@@ -81,6 +81,10 @@ ERROR_MESSAGES: dict[str, str] = {
     "PUBLISH_STALE": "Không công bố được kết quả của bản nộp cũ. Hãy chấm bản hiện hành.",
     "INSIGHT_NO_DATA": "Chưa có kết quả hợp lệ để phân tích. Hãy chấm bài trước.",
     "STATS_MODE": "Chế độ thống kê không hợp lệ. Dùng tạm tính hoặc chính thức.",
+    "WRITING_PROFILE_INVALID": (
+        "Chưa tổng hợp được hồ sơ văn phong hợp lệ từ các bài đã công bố. "
+        "Em bấm Thử lại để phân tích lại."
+    ),
 }
 
 

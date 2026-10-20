@@ -334,6 +334,55 @@ class ClassInsightOutput(BaseModel):
         return value or []
 
 
+WRITING_PROFILE_SCHEMA_VERSION = "writing_profile.v1"
+
+WritingProfileTraitId = Literal[
+    "WORD_CHOICE",
+    "SENTENCE_RHYTHM",
+    "SENTENCE_STRUCTURE",
+    "ARGUMENT_ORGANIZATION",
+    "COHESION",
+    "EVIDENCE_LINKING",
+    "TRANSITIONS",
+    "PARAGRAPH_UNITY",
+]
+WritingProfileLevel = Literal["INSUFFICIENT", "EMERGING", "CONSISTENT", "STRONG"]
+WritingProfileObservationKind = Literal["STRENGTH", "WEAKNESS", "STYLE"]
+
+
+class WritingProfileTraitModel(BaseModel):
+    """One of the eight expression groups. No fake score, only a level."""
+
+    trait_id: WritingProfileTraitId
+    level: WritingProfileLevel = "INSUFFICIENT"
+    note: str = Field(default="", max_length=600)
+
+
+class WritingProfileObservationModel(BaseModel):
+    """One observation that must carry a verbatim quote from a provided paper."""
+
+    trait_id: WritingProfileTraitId
+    kind: WritingProfileObservationKind
+    description: str = Field(..., min_length=1, max_length=600)
+    source_id: str = Field(..., min_length=1, max_length=16)
+    page_index: int = Field(..., ge=0)
+    evidence_quote: str = Field(..., min_length=4, max_length=400)
+    practice_tip: str = Field(default="", max_length=400)
+
+
+class WritingProfileOutput(BaseModel):
+    """Structured synthesis of a student's writing profile from published work."""
+
+    summary: str = Field(..., min_length=1, max_length=1500)
+    traits: list[WritingProfileTraitModel] = Field(default_factory=list)
+    observations: list[WritingProfileObservationModel] = Field(default_factory=list)
+
+    @field_validator("traits", "observations", mode="before")
+    @classmethod
+    def _coerce(cls, value: object) -> object:
+        return value or []
+
+
 class OcrPageModel(BaseModel):
     """Structured OCR for a single handwritten page."""
 

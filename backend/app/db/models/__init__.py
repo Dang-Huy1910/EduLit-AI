@@ -54,6 +54,7 @@ from app.db.models.submission import (
 )
 from app.db.models.token import AuthToken
 from app.db.models.user import User
+from app.db.models.writing_profile import WritingProfile
 
 __all__ = [
     "AssessmentJob",
@@ -106,4 +107,5 @@ __all__ = [
     "User",
     "UserRole",
     "UserStatus",
+    "WritingProfile",
 ]

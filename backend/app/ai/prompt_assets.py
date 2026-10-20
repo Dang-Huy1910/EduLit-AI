@@ -21,6 +21,7 @@ DOCUMENT_ANALYSIS_SCHEMA_VERSION = "document_analysis.v1"
 OCR_PAGE_SCHEMA_VERSION = "ocr_page.v1"
 ASSESSMENT_OUTPUT_SCHEMA_VERSION = "assessment_output.v1"
 CLASS_INSIGHT_SCHEMA_VERSION = "class_insight.v1"
+WRITING_PROFILE_SCHEMA_VERSION = "writing_profile.v1"
 CANONICAL_DIRNAME = Path("prompts") / "socratic"
 ALLOWED_FAMILIES = {"socratic", "catalog", "ocr", "assessment"}
 ALLOWED_KINDS = {"system", "outline-init"}
@@ -35,12 +36,13 @@ FAMILY_KIND_SCHEMA = {
     ("ocr", "transcribe-page"): OCR_PAGE_SCHEMA_VERSION,
     ("assessment", "grade-essay"): ASSESSMENT_OUTPUT_SCHEMA_VERSION,
     ("assessment", "class-insight"): CLASS_INSIGHT_SCHEMA_VERSION,
+    ("assessment", "writing-profile"): WRITING_PROFILE_SCHEMA_VERSION,
 }
 FAMILY_ALLOWED_KINDS = {
     "socratic": {"system", "outline-init"},
     "catalog": {"document-extract"},
     "ocr": {"transcribe-page"},
-    "assessment": {"grade-essay", "class-insight"},
+    "assessment": {"grade-essay", "class-insight", "writing-profile"},
 }
 
 _VERSION_RE = re.compile(r"^v?\d+(\.\d+)*$")
