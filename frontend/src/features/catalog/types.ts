@@ -36,6 +36,21 @@ export interface CatalogMaterial {
   updatedAt?: string | null;
 }
 
+/** Read-only material as a student sees it; no edit or import metadata. */
+export interface StudentMaterial {
+  id: string;
+  title: string;
+  author: string;
+  sourceInfo: string;
+  gradeLevel: number;
+  topicTitle: string | null;
+  genre: string | null;
+  excerpt: string;
+  updatedAt: string | null;
+  content?: string;
+  sourceNotes?: string[];
+}
+
 export interface CatalogPrompt {
   id: string;
   kind?: 'prompt';

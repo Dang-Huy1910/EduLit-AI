@@ -367,6 +367,99 @@ class CatalogService:
         material = await self._owned_material(teacher, material_id)
         return await self._material_dict(material, full=True)
 
+    # ── Student read-only materials ──────────────────────────────────────────
+    # A student reads the ready materials of the teachers who own a class the
+    # student is an active member of. There is no write path for students.
+
+    async def _student_teacher_ids(self, student: User) -> list[uuid.UUID]:
+        if student.role != UserRole.STUDENT:
+            raise CatalogError(403, "STUDENT_REQUIRED", ERROR_MESSAGES["STUDENT_REQUIRED"])
+        result = await self.session.execute(
+            select(Classroom.owner_teacher_id)
+            .join(ClassMembership, ClassMembership.classroom_id == Classroom.id)
+            .where(
+                ClassMembership.user_id == student.id,
+                ClassMembership.membership_role == "STUDENT",
+                ClassMembership.status == "ACTIVE",
+            )
+            .distinct()
+        )
+        return [row[0] for row in result.all()]
+
+    async def _student_material_view(
+        self, material: Material, topics: dict[uuid.UUID, Topic], *, full: bool = False
+    ) -> dict[str, Any] | None:
+        payload = await self._material_dict(material, full=full)
+        if payload["status"] != "READY":
+            return None
+        topic = topics.get(material.topic_id) if material.topic_id else None
+        view: dict[str, Any] = {
+            "id": payload["id"],
+            "title": payload["title"],
+            "author": payload["author"],
+            "sourceInfo": payload["sourceInfo"],
+            "gradeLevel": payload["gradeLevel"],
+            "topicTitle": topic.title if topic else None,
+            "genre": topic.genre if topic else None,
+            "excerpt": payload["excerpt"],
+            "updatedAt": payload["updatedAt"],
+        }
+        if full:
+            view["content"] = payload.get("content") or ""
+            view["sourceNotes"] = payload.get("sourceNotes") or []
+        return view
+
+    async def _topics_by_id(self, topic_ids: set[uuid.UUID]) -> dict[uuid.UUID, Topic]:
+        if not topic_ids:
+            return {}
+        result = await self.session.execute(select(Topic).where(Topic.id.in_(topic_ids)))
+        return {topic.id: topic for topic in result.scalars().all()}
+
+    async def list_student_materials(
+        self, student: User, *, query: str | None = None, grade_level: int | None = None
+    ) -> list[dict[str, Any]]:
+        teacher_ids = await self._student_teacher_ids(student)
+        if not teacher_ids:
+            return []
+        stmt = (
+            select(Material)
+            .options(selectinload(Material.versions).selectinload(MaterialVersion.chunks))
+            .where(Material.owner_teacher_id.in_(teacher_ids), Material.status == "READY")
+        )
+        if grade_level:
+            stmt = stmt.where(Material.grade_level == grade_level)
+        materials = (
+            await self.session.execute(stmt.order_by(Material.updated_at.desc()))
+        ).scalars().unique().all()
+        topics = await self._topics_by_id({m.topic_id for m in materials if m.topic_id})
+        needle = (query or "").strip().lower()
+        items: list[dict[str, Any]] = []
+        for material in materials:
+            view = await self._student_material_view(material, topics)
+            if view is None:
+                continue
+            if needle and needle not in view["title"].lower() and needle not in (view["author"] or "").lower():
+                continue
+            items.append(view)
+        return items
+
+    async def get_student_material(self, student: User, material_id: uuid.UUID) -> dict[str, Any]:
+        teacher_ids = await self._student_teacher_ids(student)
+        result = await self.session.execute(
+            select(Material)
+            .options(selectinload(Material.versions).selectinload(MaterialVersion.chunks))
+            .where(Material.id == material_id)
+        )
+        material = result.scalar_one_or_none()
+        not_found = CatalogError(404, "NOT_FOUND", "Không tìm thấy ngữ liệu.")
+        if material is None or material.owner_teacher_id not in teacher_ids or material.status != "READY":
+            raise not_found
+        topics = await self._topics_by_id({material.topic_id} if material.topic_id else set())
+        view = await self._student_material_view(material, topics, full=True)
+        if view is None:
+            raise not_found
+        return view
+
     async def create_material(
         self, teacher: User, body: dict[str, Any], *, commit: bool = True
     ) -> dict[str, Any]:

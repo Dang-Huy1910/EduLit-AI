@@ -9,6 +9,7 @@ import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import ImportReview from '@/features/catalog/ImportReview';
+import StudentMaterialsView from '@/features/catalog/StudentMaterialsView';
 import {
   catalogHref,
   createAssignmentHref,
@@ -1186,10 +1187,8 @@ function MaterialsContent() {
 
   if (!isTeacher) {
     return (
-      <StudentShell>
-        <div className="max-w-lg mx-auto p-8 text-sm text-on-surface-variant">
-          Kho học liệu dành cho giáo viên. Em hãy mở bài tập đã được giao.
-        </div>
+      <StudentShell headerTitle="Tra cứu ngữ liệu" headerSubtitle="Ngữ liệu giáo viên chia sẻ • Chỉ xem">
+        <StudentMaterialsView />
       </StudentShell>
     );
   }

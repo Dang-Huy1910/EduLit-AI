@@ -9,7 +9,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Body, Depends, File, Form, Query, UploadFile, status
 from fastapi.responses import Response
 
-from app.core.errors import ApiHttpException
+from app.core.errors import ERROR_MESSAGES, ApiHttpException
 from app.db.models import User
 from app.identity.deps import get_session_context, require_mutation_guards
 from app.identity.service import SessionContext
@@ -369,5 +369,45 @@ async def confirm_document(
 ) -> dict[str, Any]:
     try:
         return await service.confirm(teacher, document_id, body)
+    except CatalogError as exc:
+        _raise(exc)
+
+
+# ── Student read-only materials ──────────────────────────────────────────────
+
+student_router = APIRouter(
+    prefix="/student",
+    tags=["student-catalog"],
+    dependencies=[Depends(require_mutation_guards)],
+)
+
+
+async def get_student(ctx: Annotated[SessionContext, Depends(get_session_context)]) -> User:
+    if ctx.user.role.value != "STUDENT":
+        raise ApiHttpException(status.HTTP_403_FORBIDDEN, "STUDENT_REQUIRED", ERROR_MESSAGES["STUDENT_REQUIRED"])
+    return ctx.user
+
+
+@student_router.get("/materials")
+async def list_student_materials(
+    student: Annotated[User, Depends(get_student)],
+    service: Annotated[CatalogService, Depends(get_catalog_service)],
+    q: str | None = None,
+    gradeLevel: int | None = None,
+) -> dict[str, Any]:
+    try:
+        return {"items": await service.list_student_materials(student, query=q, grade_level=gradeLevel)}
+    except CatalogError as exc:
+        _raise(exc)
+
+
+@student_router.get("/materials/{material_id}")
+async def get_student_material(
+    material_id: uuid.UUID,
+    student: Annotated[User, Depends(get_student)],
+    service: Annotated[CatalogService, Depends(get_catalog_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.get_student_material(student, material_id)
     except CatalogError as exc:
         _raise(exc)

@@ -7,6 +7,7 @@ import type {
   ClassroomDetail,
   ClassroomSummary,
   StudentAssignment,
+  StudentMaterial,
   TeacherAssignment,
   TeacherDocument,
 } from './types';
@@ -63,6 +64,12 @@ export const catalogApi = {
   confirmDocument: (id: string, body?: unknown) =>
     apiSend<TeacherDocument>(`/api/teacher/documents/${id}/confirm`, 'POST', body ?? {}),
   downloadDocumentOriginal: (id: string) => apiBlob(`/api/teacher/documents/${id}/original`),
+};
+
+/** Student materials are read-only: list and read, nothing else. */
+export const studentMaterialsApi = {
+  list: () => apiGet<{ items: StudentMaterial[] }>('/api/student/materials'),
+  get: (id: string) => apiGet<StudentMaterial>(`/api/student/materials/${encodeURIComponent(id)}`),
 };
 
 function query(params?: Record<string, string | boolean | undefined>): string {
