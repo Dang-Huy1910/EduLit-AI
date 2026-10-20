@@ -205,7 +205,9 @@ export default function CompetencyReportView() {
           <p className="text-xs text-on-surface-variant bg-surface-container-low px-3 py-2 rounded-lg">{unavailableHint}</p>
         ) : null}
 
-        <div className="glass-panel p-4 rounded-2xl shadow-xs space-y-3">
+        {/* z-30 lifts the filter card above the panels below it, so the
+            assignment picker dropdown is not painted under them. */}
+        <div className="glass-panel relative z-30 p-4 rounded-2xl shadow-xs space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
             <label className="text-xs space-y-1 xl:col-span-2">
               <span className="font-semibold text-on-surface">Lớp phụ trách</span>
