@@ -49,6 +49,9 @@ SEARCH_STOPWORDS = frozenset(
         "nay",
         "nhung",
         "phan",
+        # "quy" commonly occurs as part of "quy định", but alone it is too
+        # broad: it also matches names such as "Trần Quang Quý".
+        "quy",
         "the",
         "toi",
         "tren",
@@ -330,15 +333,18 @@ class ChatbotService:
         # Also search the global guide (accessible to everyone).
         guide_chunks = await self._get_global_guide_chunks()
 
-        # Search each source before combining results.  An unrelated guide must
-        # not force an LLM call for a question that has no matching knowledge.
-        retrieved_chunks = _keyword_search(question, user_chunks, max_results=5)
-        guide_matches = _keyword_search(question, guide_chunks, max_results=5)
+        # Search each source before combining results.  Reserve room for
+        # matching guidance: otherwise five broad matches in an assigned text
+        # (for example the author's name "Quý") can hide the instructions for
+        # submitting work or using the application.
+        guide_matches = _keyword_search(question, guide_chunks, max_results=2)
+        material_matches = _keyword_search(question, user_chunks, max_results=5)
+        retrieved_chunks = list(guide_matches)
         seen_ids = {chunk.chunk_id for chunk in retrieved_chunks}
-        for guide_chunk in guide_matches:
-            if guide_chunk.chunk_id not in seen_ids and len(retrieved_chunks) < 5:
-                retrieved_chunks.append(guide_chunk)
-                seen_ids.add(guide_chunk.chunk_id)
+        for material_chunk in material_matches:
+            if material_chunk.chunk_id not in seen_ids and len(retrieved_chunks) < 5:
+                retrieved_chunks.append(material_chunk)
+                seen_ids.add(material_chunk.chunk_id)
 
         # If still no chunks, return "not found" response
         if not retrieved_chunks:

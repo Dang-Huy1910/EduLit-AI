@@ -160,3 +160,44 @@ async def test_search_normalizes_vietnamese_and_does_not_call_llm_without_match(
     assert result.answer == "Mình chưa tìm thấy thông tin này trong tài liệu hiện có."
     assert result.sources == []
     assert adapter.call_count == 0
+
+
+@pytest.mark.asyncio
+async def test_global_guide_is_not_hidden_by_assigned_material_matches(
+    db_session: AsyncSession,
+) -> None:
+    """Help content must retain context slots even when a text has five hits."""
+    original_guide = _get_user_guide_content()
+    set_user_guide_content(
+        "# Hướng dẫn\n\n## Quy tắc sử dụng\n"
+        "Nộp bài đúng thời hạn quy định.\n\n"
+        "## Nộp bài\n"
+        "Vào bài tập, tải ảnh bài viết rồi xác nhận nộp bài."
+    )
+    assigned_chunks = [
+        RetrievedChunk(
+            chunk_id=f"assigned-{index}",
+            title="Bài thơ Màu tự do của đất",
+            text="Học sinh nộp bài phân tích tác phẩm.",
+            material_title="Màu tự do của đất - Trần Quang Quý",
+            source_name="Ngữ liệu",
+        )
+        for index in range(5)
+    ]
+    adapter = FakeAiAdapter(responses=["Hãy vào bài tập để nộp bài."])
+
+    class AssignedKnowledgeService(ChatbotService):
+        async def _get_user_accessible_chunks(self, _user: User) -> list[RetrievedChunk]:
+            return assigned_chunks
+
+    try:
+        result = await AssignedKnowledgeService(db_session, adapter).answer(
+            _user(UserRole.STUDENT, "recipient"), "Quy định và cách nộp bài"
+        )
+    finally:
+        set_user_guide_content(original_guide)
+
+    assert result.sources[0]["source_name"] == "Hướng dẫn sử dụng"
+    assert any(source["title"] == "Nộp bài" for source in result.sources)
+    assert len(result.sources) == 5
+    assert adapter.call_count == 1
