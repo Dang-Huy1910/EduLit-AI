@@ -10,6 +10,7 @@ import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import ImportReview from '@/features/catalog/ImportReview';
 import StudentMaterialsView from '@/features/catalog/StudentMaterialsView';
+import InlineDeleteButton from '@/components/InlineDeleteButton';
 import {
   catalogHref,
   createAssignmentHref,
@@ -109,17 +110,6 @@ function MaterialsContent() {
   const [fullMaterial, setFullMaterial] = useState(false);
   const [previewNonce, setPreviewNonce] = useState(0);
   const [deletingPromptId, setDeletingPromptId] = useState('');
-  // Delete is confirmed inline on the card instead of a browser dialog.
-  const [confirmingPromptId, setConfirmingPromptId] = useState('');
-
-  useEffect(() => {
-    if (!confirmingPromptId) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setConfirmingPromptId('');
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [confirmingPromptId]);
 
   const handleDeletePrompt = async (prompt: CatalogPrompt) => {
     if (deletingPromptId) return;
@@ -133,7 +123,6 @@ function MaterialsContent() {
       addToast(err instanceof AuthApiError ? err.message : 'Không xóa được đề nguồn. Hãy thử lại.', 'error');
     } finally {
       setDeletingPromptId('');
-      setConfirmingPromptId('');
     }
   };
 
@@ -545,10 +534,7 @@ function MaterialsContent() {
               return (
                 <div
                   key={key}
-                  onClick={() => {
-                    setSelectedKey(key);
-                    if (confirmingPromptId !== item.data.id) setConfirmingPromptId('');
-                  }}
+                  onClick={() => setSelectedKey(key)}
                   className={`p-4 rounded-xl border cursor-pointer transition-all ${
                     isSelected
                       ? 'glass-card border-secondary shadow-md ring-2 ring-secondary/30 scale-[1.01]'
@@ -575,58 +561,16 @@ function MaterialsContent() {
                           ? `${item.data.author || 'Chưa có tác giả'} • Khối ${item.data.gradeLevel}`
                           : `Thang ${item.data.maxScore}đ • ${item.data.criteriaCount} tiêu chí`}
                     </span>
-                    {item.kind === 'prompt' &&
-                      (confirmingPromptId === item.data.id ? (
-                        <div
-                          className="flex items-center gap-1 shrink-0 pl-2"
-                          onClick={(event) => event.stopPropagation()}
-                          title="Các bài tập đã giao từ đề này vẫn được giữ nguyên."
-                        >
-                          <span className="text-[11px] font-medium text-on-surface-variant mr-1">Xóa khỏi kho?</span>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmingPromptId('')}
-                            disabled={deletingPromptId === item.data.id}
-                            className="h-7 px-2.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container active:scale-95 transition-all disabled:opacity-50"
-                          >
-                            Hủy
-                          </button>
-                          <button
-                            type="button"
-                            autoFocus
-                            aria-label={`Xác nhận xóa đề nguồn ${item.data.title}`}
-                            onClick={() => void handleDeletePrompt(item.data)}
-                            disabled={Boolean(deletingPromptId)}
-                            className="h-7 px-2.5 rounded-lg bg-error text-white text-xs font-semibold inline-flex items-center gap-1 shadow-sm hover:brightness-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 focus-visible:ring-offset-1 transition-all disabled:opacity-70 disabled:cursor-wait"
-                          >
-                            {deletingPromptId === item.data.id ? (
-                              <>
-                                <span className="w-3 h-3 border-2 border-white/90 border-t-transparent rounded-full animate-spin" />
-                                Đang xóa
-                              </>
-                            ) : (
-                              <>
-                                <span className="material-symbols-outlined text-[15px]" aria-hidden="true">delete</span>
-                                Xóa
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          aria-label={`Xóa đề nguồn ${item.data.title}`}
-                          title="Xóa đề nguồn"
-                          disabled={Boolean(deletingPromptId)}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setConfirmingPromptId(item.data.id);
-                          }}
-                          className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-outline hover:text-error hover:bg-error/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/40 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
-                        </button>
-                      ))}
+                    {item.kind === 'prompt' && (
+                      <InlineDeleteButton
+                        label={`Xóa đề nguồn ${item.data.title}`}
+                        title="Xóa đề nguồn khỏi kho?"
+                        description="Các bài tập đã giao từ đề này vẫn được giữ nguyên."
+                        busy={deletingPromptId === item.data.id}
+                        disabled={Boolean(deletingPromptId)}
+                        onConfirm={() => handleDeletePrompt(item.data)}
+                      />
+                    )}
                   </div>
                 </div>
               );

@@ -9,6 +9,7 @@ import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import { beginNewAssignmentDraft, clearAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
 import type { ClassroomSummary, TeacherAssignment } from '@/features/catalog/types';
+import InlineDeleteButton from '@/components/InlineDeleteButton';
 
 export default function TeacherAssignmentsView() {
   const { addToast, currentUser } = useAppStore();
@@ -63,9 +64,7 @@ export default function TeacherAssignmentsView() {
   const createHref = pickPromptHref({ classroomId });
 
   const handleDeleteAssignment = async (assignment: TeacherAssignment) => {
-    if (deletingId || !window.confirm(
-      `Xóa bài tập “${assignment.title}”?\nBài tập sẽ được gỡ khỏi danh sách và học sinh không thể tiếp tục truy cập.`
-    )) return;
+    if (deletingId) return;
     setDeletingId(assignment.id);
     try {
       await catalogApi.deleteAssignment(assignment.id);
@@ -271,16 +270,14 @@ export default function TeacherAssignmentsView() {
                       <span className="text-[11px] text-on-surface-variant font-mono">
                         {assignment.dueAt ? `Hạn: ${new Date(assignment.dueAt).toLocaleString('vi-VN')}` : 'Chưa đặt hạn'}
                       </span>
-                      <button
-                        type="button"
-                        aria-label={`Xóa bài tập ${assignment.title}`}
+                      <InlineDeleteButton
+                        label={`Xóa bài tập ${assignment.title}`}
+                        title="Xóa bài tập này?"
+                        description="Bài tập sẽ được gỡ khỏi danh sách và học sinh không thể tiếp tục truy cập."
+                        busy={deletingId === assignment.id}
                         disabled={Boolean(deletingId)}
-                        onClick={() => void handleDeleteAssignment(assignment)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-error text-xs font-semibold hover:bg-error/10 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-error/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                      >
-                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
-                        {deletingId === assignment.id ? 'Đang xóa...' : 'Xóa'}
-                      </button>
+                        onConfirm={() => handleDeleteAssignment(assignment)}
+                      />
                     </div>
                   </div>
 
