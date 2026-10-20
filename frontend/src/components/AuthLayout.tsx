@@ -16,7 +16,7 @@ const FEATURES = [
 
 function BrandMark() {
   return (
-    <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center ring-1 ring-white/25 shrink-0">
+    <div className="w-12 h-12 rounded-xl bg-white/15 text-amber-200 ring-1 ring-white/20 backdrop-blur-md flex items-center justify-center shrink-0">
       <EduLitMark className="w-8 h-8" />
     </div>
   );
