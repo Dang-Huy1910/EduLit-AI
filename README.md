@@ -1,6 +1,8 @@
 # EduLit-AI 📚✍️
 ### Nền tảng Trợ lý AI đồng hành Dạy – Học & Đánh giá môn Ngữ văn THPT theo định hướng GDPT 2018
 
+🔗 **Dùng thử sản phẩm:** [https://edu-lit-ai.vercel.app/](https://edu-lit-ai.vercel.app/)
+
 > **Đơn vị thí điểm:** Trường THPT Đan Phượng (Hà Nội) — Lớp 12A1  
 > **Nhân vật minh họa:** Cô Đặng Loan (Giáo viên Ngữ văn) & Bùi Hà My (Học sinh)  
 > **Phiên bản:** Prototype v1.0 (Interactive Prototype)
