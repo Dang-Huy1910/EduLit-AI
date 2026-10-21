@@ -306,7 +306,7 @@ export default function StudentShell({
             sidebarCollapsed ? 'left-20' : 'left-72'
           } h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 items-center justify-between px-space-lg border-b border-outline-variant/20 transition-all duration-300`}
         >
-          <div className="flex items-center gap-space-md">
+          <div className="flex min-w-0 flex-1 items-center gap-space-md overflow-hidden">
             {sidebarCollapsed && (
               <button
                 type="button"
@@ -317,20 +317,16 @@ export default function StudentShell({
                 <span className="material-symbols-outlined text-lg">dock_to_right</span>
               </button>
             )}
-            <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
-              <span className="material-symbols-outlined text-[18px] text-outline">assignment</span>
-              <span>{resolvedHeaderTitle}</span>
-              <span className="text-outline-variant">/</span>
-              <span className="text-on-surface font-semibold">{headerSubtitle}</span>
+            <div className="hidden min-w-0 flex-1 items-center gap-space-xs overflow-hidden whitespace-nowrap font-label-md text-sm text-on-surface-variant xl:flex">
+              <span className="material-symbols-outlined shrink-0 text-[18px] text-outline">assignment</span>
+              <span className="truncate">{resolvedHeaderTitle}</span>
+              <span className="shrink-0 text-outline-variant">/</span>
+              <span className="truncate text-on-surface font-semibold">{headerSubtitle}</span>
             </div>
             <TermClassSwitcher role="student" allowAll />
-            <span className="font-caption text-xs bg-secondary-fixed/50 text-secondary px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-              <span>Học sinh: {currentUser?.name || 'Học sinh'}</span>
-            </span>
           </div>
 
-          <div className="flex items-center gap-space-lg">
+          <div className="flex shrink-0 items-center gap-space-lg">
             <Link
               href="/chatbot"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-secondary via-secondary-container to-primary text-white font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm"
@@ -348,12 +344,12 @@ export default function StudentShell({
               <span>Mã hóa ẩn danh PII-Shield</span>
             </div>
 
-            <div className="flex items-center gap-space-sm pl-space-md border-l border-outline-variant/40">
-              <div className="text-right">
-                <div className="font-label-md text-sm text-on-surface font-semibold">
+            <div className="flex shrink-0 items-center gap-space-sm border-l border-outline-variant/40 pl-space-md whitespace-nowrap">
+              <div className="min-w-0 max-w-[12rem] text-right whitespace-nowrap">
+                <div className="truncate font-label-md text-sm font-semibold text-on-surface">
                   {currentUser?.name || 'Học sinh'}
                 </div>
-                <div className="font-caption text-xs text-on-surface-variant">
+                <div className="truncate font-caption text-xs text-on-surface-variant">
                   {classroomSummary} • THPT Đan Phượng
                 </div>
               </div>

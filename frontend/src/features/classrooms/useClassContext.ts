@@ -1,70 +1,11 @@
 'use client';
 
 import { useCallback, useEffect } from 'react';
-import { create } from 'zustand';
-import { AuthApiError } from '@/lib/auth-types';
 import { useAppStore } from '@/lib/store';
 import type { ClassroomSummary, StudentClassroom, Term } from '@/features/catalog/types';
-import { classroomsApi, studentClassroomsApi } from './api';
 import { useClassContext } from './class-context';
-import { useClassDataStore } from './class-data-store';
+import { useClassDataStore, useStudentClassDataStore } from './class-data-store';
 import { pickDefaultClassroom, pickDefaultTerm, shouldResetClassContext } from './model';
-
-interface StudentClassDataState {
-  terms: Term[];
-  classrooms: StudentClassroom[];
-  termsLoaded: boolean;
-  classroomsLoadedForTermId: string;
-  termsLoading: boolean;
-  classroomsLoading: boolean;
-  error: string;
-  loadTerms: (force?: boolean) => Promise<void>;
-  loadClassrooms: (termId: string, force?: boolean) => Promise<void>;
-  invalidateClassrooms: () => void;
-  reset: () => void;
-}
-
-const initialStudentClassData = {
-  terms: [] as Term[],
-  classrooms: [] as StudentClassroom[],
-  termsLoaded: false,
-  classroomsLoadedForTermId: '',
-  termsLoading: false,
-  classroomsLoading: false,
-  error: '',
-};
-
-const useStudentClassDataStore = create<StudentClassDataState>()((set, get) => ({
-  ...initialStudentClassData,
-  loadTerms: async (force = false) => {
-    const state = get();
-    if (state.termsLoading || (state.termsLoaded && !force)) return;
-    set({ termsLoading: true, error: '' });
-    try {
-      const response = await classroomsApi.listTerms();
-      set({ terms: response.items, termsLoaded: true });
-    } catch (err) {
-      set({ error: err instanceof AuthApiError ? err.message : 'Không tải được kỳ học.' });
-    } finally {
-      set({ termsLoading: false });
-    }
-  },
-  loadClassrooms: async (termId, force = false) => {
-    const state = get();
-    if (!termId || state.classroomsLoading || (state.classroomsLoadedForTermId === termId && !force)) return;
-    set({ classroomsLoading: true, error: '' });
-    try {
-      const response = await studentClassroomsApi.listMine({ termId });
-      set({ classrooms: response.items, classroomsLoadedForTermId: termId });
-    } catch (err) {
-      set({ error: err instanceof AuthApiError ? err.message : 'Không tải được lớp của em.' });
-    } finally {
-      set({ classroomsLoading: false });
-    }
-  },
-  invalidateClassrooms: () => set({ classrooms: [], classroomsLoadedForTermId: '' }),
-  reset: () => set(initialStudentClassData),
-}));
 
 type ContextRole = 'teacher' | 'student';
 type ClassroomForRole = ClassroomSummary | StudentClassroom;
@@ -138,25 +79,25 @@ function useClassContextForRole(role: ContextRole): ClassContextValue<ClassroomF
   }, [storedUserId, currentUserId, resetTeacherData, resetStudentData, resetContext, setStoredUserId]);
 
   useEffect(() => {
-    if (!userContextReady) return;
+    if (!currentUserId || !userContextReady) return;
     if (isStudent) void loadStudentTerms();
     else void loadTeacherTerms();
-  }, [isStudent, userContextReady, loadStudentTerms, loadTeacherTerms]);
+  }, [currentUserId, isStudent, userContextReady, loadStudentTerms, loadTeacherTerms]);
 
   useEffect(() => {
-    if (!userContextReady || !termsLoaded) return;
+    if (!currentUserId || !userContextReady || !termsLoaded) return;
     const selected = terms.find((item) => item.id === termId) || pickDefaultTerm(terms);
     if (selected && selected.id !== termId) setStoredTerm(selected.id);
-  }, [userContextReady, termsLoaded, terms, termId, setStoredTerm]);
+  }, [currentUserId, userContextReady, termsLoaded, terms, termId, setStoredTerm]);
 
   useEffect(() => {
-    if (!userContextReady || !termsLoaded || !termId) return;
+    if (!currentUserId || !userContextReady || !termsLoaded || !termId) return;
     if (isStudent) void loadStudentClassrooms(termId);
     else void loadTeacherClassrooms(termId);
-  }, [isStudent, userContextReady, termsLoaded, termId, loadStudentClassrooms, loadTeacherClassrooms]);
+  }, [currentUserId, isStudent, userContextReady, termsLoaded, termId, loadStudentClassrooms, loadTeacherClassrooms]);
 
   useEffect(() => {
-    if (!userContextReady || classroomsLoading || classroomsLoadedForTermId !== termId) return;
+    if (!currentUserId || !userContextReady || classroomsLoading || classroomsLoadedForTermId !== termId) return;
     if (isStudent) {
       if (classroomId && !classrooms.some((item) => item.id === classroomId)) setStoredClassroom('');
       return;
@@ -164,10 +105,10 @@ function useClassContextForRole(role: ContextRole): ClassContextValue<ClassroomF
     const selected = pickDefaultClassroom(classrooms as ClassroomSummary[], classroomId);
     if (selected && selected.id !== classroomId) setStoredClassroom(selected.id);
     if (!selected && classroomId) setStoredClassroom('');
-  }, [isStudent, userContextReady, classroomsLoading, classroomsLoadedForTermId, termId, classrooms, classroomId, setStoredClassroom]);
+  }, [currentUserId, isStudent, userContextReady, classroomsLoading, classroomsLoadedForTermId, termId, classrooms, classroomId, setStoredClassroom]);
 
   const reload = useCallback(async () => {
-    if (!userContextReady) return;
+    if (!currentUserId || !userContextReady) return;
     if (isStudent) {
       invalidateStudentClassrooms();
       await loadStudentTerms(true);
@@ -189,6 +130,7 @@ function useClassContextForRole(role: ContextRole): ClassContextValue<ClassroomF
     await loadTeacherClassrooms(selected.id, true);
   }, [
     isStudent,
+    currentUserId,
     userContextReady,
     loadStudentTerms,
     loadStudentClassrooms,

@@ -43,6 +43,8 @@ export default function StudentClassroomsView() {
         'success'
       );
       select(result.classroom.termId, result.classroom.id);
+      setJoinCode('');
+      if (invitationCode) router.replace('/classrooms');
       await reload();
     } catch (err) {
       if (err instanceof AuthApiError && err.status === 429) {

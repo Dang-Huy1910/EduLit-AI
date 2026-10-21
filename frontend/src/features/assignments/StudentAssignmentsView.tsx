@@ -319,18 +319,19 @@ export default function StudentAssignmentsView() {
                           <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-secondary-fixed/50 text-secondary">
                             Nghị luận văn học
                           </span>
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-                            Đang mở nộp
-                          </span>
+                          {assignment.classroomReadOnly ? (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              Chỉ xem
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                              Đang mở nộp
+                            </span>
+                          )}
                           {classroomLabelFor(assignment) && (
                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
                               {classroomLabelFor(assignment)}
-                            </span>
-                          )}
-                          {assignment.classroomReadOnly && (
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                              Chỉ xem
                             </span>
                           )}
                         </div>
