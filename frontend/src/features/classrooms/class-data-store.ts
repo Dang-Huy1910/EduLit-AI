@@ -16,10 +16,29 @@ interface ClassDataState {
   error: string;
   loadTerms: (force?: boolean) => Promise<void>;
   loadClassrooms: (termId: string, force?: boolean) => Promise<void>;
+  reset: () => void;
 }
 
-const termsGate = createRequestGate<void>();
+const INITIAL_DATA = {
+  terms: [] as Term[],
+  classrooms: [] as ClassroomSummary[],
+  termsLoaded: false,
+  classroomsLoadedForTermId: '',
+  requestedTermId: '',
+  termsLoading: false,
+  classroomsLoading: false,
+  error: '',
+};
+
+let termsGate = createRequestGate<void>();
 const classroomGates = new Map<string, ReturnType<typeof createRequestGate<void>>>();
+let requestGeneration = 0;
+
+function resetRequestGates() {
+  requestGeneration += 1;
+  termsGate = createRequestGate<void>();
+  classroomGates.clear();
+}
 
 function classroomGate(termId: string) {
   let gate = classroomGates.get(termId);
@@ -31,25 +50,21 @@ function classroomGate(termId: string) {
 }
 
 export const useClassDataStore = create<ClassDataState>()((set, get) => ({
-  terms: [],
-  classrooms: [],
-  termsLoaded: false,
-  classroomsLoadedForTermId: '',
-  requestedTermId: '',
-  termsLoading: false,
-  classroomsLoading: false,
-  error: '',
+  ...INITIAL_DATA,
   loadTerms: (force = false) => {
     if (!force && get().termsLoaded) return Promise.resolve();
+    const generation = requestGeneration;
     return termsGate.run(async () => {
       set({ termsLoading: true, error: '' });
       try {
         const { items } = await classroomsApi.listTerms();
-        set({ terms: items, termsLoaded: true });
+        if (generation === requestGeneration) set({ terms: items, termsLoaded: true });
       } catch (err) {
-        set({ error: err instanceof Error ? err.message : 'Không tải được danh sách kỳ học.' });
+        if (generation === requestGeneration) {
+          set({ error: err instanceof Error ? err.message : 'Không tải được danh sách kỳ học.' });
+        }
       } finally {
-        set({ termsLoading: false });
+        if (generation === requestGeneration) set({ termsLoading: false });
       }
     });
   },
@@ -59,6 +74,7 @@ export const useClassDataStore = create<ClassDataState>()((set, get) => ({
       return Promise.resolve();
     }
     if (!force && get().classroomsLoadedForTermId === termId) return Promise.resolve();
+    const generation = requestGeneration;
     if (get().requestedTermId !== termId) {
       set({
         classrooms: [],
@@ -72,14 +88,14 @@ export const useClassDataStore = create<ClassDataState>()((set, get) => ({
       set({ classroomsLoading: true, error: '' });
       try {
         const { items } = await classroomsApi.listTeacherClassrooms({ termId });
-        if (get().requestedTermId === termId) {
+        if (generation === requestGeneration && get().requestedTermId === termId) {
           set({
             classrooms: items.filter((item) => !item.archived),
             classroomsLoadedForTermId: termId,
           });
         }
       } catch (err) {
-        if (get().requestedTermId === termId) {
+        if (generation === requestGeneration && get().requestedTermId === termId) {
           set({
             classrooms: [],
             classroomsLoadedForTermId: '',
@@ -87,8 +103,12 @@ export const useClassDataStore = create<ClassDataState>()((set, get) => ({
           });
         }
       } finally {
-        if (get().requestedTermId === termId) set({ classroomsLoading: false });
+        if (generation === requestGeneration && get().requestedTermId === termId) set({ classroomsLoading: false });
       }
     });
+  },
+  reset: () => {
+    resetRequestGates();
+    set(INITIAL_DATA);
   },
 }));

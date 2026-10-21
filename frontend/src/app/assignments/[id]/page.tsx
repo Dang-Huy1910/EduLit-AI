@@ -8,7 +8,7 @@ import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import { classroomsApi } from '@/features/classrooms/api';
-import { classroomLabel } from '@/features/classrooms/model';
+import { classroomLabel, pickDefaultTerm, termLabel } from '@/features/classrooms/model';
 import { useTeacherClassContext } from '@/features/classrooms/useClassContext';
 import {
   beginNewAssignmentDraft,
@@ -29,6 +29,7 @@ import type {
   ClassroomMember,
   ClassroomSummary,
   TeacherAssignment,
+  Term,
 } from '@/features/catalog/types';
 import AssignmentSubmissionsPanel from '@/features/assessment/AssignmentSubmissionsPanel';
 import AssignmentStatisticsPanel from '@/features/assessment/AssignmentStatisticsPanel';
@@ -62,10 +63,12 @@ function AssignmentEditorPage() {
   const {
     classroom: contextClassroom,
     classrooms: contextClassrooms,
+    terms,
     loading: contextLoading,
     error: classContextError,
     reload: reloadClassContext,
     setClassroom: setContextClassroom,
+    select,
   } = useTeacherClassContext();
 
   const assignmentId = (params?.id as string) || 'new';
@@ -85,6 +88,10 @@ function AssignmentEditorPage() {
   const [copyTargetId, setCopyTargetId] = useState('');
   const [copying, setCopying] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [copyTargets, setCopyTargets] = useState<ClassroomSummary[]>([]);
+  const [copyTerm, setCopyTerm] = useState<Term | undefined>();
+  const [copyTargetsLoading, setCopyTargetsLoading] = useState(false);
+  const [copyTargetsError, setCopyTargetsError] = useState('');
   const [issue, setIssue] = useState<PageIssue | null>(null);
   const [rubricIssue, setRubricIssue] = useState('');
   const [memberIssue, setMemberIssue] = useState('');
@@ -481,7 +488,7 @@ function AssignmentEditorPage() {
   };
 
   const handleCopyToClassroom = async () => {
-    const target = contextClassrooms.find((item) => item.id === copyTargetId && !item.readOnly && item.id !== classroomId);
+    const target = copyTargets.find((item) => item.id === copyTargetId);
     if (!target) {
       addToast('Hãy chọn lớp đích có thể chỉnh sửa.', 'warning');
       return;
@@ -502,6 +509,7 @@ function AssignmentEditorPage() {
         })
       );
       addToast(`Đã tạo bản nháp cho lớp ${target.name}.`, 'success');
+      if (copyTerm) select(copyTerm.id, target.id);
       router.push(`/assignments/${created.id}`);
     } catch (err) {
       addToast(err instanceof AuthApiError ? err.message : 'Không sao chép được bài tập.', 'error');
@@ -549,33 +557,81 @@ function AssignmentEditorPage() {
     }
   };
 
-  const copyTargets = contextClassrooms.filter((item) => item.id !== classroomId && !item.readOnly);
-  const canCopyToAnotherClassroom = copyTargets.length > 0;
+  useEffect(() => {
+    if (!copyOpen) return;
+    const currentTerm = terms.find((item) => item.isCurrent) || pickDefaultTerm(terms);
+    setCopyTerm(currentTerm);
+    setCopyTargetId('');
+    setCopyTargetsError('');
+
+    if (!currentTerm) {
+      setCopyTargets([]);
+      setCopyTargetsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCopyTargetsLoading(true);
+    void classroomsApi
+      .listTeacherClassrooms({ termId: currentTerm.id })
+      .then(({ items }) => {
+        if (cancelled) return;
+        setCopyTargets(items.filter((item) => !item.readOnly && item.id !== classroomId));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setCopyTargets([]);
+        setCopyTargetsError(errorText(err, 'Không tải được danh sách lớp đích.'));
+      })
+      .finally(() => {
+        if (!cancelled) setCopyTargetsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [copyOpen, terms, classroomId]);
+
   const copyAction = (
     <>
       <button
         type="button"
         onClick={() => setCopyOpen((value) => !value)}
-        disabled={loading || !prompt?.id || !canCopyToAnotherClassroom}
+        disabled={!prompt?.id}
         className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
       >
         Sao chép sang lớp khác
       </button>
       {copyOpen && (
         <div className="w-full flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-1">
-          <select
-            value={copyTargetId}
-            onChange={(event) => setCopyTargetId(event.target.value)}
-            className="h-8 min-w-52 rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2 text-xs text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          >
-            <option value="">Chọn lớp đích</option>
-            {copyTargets.map((item) => (
-              <option key={item.id} value={item.id}>{classroomLabel(item)} ({item.studentCount} HS)</option>
-            ))}
-          </select>
-          <button type="button" onClick={() => void handleCopyToClassroom()} disabled={copying || !copyTargetId} className="h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold disabled:opacity-40">
-            {copying ? 'Đang sao chép...' : 'Tạo bản sao'}
-          </button>
+          {copyTargetsLoading ? (
+            <p className="text-xs text-on-surface-variant">Đang tải lớp đích...</p>
+          ) : copyTargetsError ? (
+            <p className="text-xs text-error">{copyTargetsError}</p>
+          ) : !copyTargets.length ? (
+            <p className="text-xs text-on-surface-variant">
+              Chưa có lớp nào ở {copyTerm ? termLabel(copyTerm) : 'kỳ hiện tại'} —{' '}
+              <Link href="/classrooms" className="font-semibold text-primary hover:underline">
+                tạo lớp ở trang Lớp học.
+              </Link>
+            </p>
+          ) : (
+            <>
+              <select
+                value={copyTargetId}
+                onChange={(event) => setCopyTargetId(event.target.value)}
+                className="h-8 min-w-52 rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2 text-xs text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              >
+                <option value="">Chọn lớp đích</option>
+                {copyTargets.map((item) => (
+                  <option key={item.id} value={item.id}>{classroomLabel(item)} ({item.studentCount} HS)</option>
+                ))}
+              </select>
+              <button type="button" onClick={() => void handleCopyToClassroom()} disabled={copying || !copyTargetId} className="h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold disabled:opacity-40">
+                {copying ? 'Đang sao chép...' : 'Tạo bản sao'}
+              </button>
+            </>
+          )}
         </div>
       )}
     </>

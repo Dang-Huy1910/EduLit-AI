@@ -5,6 +5,8 @@ import { AuthApiError, AuthStatus, PublicUser } from './auth-types';
 import { authClient } from './auth-client';
 import { mapPublicUser } from './auth-user';
 import { useAppStore } from './store';
+import { useClassContext } from '@/features/classrooms/class-context';
+import { useClassDataStore } from '@/features/classrooms/class-data-store';
 
 interface AuthState {
   status: AuthStatus;
@@ -71,6 +73,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: async () => {
     initializationGeneration += 1;
+    useClassDataStore.getState().reset();
+    useClassContext.getState().reset();
     try {
       await authClient.logout();
     } catch (err) {

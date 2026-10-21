@@ -31,3 +31,7 @@ export function classroomLabel(classroom: ClassroomSummary): string {
 export function normalizeJoinCode(raw: string): string {
   return raw.trim().toUpperCase().replace(/[\s-]+/g, '');
 }
+
+export function shouldResetClassContext(storedUserId: string, currentUserId: string | undefined): boolean {
+  return Boolean(currentUserId && currentUserId !== storedUserId);
+}

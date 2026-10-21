@@ -1,6 +1,6 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeJoinCode, pickDefaultClassroom, pickDefaultTerm } from '../model';
+import { normalizeJoinCode, pickDefaultClassroom, pickDefaultTerm, shouldResetClassContext } from '../model';
 import type { ClassroomSummary, Term } from '@/features/catalog/types';
 
 const terms: Term[] = [
@@ -27,5 +27,11 @@ describe('ngữ cảnh kỳ học và lớp', () => {
 
   test('chuẩn hoá mã tham gia', () => {
     assert.equal(normalizeJoinCode(' ab-c 12 '), 'ABC12');
+  });
+
+  test('đổi tài khoản thì reset ngữ cảnh lớp', () => {
+    assert.equal(shouldResetClassContext('teacher-a', 'teacher-b'), true);
+    assert.equal(shouldResetClassContext('teacher-a', 'teacher-a'), false);
+    assert.equal(shouldResetClassContext('teacher-a', undefined), false);
   });
 });
