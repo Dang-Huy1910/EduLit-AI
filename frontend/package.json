@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types --loader ./scripts/test-loader.mjs src/features/socratic/__tests__/regression.test.ts src/features/catalog/__tests__/assignment-flow.test.ts src/features/catalog/__tests__/import-markdown.test.ts src/features/chatbot/__tests__/chatbot.test.ts src/features/writing-profile/__tests__/model.test.ts src/features/assessment/__tests__/score-bins.test.ts",
+    "test": "node --test --experimental-strip-types --loader ./scripts/test-loader.mjs src/features/socratic/__tests__/regression.test.ts src/features/catalog/__tests__/assignment-flow.test.ts src/features/catalog/__tests__/import-markdown.test.ts src/features/chatbot/__tests__/chatbot.test.ts src/features/writing-profile/__tests__/model.test.ts src/features/assessment/__tests__/score-bins.test.ts src/features/classrooms/__tests__/model.test.ts",
     "test:e2e": "playwright test",
     "test:ui": "playwright test --config=playwright.ui.config.ts"
   },

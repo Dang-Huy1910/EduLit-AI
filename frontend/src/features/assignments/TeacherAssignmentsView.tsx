@@ -4,18 +4,18 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
-import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import { beginNewAssignmentDraft, clearAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
-import type { ClassroomSummary, TeacherAssignment } from '@/features/catalog/types';
+import type { TeacherAssignment } from '@/features/catalog/types';
 import InlineDeleteButton from '@/components/InlineDeleteButton';
+import { termLabel } from '@/features/classrooms/model';
+import { useTeacherClassContext } from '@/features/classrooms/useClassContext';
 
 export default function TeacherAssignmentsView() {
   const { addToast, currentUser } = useAppStore();
+  const { term, classrooms, classroom, setClassroom } = useTeacherClassContext();
   const [assignments, setAssignments] = useState<TeacherAssignment[]>([]);
-  const [classrooms, setClassrooms] = useState<ClassroomSummary[]>([]);
-  const [classroomId, setClassroomId] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'PUBLISHED' | 'DRAFT'>('all');
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState('');
@@ -25,13 +25,8 @@ export default function TeacherAssignmentsView() {
   useEffect(() => {
     void (async () => {
       try {
-        const [assignmentRes, classroomRes] = await Promise.all([
-          catalogApi.listTeacherAssignments(),
-          catalogApi.listClassrooms(),
-        ]);
+        const assignmentRes = await catalogApi.listTeacherAssignments();
         setAssignments(assignmentRes.items.filter((item) => !deletedIds.current.has(item.id)));
-        setClassrooms(classroomRes.items);
-        if (classroomRes.items[0]) setClassroomId(classroomRes.items[0].id);
       } catch (err) {
         addToast(err instanceof AuthApiError ? err.message : 'Không tải được danh sách bài tập.', 'error');
       } finally {
@@ -53,8 +48,9 @@ export default function TeacherAssignmentsView() {
     return () => window.clearInterval(timer);
   }, [hasActivePrep]);
 
-  const selectedClassroom = classrooms.find((item) => item.id === classroomId);
+  const classroomId = classroom?.id || '';
   const filtered = assignments.filter((item) => {
+    if (term && item.termId !== term.id && !(item.termId == null && term.isCurrent)) return false;
     if (classroomId && item.classroomId && item.classroomId !== classroomId) return false;
     if (activeFilter === 'all') return true;
     return item.status === activeFilter;
@@ -118,14 +114,24 @@ export default function TeacherAssignmentsView() {
               <span className="material-symbols-outlined text-[18px]">menu_book</span>
               Quản lý Kho học liệu
             </Link>
-            <Link
-              href={createHref}
-              onClick={() => beginNewAssignmentDraft({ classroomId }, { userId: currentUser?.id })}
-              className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-sm font-semibold flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-[18px]">add</span>
-              Tạo bài tập mới
-            </Link>
+            {classroom?.readOnly ? (
+              <span
+                title="Lớp này chỉ xem vì thuộc kỳ học đã kết thúc."
+                className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-sm font-semibold flex items-center gap-2 opacity-40 cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                Tạo bài tập mới
+              </span>
+            ) : (
+              <Link
+                href={createHref}
+                onClick={() => beginNewAssignmentDraft({ classroomId }, { userId: currentUser?.id })}
+                className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-sm font-semibold flex items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">add</span>
+                Tạo bài tập mới
+              </Link>
+            )}
           </div>
         </div>
 
@@ -137,7 +143,7 @@ export default function TeacherAssignmentsView() {
               <select
                 value={classroomId}
                 onChange={(e) => {
-                  setClassroomId(e.target.value);
+                  setClassroom(e.target.value);
                   beginNewAssignmentDraft({ classroomId: e.target.value }, { userId: currentUser?.id });
                 }}
                 className="mt-0.5 w-full text-base font-bold bg-transparent text-on-surface font-merriweather focus:outline-none cursor-pointer"
@@ -149,8 +155,8 @@ export default function TeacherAssignmentsView() {
                 ))}
               </select>
               <span className="text-[11px] text-secondary font-semibold block mt-0.5">
-                {selectedClassroom
-                  ? `${selectedClassroom.studentCount} học sinh • ${selectedClassroom.academicYear || SCHOOL_CONTEXT.academicYear}`
+                {classroom
+                  ? `${classroom.studentCount} học sinh${term ? ` • ${termLabel(term)}` : ''}`
                   : 'Chưa có lớp'}
               </span>
             </div>
@@ -324,7 +330,7 @@ export default function TeacherAssignmentsView() {
                       </span>
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface font-semibold">
                         <span className="material-symbols-outlined text-[14px] text-outline" aria-hidden="true">school</span>
-                        Lớp {assignment.classroomCode || SCHOOL_CONTEXT.classroomCode}
+                        Lớp {assignment.classroomCode || 'Chưa gắn lớp'}
                       </span>
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface font-semibold">
                         <span className="material-symbols-outlined text-[14px] text-outline" aria-hidden="true">group</span>

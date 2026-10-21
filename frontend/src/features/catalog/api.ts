@@ -1,4 +1,5 @@
 import { apiBlob, apiGet, apiSend, apiUpload } from '@/lib/api/http';
+import { classroomsApi } from '@/features/classrooms/api';
 import type {
   CatalogMaterial,
   CatalogPrompt,
@@ -15,8 +16,8 @@ import type {
 export const catalogApi = {
   listTopics: () => apiGet<{ items: CatalogTopic[] }>('/api/teacher/topics'),
   createTopic: (body: unknown) => apiSend<CatalogTopic>('/api/teacher/topics', 'POST', body),
-  listClassrooms: () => apiGet<{ items: ClassroomSummary[] }>('/api/teacher/classrooms'),
-  getClassroom: (id: string) => apiGet<ClassroomDetail>(`/api/teacher/classrooms/${id}`),
+  listClassrooms: () => classroomsApi.listTeacherClassrooms(),
+  getClassroom: (id: string) => classroomsApi.getClassroom(id),
   listMaterials: (params?: Record<string, string | undefined>) =>
     apiGet<{ items: CatalogMaterial[] }>(`/api/teacher/materials${query(params)}`),
   getMaterial: (id: string) => apiGet<CatalogMaterial>(`/api/teacher/materials/${id}`),

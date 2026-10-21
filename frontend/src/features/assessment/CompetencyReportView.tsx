@@ -12,6 +12,7 @@ import ScoreDistributionChart from './ScoreDistributionChart';
 import { FormulaNote, HeroScore, PipelineStrip, StatTile } from './StatsBlocks';
 import InsightPanel from './InsightPanel';
 import { AuthApiError } from '@/lib/auth-types';
+import { useTeacherClassContext } from '@/features/classrooms/useClassContext';
 
 const PAGE_SIZE = 10;
 
@@ -19,6 +20,8 @@ export default function CompetencyReportView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const assignmentFromUrl = searchParams.get('assignmentId') || '';
+  const { classroom: contextClassroom, setClassroom } = useTeacherClassContext();
+  const initializedClassroom = useRef(Boolean(searchParams.get('classroomId')));
 
   useEffect(() => {
     if (!assignmentFromUrl) return;
@@ -46,6 +49,12 @@ export default function CompetencyReportView() {
   const [sortOrder, setSortOrder] = useState<'default' | 'score_desc' | 'score_asc'>('default');
   const [page, setPage] = useState(1);
   const [unavailableHint, setUnavailableHint] = useState('');
+
+  useEffect(() => {
+    if (initializedClassroom.current || !contextClassroom?.id) return;
+    initializedClassroom.current = true;
+    setClassroomId(contextClassroom.id);
+  }, [contextClassroom?.id]);
 
   const query = useMemo(
     () => ({
@@ -215,6 +224,7 @@ export default function CompetencyReportView() {
                 value={classroomId}
                 onChange={(e) => {
                   setClassroomId(e.target.value);
+                  setClassroom(e.target.value);
                   setAssignmentIds([]);
                   setStudentId('');
                   setPage(1);

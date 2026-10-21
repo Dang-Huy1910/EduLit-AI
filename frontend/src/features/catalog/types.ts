@@ -102,8 +102,16 @@ export interface ClassroomSummary {
   id: string;
   code: string;
   name: string;
+  subject: string;
   gradeLevel: number;
   academicYear: string;
+  termId: string;
+  termName: string;
+  termStatus: Term['status'];
+  readOnly: boolean;
+  archived: boolean;
+  joinCode: string;
+  joinEnabled: boolean;
   studentCount: number;
 }
 
@@ -114,10 +122,22 @@ export interface ClassroomMember {
   role: string;
   email: string;
   status: string;
+  joinedAt: string;
 }
 
 export interface ClassroomDetail extends ClassroomSummary {
   members: ClassroomMember[];
+}
+
+export interface Term {
+  id: string;
+  code: string;
+  name: string;
+  academicYear: string;
+  startsOn: string;
+  endsOn: string;
+  status: 'UPCOMING' | 'ACTIVE' | 'ENDED';
+  isCurrent: boolean;
 }
 
 export interface TeacherAssignment {
@@ -131,6 +151,8 @@ export interface TeacherAssignment {
   classroomId: string | null;
   classroomName: string | null;
   classroomCode: string | null;
+  classroomReadOnly?: boolean;
+  termId?: string | null;
   sourcePromptId: string;
   sourcePromptTitle: string | null;
   rubricId: string | null;

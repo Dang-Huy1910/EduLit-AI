@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
-import { SCHOOL_CONTEXT } from '@/lib/school-context';
+import TermClassSwitcher from '@/features/classrooms/TermClassSwitcher';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 import EduLitMark from './EduLitMark';
@@ -33,6 +33,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
 
   const navItems = [
     { label: 'Quản lý bài tập', href: '/assignments', icon: 'assignment' },
+    { label: 'Lớp học', href: '/classrooms', icon: 'groups' },
     { label: 'Kho ngữ liệu & Chuyên đề', href: '/materials', icon: 'menu_book' },
     { label: 'Báo cáo năng lực', href: '/reports', icon: 'analytics' },
     { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot', badge: 'GPT' },
@@ -241,18 +242,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                 <span className="material-symbols-outlined text-lg">dock_to_right</span>
               </button>
             )}
-            {breadcrumb || (
-              <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
-                <span className="material-symbols-outlined text-[18px] text-outline">school</span>
-                <span>Lớp {SCHOOL_CONTEXT.classroomCode} • THPT Đan Phượng</span>
-                <span className="text-outline-variant">/</span>
-                <span className="text-on-surface font-semibold">Nghị luận xã hội GDPT 2018</span>
-              </div>
-            )}
-            <span className="font-caption text-xs bg-primary-container/20 text-primary px-2.5 py-0.5 rounded-full font-semibold border border-primary/20 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-              <span>{SCHOOL_CONTEXT.semester} • {SCHOOL_CONTEXT.academicYear}</span>
-            </span>
+            {breadcrumb || <TermClassSwitcher />}
           </div>
 
           <div className="flex items-center gap-space-lg">

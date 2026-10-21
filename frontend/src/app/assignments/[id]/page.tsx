@@ -7,6 +7,9 @@ import TeacherShell from '@/components/TeacherShell';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
+import { classroomsApi } from '@/features/classrooms/api';
+import { classroomLabel } from '@/features/classrooms/model';
+import { useTeacherClassContext } from '@/features/classrooms/useClassContext';
 import {
   beginNewAssignmentDraft,
   clearAssignmentDraft,
@@ -56,6 +59,7 @@ function AssignmentEditorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToast, currentUser } = useAppStore();
+  const { term, classroom: contextClassroom, setClassroom: setContextClassroom } = useTeacherClassContext();
 
   const assignmentId = (params?.id as string) || 'new';
   const isNew = assignmentId === 'new';
@@ -69,6 +73,9 @@ function AssignmentEditorPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copyTargetId, setCopyTargetId] = useState('');
+  const [copying, setCopying] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const [issue, setIssue] = useState<PageIssue | null>(null);
   const [rubricIssue, setRubricIssue] = useState('');
   const [classroomIssue, setClassroomIssue] = useState('');
@@ -105,6 +112,7 @@ function AssignmentEditorPage() {
   const currentRubric = rubrics.find((item) => item.id === selectedRubricId);
   const sourceDocumentId = prompt?.sourceDocumentId || prompt?.materials.find((item) => item.sourceDocumentId)?.sourceDocumentId;
   const isPublished = assignment?.status === 'PUBLISHED';
+  const classroomIsReadOnly = Boolean(assignment?.classroomReadOnly);
   const activeTab =
     isPublished && (tabParam === 'submissions' || tabParam === 'statistics' || tabParam === 'details')
       ? tabParam
@@ -147,12 +155,14 @@ function AssignmentEditorPage() {
       }
 
       try {
-        const classRes = await catalogApi.listClassrooms();
+        const classRes = await classroomsApi.listTeacherClassrooms({ termId: term?.id });
         if (stillActive()) {
-          setClassrooms(classRes.items);
+          const writable = classRes.items.filter((item) => !item.readOnly);
+          setClassrooms(writable);
           const draft = loadAssignmentDraft(draftScope);
-          if (!searchParams.get('classroomId') && !draft.classroomId && classRes.items[0]) {
-            setClassroomId(classRes.items[0].id);
+          if (!searchParams.get('classroomId') && !draft.classroomId) {
+            const defaultClassroomId = contextClassroom?.id || writable[0]?.id;
+            if (defaultClassroomId) setClassroomId(defaultClassroomId);
           }
         }
       } catch (err) {
@@ -171,6 +181,18 @@ function AssignmentEditorPage() {
           if (!stillActive()) return;
           assignmentRef.current = existing;
           setAssignment(existing);
+          if (existing.classroomId && !classrooms.some((item) => item.id === existing.classroomId)) {
+            try {
+              const assignmentClassroom = await classroomsApi.getClassroom(existing.classroomId);
+              if (stillActive()) {
+                setClassrooms((current) =>
+                  current.some((item) => item.id === assignmentClassroom.id) ? current : [...current, assignmentClassroom]
+                );
+              }
+            } catch {
+              // The assignment remains readable even when its classroom is no longer available.
+            }
+          }
           applyLoadedAssignment(existing, draft);
           const promptToLoad = isCatalogUuid(promptId) ? promptId : existing.sourcePromptId;
           await hydratePrompt(promptToLoad, draft, stillActive, rubricItems, existing);
@@ -203,7 +225,7 @@ function AssignmentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, isNew, promptId, existingAssignmentId, currentUser?.id, loadNonce]);
+  }, [assignmentId, isNew, promptId, existingAssignmentId, currentUser?.id, loadNonce, term?.id, contextClassroom?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -371,7 +393,24 @@ function AssignmentEditorPage() {
     criteria,
   });
 
+  const buildAssignmentBody = (overrides: Record<string, unknown> = {}) => ({
+    sourcePromptId: prompt?.id,
+    rubricId: selectedRubricId || undefined,
+    assignmentRubric: assignmentRubricPayload(),
+    classroomId: classroomId || undefined,
+    title,
+    extraInstructions,
+    dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+    assignToWholeClass,
+    recipientStudentIds: assignToWholeClass ? [] : recipientIds,
+    ...overrides,
+  });
+
   const persistDraft = async () => {
+    if (classroomIsReadOnly) {
+      addToast('Lớp thuộc kỳ học đã kết thúc — chỉ xem.', 'warning');
+      return null;
+    }
     if (!prompt?.id) {
       addToast('Cần chọn đề nguồn trước khi lưu.', 'warning');
       return null;
@@ -380,17 +419,7 @@ function AssignmentEditorPage() {
       addToast('Cần chọn barem cho bài tập.', 'warning');
       return null;
     }
-    const body = {
-      sourcePromptId: prompt.id,
-      rubricId: selectedRubricId || undefined,
-      assignmentRubric: assignmentRubricPayload(),
-      classroomId: classroomId || undefined,
-      title,
-      extraInstructions,
-      dueAt: dueAt ? new Date(dueAt).toISOString() : null,
-      assignToWholeClass,
-      recipientStudentIds: assignToWholeClass ? [] : recipientIds,
-    };
+    const body = buildAssignmentBody({ sourcePromptId: prompt.id });
     const current = assignmentRef.current;
     if (current?.status === 'PUBLISHED') return current;
     const currentId = current?.id;
@@ -427,6 +456,36 @@ function AssignmentEditorPage() {
       addToast(err instanceof AuthApiError ? err.message : 'Không lưu được bản nháp.', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCopyToClassroom = async () => {
+    const target = classrooms.find((item) => item.id === copyTargetId && !item.readOnly);
+    if (!target) {
+      addToast('Hãy chọn lớp đích có thể chỉnh sửa.', 'warning');
+      return;
+    }
+    if (!prompt?.id) {
+      addToast('Cần chọn đề nguồn trước khi sao chép.', 'warning');
+      return;
+    }
+    setCopying(true);
+    try {
+      const created = await catalogApi.createAssignment(
+        buildAssignmentBody({
+          sourcePromptId: prompt.id,
+          classroomId: target.id,
+          assignToWholeClass: true,
+          recipientStudentIds: [],
+          title: `${title} (bản sao)`,
+        })
+      );
+      addToast(`Đã tạo bản nháp cho lớp ${target.name}.`, 'success');
+      router.push(`/assignments/${created.id}`);
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không sao chép được bài tập.', 'error');
+    } finally {
+      setCopying(false);
     }
   };
 
@@ -618,25 +677,60 @@ function AssignmentEditorPage() {
               Về danh sách bài tập
             </Link>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 onClick={() => void handleSaveDraft()}
-                disabled={saving || loading || !prompt?.id}
+                disabled={saving || loading || !prompt?.id || classroomIsReadOnly}
+                title={classroomIsReadOnly ? 'Lớp thuộc kỳ học đã kết thúc — chỉ xem.' : undefined}
                 className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
               >
                 Lưu bản nháp
               </button>
               <button
+                type="button"
+                onClick={() => setCopyOpen((value) => !value)}
+                disabled={loading || !prompt?.id || classroomIsReadOnly || !classrooms.some((item) => item.id !== classroomId && !item.readOnly)}
+                title={classroomIsReadOnly ? 'Lớp thuộc kỳ học đã kết thúc — chỉ xem.' : undefined}
+                className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
+              >
+                Sao chép sang lớp khác
+              </button>
+              <button
                 onClick={() => void handlePublish()}
-                disabled={saving || loading || !prompt?.id}
+                disabled={saving || loading || !prompt?.id || classroomIsReadOnly}
+                title={classroomIsReadOnly ? 'Lớp thuộc kỳ học đã kết thúc — chỉ xem.' : undefined}
                 className="px-4 py-2 rounded-lg bg-primary-container text-on-primary-container text-xs font-bold hover:brightness-95 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40"
               >
                 <span className="material-symbols-outlined text-[16px]">verified</span>
                 Xác nhận Rubric &amp; Giao bài
               </button>
+              {copyOpen && (
+                <div className="w-full flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-1">
+                  <select
+                    value={copyTargetId}
+                    onChange={(event) => setCopyTargetId(event.target.value)}
+                    className="h-8 min-w-52 rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2 text-xs text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                  >
+                    <option value="">Chọn lớp đích</option>
+                    {classrooms.filter((item) => item.id !== classroomId && !item.readOnly).map((item) => (
+                      <option key={item.id} value={item.id}>{classroomLabel(item)} ({item.studentCount} HS)</option>
+                    ))}
+                  </select>
+                  <button type="button" onClick={() => void handleCopyToClassroom()} disabled={copying || !copyTargetId} className="h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold disabled:opacity-40">
+                    {copying ? 'Đang sao chép...' : 'Tạo bản sao'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {classroomIsReadOnly && (
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">lock</span>
+            Lớp thuộc kỳ học đã kết thúc — chỉ xem.
+          </div>
+        )}
 
         {isPublished ? (
           <div className="flex flex-wrap gap-2">
@@ -806,6 +900,7 @@ function AssignmentEditorPage() {
                       value={classroomId}
                       onChange={(e) => {
                         setClassroomId(e.target.value);
+                        setContextClassroom(e.target.value);
                         persistLocalDraft({ classroomId: e.target.value });
                       }}
                       disabled={isPublished}
@@ -813,8 +908,8 @@ function AssignmentEditorPage() {
                     >
                       <option value="">Chọn lớp</option>
                       {classrooms.map((classroom) => (
-                        <option key={classroom.id} value={classroom.id}>
-                          {classroom.name} ({classroom.studentCount} HS)
+                        <option key={classroom.id} value={classroom.id} disabled={classroom.readOnly}>
+                          {classroomLabel(classroom)} ({classroom.studentCount} HS){classroom.readOnly ? ' — chỉ xem' : ''}
                         </option>
                       ))}
                     </select>
@@ -1156,7 +1251,8 @@ function AssignmentEditorPage() {
                 <button
                   type="button"
                   onClick={() => void handlePublish()}
-                  disabled={saving || loading || !prompt?.id}
+                  disabled={saving || loading || !prompt?.id || classroomIsReadOnly}
+                  title={classroomIsReadOnly ? 'Lớp thuộc kỳ học đã kết thúc — chỉ xem.' : undefined}
                   className="w-full py-2.5 bg-primary-container text-on-primary-container font-bold text-xs rounded-lg hover:brightness-95 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-40"
                 >
                   <span className="material-symbols-outlined text-base">send</span>
