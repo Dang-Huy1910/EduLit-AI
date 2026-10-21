@@ -121,3 +121,12 @@ export function createRequestGuard() {
     isCurrent: (token: number) => token === generation,
   };
 }
+
+/** Compare the first and last level that carried evidence. */
+export function levelTrend(levels: TraitLevel[]): 'up' | 'down' | 'same' | 'none' {
+  const known = levels.filter((level) => level !== 'INSUFFICIENT');
+  if (known.length === 0) return 'none';
+  if (known.length < 2) return 'same';
+  const delta = LEVEL_STEPS[known[known.length - 1]] - LEVEL_STEPS[known[0]];
+  return delta > 0 ? 'up' : delta < 0 ? 'down' : 'same';
+}

@@ -298,7 +298,7 @@ async def test_single_paper_profile_keeps_only_verified_quotes(
                 observation("Quê hương là chiếc nôi nuôi dưỡng tâm hồn,"),
                 # Invented wording that is not in the paper.
                 observation("Quê hương là nơi em sinh ra và lớn lên", kind="WEAKNESS"),
-                # Real sentence, but cited on the wrong page.
+                # Real sentence cited on the wrong page: kept, page corrected.
                 observation("Tóm lại, cội nguồn là điểm tựa", page=1, trait_id="COHESION"),
                 # Unknown source id.
                 observation("Quê hương là chiếc nôi", source="S9", trait_id="TRANSITIONS"),
@@ -315,7 +315,7 @@ async def test_single_paper_profile_keeps_only_verified_quotes(
     profile = out["profile"]
     assert profile["label"] == "AI nhận xét"
     assert profile["summary"]
-    assert len(profile["observations"]) == 1
+    assert len(profile["observations"]) == 2
     item = profile["observations"][0]
     assert item["evidenceQuote"] == "Quê hương là chiếc nôi nuôi dưỡng tâm hồn,"
     assert PAGE_ONE[item["evidenceStart"] : item["evidenceEnd"]] == item["evidenceQuote"]
@@ -323,13 +323,17 @@ async def test_single_paper_profile_keeps_only_verified_quotes(
     assert item["genre"] == "NLXH"
     assert item["linkHref"] == f"/assignments/{paper['linkId']}/result"
     assert item["resultId"] == str(paper["resultId"])
-    assert profile["stats"]["droppedCount"] == 3
+    moved = profile["observations"][1]
+    assert moved["pageIndex"] == 2
+    assert PAGE_TWO[moved["evidenceStart"] : moved["evidenceEnd"]] == moved["evidenceQuote"]
+    assert profile["stats"]["droppedCount"] == 2
     assert profile["stats"]["analyzedCount"] == 1
     assert profile["stats"]["multipleSources"] is False
 
     traits = {trait["traitId"]: trait for trait in profile["traits"]}
     assert len(traits) == 8
-    assert traits["ARGUMENT_ORGANIZATION"]["level"] == "CONSISTENT"
+    # The model said "stable", but one paper alone can only show a beginning.
+    assert traits["ARGUMENT_ORGANIZATION"]["level"] == "EMERGING"
     assert traits["ARGUMENT_ORGANIZATION"]["evidenceCount"] == 1
     # The model claimed STRONG word choice without any verified quote.
     assert traits["WORD_CHOICE"]["level"] == "INSUFFICIENT"
@@ -458,11 +462,26 @@ async def test_newest_published_papers_are_limited(
         titles.append(title)
         await make_paper(db_session, student, title=title, published_at_offset_minutes=index)
 
-    out = await service(db_session, FakeAiAdapter()).get_profile(student)
+    fake = FakeAiAdapter()
+    fake.add_response(profile_json([observation("mạch nguồn không bao giờ cạn")]))
+    fake.add_response(profile_json([observation("mạch nguồn không bao giờ cạn")]))
+    before = await service(db_session, fake).get_profile(student)
+    first = await service(db_session, fake).refresh(student)
 
-    assert out["status"] == "not_analyzed"
-    assert out["sourceSummary"]["eligibleCount"] == 5
-    assert out["sourceSummary"]["multipleSources"] is True
+    assert before["status"] == "not_analyzed"
+    assert before["sourceSummary"]["eligibleCount"] == 6
+    # One refresh reads at most five papers, newest first.
+    assert "Bài số 6" in fake.last_prompt
+    assert "Bài số 1" not in fake.last_prompt
+    assert first["sourceSummary"]["pendingCount"] == 1
+    assert first["profile"]["stats"]["analyzedCount"] == 5
+
+    # The next refresh reads only the paper left over.
+    second = await service(db_session, fake).refresh(student)
+    assert '"Bài số 1"' in fake.last_prompt
+    assert '"Bài số 6"' not in fake.last_prompt
+    assert second["sourceSummary"]["pendingCount"] == 0
+    assert second["profile"]["stats"]["analyzedCount"] == 6
 
 
 # ── 3. Cache reuse and invalidation ──────────────────────────────────────────
@@ -547,9 +566,7 @@ async def _delete_assignment(db: AsyncSession, paper: dict[str, Any]) -> None:
 @pytest.mark.parametrize(
     ("change", "expected"),
     [
-        (_republish_same_id, "stale"),
         (_unpublish, "empty"),
-        (_revoke, "empty"),
         (_delete_assignment, "empty"),
     ],
 )
@@ -599,7 +616,170 @@ async def test_republish_refresh_reanalyzes_with_new_snapshot(
     assert "Giáo viên sửa nhận xét rồi công bố lại." in fake.last_prompt
 
 
-# ── 4. Invalid JSON and timeout ──────────────────────────────────────────────
+@pytest.mark.asyncio
+async def test_republished_paper_keeps_profile_visible_until_refresh(
+    db_session: AsyncSession, settings: Settings, client: AsyncClient
+) -> None:
+    student = await make_student(db_session, settings, client)
+    paper = await make_paper(db_session, student)
+    fake = FakeAiAdapter()
+    fake.add_response(profile_json([observation("mạch nguồn không bao giờ cạn")]))
+    await service(db_session, fake).refresh(student)
+
+    await _republish_same_id(db_session, paper)
+    db_session.expire_all()
+    await db_session.refresh(student)
+    read = await service(db_session, fake).get_profile(student)
+
+    assert read["status"] == "stale"
+    assert read["sourceSummary"]["pendingCount"] == 1
+    assert "1 bài mới" in read["notice"]
+    assert read["profile"]["observations"][0]["evidenceQuote"] == "mạch nguồn không bao giờ cạn"
+    assert fake.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_revoked_access_keeps_paper_in_history_without_link(
+    db_session: AsyncSession, settings: Settings, client: AsyncClient
+) -> None:
+    student = await make_student(db_session, settings, client)
+    paper = await make_paper(db_session, student)
+    fake = FakeAiAdapter()
+    fake.add_response(profile_json([observation("mạch nguồn không bao giờ cạn")]))
+    await service(db_session, fake).refresh(student)
+
+    # Removed from the class: the grant is revoked, the paper is still theirs.
+    await _revoke(db_session, paper)
+    db_session.expire_all()
+    await db_session.refresh(student)
+    read = await service(db_session, fake).get_profile(student)
+
+    assert read["status"] == "ready"
+    item = read["profile"]["observations"][0]
+    assert item["evidenceQuote"] == "mạch nguồn không bao giờ cạn"
+    assert item["linkHref"] == ""
+    assert read["profile"]["sources"][0]["linkable"] is False
+
+
+# ── 4. Cumulative profile and history ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_new_paper_is_added_to_the_previous_profile(
+    db_session: AsyncSession, settings: Settings, client: AsyncClient
+) -> None:
+    student = await make_student(db_session, settings, client)
+    first_paper = await make_paper(db_session, student, title="Bài thứ nhất")
+    fake = FakeAiAdapter()
+    fake.add_response(profile_json([observation("mạch nguồn không bao giờ cạn")]))
+    first = await service(db_session, fake).refresh(student)
+    assert first["profile"]["traits"][3]["level"] == "EMERGING"
+
+    second_text = "Lập luận của em đi từ hiện tượng đến bản chất. Em nêu rõ ý chính ở đầu đoạn."
+    await make_paper(
+        db_session,
+        student,
+        title="Bài thứ hai",
+        pages=[second_text],
+        published_at_offset_minutes=10,
+    )
+    read = await service(db_session, fake).get_profile(student)
+    assert read["status"] == "stale"
+    assert read["profile"]["stats"]["analyzedCount"] == 1
+
+    fake.add_response(
+        profile_json(
+            [observation("Lập luận của em đi từ hiện tượng đến bản chất.")],
+            traits=[{"trait_id": "ARGUMENT_ORGANIZATION", "level": "CONSISTENT", "note": "Ổn định qua hai bài."}],
+        )
+    )
+    out = await service(db_session, fake).refresh(student)
+
+    # Only the new paper is sent, with the previous profile as context.
+    assert second_text in fake.last_prompt
+    assert PAGE_ONE not in fake.last_prompt
+    assert '"previousProfile": {' in fake.last_prompt
+    assert "mạch nguồn không bao giờ cạn" not in fake.last_prompt
+
+    profile = out["profile"]
+    assert profile["stats"]["analyzedCount"] == 2
+    assert profile["stats"]["newCount"] == 1
+    quotes = [item["evidenceQuote"] for item in profile["observations"]]
+    assert quotes == ["Lập luận của em đi từ hiện tượng đến bản chất.", "mạch nguồn không bao giờ cạn"]
+    assert {item["resultId"] for item in profile["observations"]} == {
+        str(first_paper["resultId"]),
+        str(profile["sources"][0]["resultId"]),
+    }
+    trait = next(t for t in profile["traits"] if t["traitId"] == "ARGUMENT_ORGANIZATION")
+    # Two papers now back the trait, so "stable" is allowed.
+    assert trait["level"] == "CONSISTENT"
+    assert trait["sourceCount"] == 2
+
+    history = out["history"]
+    assert [item["version"] for item in history] == [1, 2]
+    assert [item["newSourceCount"] for item in history] == [1, 1]
+    levels = [
+        next(t["level"] for t in item["traits"] if t["traitId"] == "ARGUMENT_ORGANIZATION")
+        for item in history
+    ]
+    assert levels == ["EMERGING", "CONSISTENT"]
+    assert (await service(db_session, fake).get_profile(student))["history"] == history
+
+
+@pytest.mark.asyncio
+async def test_refresh_is_rate_limited_when_it_would_call_ai(
+    db_session: AsyncSession, settings: Settings, client: AsyncClient
+) -> None:
+    student = await make_student(db_session, settings, client)
+    await make_paper(db_session, student)
+    limited = get_settings().model_copy(update={"RATE_LIMIT_WRITING_PROFILE_MAX": 1})
+    fake = FakeAiAdapter()
+    fake.add_response(profile_json([observation("Một câu không hề có trong bài viết")]))
+
+    first = await WritingProfileService(db_session, limited, ai_port=fake).refresh(student)
+    assert first["profile"]["insufficient"] is True
+    with pytest.raises(ApiHttpException) as caught:
+        await WritingProfileService(db_session, limited, ai_port=fake).refresh(student)
+
+    assert caught.value.status_code == 429
+    assert fake.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_teacher_reads_profile_of_a_student_in_own_class_only(
+    db_session: AsyncSession, settings: Settings, client: AsyncClient
+) -> None:
+    from tests.catalog.conftest import seed_classroom_with_student
+
+    student = await make_student(db_session, settings, client)
+    await make_paper(db_session, student)
+    fake = FakeAiAdapter()
+    fake.add_response(profile_json([observation("mạch nguồn không bao giờ cạn")]))
+    await service(db_session, fake).refresh(student)
+
+    teacher = await create_user(db_session, settings, client, role=UserRole.TEACHER, prefix="gv")
+    other_teacher = await create_user(db_session, settings, client, role=UserRole.TEACHER, prefix="gv")
+    classroom = await seed_classroom_with_student(db_session, teacher, student)
+    path = f"/api/teacher/classrooms/{classroom.id}/students/{student.id}/writing-profile"
+
+    await login_as(client, settings, db_session, other_teacher)
+    assert (await client.get(path)).status_code == 404
+
+    await login_as(client, settings, db_session, teacher)
+    read = await client.get(path)
+    assert read.status_code == 200
+    body = read.json()
+    assert body["status"] == "ready"
+    assert body["student"]["id"] == str(student.id)
+    assert body["profile"]["observations"][0]["evidenceQuote"] == "mạch nguồn không bao giờ cạn"
+    assert len(body["history"]) == 1
+    assert fake.call_count == 1
+
+    await login_as(client, settings, db_session, student)
+    assert (await client.get(path)).status_code == 403
+
+
+# ── 5. Invalid JSON and timeout ──────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -627,7 +807,9 @@ async def test_invalid_json_does_not_overwrite_cache(
     db_session.expire_all()
     await db_session.refresh(student)
     assert (await db_session.get(WritingProfile, student.id)).source_hash == old_hash
-    assert (await service(db_session, broken).get_profile(student))["status"] == "stale"
+    after = await service(db_session, broken).get_profile(student)
+    assert after["status"] == "stale"
+    assert after["profile"] is not None
 
 
 @pytest.mark.asyncio

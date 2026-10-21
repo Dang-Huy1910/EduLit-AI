@@ -33,6 +33,7 @@ from app.db.models import (
     OutlinePrepStatus,
     StudentOutlinePrep,
 )
+from app.services.writing_profile_service import outline_style_context
 from app.workflows.guardrails import compact_log_reason
 from app.workflows.outline_init import run_outline_init
 
@@ -459,11 +460,12 @@ async def process_claimed_job(
     instructions = revision.instructions or {}
     rubric = revision.rubric or {}
     chunks = list(revision.context_chunks or [])
+    style_profile = await outline_style_context(session, student_id, settings)
     await session.commit()
 
     try:
         port = ai_port or create_ai_adapter(settings)
-        prompt_asset = load_socratic_prompt(settings.SOCRATIC_PROMPT_VERSION, kind="outline-init")
+        prompt_asset = load_socratic_prompt(settings.OUTLINE_INIT_PROMPT_VERSION, kind="outline-init")
     except (AiConfigurationError, PromptAssetError) as exc:
         async with session.begin():
             await _release_for_retry(
@@ -489,6 +491,7 @@ async def process_claimed_job(
             ai_port=port,
             prompt_asset=prompt_asset,
             max_output_tokens=max_tokens,
+            style_profile=style_profile,
         )
     except AiInvalidOutputError as exc:
         async with session.begin():
@@ -536,6 +539,7 @@ async def process_claimed_job(
         "promptVersion": init_result.prompt_version,
         "promptHash": init_result.prompt_hash,
         "schemaVersion": init_result.schema_version,
+        "styleProfileVersion": style_profile["profileVersion"] if style_profile else None,
     }
 
     async with session.begin():

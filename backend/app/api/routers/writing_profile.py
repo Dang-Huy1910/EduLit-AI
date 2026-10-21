@@ -1,7 +1,8 @@
-"""Student writing profile HTTP API: GET read-only and POST refresh."""
+"""Writing profile HTTP API: the student's own view and refresh, and a teacher read-only view."""
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, status
@@ -51,3 +52,30 @@ async def refresh_writing_profile(
     service: Annotated[WritingProfileService, Depends(get_writing_profile_service)],
 ) -> dict[str, Any]:
     return await service.refresh(student)
+
+
+teacher_router = APIRouter(
+    prefix="/teacher/classrooms",
+    tags=["writing-profile"],
+    dependencies=[Depends(require_mutation_guards)],
+)
+
+
+async def get_teacher(ctx: Annotated[SessionContext, Depends(get_session_context)]) -> User:
+    if ctx.user.role != UserRole.TEACHER:
+        raise ApiHttpException(
+            status.HTTP_403_FORBIDDEN,
+            "TEACHER_REQUIRED",
+            ERROR_MESSAGES["TEACHER_REQUIRED"],
+        )
+    return ctx.user
+
+
+@teacher_router.get("/{classroom_id}/students/{student_id}/writing-profile")
+async def get_student_writing_profile(
+    classroom_id: uuid.UUID,
+    student_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[WritingProfileService, Depends(get_writing_profile_service)],
+) -> dict[str, Any]:
+    return await service.get_profile_for_teacher(teacher, classroom_id, student_id)

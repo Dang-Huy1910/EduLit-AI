@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_VERIFY_IP_MAX: int = 20
     RATE_LIMIT_RESET_IP_MAX: int = 10
     RATE_LIMIT_CLASS_JOIN_MAX: int = 10
+    RATE_LIMIT_WRITING_PROFILE_MAX: int = 6
 
     TRUSTED_PROXY_IPS: str = ""
 
@@ -73,6 +74,10 @@ class Settings(BaseSettings):
     OUTLINE_PREP_LEASE_SECONDS: int = 300
     OUTLINE_PREP_POLL_SECONDS: float = 2.0
     OUTLINE_PREP_MAX_ATTEMPTS: int = 3
+    # Initial outlines have their own prompt version, separate from chat turns.
+    OUTLINE_INIT_PROMPT_VERSION: str = "v2"
+    # Published papers a student needs before the outline uses their writing profile.
+    OUTLINE_STYLE_MIN_SOURCES: int = 3
     OUTLINE_PREP_WORKER_ENABLED: bool = True
     IMPORT_PROMPT_VERSION: str = "v1"
     IMPORT_MAX_BYTES: int = 8_000_000
@@ -112,7 +117,12 @@ class Settings(BaseSettings):
 
     # ── Student writing profile ────────────────────────────────────────────────
     # One AI synthesis over the student's most recent published submissions.
-    WRITING_PROFILE_PROMPT_VERSION: str = "v1"
+    WRITING_PROFILE_PROMPT_VERSION: str = "v2"
+    # Build the first profile automatically once a student has a published paper.
+    WRITING_PROFILE_AUTO_ENABLED: bool = True
+    WRITING_PROFILE_AUTO_POLL_SECONDS: float = 30.0
+    WRITING_PROFILE_AUTO_BATCH: int = 5
+    WRITING_PROFILE_AUTO_RETRY_SECONDS: float = 1800.0
     WRITING_PROFILE_MODEL: str = ""
     WRITING_PROFILE_TIMEOUT_SECONDS: float = 90.0
     WRITING_PROFILE_MAX_OUTPUT_TOKENS: int = 4096

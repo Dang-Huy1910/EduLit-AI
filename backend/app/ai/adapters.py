@@ -33,6 +33,7 @@ from app.ai.fake_document_extract import fake_document_analysis_json
 from app.ai.schemas import (
     AssessmentOutput,
     ClassInsightOutput,
+    WritingProfileOutput,
     DocumentAnalysisResult,
     OcrPageModel,
     SocraticOutlineInit,
@@ -698,20 +699,35 @@ _FAKE_CHUNK_LINE = re.compile(r"\[([^\]\n]+)\]:\s*([^\n]+)")
 def _fake_outline_init_for_prompt(system_prompt: str | None, prompt: str) -> str:
     """Bind default fake outline citations to chunks present in the prompt."""
     blob = f"{system_prompt or ''}\n{prompt}"
+    data = json.loads(DEFAULT_FAKE_OUTLINE_INIT)
+    # With a writing profile in the prompt, add one tip on its first weak group.
+    style_at = blob.find("HỒ SƠ VĂN PHONG HỌC SINH")
+    weak = _FAKE_TRAIT_ID.search(blob[style_at:]) if style_at >= 0 else None
+    if weak:
+        data["style_tips"] = [
+            {
+                "section_id": "body",
+                "point_id": "body-1e",
+                "trait_id": weak.group(1),
+                "text": "Sau dẫn chứng, em viết thêm 1–2 câu phân tích chi tiết đó nói lên điều gì.",
+            }
+        ]
     start = blob.find("CHUNKS")
     haystack = blob[start:] if start >= 0 else blob
     match = _FAKE_CHUNK_LINE.search(haystack)
     if not match:
-        return DEFAULT_FAKE_OUTLINE_INIT
+        return json.dumps(data, ensure_ascii=False)
     chunk_id = match.group(1).strip()
     quote = match.group(2).strip()[:120]
-    data = json.loads(DEFAULT_FAKE_OUTLINE_INIT)
     data["sources"] = [{"chunk_id": chunk_id, "quote": quote}]
     for section in data.get("sections") or []:
         for point in section.get("points") or []:
             if point.get("source_chunk_id"):
                 point["source_chunk_id"] = chunk_id
     return json.dumps(data, ensure_ascii=False)
+
+
+_FAKE_TRAIT_ID = re.compile(r'"traitId":\s*"([A-Z_]+)"')
 
 
 DEFAULT_FAKE_OUTLINE_INIT = (
@@ -816,6 +832,10 @@ class FakeAiAdapter(AiPort):
             structured_output is ClassInsightOutput
             or getattr(structured_output, "__name__", "") == "ClassInsightOutput"
         )
+        wants_profile = structured_output is not None and (
+            structured_output is WritingProfileOutput
+            or getattr(structured_output, "__name__", "") == "WritingProfileOutput"
+        )
         if wants_outline:
             if self.outline_responses:
                 content = self.outline_responses[
@@ -830,6 +850,8 @@ class FakeAiAdapter(AiPort):
             content = _fake_assessment_json(prompt)
         elif wants_insight and not self.responses:
             content = _fake_insight_json(prompt)
+        elif wants_profile and not self.responses:
+            content = _fake_writing_profile_json(prompt)
         elif self.responses:
             content = self.responses[self.response_index % len(self.responses)]
             self.response_index += 1
@@ -973,6 +995,49 @@ def _fake_assessment_json(prompt: str) -> str:
             "criteria": out_criteria,
             "overall_comment": "Kết quả giả lập, không phải điểm thật từ mô hình.",
             "improvement_guidance": ["Đối chiếu lại luận điểm với ngữ liệu đã giao."],
+        },
+        ensure_ascii=False,
+    )
+
+
+_FAKE_SENTENCE = re.compile(r"[^.!?\n]{12,}[.!?]")
+
+
+def _fake_writing_profile_json(prompt: str) -> str:
+    """Quote the first sentence of each new paper so evidence checks pass."""
+    data = _extract_json_block(prompt)
+    observations = []
+    for position, source in enumerate(data.get("sources") or []):
+        pages = source.get("pages") or []
+        if not pages:
+            continue
+        sentence = _FAKE_SENTENCE.search(str(pages[0].get("text") or ""))
+        if not sentence:
+            continue
+        weak = position % 2 == 0
+        observations.append(
+            {
+                "trait_id": "EVIDENCE_LINKING" if weak else "ARGUMENT_ORGANIZATION",
+                "kind": "WEAKNESS" if weak else "STRENGTH",
+                "description": "Dẫn chứng được nêu nhưng chưa có câu phân tích đi kèm."
+                if weak
+                else "Câu chủ đề nêu rõ ý chính của đoạn.",
+                "source_id": source.get("sourceId") or "S1",
+                "page_index": pages[0].get("pageIndex") or 1,
+                "evidence_quote": sentence.group(0).strip(),
+                "practice_tip": "Sau mỗi dẫn chứng, viết thêm 1–2 câu giải thích chi tiết đó nói lên điều gì."
+                if weak
+                else "Giữ cách mở đoạn bằng câu chủ đề ở các bài sau.",
+            }
+        )
+    return json.dumps(
+        {
+            "summary": "Em trình bày ý rõ ràng; phần phân tích dẫn chứng còn cần đào sâu hơn.",
+            "traits": [
+                {"trait_id": "EVIDENCE_LINKING", "level": "EMERGING", "note": "Dẫn chứng còn đứng riêng."},
+                {"trait_id": "ARGUMENT_ORGANIZATION", "level": "CONSISTENT", "note": "Luận điểm rõ, có câu chủ đề."},
+            ],
+            "observations": observations,
         },
         ensure_ascii=False,
     )

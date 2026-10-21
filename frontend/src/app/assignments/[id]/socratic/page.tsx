@@ -12,6 +12,8 @@ import { catalogApi } from '@/features/catalog/api';
 import type { StudentAssignment } from '@/features/catalog/types';
 import { shouldResetSocraticSession, socraticSessionKey } from '@/features/socratic/lifecycle';
 import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { OutlineThinking, StyleTipNote, useOutlineReveal } from '@/features/socratic/OutlineReveal';
+import { countOutlinePoints, revealKey, tipsForSection } from '@/features/socratic/reveal';
 
 const ASSIGNMENT_CODE_MAP: Record<string, string> = {
   'assign-nlvh-mau-tu-do-dat': 'VAN11-NLVH-01',
@@ -89,6 +91,25 @@ export default function SocraticChatPage() {
 
   // Section targets for adding to outline from chat messages
   const [selectedTargetSection, setSelectedTargetSection] = useState<Record<string, 'intro' | 'body' | 'conclusion'>>({});
+
+  // First visit: play the "AI is drafting" sequence before the prepared outline appears.
+  const totalOutlinePoints = countOutlinePoints(outline);
+  const styleTips = outline.styleTips || [];
+  const reveal = useOutlineReveal({
+    storageKey: revealKey(authUser?.id, assignmentDetail?.code),
+    ready: isInitialized && !isInitializingOutline && totalOutlinePoints > 0,
+    failed: outlineInitFailed || outlineInitStatus === 'NEEDS_CLARIFICATION',
+    totalPoints: totalOutlinePoints,
+    personalized: styleTips.length > 0,
+  });
+  const outlineHidden = reveal.phase === 'thinking';
+  const outlineSettled = reveal.phase === 'done' || reveal.phase === 'idle';
+  const sectionOffsets = outline.sections.reduce<number[]>(
+    (offsets, section, index) => [...offsets, index === 0 ? 0 : offsets[index - 1] + outline.sections[index - 1].points.length],
+    []
+  );
+  const pointVisible = (sectionIndex: number, idx: number) =>
+    reveal.phase !== 'revealing' || sectionOffsets[sectionIndex] + idx < reveal.visiblePoints;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatScrollRef = useRef<HTMLDivElement>(null);
@@ -629,7 +650,8 @@ export default function SocraticChatPage() {
               </div>
             )}
 
-            {isInitializingOutline && (
+            {outlineHidden && <OutlineThinking steps={reveal.steps} step={reveal.step} />}
+            {isInitializingOutline && !outlineHidden && (
               <div className="mx-3.5 mt-3 p-3 bg-secondary/5 border border-secondary/20 rounded-xl text-xs flex items-center gap-2 text-on-surface-variant">
                 <span className="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin shrink-0"></span>
                 <span>Đang chuẩn bị dàn ý gợi ý theo đề, ngữ liệu và rubric. Em chờ trong lúc hệ thống soạn riêng cho em...</span>
@@ -678,8 +700,15 @@ export default function SocraticChatPage() {
 
             {/* Outline Sections & Points */}
             <div className="flex-1 p-3.5 overflow-y-auto space-y-3.5 text-xs">
-              {outline.sections.map((section: UIOutlineSection) => (
-                <div key={section.id} className="p-3 bg-surface-container-low/40 rounded-xl border border-outline-variant/30 space-y-2">
+              {!outlineHidden && outline.sections.map((section: UIOutlineSection, sectionIndex: number) => {
+                if (!pointVisible(sectionIndex, 0) && sectionIndex > 0) return null;
+                const sectionTips = tipsForSection(
+                  outlineSettled ? styleTips : [],
+                  section.id,
+                  itemsOfSection(section).map((item) => item.id)
+                );
+                return (
+                <div key={section.id} className="p-3 bg-surface-container-low/40 rounded-xl border border-outline-variant/30 space-y-2 outline-reveal">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-primary font-merriweather flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-secondary"></span>
@@ -702,6 +731,7 @@ export default function SocraticChatPage() {
                   ) : (
                     <ul className="space-y-1.5">
                       {itemsOfSection(section).map((item, idx: number) => {
+                        if (!pointVisible(sectionIndex, idx)) return null;
                         const point = item.text;
                         const isEditingThis =
                           editingPoint !== null && editingPoint?.sectionId === section.id && editingPoint?.index === idx;
@@ -744,9 +774,9 @@ export default function SocraticChatPage() {
                         const isHighlighted = Boolean(pointId && highlightedPointIds.includes(pointId));
 
                         return (
+                          <React.Fragment key={pointId || idx}>
                           <li
-                            key={pointId || idx}
-                            className={`p-2 bg-surface-container-lowest rounded-lg border text-on-surface text-[11px] flex items-start justify-between gap-2 group transition-all ${
+                            className={`outline-reveal p-2 bg-surface-container-lowest rounded-lg border text-on-surface text-[11px] flex items-start justify-between gap-2 group transition-all ${
                               isSelected
                                 ? 'border-secondary ring-1 ring-secondary/40'
                                 : isHighlighted
@@ -819,10 +849,19 @@ export default function SocraticChatPage() {
                               </button>
                             </div>
                           </li>
+                          {(sectionTips.byPoint[pointId] || []).map((tip) => (
+                            <li key={tip.id}>
+                              <StyleTipNote tip={tip} />
+                            </li>
+                          ))}
+                          </React.Fragment>
                         );
                       })}
                     </ul>
                   )}
+                  {sectionTips.sectionLevel.map((tip) => (
+                    <StyleTipNote key={tip.id} tip={tip} />
+                  ))}
 
                   {/* Manual add input */}
                   {addingSectionId === section.id && (
@@ -851,10 +890,11 @@ export default function SocraticChatPage() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Readiness Status Card - from Backend */}
-              <div className="p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-2">
+              <div className={`p-3 bg-surface-container-lowest rounded-xl border border-outline-variant/30 space-y-2 ${outlineSettled ? '' : 'hidden'}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-on-surface flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm text-secondary">checklist</span>

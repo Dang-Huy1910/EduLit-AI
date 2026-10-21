@@ -124,6 +124,19 @@ class SocraticOutput(BaseModel):
         return value or []
 
 
+class OutlineStyleTip(BaseModel):
+    """A short reminder tied to a weak expression group of this student.
+
+    Only produced when the student's writing profile was provided. The trait
+    id is checked against the writing-profile groups by the workflow.
+    """
+
+    section_id: str = Field(..., min_length=1, max_length=64)
+    point_id: str | None = Field(default=None, max_length=64)
+    trait_id: str = Field(..., min_length=1, max_length=64)
+    text: str = Field(..., min_length=1, max_length=200)
+
+
 class SocraticOutlineInit(BaseModel):
     """Structured output for the one-time initial outline generation."""
 
@@ -137,8 +150,9 @@ class SocraticOutlineInit(BaseModel):
     needs_clarification: bool = False
     clarification_question: str | None = None
     sources: list[SourceReference] = Field(default_factory=list)
+    style_tips: list[OutlineStyleTip] = Field(default_factory=list)
 
-    @field_validator("sections", mode="before")
+    @field_validator("sections", "style_tips", mode="before")
     @classmethod
     def _coerce_sections(cls, value: object) -> object:
         return value or []

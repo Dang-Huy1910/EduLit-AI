@@ -161,6 +161,7 @@ function useClassContextForRole(role: ContextRole): ClassContextValue<ClassroomF
 export function useTeacherClassContext(): ClassContextValue<ClassroomSummary>;
 export function useTeacherClassContext(options: { role?: 'teacher' }): ClassContextValue<ClassroomSummary>;
 export function useTeacherClassContext(options: { role: 'student' }): ClassContextValue<StudentClassroom>;
+export function useTeacherClassContext(options: { role: ContextRole }): ClassContextValue<ClassroomForRole>;
 export function useTeacherClassContext({ role = 'teacher' }: { role?: ContextRole } = {}) {
   return useClassContextForRole(role) as ClassContextValue<ClassroomSummary> | ClassContextValue<StudentClassroom>;
 }

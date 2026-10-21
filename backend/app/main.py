@@ -35,6 +35,8 @@ from app.api.routers.assessments import student_router as assessment_student_rou
 from app.api.routers.assessments import teacher_router as assessment_teacher_router
 from app.api.routers.chatbot import router as chatbot_router
 from app.api.routers.writing_profile import router as writing_profile_router
+from app.workers.writing_profile import start_writing_profile_worker
+from app.api.routers.writing_profile import teacher_router as teacher_writing_profile_router
 
 logger = logging.getLogger("edulit.api")
 
@@ -60,6 +62,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     stop_ocr = None
     grade_task = None
     stop_grade = None
+    profile_task = None
+    stop_profile = None
     if settings.OUTLINE_PREP_WORKER_ENABLED and not settings.is_test:
         worker_task, stop_worker = start_outline_prep_worker(settings=settings)
         logger.info("outline_prep worker attached to api process")
@@ -69,9 +73,20 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.ASSESSMENT_WORKER_ENABLED and not settings.is_test:
         grade_task, stop_grade = start_assessment_worker(settings=settings)
         logger.info("assessment worker attached to api process")
+    if settings.WRITING_PROFILE_AUTO_ENABLED and not settings.is_test:
+        profile_task, stop_profile = start_writing_profile_worker(settings=settings)
+        logger.info("writing_profile worker attached to api process")
     try:
         yield
     finally:
+        if stop_profile is not None:
+            stop_profile()
+        if profile_task is not None:
+            profile_task.cancel()
+            try:
+                await profile_task
+            except asyncio.CancelledError:
+                pass
         if stop_worker is not None:
             stop_worker()
         if stop_ocr is not None:
@@ -176,6 +191,7 @@ def create_app() -> FastAPI:
     app.include_router(assessment_teacher_router, prefix="/api")
     app.include_router(chatbot_router, prefix="/api")
     app.include_router(writing_profile_router, prefix="/api")
+    app.include_router(teacher_writing_profile_router, prefix="/api")
     return app
 
 

@@ -106,11 +106,23 @@ export interface Argument {
   [key: string]: unknown;
 }
 
+/** A reminder tied to one weak expression group of this student's writing profile. */
+export interface StyleTip {
+  id: string;
+  sectionId: string;
+  pointId: string | null;
+  traitId: string;
+  traitName: string;
+  text: string;
+  label: string;
+}
+
 export interface OutlineContent {
   sections: OutlineSection[];
   thesis?: string;
   arguments?: Argument[];
   counterArguments?: Argument[];
+  styleTips?: StyleTip[];
   [key: string]: unknown;
 }
 
@@ -218,6 +230,7 @@ export interface UIOutline {
   thesis?: string;
   arguments?: Argument[];
   counterArguments?: Argument[];
+  styleTips?: StyleTip[];
   [key: string]: unknown;
 }
 
