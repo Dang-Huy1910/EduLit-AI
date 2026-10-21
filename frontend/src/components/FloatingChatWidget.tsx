@@ -279,13 +279,7 @@ export default function FloatingChatWidget() {
           }`}
         >
           {/* Header */}
-          <div
-            className={`p-3.5 px-4 text-white flex items-center justify-between shrink-0 shadow-xs ${
-              isTeacher
-                ? 'bg-gradient-to-r from-[#4A154B] via-[#6B21A8] to-primary'
-                : 'bg-gradient-to-r from-secondary to-primary'
-            }`}
-          >
+          <div className="p-3.5 px-4 text-white flex items-center justify-between shrink-0 shadow-xs bg-chat-brand">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-white ring-1 ring-white/20">
                 <AssistantMark className="w-[18px] h-[18px]" />
@@ -465,9 +459,7 @@ export default function FloatingChatWidget() {
           className={`relative w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform duration-200 cursor-grab active:cursor-grabbing touch-none ${
             isOpen
               ? 'bg-on-surface text-surface'
-              : isTeacher
-              ? 'bg-gradient-to-tr from-[#4A154B] via-[#6B21A8] to-primary ring-4 ring-primary/20'
-              : 'bg-gradient-to-tr from-secondary via-teal-700 to-primary ring-4 ring-secondary/20'
+              : 'bg-chat-brand-diagonal ring-4 ring-secondary/20'
           }`}
         >
           {isOpen ? (

@@ -160,7 +160,7 @@ function Sources({ sources }: { sources?: ChatSource[] }) {
 
 function AssistantAvatar() {
   return (
-    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+    <div className="w-8 h-8 rounded-xl bg-chat-brand-br text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
       <AssistantMark className="w-[18px] h-[18px]" />
     </div>
   );
@@ -355,7 +355,7 @@ export default function ChatbotPage() {
         <button
           type="button"
           onClick={startNewChat}
-          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-secondary to-primary text-white font-semibold text-sm hover:brightness-105 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm"
+          className="w-full py-2.5 px-3 rounded-xl bg-chat-brand text-white font-semibold text-sm hover:brightness-105 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm"
         >
           <span className="material-symbols-outlined text-lg">edit_square</span>
           Cuộc trò chuyện mới
@@ -477,7 +477,7 @@ export default function ChatbotPage() {
       <section className="flex-1 min-w-0 glass-panel rounded-3xl shadow-sm flex flex-col overflow-hidden">
         <header className="px-4 sm:px-6 py-3.5 border-b border-outline-variant/20 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-sm shrink-0">
+            <div className="relative w-10 h-10 rounded-2xl bg-chat-brand-br text-white flex items-center justify-center shadow-sm shrink-0">
               <AssistantMark className="w-[22px] h-[22px]" />
               <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
@@ -526,8 +526,8 @@ export default function ChatbotPage() {
           {active.messages.length === 0 && !isPending ? (
             <div className="min-h-full flex flex-col items-center justify-center px-4 sm:px-8 py-10 text-center">
               <div className="relative mb-5">
-                <div className="absolute inset-0 rounded-[28px] bg-gradient-to-br from-secondary to-primary blur-xl opacity-30" />
-                <div className="relative w-16 h-16 rounded-[22px] bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-lg">
+                <div className="absolute inset-0 rounded-[28px] bg-chat-brand-br blur-xl opacity-30" />
+                <div className="relative w-16 h-16 rounded-[22px] bg-chat-brand-br text-white flex items-center justify-center shadow-lg">
                   <AssistantMark className="w-8 h-8" />
                 </div>
               </div>
@@ -659,7 +659,7 @@ export default function ChatbotPage() {
                 onClick={() => void send()}
                 disabled={!input.trim() || isPending || overLimit || !userId}
                 aria-label="Gửi câu hỏi"
-                className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-primary text-white flex items-center justify-center shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-35 disabled:active:scale-100 transition-all shrink-0"
+                className="w-10 h-10 rounded-xl bg-chat-brand-br text-white flex items-center justify-center shadow-sm hover:brightness-110 active:scale-95 disabled:opacity-35 disabled:active:scale-100 transition-all shrink-0"
               >
                 <span className="material-symbols-outlined text-xl">{isPending ? 'hourglass_top' : 'arrow_upward'}</span>
               </button>

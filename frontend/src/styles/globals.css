@@ -129,3 +129,16 @@
     animation: none;
   }
 }
+
+/* Chat brand surface: same gradient as the chat logo. */
+.bg-chat-brand {
+  background-image: linear-gradient(to right, var(--color-secondary), var(--color-primary));
+}
+
+.bg-chat-brand-diagonal {
+  background-image: linear-gradient(to top right, var(--color-secondary), var(--color-primary));
+}
+
+.bg-chat-brand-br {
+  background-image: linear-gradient(to bottom right, var(--color-secondary), var(--color-primary));
+}

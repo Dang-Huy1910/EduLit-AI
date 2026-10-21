@@ -329,7 +329,7 @@ export default function StudentShell({
           <div className="flex shrink-0 items-center gap-space-lg">
             <Link
               href="/chatbot"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-r from-secondary via-secondary-container to-primary text-white font-bold text-xs shadow-sm transition-all hover:brightness-110 active:scale-95 xl:h-auto xl:w-auto xl:gap-1.5 xl:px-3 xl:py-1.5"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-chat-brand text-white font-bold text-xs shadow-sm transition-all hover:brightness-110 active:scale-95 xl:h-auto xl:w-auto xl:gap-1.5 xl:px-3 xl:py-1.5"
             >
               <AssistantMark className="w-4 h-4 shrink-0" />
               <span className="hidden xl:inline">EduLit Chatbot AI</span>

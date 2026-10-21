@@ -467,17 +467,18 @@ export default function WritingProfileScreen(props: WritingProfileScreenProps) {
             )}
 
             {view === 'stale' && (
-              <StateCard
-                icon="update"
-                tone="warning"
-                title="Có bài mới chưa đưa vào hồ sơ"
-                body={
-                  isTeacher
-                    ? `Em có ${data.sourceSummary.pendingCount ?? 0} bài mới công bố chưa được đưa vào hồ sơ. Hồ sơ bên dưới là bản gần nhất em đã cập nhật.`
-                    : data.notice || 'Có bài mới được công bố. Em bấm “Cập nhật hồ sơ” để đưa vào hồ sơ.'
-                }
-                action={refreshButton()}
-              />
+              // A slim notice: the previous profile stays right below it.
+              <div className="px-4 py-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <p className="flex items-center gap-2 text-xs text-on-surface">
+                  <span className="material-symbols-outlined text-base text-amber-600 shrink-0" aria-hidden="true">update</span>
+                  <span>
+                    {isTeacher
+                      ? `Em có ${data.sourceSummary.pendingCount ?? 0} bài mới chưa được đưa vào hồ sơ.`
+                      : `Có ${data.sourceSummary.pendingCount ?? 0} bài mới chưa đưa vào hồ sơ.`}
+                  </span>
+                </p>
+                <div className="self-end sm:self-auto shrink-0">{refreshButton()}</div>
+              </div>
             )}
 
             {profile && (

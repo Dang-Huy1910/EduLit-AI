@@ -251,7 +251,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
           <div className="flex items-center gap-space-lg">
             <Link
               href="/chatbot"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#4A154B] via-[#6B21A8] to-primary text-white font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-chat-brand text-white font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm"
             >
               <AssistantMark className="w-4 h-4 shrink-0" />
               <span>EduLit Chatbot AI</span>
