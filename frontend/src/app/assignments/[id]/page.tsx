@@ -17,6 +17,7 @@ import {
 } from '@/features/catalog/draft';
 import { downloadOriginalDocument } from '@/features/catalog/download';
 import { PICK_PROMPT_NOTICE } from '@/features/catalog/types';
+import { MaterialPassage, PreviewNote, WritingTaskCallout } from '@/features/catalog/PreviewBlocks';
 import type {
   AssignmentDraftState,
   CatalogPrompt,
@@ -687,47 +688,65 @@ function AssignmentEditorPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-8 space-y-6">
-              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm">menu_book</span>
-                    Đề nguồn đã chọn
-                  </span>
-                  {isPublished ? (
-                    <span className="text-[11px] text-tertiary font-semibold">Bản đã giao</span>
-                  ) : (
-                    <Link
-                      href={pickHref}
-                      onClick={() => persistLocalDraft({ promptId: prompt?.id })}
-                      className="text-xs font-semibold text-secondary"
-                    >
-                      Đổi đề
-                    </Link>
+              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-5">
+                <SectionHeader
+                  icon="menu_book"
+                  title="Đề nguồn đã chọn"
+                  subtitle={isPublished ? 'Snapshot đề tại thời điểm giao bài' : 'Lấy từ kho đề nguồn của giáo viên'}
+                  action={
+                    isPublished ? (
+                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-tertiary-container/25 text-tertiary flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">lock</span>
+                        Bản đã giao
+                      </span>
+                    ) : (
+                      <Link
+                        href={pickHref}
+                        onClick={() => persistLocalDraft({ promptId: prompt?.id })}
+                        className="px-3 py-1.5 rounded-xl border border-secondary/30 text-xs font-semibold text-secondary hover:bg-secondary/5 transition-all flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">swap_horiz</span>
+                        Đổi đề
+                      </Link>
+                    )
+                  }
+                />
+                <div className="space-y-2.5">
+                  <h2 className="font-merriweather font-bold text-xl leading-snug text-on-surface">
+                    {prompt?.title || 'Chưa có đề nguồn'}
+                  </h2>
+                  {prompt && (
+                    <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                      <span className="px-2 py-0.5 rounded-full bg-primary-fixed/50 text-on-primary-fixed-variant">{prompt.genre}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">Khối {prompt.gradeLevel}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-secondary-fixed/50 text-on-secondary-fixed-variant">
+                        {(displayMaterials || []).length} ngữ liệu
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full ${
+                          prompt.ready ? 'bg-tertiary-container/25 text-tertiary' : 'bg-[#FEF9C3] text-[#A16207]'
+                        }`}
+                      >
+                        {prompt.ready ? 'Sẵn sàng giao' : 'Chưa đủ dữ liệu'}
+                      </span>
+                    </div>
                   )}
                 </div>
-                <h2 className="font-merriweather font-bold text-lg">{prompt?.title || 'Chưa có đề nguồn'}</h2>
                 {displayWritingSummary && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-outline">Tóm tắt yêu cầu</span>
-                    <p className="text-sm whitespace-pre-line">{displayWritingSummary}</p>
-                  </div>
+                  <PreviewNote icon="summarize" label="Tóm tắt yêu cầu" text={displayWritingSummary} />
                 )}
-                <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-outline">Yêu cầu viết đầy đủ</span>
-                  <p className="text-sm whitespace-pre-line">{displayWritingTask || 'Chưa có yêu cầu viết.'}</p>
-                </div>
-                {prompt?.extraGuidance && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-outline">Gợi ý</span>
-                    <p className="text-sm whitespace-pre-line">{prompt.extraGuidance}</p>
-                  </div>
-                )}
+                <WritingTaskCallout label="Yêu cầu viết đầy đủ" text={displayWritingTask || 'Chưa có yêu cầu viết.'} />
+                {prompt?.extraGuidance && <PreviewNote icon="lightbulb" label="Gợi ý" text={prompt.extraGuidance} />}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => setFullPreview((value) => !value)}
-                    className="text-xs text-secondary font-semibold"
+                    aria-expanded={fullPreview}
+                    className="px-3 py-1.5 rounded-xl bg-secondary/5 border border-secondary/20 text-xs text-secondary font-semibold hover:bg-secondary/10 transition-all flex items-center gap-1"
                   >
+                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                      {fullPreview ? 'expand_less' : 'auto_stories'}
+                    </span>
                     {fullPreview ? 'Thu gọn ngữ liệu' : 'Xem toàn văn ngữ liệu'}
                   </button>
                   {sourceDocumentId && (
@@ -735,60 +754,62 @@ function AssignmentEditorPage() {
                       type="button"
                       disabled={downloading}
                       onClick={() => void handleDownloadOriginal()}
-                      className="text-xs text-secondary font-semibold disabled:opacity-40"
+                      className="px-3 py-1.5 rounded-xl border border-outline-variant/50 text-xs text-on-surface font-semibold hover:bg-surface-container-low transition-all flex items-center gap-1 disabled:opacity-40"
                     >
+                      <span className="material-symbols-outlined text-[16px]" aria-hidden="true">download</span>
                       {downloading ? 'Đang tải...' : 'Tải file gốc'}
                     </button>
                   )}
                 </div>
-                {fullPreview &&
-                  (displayMaterials || []).map((material) => (
-                    <div key={material.id} className="p-3 bg-surface-container-low/50 rounded-lg text-xs space-y-1">
-                      <p className="font-semibold">{material.title}</p>
-                      <p className="text-on-surface-variant">
-                        {material.author ? `${material.author} • ` : ''}
-                        {material.sourceInfo || 'Chưa có thông tin nguồn'}
-                      </p>
-                      <pre className="whitespace-pre-wrap font-merriweather">{material.content || material.excerpt}</pre>
-                    </div>
-                  ))}
+                {fullPreview && (
+                  <div className="space-y-3">
+                    {(displayMaterials || []).map((material, index) => (
+                      <MaterialPassage key={material.id} material={material} index={index} expanded />
+                    ))}
+                  </div>
+                )}
                 {prompt && !prompt.ready && (
-                  <div className="p-3 bg-[#FEF9C3] rounded-lg text-xs text-[#CA8A04]">
+                  <div className="p-3 bg-[#FEF9C3] rounded-xl text-xs text-[#A16207] flex items-start gap-2">
+                    <span className="material-symbols-outlined text-[16px]" aria-hidden="true">warning</span>
                     Đề chưa đủ dữ liệu để giao bài. Hãy bổ sung ngữ liệu hoặc yêu cầu viết trong kho.
                   </div>
                 )}
               </section>
 
-              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-outline-variant/20">
-                  <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-sm">edit_document</span>
-                    Thông tin bài tập
-                  </span>
-                  {prompt && (
-                    <span className="text-xs text-on-surface-variant font-medium">
-                      {prompt.genre} • Khối {prompt.gradeLevel}
-                    </span>
-                  )}
-                </div>
-                <label className="block text-xs font-semibold text-on-surface">Tiêu đề bài viết</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  disabled={isPublished}
-                  className="w-full px-3 py-2 text-sm font-semibold rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary font-merriweather disabled:opacity-70"
+              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-5">
+                <SectionHeader
+                  icon="edit_document"
+                  title="Thông tin bài tập"
+                  subtitle="Tiêu đề, lớp, hạn nộp và người nhận"
+                  action={
+                    prompt && (
+                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant">
+                        {prompt.genre} • Khối {prompt.gradeLevel}
+                      </span>
+                    )
+                  }
                 />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="block font-semibold text-on-surface mb-1">Lớp nhận bài</label>
+                <FormField icon="title" label="Tiêu đề bài viết" htmlFor="assignment-title">
+                  <input
+                    id="assignment-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={isPublished}
+                    placeholder="Ví dụ: Phân tích hình ảnh làng quê trong bài thơ..."
+                    className={`${INPUT_CLASS} text-[15px] font-semibold font-merriweather`}
+                  />
+                </FormField>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FormField icon="school" label="Lớp nhận bài" htmlFor="assignment-classroom">
                     <select
+                      id="assignment-classroom"
                       value={classroomId}
                       onChange={(e) => {
                         setClassroomId(e.target.value);
                         persistLocalDraft({ classroomId: e.target.value });
                       }}
                       disabled={isPublished}
-                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary disabled:opacity-70"
+                      className={`${INPUT_CLASS} text-sm`}
                     >
                       <option value="">Chọn lớp</option>
                       {classrooms.map((classroom) => (
@@ -797,110 +818,127 @@ function AssignmentEditorPage() {
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-on-surface mb-1">Hạn nộp</label>
+                  </FormField>
+                  <FormField icon="event" label="Hạn nộp" htmlFor="assignment-due">
                     <input
+                      id="assignment-due"
                       type="datetime-local"
                       value={dueAt}
                       onChange={(e) => setDueAt(e.target.value)}
                       disabled={isPublished}
-                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary disabled:opacity-70"
+                      className={`${INPUT_CLASS} text-sm`}
                     />
-                  </div>
+                  </FormField>
                 </div>
-                <label className="block text-xs font-semibold text-on-surface">Hướng dẫn bổ sung</label>
-                <textarea
-                  rows={4}
-                  value={isPublished ? displayExtra || extraInstructions : extraInstructions}
-                  onChange={(e) => setExtraInstructions(e.target.value)}
-                  disabled={isPublished}
-                  className="w-full p-3 text-xs rounded-lg border border-outline-variant/60 bg-surface focus:outline-none focus:border-secondary font-merriweather leading-relaxed disabled:opacity-70"
-                />
-                <div>
-                  <span className="text-xs font-semibold">Người nhận bài</span>
-                  <div className="mt-2 flex flex-col gap-1 text-xs">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="recipient-mode"
-                        checked={assignToWholeClass}
-                        disabled={isPublished}
-                        onChange={() => {
-                          setAssignToWholeClass(true);
-                          setRecipientIds(members.map((member) => member.userId));
-                        }}
-                      />
-                      Giao toàn lớp
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="radio"
-                        name="recipient-mode"
-                        checked={!assignToWholeClass}
-                        disabled={isPublished}
-                        onChange={() => setAssignToWholeClass(false)}
-                      />
-                      Giao các học sinh được chọn
-                    </label>
+                <FormField
+                  icon="notes"
+                  label="Hướng dẫn bổ sung"
+                  htmlFor="assignment-extra"
+                  hint="Không bắt buộc. Học sinh sẽ thấy phần này bên dưới yêu cầu viết."
+                >
+                  <textarea
+                    id="assignment-extra"
+                    rows={4}
+                    value={isPublished ? displayExtra || extraInstructions : extraInstructions}
+                    onChange={(e) => setExtraInstructions(e.target.value)}
+                    disabled={isPublished}
+                    placeholder="Ví dụ: Chú ý phân tích ít nhất hai hình ảnh, trích dẫn chính xác câu thơ..."
+                    className={`${INPUT_CLASS} text-sm font-merriweather leading-relaxed resize-y`}
+                  />
+                </FormField>
+                <fieldset className="space-y-2">
+                  <legend className="text-xs font-semibold text-on-surface flex items-center gap-1.5 mb-2">
+                    <span className="material-symbols-outlined text-[16px] text-outline" aria-hidden="true">group</span>
+                    Người nhận bài
+                  </legend>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <RecipientOption
+                      id="recipient-all"
+                      icon="groups"
+                      label="Giao toàn lớp"
+                      description={
+                        members.length ? `Tất cả ${members.length} học sinh trong lớp đã chọn` : 'Tất cả học sinh trong lớp đã chọn'
+                      }
+                      checked={assignToWholeClass}
+                      disabled={isPublished}
+                      onChange={() => {
+                        setAssignToWholeClass(true);
+                        setRecipientIds(members.map((member) => member.userId));
+                      }}
+                    />
+                    <RecipientOption
+                      id="recipient-some"
+                      icon="person_check"
+                      label="Giao các học sinh được chọn"
+                      description={
+                        assignToWholeClass ? 'Chọn từng học sinh trong danh sách' : `Đã chọn ${recipientIds.length}/${members.length} học sinh`
+                      }
+                      checked={!assignToWholeClass}
+                      disabled={isPublished}
+                      onChange={() => setAssignToWholeClass(false)}
+                    />
                   </div>
                   {memberIssue && (
                     <InlineRetry message={memberIssue} onRetry={() => setMemberNonce((value) => value + 1)} />
                   )}
                   {!assignToWholeClass && (
-                    <div className="mt-2 max-h-40 overflow-y-auto space-y-1 text-xs border rounded-lg p-2">
-                      {members.map((member) => (
-                        <label key={member.userId} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={recipientIds.includes(member.userId)}
-                            disabled={isPublished}
-                            onChange={(e) => {
-                              setAssignToWholeClass(false);
-                              setRecipientIds((prev) =>
-                                e.target.checked
-                                  ? [...prev, member.userId]
-                                  : prev.filter((id) => id !== member.userId)
-                              );
-                            }}
-                          />
-                          <span>
-                            {member.displayName} ({member.loginId})
-                          </span>
-                        </label>
-                      ))}
+                    <div className="mt-1 max-h-56 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-xs rounded-xl border border-outline-variant/40 bg-surface-container-low/40 p-2">
+                      {members.map((member) => {
+                        const checked = recipientIds.includes(member.userId);
+                        return (
+                          <label
+                            key={member.userId}
+                            className={`flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
+                              checked ? 'bg-secondary/10 text-on-surface' : 'hover:bg-surface-container-lowest'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="accent-secondary"
+                              checked={checked}
+                              disabled={isPublished}
+                              onChange={(e) => {
+                                setAssignToWholeClass(false);
+                                setRecipientIds((prev) =>
+                                  e.target.checked
+                                    ? [...prev, member.userId]
+                                    : prev.filter((id) => id !== member.userId)
+                                );
+                              }}
+                            />
+                            <span className="truncate">
+                              <span className="font-semibold">{member.displayName}</span>{' '}
+                              <span className="text-on-surface-variant">({member.loginId})</span>
+                            </span>
+                          </label>
+                        );
+                      })}
                       {members.length === 0 && !memberIssue && (
-                        <p className="text-on-surface-variant">
+                        <p className="text-on-surface-variant p-2">
                           {classroomId ? 'Lớp chưa có học sinh.' : 'Chưa có học sinh trong các lớp của giáo viên.'}
                         </p>
                       )}
                     </div>
                   )}
-                </div>
+                </fieldset>
               </section>
 
-              <section className="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/30 shadow-sm space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-sm">format_list_numbered</span>
-                      Barem đánh giá cho bài này
-                    </span>
-                    <span className="text-[11px] text-on-surface-variant">
-                      {maxScore > 0 ? `Thang ${maxScore}đ theo barem đang chọn` : 'Chọn barem từ kho để lấy thang điểm thật'}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-on-surface-variant font-medium">Tổng điểm:</span>
+              <section className="glass-panel p-6 sm:p-7 rounded-2xl border border-white/60 shadow-sm space-y-5">
+                <SectionHeader
+                  icon="format_list_numbered"
+                  title="Barem đánh giá cho bài này"
+                  subtitle={maxScore > 0 ? `Thang ${maxScore}đ theo barem đang chọn` : 'Chọn barem từ kho để lấy thang điểm thật'}
+                  action={
                     <span
-                      className={`text-sm font-bold px-2.5 py-0.5 rounded-full font-mono ${
+                      className={`text-xs font-bold px-2.5 py-1 rounded-full font-mono ${
                         isValidTotal ? 'bg-tertiary-container/30 text-tertiary' : 'bg-error-container text-error'
                       }`}
+                      title="Tổng điểm"
                     >
                       {totalWeight.toFixed(2)} / {maxScore || 0}đ
                     </span>
-                  </div>
-                </div>
+                  }
+                />
 
                 <div className="p-4 bg-surface-container-low/60 rounded-xl border border-outline-variant/40 space-y-3">
                   <div className="flex items-center gap-2">
@@ -1131,6 +1169,113 @@ function AssignmentEditorPage() {
         )}
       </div>
     </TeacherShell>
+  );
+}
+
+const INPUT_CLASS =
+  'w-full px-3.5 py-2.5 rounded-xl border border-outline-variant/60 bg-surface-container-lowest text-on-surface placeholder:text-outline/70 shadow-[inset_0_1px_2px_rgba(18,28,42,0.04)] transition-all focus:outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/10 disabled:opacity-70 disabled:bg-surface-container-low';
+
+function SectionHeader({
+  icon,
+  title,
+  subtitle,
+  action,
+}: {
+  icon: string;
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 pb-4 border-b border-outline-variant/20">
+      <div className="flex items-center gap-3 min-w-0">
+        <span className="w-10 h-10 rounded-xl bg-primary-fixed/50 text-primary flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-[22px]" aria-hidden="true">{icon}</span>
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold text-on-surface">{title}</h3>
+          {subtitle && <p className="text-[11px] text-on-surface-variant truncate">{subtitle}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function FormField({
+  icon,
+  label,
+  htmlFor,
+  hint,
+  children,
+}: {
+  icon: string;
+  label: string;
+  htmlFor: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={htmlFor} className="text-xs font-semibold text-on-surface flex items-center gap-1.5">
+        <span className="material-symbols-outlined text-[16px] text-outline" aria-hidden="true">{icon}</span>
+        {label}
+      </label>
+      {children}
+      {hint && <p className="text-[11px] text-on-surface-variant">{hint}</p>}
+    </div>
+  );
+}
+
+function RecipientOption({
+  id,
+  icon,
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  icon: string;
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label
+      className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+        checked
+          ? 'border-secondary bg-secondary/5 ring-2 ring-secondary/15'
+          : 'border-outline-variant/50 bg-surface-container-lowest hover:border-outline'
+      } ${disabled ? 'cursor-default opacity-80' : ''}`}
+    >
+      <input
+        type="radio"
+        name="recipient-mode"
+        className="mt-1 accent-secondary"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+        aria-describedby={`${id}-desc`}
+      />
+      <span className="flex-1 min-w-0">
+        <span className="text-xs font-bold text-on-surface flex items-center gap-1.5">
+          <span
+            className={`material-symbols-outlined text-[16px] ${checked ? 'text-secondary' : 'text-outline'}`}
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
+          {label}
+        </span>
+        <span id={`${id}-desc`} aria-hidden="true" className="block text-[11px] text-on-surface-variant mt-0.5">
+          {description}
+        </span>
+      </span>
+    </label>
   );
 }
 

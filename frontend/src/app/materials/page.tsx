@@ -21,6 +21,7 @@ import {
 } from '@/features/catalog/draft';
 import { downloadOriginalDocument } from '@/features/catalog/download';
 import { boundPreview, canActOnPreview } from '@/features/catalog/preview';
+import { MaterialPassage, PreviewLabel, PreviewNote, WritingTaskCallout } from '@/features/catalog/PreviewBlocks';
 import { parseRubricJson, RUBRIC_JSON_HELP } from '@/features/catalog/rubric';
 import {
   CatalogMaterial,
@@ -717,9 +718,9 @@ function MaterialsContent() {
             className="scroll-mt-20 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto overscroll-contain rounded-xl"
           >
             {selected ? (
-              <div className="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-5 sm:p-6 space-y-5">
-                <div className="flex items-start justify-between gap-4 pb-4 border-b border-outline-variant/20">
-                  <div>
+              <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-5 sm:p-7 space-y-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4 pb-5 border-b border-outline-variant/20">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${purposeBadge(selected.kind)}`}>
                         {selected.kind === 'prompt' ? 'Đề nguồn' : selected.kind === 'material' ? 'Ngữ liệu' : 'Barem'}
@@ -728,7 +729,7 @@ function MaterialsContent() {
                         <span className="text-xs text-on-surface-variant font-medium">Khối {selected.data.gradeLevel}</span>
                       )}
                     </div>
-                    <h2 className="font-headline-md text-lg sm:text-xl font-bold text-on-surface font-merriweather">
+                    <h2 className="font-headline-md text-xl sm:text-2xl font-bold text-on-surface font-merriweather leading-snug">
                       {selected.data.title}
                     </h2>
                     <p className="text-xs text-on-surface-variant mt-1">
@@ -742,7 +743,7 @@ function MaterialsContent() {
                   {isTeacher && selected.kind !== 'rubric' && !pickMode && (
                     <button
                       type="button"
-                      className="text-xs font-semibold text-secondary disabled:opacity-40"
+                      className="shrink-0 px-3 py-1.5 rounded-xl border border-secondary/30 text-xs font-semibold text-secondary hover:bg-secondary/5 transition-all flex items-center gap-1 disabled:opacity-40"
                       disabled={!previewReady}
                       onClick={() => {
                         if (!previewReady) return;
@@ -761,6 +762,7 @@ function MaterialsContent() {
                         }
                       }}
                     >
+                      <span className="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
                       Chỉnh sửa
                     </button>
                   )}
@@ -785,38 +787,25 @@ function MaterialsContent() {
                 {selected.kind === 'prompt' && selectedPrompt && previewReady && (
                   <>
                     {selectedPrompt.writingTaskSummary && (
-                      <div className="space-y-2">
-                        <span className="text-xs font-semibold text-on-surface-variant block">Tóm tắt yêu cầu</span>
-                        <p className="text-sm leading-relaxed whitespace-pre-line">{selectedPrompt.writingTaskSummary}</p>
-                      </div>
+                      <PreviewNote icon="summarize" label="Tóm tắt yêu cầu" text={selectedPrompt.writingTaskSummary} />
                     )}
-                    <div className="space-y-2">
-                      <span className="text-xs font-semibold text-on-surface-variant block">Yêu cầu viết</span>
-                      <p className="text-sm leading-relaxed whitespace-pre-line">
-                        {selectedPrompt.writingTask || 'Chưa có yêu cầu viết.'}
-                      </p>
-                    </div>
+                    <WritingTaskCallout label="Yêu cầu viết" text={selectedPrompt.writingTask || 'Chưa có yêu cầu viết.'} />
                     {selectedPrompt.extraGuidance && (
-                      <div className="space-y-2">
-                        <span className="text-xs font-semibold text-on-surface-variant block">Gợi ý / các ý còn lại</span>
-                        <p className="text-sm leading-relaxed whitespace-pre-line">{selectedPrompt.extraGuidance}</p>
-                      </div>
+                      <PreviewNote icon="lightbulb" label="Gợi ý / các ý còn lại" text={selectedPrompt.extraGuidance} />
                     )}
-                    <div className="space-y-2">
-                      <span className="text-xs font-semibold text-on-surface-variant block">Ngữ liệu liên kết</span>
-                      {selectedPrompt.materials.map((material) => (
-                        <div key={material.id} className="p-3 rounded-lg bg-surface-container-low/50 text-xs space-y-1">
-                          <p className="font-semibold">{material.title}</p>
-                          <p className="text-on-surface-variant">
-                            {material.author ? `${material.author} • ` : ''}
-                            {material.sourceInfo || 'Chưa có thông tin nguồn'}
-                          </p>
-                          {(material.content || material.excerpt) && (
-                            <pre className="mt-2 whitespace-pre-wrap font-merriweather text-[12px] leading-relaxed">
-                              {material.content || material.excerpt}
-                            </pre>
-                          )}
-                        </div>
+                    <div className="space-y-2.5">
+                      <PreviewLabel
+                        icon="auto_stories"
+                        aside={
+                          <span className="text-[11px] font-semibold text-on-surface-variant">
+                            {selectedPrompt.materials.length} văn bản
+                          </span>
+                        }
+                      >
+                        Ngữ liệu liên kết
+                      </PreviewLabel>
+                      {selectedPrompt.materials.map((material, index) => (
+                        <MaterialPassage key={material.id} material={material} index={index} />
                       ))}
                       {selectedPrompt.materials.length === 0 && (
                         <p className="text-xs text-error">Chưa gắn ngữ liệu.</p>
@@ -872,11 +861,14 @@ function MaterialsContent() {
 
                 {selected.kind === 'material' && selectedMaterial && previewReady && (
                   <>
-                    <div className="p-4 bg-surface-container-low/40 rounded-xl border-l-4 border-primary text-sm font-merriweather whitespace-pre-wrap">
-                      {fullMaterial
-                        ? selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.'
-                        : (selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.').slice(0, 800)}
-                      {!fullMaterial && (selectedMaterial.content || selectedMaterial.excerpt || '').length > 800 ? '…' : ''}
+                    <div className="relative px-5 sm:px-6 py-5 rounded-xl bg-[#fffcf7] border border-outline-variant/40">
+                      <span aria-hidden="true" className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-primary/60" />
+                      <pre className="whitespace-pre-wrap font-merriweather text-[13.5px] leading-[1.9] text-on-surface">
+                        {fullMaterial
+                          ? selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.'
+                          : (selectedMaterial.content || selectedMaterial.excerpt || 'Chưa có nội dung.').slice(0, 800)}
+                        {!fullMaterial && (selectedMaterial.content || selectedMaterial.excerpt || '').length > 800 ? '…' : ''}
+                      </pre>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {(selectedMaterial.content || selectedMaterial.excerpt || '').length > 800 && (
@@ -911,23 +903,68 @@ function MaterialsContent() {
 
                 {selected.kind === 'rubric' && selectedRubric && previewReady && (
                   <>
-                    <p className="text-sm text-on-surface-variant">{selectedRubric.description}</p>
-                    <p className="text-xs">
-                      Thang {selectedRubric.maxScore}đ • bước {selectedRubric.scoreStep} • {selectedRubric.criteriaCount} tiêu
-                      chí. Chọn barem này tại màn tạo bài tập, không áp dụng từ kho.
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {(selectedRubric.criteria || []).map((criterion) => (
-                        <div key={criterion.id} className="p-2.5 bg-surface-container-low/50 rounded-lg border border-outline-variant/20 text-xs">
-                          <span className="font-bold text-primary block">
-                            {criterion.name} ({criterion.weight}đ)
+                    {selectedRubric.description && (
+                      <p className="text-sm leading-relaxed text-on-surface-variant">{selectedRubric.description}</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { icon: 'scoreboard', label: 'Thang điểm', value: `${selectedRubric.maxScore}đ` },
+                        { icon: 'linear_scale', label: 'Bước điểm', value: `${selectedRubric.scoreStep}` },
+                        { icon: 'checklist', label: 'Tiêu chí', value: `${selectedRubric.criteriaCount}` },
+                      ].map((stat) => (
+                        <div key={stat.label} className="p-3 rounded-xl bg-surface-container-low/60 border border-outline-variant/30">
+                          <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px] text-primary" aria-hidden="true">{stat.icon}</span>
+                            {stat.label}
                           </span>
-                          {criterion.guideNote && (
-                            <p className="text-[11px] text-on-surface-variant mt-1">{criterion.guideNote}</p>
-                          )}
+                          <span className="block text-lg font-bold text-on-surface font-mono mt-0.5">{stat.value}</span>
                         </div>
                       ))}
                     </div>
+                    <div className="space-y-2.5">
+                      <PreviewLabel icon="format_list_numbered">Tiêu chí đánh giá</PreviewLabel>
+                      {(selectedRubric.criteria || []).map((criterion, index) => {
+                        const share = selectedRubric.maxScore > 0 ? Math.min(100, (criterion.weight / selectedRubric.maxScore) * 100) : 0;
+                        return (
+                          <div key={criterion.id} className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/40 space-y-2">
+                            <div className="flex items-start gap-3">
+                              <span className="w-7 h-7 rounded-lg bg-primary-fixed/60 text-primary text-xs font-bold font-mono flex items-center justify-center shrink-0">
+                                {index + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-on-surface leading-snug">{criterion.name}</p>
+                                {criterion.guideNote && (
+                                  <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">{criterion.guideNote}</p>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-full bg-secondary/10 text-secondary shrink-0">
+                                {criterion.weight}đ
+                              </span>
+                            </div>
+                            <div className="ml-10 h-1 rounded-full bg-surface-container-high overflow-hidden" aria-hidden="true">
+                              <div className="h-full bg-secondary/70 rounded-full" style={{ width: `${share}%` }} />
+                            </div>
+                            {(criterion.levels || []).length > 0 && (
+                              <div className="ml-10 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                {(criterion.levels || []).map((level, levelIndex) => (
+                                  <div
+                                    key={`${criterion.id}-${level.score}-${levelIndex}`}
+                                    className="px-2.5 py-2 rounded-lg bg-surface-container-low/60 text-[11px] text-on-surface-variant flex gap-2"
+                                  >
+                                    <span className="font-bold font-mono text-primary shrink-0">{level.score}đ</span>
+                                    <span className="leading-relaxed">{level.descriptor}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-on-surface-variant flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">info</span>
+                      Chọn barem này tại màn tạo bài tập, không áp dụng từ kho.
+                    </p>
                     {selectedRubric.sourceDocumentId && (
                       <button
                         type="button"

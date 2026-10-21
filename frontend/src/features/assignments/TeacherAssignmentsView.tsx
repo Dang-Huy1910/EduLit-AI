@@ -243,33 +243,57 @@ export default function TeacherAssignmentsView() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {filtered.map((assignment) => (
-              <div
-                key={assignment.id}
-                className="glass-card rounded-2xl p-5 sm:p-6 border border-outline-variant/30 flex flex-col justify-between space-y-4"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <span
-                      className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 ${
-                        assignment.status === 'PUBLISHED'
-                          ? 'bg-tertiary-container/30 text-tertiary'
-                          : 'bg-surface-container-high text-on-surface-variant'
-                      }`}
-                    >
-                      {assignment.status === 'PUBLISHED' ? (
-                        <>
-                          <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-                          Đã giao
-                        </>
-                      ) : (
-                        'Bản nháp'
-                      )}
-                    </span>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      <span className="text-[11px] text-on-surface-variant font-mono">
-                        {assignment.dueAt ? `Hạn: ${new Date(assignment.dueAt).toLocaleString('vi-VN')}` : 'Chưa đặt hạn'}
-                      </span>
+            {filtered.map((assignment) => {
+              const isPublished = assignment.status === 'PUBLISHED';
+              const due = describeDue(assignment.dueAt);
+              const subtitle = [assignment.sourcePromptTitle, assignment.extraInstructions].find(
+                (text) => text && text.trim() && text.trim() !== assignment.title.trim()
+              );
+              const prep = isPublished && assignment.outlinePrep && assignment.outlinePrep.total > 0 ? assignment.outlinePrep : null;
+              const progress = isPublished ? assignment.submissionProgress : undefined;
+              const preparing = prep ? prep.queued + prep.processing : 0;
+              return (
+                <article
+                  key={assignment.id}
+                  className="glass-card relative rounded-2xl border border-outline-variant/30 flex flex-col overflow-hidden"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-x-0 top-0 h-1 ${
+                      isPublished ? 'bg-gradient-to-r from-primary via-primary-container to-secondary/70' : 'bg-outline-variant/70'
+                    }`}
+                  />
+                  <div className="p-5 sm:p-6 flex-1 flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 ${
+                            isPublished
+                              ? 'bg-tertiary-container/25 text-tertiary'
+                              : 'bg-surface-container-high text-on-surface-variant'
+                          }`}
+                        >
+                          {isPublished ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                              Đã giao
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-[13px]" aria-hidden="true">edit_note</span>
+                              Bản nháp
+                            </>
+                          )}
+                        </span>
+                        <span
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${DUE_TONE[due.tone]}`}
+                          title={due.full}
+                        >
+                          <span className="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
+                          <span>{due.label}</span>
+                          {due.relative && <span className="font-bold">· {due.relative}</span>}
+                        </span>
+                      </div>
                       <InlineDeleteButton
                         label={`Xóa bài tập ${assignment.title}`}
                         title="Xóa bài tập này?"
@@ -279,140 +303,132 @@ export default function TeacherAssignmentsView() {
                         onConfirm={() => handleDeleteAssignment(assignment)}
                       />
                     </div>
-                  </div>
 
-                  <h3 className="font-headline-sm text-base font-bold font-merriweather text-on-surface mb-1.5 leading-snug">
-                    {assignment.title}
-                  </h3>
-                  <p className="text-xs text-on-surface-variant line-clamp-2 mb-3 leading-relaxed">
-                    {assignment.sourcePromptTitle || assignment.extraInstructions || 'Đề bài chưa có mô tả chi tiết.'}
-                  </p>
-
-                  {assignment.status === 'PUBLISHED' && assignment.outlinePrep && assignment.outlinePrep.total > 0 && (
-                    <div className="mb-3 p-2.5 rounded-xl bg-secondary/5 border border-secondary/15 text-xs space-y-1">
-                      <div className="flex items-center justify-between font-semibold text-on-surface">
-                        <span className="flex items-center gap-1 text-secondary">
-                          <span className="material-symbols-outlined text-[15px]">psychology</span>
-                          Dàn ý Socratic sẵn sàng:
-                        </span>
-                        <span className="font-mono text-secondary">
-                          {assignment.outlinePrep.ready}/{assignment.outlinePrep.total} học sinh
-                        </span>
-                      </div>
-                      {assignment.outlinePrep.failed > 0 && (
-                        <p className="text-error text-[11px]">{assignment.outlinePrep.failed} trường hợp lỗi khởi tạo</p>
-                      )}
-                      {(assignment.outlinePrep.needsClarification ?? 0) > 0 && (
-                        <p className="text-amber-800 dark:text-amber-400 text-[11px]">
-                          {assignment.outlinePrep.needsClarification} trường hợp cần làm rõ đề hoặc ngữ liệu
-                        </p>
-                      )}
-                      {assignment.outlinePrep.queued + assignment.outlinePrep.processing > 0 && (
-                        <p className="text-on-surface-variant text-[11px] flex items-center gap-1">
-                          <span className="w-2.5 h-2.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
-                          Đang soạn {assignment.outlinePrep.queued + assignment.outlinePrep.processing} dàn ý...
+                    <div className="space-y-1.5">
+                      <h3 className="text-lg font-bold font-merriweather text-on-surface leading-snug">
+                        {assignment.title}
+                      </h3>
+                      {subtitle && (
+                        <p className="text-xs text-on-surface-variant line-clamp-2 leading-relaxed flex items-start gap-1.5">
+                          <span className="material-symbols-outlined text-[14px] text-outline mt-px" aria-hidden="true">menu_book</span>
+                          <span>{subtitle}</span>
                         </p>
                       )}
                     </div>
-                  )}
 
-                  {assignment.status === 'PUBLISHED' && assignment.submissionProgress ? (
-                    <div className="mb-3 p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/20 text-xs">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-semibold text-on-surface">Tiến độ nộp bài:</span>
-                        <span className="font-mono font-bold text-primary">
-                          {assignment.submissionProgress.officialSubmitted}/{assignment.submissionProgress.assigned} HS
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-300"
-                          style={{
-                            width: `${
-                              assignment.submissionProgress.assigned > 0
-                                ? (assignment.submissionProgress.officialSubmitted / assignment.submissionProgress.assigned) * 100
-                                : 0
-                            }%`,
-                          }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-on-surface-variant mt-1.5">
-                        <span>Chờ rà soát: {assignment.submissionProgress.awaitingReview}</span>
-                        <span>Đã công bố: {assignment.submissionProgress.published}</span>
-                      </div>
+                    <div className="flex flex-wrap gap-2 text-[11px]">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/5 border border-secondary/15 text-secondary font-mono font-semibold">
+                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">tag</span>
+                        <span className="sr-only">Mã đề thi</span>
+                        {assignment.code}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface font-semibold">
+                        <span className="material-symbols-outlined text-[14px] text-outline" aria-hidden="true">school</span>
+                        Lớp {assignment.classroomCode || SCHOOL_CONTEXT.classroomCode}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 text-on-surface font-semibold">
+                        <span className="material-symbols-outlined text-[14px] text-outline" aria-hidden="true">group</span>
+                        {assignment.recipientCount ? `${assignment.recipientCount} học sinh` : 'Toàn lớp'}
+                      </span>
                     </div>
-                  ) : null}
 
-                  <div className="grid grid-cols-3 gap-2 text-xs p-2.5 bg-surface-container-low/40 rounded-xl border border-outline-variant/20">
-                    <div>
-                      <span className="text-[10px] text-outline block">Mã đề thi</span>
-                      <span className="font-mono font-semibold text-secondary">{assignment.code}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-outline block">Lớp</span>
-                      <span className="font-semibold">{assignment.classroomCode || SCHOOL_CONTEXT.classroomCode}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-outline block">Học sinh</span>
-                      <span className="font-semibold">{assignment.recipientCount || 'Toàn lớp'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {assignment.status === 'PUBLISHED' ? (
-                      <>
-                        <Link
-                          href={`/assignments/${assignment.id}?tab=submissions`}
-                          className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-xs flex items-center gap-1 active:scale-95"
-                        >
-                          <span className="material-symbols-outlined text-[15px]">assignment_turned_in</span>
-                          <span>Chấm bài</span>
-                        </Link>
-                        <Link
-                          href={`/assignments/${assignment.id}?tab=statistics`}
-                          className="px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-semibold transition-all border border-outline-variant/40 flex items-center gap-1"
-                        >
-                          <span className="material-symbols-outlined text-[15px]">bar_chart</span>
-                          <span>Thống kê</span>
-                        </Link>
-                      </>
-                    ) : (
-                      <Link
-                        href={`/assignments/${assignment.id}`}
-                        className="px-3.5 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-xs"
-                      >
-                        Tiếp tục soạn đề
-                      </Link>
+                    {(prep || progress) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {progress && (
+                          <MetricTile
+                            icon="assignment_turned_in"
+                            label="Tiến độ nộp bài"
+                            done={progress.officialSubmitted}
+                            total={progress.assigned}
+                            tone="primary"
+                          >
+                            <span>Chờ rà soát: <b className="text-on-surface">{progress.awaitingReview}</b></span>
+                            <span>Đã công bố: <b className="text-on-surface">{progress.published}</b></span>
+                          </MetricTile>
+                        )}
+                        {prep && (
+                          <MetricTile
+                            icon="psychology"
+                            label="Dàn ý Socratic sẵn sàng"
+                            done={prep.ready}
+                            total={prep.total}
+                            tone="secondary"
+                          >
+                            {prep.failed > 0 && <span className="text-error">{prep.failed} lỗi khởi tạo</span>}
+                            {(prep.needsClarification ?? 0) > 0 && (
+                              <span className="text-amber-800 dark:text-amber-400">
+                                {prep.needsClarification} cần làm rõ đề/ngữ liệu
+                              </span>
+                            )}
+                            {preparing > 0 && (
+                              <span className="flex items-center gap-1">
+                                <span className="w-2.5 h-2.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></span>
+                                Đang soạn {preparing} dàn ý...
+                              </span>
+                            )}
+                            {prep.failed === 0 && !(prep.needsClarification ?? 0) && preparing === 0 && (
+                              <span>Học sinh có thể bắt đầu lập dàn ý</span>
+                            )}
+                          </MetricTile>
+                        )}
+                      </div>
                     )}
                   </div>
 
-                  {assignment.status === 'PUBLISHED' && (
-                    <Link
-                      href={`/assignments/${assignment.id}?tab=details`}
-                      className="text-[11px] font-semibold text-secondary hover:underline flex items-center gap-0.5"
-                    >
-                      <span>Xem cấu hình &amp; Barem</span>
-                      <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
-                    </Link>
-                  )}
+                  <div className="px-5 sm:px-6 py-3.5 bg-surface-container-low/50 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {isPublished ? (
+                        <>
+                          <Link
+                            href={`/assignments/${assignment.id}?tab=submissions`}
+                            className="px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">assignment_turned_in</span>
+                            <span>Chấm bài</span>
+                          </Link>
+                          <Link
+                            href={`/assignments/${assignment.id}?tab=statistics`}
+                            className="px-3.5 py-2 rounded-xl bg-surface-container-lowest hover:bg-surface-container text-on-surface text-xs font-semibold transition-all border border-outline-variant/50 flex items-center gap-1.5"
+                          >
+                            <span className="material-symbols-outlined text-[16px] text-secondary" aria-hidden="true">bar_chart</span>
+                            <span>Thống kê</span>
+                          </Link>
+                        </>
+                      ) : (
+                        <Link
+                          href={`/assignments/${assignment.id}`}
+                          className="px-3.5 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5"
+                        >
+                          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+                          Tiếp tục soạn đề
+                        </Link>
+                      )}
+                    </div>
 
-                  {assignment.status === 'PUBLISHED' &&
-                    ((assignment.outlinePrep?.failed ?? 0) > 0 ||
-                      (assignment.outlinePrep?.needsClarification ?? 0) > 0) && (
-                    <button
-                      type="button"
-                      onClick={() => void handleRetryOutlinePreps(assignment.id)}
-                      disabled={retryingId === assignment.id}
-                      className="px-3 py-1 rounded-lg border border-error/30 text-error text-xs font-semibold hover:bg-error/5 transition-all disabled:opacity-50"
-                    >
-                      {retryingId === assignment.id ? 'Đang thử lại...' : 'Thử lại dàn ý lỗi'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+                    {isPublished && (
+                      <Link
+                        href={`/assignments/${assignment.id}?tab=details`}
+                        className="text-xs font-semibold text-secondary hover:underline flex items-center gap-1"
+                      >
+                        <span>Xem cấu hình &amp; Barem</span>
+                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_forward</span>
+                      </Link>
+                    )}
+
+                    {isPublished && prep && (prep.failed > 0 || (prep.needsClarification ?? 0) > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => void handleRetryOutlinePreps(assignment.id)}
+                        disabled={retryingId === assignment.id}
+                        className="px-3 py-1.5 rounded-xl border border-error/30 text-error text-xs font-semibold hover:bg-error/5 transition-all disabled:opacity-50"
+                      >
+                        {retryingId === assignment.id ? 'Đang thử lại...' : 'Thử lại dàn ý lỗi'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </div>
@@ -420,3 +436,90 @@ export default function TeacherAssignmentsView() {
   );
 }
 
+
+const DUE_TONE = {
+  none: 'bg-surface-container-high text-on-surface-variant',
+  normal: 'bg-surface-container-low text-on-surface-variant border border-outline-variant/30',
+  soon: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300',
+  overdue: 'bg-error-container/60 text-error',
+} as const;
+
+function describeDue(dueAt: string | null): {
+  label: string;
+  full: string;
+  relative: string;
+  tone: keyof typeof DUE_TONE;
+} {
+  if (!dueAt) return { label: 'Chưa đặt hạn', full: 'Chưa đặt hạn nộp', relative: '', tone: 'none' };
+  const date = new Date(dueAt);
+  if (Number.isNaN(date.getTime())) return { label: 'Chưa đặt hạn', full: 'Chưa đặt hạn nộp', relative: '', tone: 'none' };
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const day = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const diffMs = date.getTime() - Date.now();
+  const hours = diffMs / 3_600_000;
+  let relative: string;
+  if (diffMs < 0) relative = 'Quá hạn';
+  else if (hours < 1) relative = 'Dưới 1 giờ';
+  else if (hours < 24) relative = `Còn ${Math.floor(hours)} giờ`;
+  else relative = `Còn ${Math.ceil(hours / 24)} ngày`;
+  return {
+    label: `${time} · ${day}`,
+    full: `Hạn nộp: ${time} ngày ${day}`,
+    relative,
+    tone: diffMs < 0 ? 'overdue' : hours < 48 ? 'soon' : 'normal',
+  };
+}
+
+const METRIC_TONE = {
+  primary: { icon: 'text-primary bg-primary-fixed/60', value: 'text-primary', bar: 'bg-primary' },
+  secondary: { icon: 'text-secondary bg-secondary-fixed/60', value: 'text-secondary', bar: 'bg-secondary' },
+} as const;
+
+function MetricTile({
+  icon,
+  label,
+  done,
+  total,
+  tone,
+  children,
+}: {
+  icon: string;
+  label: string;
+  done: number;
+  total: number;
+  tone: keyof typeof METRIC_TONE;
+  children?: React.ReactNode;
+}) {
+  const styles = METRIC_TONE[tone];
+  const percent = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  return (
+    <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/30 space-y-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${styles.icon}`}>
+          <span className="material-symbols-outlined text-[18px]" aria-hidden="true">{icon}</span>
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold text-on-surface-variant leading-tight">{label}</p>
+          <p className="text-sm font-bold text-on-surface">
+            <span className={`text-lg ${styles.value}`}>{done}</span>
+            <span className="text-on-surface-variant font-semibold">/{total} HS</span>
+          </p>
+        </div>
+        <span className={`text-xs font-bold font-mono ${styles.value}`}>{percent}%</span>
+      </div>
+      <div
+        className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={done}
+      >
+        <div className={`h-full rounded-full transition-all duration-300 ${styles.bar}`} style={{ width: `${percent}%` }} />
+      </div>
+      {children && (
+        <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-[10px] text-on-surface-variant">{children}</div>
+      )}
+    </div>
+  );
+}
