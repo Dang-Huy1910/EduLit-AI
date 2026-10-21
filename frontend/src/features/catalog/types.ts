@@ -129,6 +129,20 @@ export interface ClassroomDetail extends ClassroomSummary {
   members: ClassroomMember[];
 }
 
+export interface StudentClassroom {
+  id: string;
+  code: string;
+  name: string;
+  subject: string;
+  gradeLevel: number;
+  termId: string;
+  termName: string;
+  termStatus: 'UPCOMING' | 'ACTIVE' | 'ENDED';
+  academicYear: string;
+  readOnly: boolean;
+  teacherName: string;
+}
+
 export interface Term {
   id: string;
   code: string;
@@ -217,6 +231,11 @@ export interface StudentAssignment {
     description?: string;
   };
   contextChunks?: { chunk_id?: string; chunkId?: string; title?: string; text?: string }[];
+  classroomId?: string | null;
+  classroomCode?: string | null;
+  classroomName?: string | null;
+  termId?: string | null;
+  classroomReadOnly?: boolean;
 }
 
 export interface AssignmentDraftState {

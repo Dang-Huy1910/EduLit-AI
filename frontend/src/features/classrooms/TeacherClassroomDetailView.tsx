@@ -65,6 +65,16 @@ export default function TeacherClassroomDetailView() {
     }
   };
 
+  const copyInvitation = async () => {
+    if (!detail) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/classrooms?join=${detail.joinCode}`);
+      addToast('Đã sao chép link mời.', 'success');
+    } catch {
+      addToast('Không thể sao chép link mời. Hãy thử lại.', 'error');
+    }
+  };
+
   const apply = async (body: Parameters<typeof classroomsApi.updateClassroom>[1], success: string) => {
     if (!detail) return null;
     setSaving(true);
@@ -135,7 +145,7 @@ export default function TeacherClassroomDetailView() {
 
         <section className="glass-card rounded-2xl border border-outline-variant/30 p-5 sm:p-6 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"><div><h2 className="font-merriweather font-bold text-on-surface">Mã tham gia</h2><p className="text-xs text-on-surface-variant mt-1">Gửi mã này cho học sinh để tự vào lớp.</p></div><span className={`text-xs font-semibold flex items-center gap-1.5 ${detail.joinEnabled ? 'text-tertiary' : 'text-on-surface-variant'}`}><span className={`w-1.5 h-1.5 rounded-full ${detail.joinEnabled ? 'bg-tertiary' : 'bg-outline'}`} />{detail.joinEnabled ? 'Đang mở mã' : 'Đã khoá mã'}</span></div>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3"><code className="text-2xl sm:text-3xl font-bold tracking-[0.16em] text-primary bg-primary-container/20 rounded-xl px-4 py-3">{detail.joinCode}</code><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void copy()} className="h-9 px-3 rounded-lg border border-outline-variant/60 text-sm font-semibold hover:bg-surface-container"><span className="material-symbols-outlined text-[16px] align-text-bottom mr-1">content_copy</span>Sao chép</button>{!readOnly && <div className="flex items-center gap-1"><span className="text-sm font-semibold text-on-surface-variant">Đổi mã</span><InlineDeleteButton icon="autorenew" label="Đổi mã tham gia" title="Đổi mã tham gia?" description="Mã cũ sẽ không còn dùng được để học sinh vào lớp." busy={rotating} onConfirm={rotate} /></div>}</div></div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3"><code className="text-2xl sm:text-3xl font-bold tracking-[0.16em] text-primary bg-primary-container/20 rounded-xl px-4 py-3">{detail.joinCode}</code><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void copy()} className="h-9 px-3 rounded-lg border border-outline-variant/60 text-sm font-semibold hover:bg-surface-container"><span className="material-symbols-outlined text-[16px] align-text-bottom mr-1">content_copy</span>Sao chép</button><button type="button" onClick={() => void copyInvitation()} className="h-9 px-3 rounded-lg border border-outline-variant/60 text-sm font-semibold hover:bg-surface-container"><span className="material-symbols-outlined text-[16px] align-text-bottom mr-1">link</span>Sao chép link mời</button>{!readOnly && <div className="flex items-center gap-1"><span className="text-sm font-semibold text-on-surface-variant">Đổi mã</span><InlineDeleteButton icon="autorenew" label="Đổi mã tham gia" title="Đổi mã tham gia?" description="Mã cũ sẽ không còn dùng được để học sinh vào lớp." busy={rotating} onConfirm={rotate} /></div>}</div></div>
           <label className="inline-flex items-center gap-2 text-sm text-on-surface cursor-pointer"><input type="checkbox" checked={detail.joinEnabled} disabled={readOnly || saving} onChange={(event) => void apply({ joinEnabled: event.target.checked }, event.target.checked ? 'Đã mở mã tham gia.' : 'Đã khoá mã tham gia.')} className="accent-primary disabled:opacity-40" />Cho phép tham gia bằng mã</label>
         </section>
 

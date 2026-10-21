@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeJoinCode, pickDefaultClassroom, pickDefaultTerm, shouldResetClassContext } from '../model';
-import type { ClassroomSummary, Term } from '@/features/catalog/types';
+import { filterAssignmentsByContext, normalizeJoinCode, pickDefaultClassroom, pickDefaultTerm, shouldResetClassContext } from '../model';
+import type { ClassroomSummary, StudentAssignment, Term } from '@/features/catalog/types';
 
 const terms: Term[] = [
   { id: 'old', code: 'HK1', name: 'Học kỳ I', academicYear: '2025-2026', startsOn: '2025-08-01', endsOn: '2026-01-10', status: 'ENDED', isCurrent: false },
@@ -10,6 +10,16 @@ const terms: Term[] = [
 
 const classroom = (id: string, readOnly = false): ClassroomSummary => ({
   id, code: id, name: id, subject: 'Ngữ văn', gradeLevel: 12, academicYear: '2025-2026', termId: 'new', termName: 'Học kỳ II', termStatus: 'ACTIVE', readOnly, archived: false, joinCode: 'ABC123', joinEnabled: true, studentCount: 0,
+});
+
+const assignment = (id: string, termId: string | null, classroomId: string | null): StudentAssignment => ({
+  id,
+  code: id,
+  title: id,
+  status: 'published',
+  dueAt: null,
+  termId,
+  classroomId,
 });
 
 describe('ngữ cảnh kỳ học và lớp', () => {
@@ -33,5 +43,29 @@ describe('ngữ cảnh kỳ học và lớp', () => {
     assert.equal(shouldResetClassContext('teacher-a', 'teacher-b'), true);
     assert.equal(shouldResetClassContext('teacher-a', 'teacher-a'), false);
     assert.equal(shouldResetClassContext('teacher-a', undefined), false);
+  });
+
+  test('lọc bài theo lớp đã chọn', () => {
+    const assignments = [
+      assignment('class-a', 'new', 'a'),
+      assignment('class-b', 'new', 'b'),
+      assignment('without-class', null, null),
+    ];
+    assert.deepEqual(
+      filterAssignmentsByContext(assignments, { termId: 'new', classroomId: 'a' }).map((item) => item.id),
+      ['class-a']
+    );
+  });
+
+  test('tất cả lớp lọc theo kỳ và giữ bài chưa gắn kỳ', () => {
+    const assignments = [
+      assignment('current', 'new', 'a'),
+      assignment('old', 'old', 'a'),
+      assignment('without-term', null, null),
+    ];
+    assert.deepEqual(
+      filterAssignmentsByContext(assignments, { termId: 'new', classroomId: '' }).map((item) => item.id),
+      ['current', 'without-term']
+    );
   });
 });

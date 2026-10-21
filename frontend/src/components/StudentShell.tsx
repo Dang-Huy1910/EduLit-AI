@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
-import { SCHOOL_CONTEXT } from '@/lib/school-context';
+import TermClassSwitcher from '@/features/classrooms/TermClassSwitcher';
+import { termLabel } from '@/features/classrooms/model';
+import { useStudentClassContext } from '@/features/classrooms/useClassContext';
 import ToastContainer from './ToastContainer';
 import FloatingChatWidget from './FloatingChatWidget';
 import EduLitMark from './EduLitMark';
@@ -20,7 +22,7 @@ interface StudentShellProps {
 
 export default function StudentShell({
   children,
-  headerTitle = `Khối ${SCHOOL_CONTEXT.gradeLevel} - Lớp ${SCHOOL_CONTEXT.classroomCode}`,
+  headerTitle,
   headerSubtitle = 'Bài viết số 1 — Nghị luận xã hội',
 }: StudentShellProps) {
   const pathname = usePathname();
@@ -31,13 +33,25 @@ export default function StudentShell({
     sidebarCollapsed,
     toggleSidebar,
   } = useAppStore();
+  const { term, classroom, classrooms } = useStudentClassContext();
   const authLogout = useAuthStore((s) => s.logout);
   const [mobileMenuOpen, setMobileMenuOpen] = useMobileDrawer();
   // The phone drawer always shows labels, whatever the desktop collapse setting is.
   const collapsed = sidebarCollapsed && !mobileMenuOpen;
+  const contextHeaderTitle = classroom
+    ? `Khối ${classroom.gradeLevel} - Lớp ${classroom.code}`
+    : classrooms.length > 0 && term
+      ? termLabel(term)
+      : 'Chưa tham gia lớp';
+  const resolvedHeaderTitle = headerTitle || contextHeaderTitle;
+  const classroomCodes = classrooms.slice(0, 2).map((item) => item.code);
+  const classroomSummary = classrooms.length
+    ? `${classroomCodes.join(', ')}${classrooms.length > 2 ? ` +${classrooms.length - 2}` : ''}`
+    : 'Chưa vào lớp';
 
   const studentNavItems = [
     { label: 'Bài tập của em', href: '/assignments', icon: 'edit_note' },
+    { label: 'Lớp của em', href: '/classrooms', icon: 'groups' },
     { label: 'Bài đã nộp & Lịch sử chấm', href: '/assignments?tab=submitted', icon: 'task_alt' },
     { label: 'Hồ sơ văn phong của em', href: '/profile', icon: 'fingerprint' },
   ];
@@ -167,6 +181,9 @@ export default function StudentShell({
 
           {/* Student Nav */}
           <div className="px-3 py-space-sm">
+            <div className="lg:hidden pb-3">
+              <TermClassSwitcher role="student" allowAll fullWidth />
+            </div>
             {!collapsed && (
               <div className="px-space-sm pb-space-xs font-label-sm text-label-sm uppercase tracking-wider text-outline text-[11px]">
                 Góc học tập
@@ -267,7 +284,7 @@ export default function StudentShell({
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-on-surface truncate">{currentUser?.name || 'Học sinh'}</span>
-              <span className="block text-xs text-on-surface-variant truncate">Lớp {currentUser?.classId || SCHOOL_CONTEXT.classroomCode} • THPT Đan Phượng</span>
+              <span className="block text-xs text-on-surface-variant truncate">{classroomSummary} • THPT Đan Phượng</span>
             </span>
           </Link>
           <button
@@ -302,10 +319,11 @@ export default function StudentShell({
             )}
             <div className="flex items-center gap-space-xs font-label-md text-sm text-on-surface-variant">
               <span className="material-symbols-outlined text-[18px] text-outline">assignment</span>
-              <span>{headerTitle}</span>
+              <span>{resolvedHeaderTitle}</span>
               <span className="text-outline-variant">/</span>
               <span className="text-on-surface font-semibold">{headerSubtitle}</span>
             </div>
+            <TermClassSwitcher role="student" allowAll />
             <span className="font-caption text-xs bg-secondary-fixed/50 text-secondary px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
               <span>Học sinh: {currentUser?.name || 'Học sinh'}</span>
@@ -336,7 +354,7 @@ export default function StudentShell({
                   {currentUser?.name || 'Học sinh'}
                 </div>
                 <div className="font-caption text-xs text-on-surface-variant">
-                  Lớp {currentUser?.classId || SCHOOL_CONTEXT.classroomCode} • THPT Đan Phượng
+                  {classroomSummary} • THPT Đan Phượng
                 </div>
               </div>
               <Link

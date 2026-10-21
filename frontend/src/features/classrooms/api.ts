@@ -1,5 +1,5 @@
 import { apiGet, apiSend } from '@/lib/api/http';
-import type { ClassroomDetail, ClassroomSummary, Term } from '@/features/catalog/types';
+import type { ClassroomDetail, ClassroomSummary, StudentClassroom, Term } from '@/features/catalog/types';
 
 type ClassroomInput = {
   termId: string;
@@ -43,4 +43,11 @@ export const classroomsApi = {
       `/api/teacher/classrooms/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`,
       'DELETE'
     ),
+};
+
+export const studentClassroomsApi = {
+  listMine: (params?: { termId?: string }) =>
+    apiGet<{ items: StudentClassroom[] }>(`/api/student/classrooms${query(params)}`),
+  join: (code: string) =>
+    apiSend<{ classroom: StudentClassroom; alreadyMember: boolean }>('/api/student/classrooms/join', 'POST', { code }),
 };

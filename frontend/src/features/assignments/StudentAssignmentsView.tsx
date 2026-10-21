@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
-import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from '@/features/catalog/api';
 import { assessmentApi } from '@/features/assessment/api';
 import { formatScore } from '@/features/assessment/labels';
 import type { StudentAssignment } from '@/features/catalog/types';
 import type { StudentAssessmentResponse } from '@/features/assessment/types';
+import { filterAssignmentsByContext, termLabel } from '@/features/classrooms/model';
+import { useStudentClassContext } from '@/features/classrooms/useClassContext';
 
 const PENDING_ASSESSMENT_LABELS: Record<string, string> = {
   queued: 'Đang chờ chấm bài',
@@ -28,6 +29,7 @@ export default function StudentAssignmentsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser, addToast } = useAppStore();
+  const { term, classroom, classrooms, loading: classContextLoading } = useStudentClassContext();
   const activeTab = searchParams.get('tab') === 'submitted' ? 'submitted' : 'todo';
   const [codeInput, setCodeInput] = useState('');
   const [codeError, setCodeError] = useState(false);
@@ -97,21 +99,34 @@ export default function StudentAssignmentsView() {
     setExpandedInstructions((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const visibleAssignments = filterAssignmentsByContext(assignments, {
+    termId: term?.id,
+    classroomId: classroom?.id,
+  });
+
+  const classroomLabelFor = (assignment: StudentAssignment) => {
+    if (!assignment.classroomCode) return '';
+    const matchingClassroom = classrooms.find((item) => item.id === assignment.classroomId);
+    const subject = matchingClassroom?.subject || assignment.classroomName;
+    return subject ? `${assignment.classroomCode} • ${subject}` : assignment.classroomCode;
+  };
+
   // Filter into todo and submitted
-  const submittedAssignments = assignments.filter((a) => {
+  const submittedAssignments = visibleAssignments.filter((a) => {
     const assess = assessmentMap[a.id];
     return assess && (assess.status === 'confirmed' || Boolean(assess.officialSubmittedAt) || assess.assessment.status === 'published');
   });
 
-  const todoAssignments = assignments.filter((a) => {
+  const todoAssignments = visibleAssignments.filter((a) => {
     const assess = assessmentMap[a.id];
     return !(assess && (assess.status === 'confirmed' || Boolean(assess.officialSubmittedAt) || assess.assessment.status === 'published'));
   });
 
   // Average only visible, published results on the same scale across rubrics.
-  const gradedList = Object.values(assessmentMap).flatMap((a) =>
-    a.assessment.canViewResult && a.assessment.result ? [a.assessment.result] : []
-  );
+  const gradedList = visibleAssignments.flatMap((assignment) => {
+    const assessment = assessmentMap[assignment.id];
+    return assessment?.assessment.canViewResult && assessment.assessment.result ? [assessment.assessment.result] : [];
+  });
   const avgScore = gradedList.length
     ? gradedList.reduce((sum, result) => sum + result.scoreScale10, 0) / gradedList.length
     : null;
@@ -124,10 +139,10 @@ export default function StudentAssignmentsView() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs bg-secondary-fixed/50 text-secondary font-bold px-2.5 py-0.5 rounded-full">
-                Học sinh {currentUser?.name || `Lớp ${SCHOOL_CONTEXT.classroomCode}`}
+                Học sinh {currentUser?.name || 'Học sinh'}
               </span>
               <span className="text-xs bg-surface-container text-on-surface-variant font-medium px-2.5 py-0.5 rounded-full">
-                {SCHOOL_CONTEXT.semester} • Năm học {SCHOOL_CONTEXT.academicYear}
+                {classroom ? classroom.name : 'Tất cả lớp'} • {term ? termLabel(term) : 'Đang tải kỳ học...'}
               </span>
             </div>
             <h1 className="font-headline-lg text-2xl sm:text-3xl font-bold text-on-surface font-merriweather tracking-tight">
@@ -174,6 +189,16 @@ export default function StudentAssignmentsView() {
             )}
           </div>
         </div>
+
+        {!classContextLoading && classrooms.length === 0 && (
+          <Link
+            href="/classrooms"
+            className="rounded-xl border border-primary/25 bg-primary-container/15 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary-container/25 flex items-center justify-between gap-3"
+          >
+            <span className="flex items-center gap-2"><span className="material-symbols-outlined">group_add</span>Em chưa vào lớp nào — Nhập mã lớp</span>
+            <span className="material-symbols-outlined">arrow_forward</span>
+          </Link>
+        )}
 
         {/* 4 Learning Metrics Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -298,6 +323,16 @@ export default function StudentAssignmentsView() {
                             <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
                             Đang mở nộp
                           </span>
+                          {classroomLabelFor(assignment) && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                              {classroomLabelFor(assignment)}
+                            </span>
+                          )}
+                          {assignment.classroomReadOnly && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              Chỉ xem
+                            </span>
+                          )}
                         </div>
                         <span className="text-xs font-mono font-semibold text-secondary">
                           {assignment.code}
@@ -382,10 +417,22 @@ export default function StudentAssignmentsView() {
                   >
                     <div className="space-y-3">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[13px]">check_circle</span>
-                          Đã nộp chính thức
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                            Đã nộp chính thức
+                          </span>
+                          {classroomLabelFor(assignment) && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                              {classroomLabelFor(assignment)}
+                            </span>
+                          )}
+                          {assignment.classroomReadOnly && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                              Chỉ xem
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs font-mono font-semibold text-secondary">
                           {assignment.code}
                         </span>

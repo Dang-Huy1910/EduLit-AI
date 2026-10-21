@@ -80,6 +80,7 @@ export interface SubmissionPayload {
   transcriptionStatus: string | null;
   confirmed: boolean;
   canEditPages: boolean;
+  classroomReadOnly?: boolean;
   canSubmit: boolean;
   canRetryOcr: boolean;
   canConfirm: boolean;

@@ -1,7 +1,6 @@
 import { DEMO_STUDENTS, DEMO_TEACHER } from './mock/assignmentData';
 import { Role, User } from './types';
 import { PublicUser } from './auth-types';
-import { SCHOOL_CONTEXT } from './school-context';
 
 export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -19,7 +18,7 @@ export function mapPublicUser(user: PublicUser): User {
     role,
     email: user.email,
     school: 'THPT Đan Phượng',
-    classId: SCHOOL_CONTEXT.classroomCode,
+    classId: '',
     code: isTeacherPersona ? 'GV-VAN-01' : (user.loginId || 'VN-12A14-001'),
     avatarInitials: initialsFromName(user.displayName),
   };

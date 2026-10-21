@@ -3,12 +3,12 @@
 import React, { Suspense } from 'react';
 import { useAppStore } from '@/lib/store';
 import TeacherClassroomsView from '@/features/classrooms/TeacherClassroomsView';
+import StudentClassroomsView from '@/features/classrooms/StudentClassroomsView';
 
 function ClassroomsContent() {
   const { currentUser } = useAppStore();
   if (currentUser?.role === 'student') {
-    // PR3: StudentClassroomsView
-    return null;
+    return <StudentClassroomsView />;
   }
   return <TeacherClassroomsView />;
 }

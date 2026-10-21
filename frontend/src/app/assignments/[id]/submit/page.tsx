@@ -218,6 +218,7 @@ export default function SubmitPhotosPage() {
   };
 
   const handleSubmit = async () => {
+    if (payload?.classroomReadOnly) return;
     if (!pages.length) {
       addToast('Vui lòng chọn hoặc chụp ít nhất 1 ảnh bài viết tay.', 'error');
       return;
@@ -227,6 +228,7 @@ export default function SubmitPhotosPage() {
   };
 
   const handleNewAttempt = async () => {
+    if (payload?.classroomReadOnly) return;
     await run(() => submissionApi.newAttempt(assignmentId), 'Đã tạo lượt nộp mới. Hãy tải ảnh.');
   };
 
@@ -276,6 +278,13 @@ export default function SubmitPhotosPage() {
 
         <AssignmentWorkflowStepper currentStep="submit" assignmentId={assignmentId} />
 
+        {payload.classroomReadOnly && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">visibility</span>
+            <span>Lớp thuộc kỳ học đã kết thúc nên em chỉ xem được bài.</span>
+          </div>
+        )}
+
         {payload.status === 'failed' && (
           <div className="p-3 rounded-xl border border-error/40 bg-error-container/30 text-xs space-y-2">
             <p className="font-semibold text-error">Không số hóa được bài với bộ ảnh này.</p>
@@ -283,7 +292,7 @@ export default function SubmitPhotosPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || payload.classroomReadOnly}
                 onClick={() => void run(() => submissionApi.retryOcr(assignmentId), 'Đã gửi lại OCR.').then((next) => {
                   if (next) router.push(`/assignments/${assignmentId}/ocr`);
                 })}
@@ -293,9 +302,9 @@ export default function SubmitPhotosPage() {
               </button>
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || payload.classroomReadOnly}
                 onClick={() => void handleNewAttempt()}
-                className="px-3 py-1.5 border rounded-lg font-semibold"
+                className="px-3 py-1.5 border rounded-lg font-semibold disabled:opacity-50"
               >
                 Tạo lượt nộp ảnh mới
               </button>
@@ -526,7 +535,7 @@ export default function SubmitPhotosPage() {
               {canEdit ? (
                 <button
                   type="button"
-                  disabled={pages.length === 0 || busy}
+                  disabled={pages.length === 0 || busy || payload.classroomReadOnly}
                   onClick={() => void handleSubmit()}
                   className="py-2.5 px-6 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
@@ -536,8 +545,9 @@ export default function SubmitPhotosPage() {
               ) : (
                 <button
                   type="button"
+                  disabled={busy || payload.classroomReadOnly}
                   onClick={() => void handleNewAttempt()}
-                  className="py-2.5 px-6 border border-outline-variant text-xs font-bold rounded-lg"
+                  className="py-2.5 px-6 border border-outline-variant text-xs font-bold rounded-lg disabled:opacity-50"
                 >
                   Tạo lượt nộp ảnh mới
                 </button>

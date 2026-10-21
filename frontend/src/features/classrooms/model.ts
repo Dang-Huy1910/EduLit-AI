@@ -1,4 +1,4 @@
-import type { ClassroomSummary, Term } from '@/features/catalog/types';
+import type { ClassroomSummary, StudentAssignment, Term } from '@/features/catalog/types';
 
 export function pickDefaultTerm(terms: Term[]): Term | undefined {
   const current = terms.find((term) => term.isCurrent);
@@ -30,6 +30,19 @@ export function classroomLabel(classroom: ClassroomSummary): string {
 
 export function normalizeJoinCode(raw: string): string {
   return raw.trim().toUpperCase().replace(/[\s-]+/g, '');
+}
+
+export function filterAssignmentsByContext(
+  assignments: StudentAssignment[],
+  context: { termId?: string; classroomId?: string }
+): StudentAssignment[] {
+  if (context.classroomId) {
+    return assignments.filter((assignment) => assignment.classroomId === context.classroomId);
+  }
+  if (context.termId) {
+    return assignments.filter((assignment) => assignment.termId === context.termId || assignment.termId == null);
+  }
+  return assignments;
 }
 
 export function shouldResetClassContext(storedUserId: string, currentUserId: string | undefined): boolean {

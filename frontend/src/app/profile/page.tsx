@@ -6,8 +6,8 @@ import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
 import { useAuthStore } from '@/lib/auth-store';
 import { AuthApiError } from '@/lib/auth-types';
-import { SCHOOL_CONTEXT } from '@/lib/school-context';
 import { writingProfileApi } from '@/features/writing-profile/api';
+import { useStudentClassContext } from '@/features/classrooms/useClassContext';
 import {
   AI_LABEL,
   DEFAULT_FILTERS,
@@ -94,6 +94,7 @@ function errorMessage(err: unknown, fallback: string): string {
 export default function WritingProfilePage() {
   const { addToast } = useAppStore();
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const { term } = useStudentClassContext();
 
   const [data, setData] = useState<WritingProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,7 +185,7 @@ export default function WritingProfilePage() {
 
   const student = data?.student;
   const className = student?.className || (student?.classCode ? `Lớp ${student.classCode}` : '');
-  const academicYear = student?.academicYear || SCHOOL_CONTEXT.academicYear;
+  const academicYear = student?.academicYear || term?.academicYear || '';
   const updatedOn = formatDate(data?.updatedAt);
 
   const refreshButton = (label = 'Cập nhật hồ sơ') => (
@@ -218,7 +219,7 @@ export default function WritingProfilePage() {
                 Hồ sơ Chân dung Cây bút của em
               </span>
               <p className="text-[11px] text-on-surface-variant">
-                AI tổng hợp từ các bài đã được công bố kết quả • {SCHOOL_CONTEXT.semester}, năm học{' '}
+                AI tổng hợp từ các bài đã được công bố kết quả • {term?.name || 'Kỳ học đang chọn'}, năm học{' '}
                 {academicYear.replace('-', '–')}
               </p>
             </div>
