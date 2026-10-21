@@ -306,7 +306,7 @@ export default function StudentShell({
             sidebarCollapsed ? 'left-20' : 'left-72'
           } h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 items-center justify-between px-space-lg border-b border-outline-variant/20 transition-all duration-300`}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-space-md overflow-hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-space-md">
             {sidebarCollapsed && (
               <button
                 type="button"
@@ -329,14 +329,14 @@ export default function StudentShell({
           <div className="flex shrink-0 items-center gap-space-lg">
             <Link
               href="/chatbot"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-secondary via-secondary-container to-primary text-white font-bold text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm"
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-r from-secondary via-secondary-container to-primary text-white font-bold text-xs shadow-sm transition-all hover:brightness-110 active:scale-95 xl:h-auto xl:w-auto xl:gap-1.5 xl:px-3 xl:py-1.5"
             >
               <AssistantMark className="w-4 h-4 shrink-0" />
-              <span>EduLit Chatbot AI</span>
-              <span className="text-[10px] bg-white/20 px-1 py-0.2 rounded-full uppercase font-mono">GPT</span>
+              <span className="hidden xl:inline">EduLit Chatbot AI</span>
+              <span className="hidden xl:inline text-[10px] bg-white/20 px-1 py-0.2 rounded-full uppercase font-mono">GPT</span>
             </Link>
 
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 px-2.5 py-1 rounded-full font-caption text-xs font-semibold shadow-2xs">
+            <div className="hidden 2xl:flex items-center gap-2 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 px-2.5 py-1 rounded-full font-caption text-xs font-semibold shadow-2xs">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
@@ -345,7 +345,7 @@ export default function StudentShell({
             </div>
 
             <div className="flex shrink-0 items-center gap-space-sm border-l border-outline-variant/40 pl-space-md whitespace-nowrap">
-              <div className="min-w-0 max-w-[12rem] text-right whitespace-nowrap">
+              <div className="hidden min-w-0 max-w-[12rem] text-right whitespace-nowrap xl:block">
                 <div className="truncate font-label-md text-sm font-semibold text-on-surface">
                   {currentUser?.name || 'Học sinh'}
                 </div>

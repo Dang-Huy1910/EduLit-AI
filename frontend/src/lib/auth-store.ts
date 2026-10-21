@@ -73,17 +73,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: async () => {
     initializationGeneration += 1;
-    useClassDataStore.getState().reset();
-    useStudentClassDataStore.getState().reset();
-    useClassContext.getState().reset();
     try {
       await authClient.logout();
     } catch (err) {
       if (err instanceof AuthApiError && err.code === 'NETWORK') {
+        useClassDataStore.getState().reset();
+        useStudentClassDataStore.getState().reset();
+        useClassContext.getState().reset();
         throw err;
       }
     }
     get().clear();
+    useClassDataStore.getState().reset();
+    useStudentClassDataStore.getState().reset();
+    useClassContext.getState().reset();
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.removeItem('edulit-app-v1');

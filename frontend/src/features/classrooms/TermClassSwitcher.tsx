@@ -37,7 +37,7 @@ function SwitcherControls({
     : 'h-8 shrink-0 w-48 min-w-48 bg-surface-container-lowest border border-outline-variant/50 rounded-lg px-2 text-sm font-semibold text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50';
   const selectClass = fullWidth
     ? 'h-8 min-w-0 w-full max-w-none bg-surface-container-lowest border border-outline-variant/50 rounded-lg px-2 text-sm font-semibold text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50'
-    : 'h-8 shrink-0 min-w-0 w-full sm:w-auto max-w-[14rem] bg-surface-container-lowest border border-outline-variant/50 rounded-lg px-2 text-sm font-semibold text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50';
+    : 'h-8 shrink-0 w-36 min-w-36 max-w-36 xl:w-auto xl:max-w-[14rem] bg-surface-container-lowest border border-outline-variant/50 rounded-lg px-2 text-sm font-semibold text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50';
 
   return (
     <div className={fullWidth ? 'flex flex-col gap-2 w-full' : 'flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0 shrink-0'}>
