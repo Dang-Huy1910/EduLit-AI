@@ -71,26 +71,6 @@ async def create_topic(
         _raise(exc)
 
 
-@router.get("/classrooms")
-async def list_classrooms(
-    teacher: Annotated[User, Depends(get_teacher)],
-    service: Annotated[CatalogService, Depends(get_catalog_service)],
-) -> dict[str, Any]:
-    return {"items": await service.list_classrooms(teacher)}
-
-
-@router.get("/classrooms/{classroom_id}")
-async def get_classroom(
-    classroom_id: uuid.UUID,
-    teacher: Annotated[User, Depends(get_teacher)],
-    service: Annotated[CatalogService, Depends(get_catalog_service)],
-) -> dict[str, Any]:
-    try:
-        return await service.list_classroom_members(teacher, classroom_id)
-    except CatalogError as exc:
-        _raise(exc)
-
-
 @router.get("/materials")
 async def list_materials(
     teacher: Annotated[User, Depends(get_teacher)],

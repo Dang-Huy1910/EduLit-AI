@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_EMAIL_ACCOUNT_MAX: int = 3
     RATE_LIMIT_VERIFY_IP_MAX: int = 20
     RATE_LIMIT_RESET_IP_MAX: int = 10
+    RATE_LIMIT_CLASS_JOIN_MAX: int = 10
 
     TRUSTED_PROXY_IPS: str = ""
 

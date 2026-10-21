@@ -11,6 +11,7 @@ from app.db.models.catalog import (
     SourcePromptMaterial,
     TeacherDocument,
     TeacherDocumentBlob,
+    Term,
     Topic,
 )
 from app.db.models.assessment import AssessmentJob, AssessmentResult, ClassInsight
@@ -101,6 +102,7 @@ __all__ = [
     "SubmissionPageBlob",
     "TeacherDocument",
     "TeacherDocumentBlob",
+    "Term",
     "Topic",
     "TranscriptionRevision",
     "TranscriptionRevisionStatus",

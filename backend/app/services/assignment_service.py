@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 
 from app.core.errors import DomainError, ERROR_MESSAGES
@@ -22,6 +23,7 @@ from app.db.models import (
     ClassMembership,
     Classroom,
     SourcePrompt,
+    Term,
     User,
     UserRole,
     UserStatus,
@@ -201,6 +203,15 @@ class AssignmentService:
         classroom_id = _optional_uuid(body.get("classroomId"))
         if classroom_id:
             classroom = await self.catalog._owned_classroom(teacher, classroom_id)
+            await self.session.refresh(classroom, ["term"])
+            from app.services.classroom_service import classroom_read_only
+
+            if classroom_read_only(classroom):
+                raise CatalogError(
+                    409,
+                    "CLASSROOM_READ_ONLY",
+                    "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
+                )
 
         rubric_doc, rubric_id, rubric_version_id = await self._resolve_assignment_rubric(teacher, body)
         code = self._normalize_code(body.get("code")) or await self._next_code()
@@ -238,6 +249,18 @@ class AssignmentService:
         if assignment.status != "DRAFT":
             raise CatalogError(409, "ASSIGNMENT_STATUS", "Chỉ sửa được bài tập đang ở bản nháp.")
 
+        if assignment.classroom_id:
+            classroom = await self.catalog._owned_classroom(teacher, assignment.classroom_id)
+            await self.session.refresh(classroom, ["term"])
+            from app.services.classroom_service import classroom_read_only
+
+            if classroom_read_only(classroom):
+                raise CatalogError(
+                    409,
+                    "CLASSROOM_READ_ONLY",
+                    "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
+                )
+
         if "sourcePromptId" in body or "promptId" in body:
             prompt_id = _optional_uuid(body.get("sourcePromptId") or body.get("promptId"))
             if prompt_id is None:
@@ -259,6 +282,16 @@ class AssignmentService:
         if "classroomId" in body:
             classroom_id = _optional_uuid(body.get("classroomId"))
             classroom = await self.catalog._owned_classroom(teacher, classroom_id) if classroom_id else None
+            if classroom is not None:
+                await self.session.refresh(classroom, ["term"])
+                from app.services.classroom_service import classroom_read_only
+
+                if classroom_read_only(classroom):
+                    raise CatalogError(
+                        409,
+                        "CLASSROOM_READ_ONLY",
+                        "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
+                    )
             assignment.classroom_id = classroom.id if classroom else None
         if "assignToWholeClass" in body or "recipientStudentIds" in body:
             assignment.recipient_student_ids = _recipient_ids_from_body(body)
@@ -304,6 +337,18 @@ class AssignmentService:
 
         if assignment.status not in {"DRAFT", "PUBLISHED"}:
             raise CatalogError(409, "ASSIGNMENT_STATUS", "Không thể phát hành bài tập ở trạng thái này.")
+
+        if assignment.classroom_id:
+            classroom = await self.catalog._owned_classroom(teacher, assignment.classroom_id)
+            await self.session.refresh(classroom, ["term"])
+            from app.services.classroom_service import classroom_read_only
+
+            if classroom_read_only(classroom):
+                raise CatalogError(
+                    409,
+                    "CLASSROOM_READ_ONLY",
+                    "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
+                )
 
         prompt = await self.catalog._owned_prompt(teacher, assignment.source_prompt_id)
         prompt_payload = await self.catalog._prompt_dict(prompt, full=True)
@@ -377,23 +422,9 @@ class AssignmentService:
         self.session.add(revision)
         await self.session.flush()
 
-        for student_id in recipients:
-            existing = await self.session.execute(
-                select(AssignmentAccess).where(
-                    AssignmentAccess.assignment_revision_id == revision.id,
-                    AssignmentAccess.student_id == student_id,
-                )
-            )
-            access = existing.scalar_one_or_none()
-            if access is None:
-                self.session.add(
-                    AssignmentAccess(
-                        assignment_revision_id=revision.id,
-                        student_id=student_id,
-                    )
-                )
-            elif access.revoked_at is not None:
-                access.revoked_at = None
+        from app.services.classroom_service import grant_access
+
+        await grant_access(self.session, revision.id, recipients)
 
         await outline_prep_service.enqueue_for_students(
             self.session,
@@ -424,8 +455,12 @@ class AssignmentService:
         if student.role != UserRole.STUDENT:
             raise CatalogError(403, "STUDENT_REQUIRED", ERROR_MESSAGES["STUDENT_REQUIRED"])
         result = await self.session.execute(
-            select(AssignmentAccess, AssignmentRevision)
+            select(AssignmentAccess, AssignmentRevision, Classroom)
             .join(AssignmentRevision, AssignmentAccess.assignment_revision_id == AssignmentRevision.id)
+            .outerjoin(Assignment, AssignmentRevision.assignment_id == Assignment.id)
+            .outerjoin(Classroom, Assignment.classroom_id == Classroom.id)
+            .outerjoin(Term, Classroom.term_id == Term.id)
+            .options(selectinload(Classroom.term))
             .where(
                 AssignmentAccess.student_id == student.id,
                 AssignmentAccess.revoked_at.is_(None),
@@ -435,11 +470,11 @@ class AssignmentService:
         )
         items = []
         seen_codes: set[str] = set()
-        for access, revision in result.all():
+        for access, revision, classroom in result.all():
             if revision.code in seen_codes:
                 continue
             seen_codes.add(revision.code)
-            items.append(self._student_dict(revision, student_id=student.id))
+            items.append(self._student_dict(revision, student_id=student.id, classroom=classroom))
         return items
 
     async def get_student_assignment(self, student: User, assignment_key: str) -> dict[str, Any]:
@@ -457,7 +492,16 @@ class AssignmentService:
         )
         if access.scalar_one_or_none() is None:
             raise CatalogError(403, "ACCESS_DENIED", "Em chưa được giao bài tập này.")
-        return self._student_dict(revision, student_id=student.id, full=True)
+        row = await self.session.execute(
+            select(AssignmentRevision, Classroom)
+            .outerjoin(Assignment, AssignmentRevision.assignment_id == Assignment.id)
+            .outerjoin(Classroom, Assignment.classroom_id == Classroom.id)
+            .outerjoin(Term, Classroom.term_id == Term.id)
+            .options(selectinload(Classroom.term))
+            .where(AssignmentRevision.id == revision.id)
+        )
+        revision, classroom = row.one()
+        return self._student_dict(revision, student_id=student.id, full=True, classroom=classroom)
 
     async def get_public_teacher_or_student(
         self, user: User, assignment_key: str
@@ -678,7 +722,13 @@ class AssignmentService:
     ) -> dict[str, Any]:
         classroom = None
         if assignment.classroom_id:
-            classroom = await self.session.get(Classroom, assignment.classroom_id)
+            classroom = (
+                await self.session.execute(
+                    select(Classroom)
+                    .options(selectinload(Classroom.term))
+                    .where(Classroom.id == assignment.classroom_id)
+                )
+            ).scalar_one_or_none()
         prompt = await self.session.get(SourcePrompt, assignment.source_prompt_id)
         prompt_payload = None
         if full and prompt:
@@ -705,6 +755,8 @@ class AssignmentService:
             "classroomId": str(assignment.classroom_id) if assignment.classroom_id else None,
             "classroomName": classroom.name if classroom else None,
             "classroomCode": classroom.code if classroom else None,
+            "termId": str(classroom.term_id) if classroom else None,
+            "classroomReadOnly": False,
             "sourcePromptId": str(assignment.source_prompt_id),
             "sourcePromptTitle": prompt.title if prompt else None,
             "rubricId": str(assignment.rubric_id) if assignment.rubric_id else None,
@@ -716,6 +768,10 @@ class AssignmentService:
             else None,
             "updatedAt": assignment.updated_at.isoformat() if assignment.updated_at else None,
         }
+        if classroom is not None:
+            from app.services.classroom_service import classroom_read_only
+
+            payload["classroomReadOnly"] = classroom_read_only(classroom)
         if outline_prep is None and assignment.published_revision_id:
             outline_prep = await outline_prep_service.counts_for_revision(
                 self.session, assignment.published_revision_id
@@ -746,7 +802,12 @@ class AssignmentService:
         return payload
 
     def _student_dict(
-        self, revision: AssignmentRevision, *, student_id: uuid.UUID, full: bool = False
+        self,
+        revision: AssignmentRevision,
+        *,
+        student_id: uuid.UUID,
+        full: bool = False,
+        classroom: Classroom | None = None,
     ) -> dict[str, Any]:
         snapshot = revision.snapshot or {}
         instructions = revision.instructions or {}
@@ -787,7 +848,16 @@ class AssignmentService:
             or "",
             "extraInstructions": extra,
             "instructions": writing_task or extra or instructions.get("topic") or revision.title,
+            "classroomId": str(classroom.id) if classroom else None,
+            "classroomCode": classroom.code if classroom else None,
+            "classroomName": classroom.name if classroom else None,
+            "termId": str(classroom.term_id) if classroom else None,
+            "classroomReadOnly": False,
         }
+        if classroom is not None:
+            from app.services.classroom_service import classroom_read_only
+
+            payload["classroomReadOnly"] = classroom_read_only(classroom)
         if full:
             payload["materials"] = materials
             payload["rubric"] = rubric

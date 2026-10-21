@@ -7,11 +7,13 @@ that freeze a snapshot into AssignmentRevision on publish.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -33,6 +35,24 @@ if TYPE_CHECKING:
     from app.db.models.user import User
 
 
+class Term(Base):
+    __tablename__ = "terms"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    academic_year: Mapped[str] = mapped_column(String(16), nullable=False)
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ends_on: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=text("now()")
+    )
+
+    __table_args__ = (CheckConstraint("ends_on > starts_on", name="terms_dates_check"),)
+
+
 class Classroom(Base):
     __tablename__ = "classrooms"
 
@@ -42,10 +62,17 @@ class Classroom(Base):
     owner_teacher_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
     )
+    term_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("terms.id", ondelete="RESTRICT"), nullable=False
+    )
     code: Mapped[str] = mapped_column(String(32), nullable=False)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
+    subject: Mapped[str] = mapped_column(String(64), nullable=False, default="Ngữ văn")
     grade_level: Mapped[int] = mapped_column(Integer, nullable=False)
     academic_year: Mapped[str] = mapped_column(String(16), nullable=False, default="2026-2027")
+    join_code: Mapped[str] = mapped_column(String(8), nullable=False)
+    join_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -57,10 +84,12 @@ class Classroom(Base):
         "ClassMembership", back_populates="classroom", cascade="all, delete-orphan"
     )
     owner: Mapped[User] = relationship("User", foreign_keys=[owner_teacher_id])
+    term: Mapped[Term] = relationship("Term")
 
     __table_args__ = (
-        UniqueConstraint("owner_teacher_id", "code", name="classrooms_owner_code_key"),
+        UniqueConstraint("term_id", "subject", "code", name="classrooms_term_subject_code_key"),
         Index("classrooms_owner_teacher_id_idx", "owner_teacher_id"),
+        Index("classrooms_term_id_idx", "term_id"),
     )
 
 

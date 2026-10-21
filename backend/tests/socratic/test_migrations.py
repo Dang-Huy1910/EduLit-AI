@@ -81,6 +81,35 @@ async def test_upgrade_and_downgrade_0003() -> None:
 
 
 @pytest.mark.asyncio
+async def test_0017_makes_classroom_term_and_join_code_required() -> None:
+    await close_db()
+    cfg = _alembic_cfg()
+    engine = create_engine(_sync_url(TEST_DB_URL), pool_pre_ping=True)
+    try:
+        command.downgrade(cfg, "0016_writing_profile")
+        command.upgrade(cfg, "head")
+        with engine.connect() as conn:
+            columns = {
+                row.column_name: row.is_nullable
+                for row in conn.execute(
+                    text(
+                        "SELECT column_name, is_nullable FROM information_schema.columns "
+                        "WHERE table_name = 'classrooms'"
+                    )
+                )
+            }
+            missing_join_codes = conn.execute(
+                text("SELECT count(*) FROM classrooms WHERE join_code IS NULL")
+            ).scalar_one()
+        assert columns["term_id"] == "NO"
+        assert columns["join_code"] == "NO"
+        assert missing_join_codes == 0
+    finally:
+        engine.dispose()
+        await close_db()
+
+
+@pytest.mark.asyncio
 async def test_0004_backfills_legacy_outline_and_keeps_history() -> None:
     await close_db()
     cfg = _alembic_cfg()

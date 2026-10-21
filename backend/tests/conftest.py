@@ -36,6 +36,7 @@ os.environ["RATE_LIMIT_LOGIN_IP_MAX"] = "30"
 os.environ["RATE_LIMIT_REGISTER_IP_MAX"] = "30"
 os.environ["RATE_LIMIT_EMAIL_IP_MAX"] = "20"
 os.environ["RATE_LIMIT_EMAIL_ACCOUNT_MAX"] = "10"
+os.environ["RATE_LIMIT_CLASS_JOIN_MAX"] = "30"
 
 # AI settings for Socratic tests
 os.environ["AI_PROVIDER"] = "fake"

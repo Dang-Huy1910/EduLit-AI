@@ -16,8 +16,10 @@ from app.config import Settings, get_settings
 from app.core.errors import ERROR_MESSAGES
 from app.core.http import utcnow
 from app.db.models import (
+    Assignment,
     AssignmentAccess,
     AssignmentRevision,
+    Classroom,
     OcrJobStatus,
     PageBlobKind,
     Submission,
@@ -93,6 +95,7 @@ class SubmissionService:
         declared_mime: str | None,
     ) -> dict[str, Any]:
         revision, submission, attempt = await self._require_draft(student, assignment_key)
+        await self._ensure_writable(revision)
         max_pages = int(self.settings.OCR_MAX_PAGES or 4)
         if attempt.page_count >= max_pages:
             raise SubmissionError(400, "SUBMISSION_PAGE_LIMIT", ERROR_MESSAGES["SUBMISSION_PAGE_LIMIT"])
@@ -152,6 +155,7 @@ class SubmissionService:
         replace_mime: str | None = None,
     ) -> dict[str, Any]:
         revision, submission, attempt = await self._require_draft(student, assignment_key)
+        await self._ensure_writable(revision)
         page = await self._page_of_attempt(attempt.id, page_id)
         rotation = page.rotation_degrees
         masks = list(page.mask_regions or [])
@@ -213,6 +217,7 @@ class SubmissionService:
         self, student: User, assignment_key: str, page_id: uuid.UUID
     ) -> dict[str, Any]:
         revision, submission, attempt = await self._require_draft(student, assignment_key)
+        await self._ensure_writable(revision)
         page = await self._page_of_attempt(attempt.id, page_id)
         await self.session.execute(
             delete(SubmissionPageBlob).where(SubmissionPageBlob.page_id == page.id)
@@ -236,6 +241,7 @@ class SubmissionService:
 
     async def delete_all_pages(self, student: User, assignment_key: str) -> dict[str, Any]:
         revision, submission, attempt = await self._require_draft(student, assignment_key)
+        await self._ensure_writable(revision)
         pages = (
             await self.session.execute(
                 select(SubmissionPage).where(SubmissionPage.attempt_id == attempt.id)
@@ -258,6 +264,7 @@ class SubmissionService:
         self, student: User, assignment_key: str, page_ids: list[str]
     ) -> dict[str, Any]:
         revision, submission, attempt = await self._require_draft(student, assignment_key)
+        await self._ensure_writable(revision)
         pages = (
             await self.session.execute(
                 select(SubmissionPage).where(SubmissionPage.attempt_id == attempt.id)
@@ -301,6 +308,7 @@ class SubmissionService:
 
     async def submit(self, student: User, assignment_key: str) -> dict[str, Any]:
         revision, submission, attempt = await self._require_owned(student, assignment_key)
+        await self._ensure_writable(revision)
         if attempt.state in {QUEUED, OCR_PROCESSING, OCR_REVIEW, READY_TO_GRADE}:
             return await self._payload(revision, student, submission, attempt)
         if attempt.state == FAILED:
@@ -369,6 +377,7 @@ class SubmissionService:
 
     async def new_attempt(self, student: User, assignment_key: str) -> dict[str, Any]:
         revision, submission, current = await self._require_owned(student, assignment_key)
+        await self._ensure_writable(revision)
         submission = await lock_submission(self.session, submission.id)
         if submission.current_attempt_id != current.id:
             raise SubmissionError(409, "ASSESSMENT_STALE", ERROR_MESSAGES["ASSESSMENT_STALE"])
@@ -541,6 +550,31 @@ class SubmissionService:
             raise SubmissionError(409, "SUBMISSION_NOT_DRAFT", ERROR_MESSAGES["SUBMISSION_NOT_DRAFT"])
         return revision, submission, attempt
 
+    async def _ensure_writable(self, revision: AssignmentRevision) -> None:
+        if await self._classroom_read_only(revision):
+            raise SubmissionError(
+                409,
+                "CLASSROOM_READ_ONLY",
+                "Lớp thuộc kỳ học đã kết thúc nên không nộp bài được.",
+            )
+
+    async def _classroom_read_only(self, revision: AssignmentRevision) -> bool:
+        if revision.assignment_id is None:
+            return False
+        classroom = (
+            await self.session.execute(
+                select(Classroom)
+                .join(Assignment, Assignment.classroom_id == Classroom.id)
+                .options(selectinload(Classroom.term))
+                .where(Assignment.id == revision.assignment_id)
+            )
+        ).scalar_one_or_none()
+        if classroom is None:
+            return False
+        from app.services.classroom_service import classroom_read_only
+
+        return classroom_read_only(classroom)
+
     async def _ensure_submission(self, revision_id: uuid.UUID, student_id: uuid.UUID) -> Submission:
         await self.session.execute(
             pg_insert(Submission)
@@ -648,6 +682,7 @@ class SubmissionService:
         instructions = revision.instructions or {}
         state = attempt.state if attempt else DRAFT
         ocr_status = attempt.ocr_status if attempt else OcrJobStatus.NONE.value
+        classroom_read_only = await self._classroom_read_only(revision)
         return {
             "assignment": {
                 "id": str(revision.assignment_id or revision.id),
@@ -691,7 +726,8 @@ class SubmissionService:
             "expectedRevision": expected_revision,
             "transcriptionStatus": transcription_status,
             "confirmed": confirmed,
-            "canEditPages": state == DRAFT,
+            "classroomReadOnly": classroom_read_only,
+            "canEditPages": state == DRAFT and not classroom_read_only,
             "canSubmit": state == DRAFT and bool(pages_out),
             "canRetryOcr": state == FAILED or ocr_status == OcrJobStatus.FAILED.value,
             "canConfirm": state == OCR_REVIEW,

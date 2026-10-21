@@ -269,68 +269,6 @@ class CatalogService:
         await self.session.refresh(topic)
         return self._topic_dict(topic)
 
-    async def list_classrooms(self, teacher: User) -> list[dict[str, Any]]:
-        _require_teacher(teacher)
-        result = await self.session.execute(
-            select(Classroom)
-            .options(selectinload(Classroom.memberships))
-            .where(Classroom.owner_teacher_id == teacher.id)
-            .order_by(Classroom.code)
-        )
-        rows = result.scalars().unique().all()
-        out = []
-        for classroom in rows:
-            student_count = sum(
-                1
-                for m in classroom.memberships
-                if m.membership_role == "STUDENT" and m.status == "ACTIVE"
-            )
-            out.append(
-                {
-                    "id": str(classroom.id),
-                    "code": classroom.code,
-                    "name": classroom.name,
-                    "gradeLevel": classroom.grade_level,
-                    "academicYear": classroom.academic_year,
-                    "studentCount": student_count,
-                }
-            )
-        return out
-
-    async def list_classroom_members(self, teacher: User, classroom_id: uuid.UUID) -> dict[str, Any]:
-        _require_teacher(teacher)
-        classroom = await self._owned_classroom(teacher, classroom_id)
-        result = await self.session.execute(
-            select(ClassMembership)
-            .options(selectinload(ClassMembership.user))
-            .where(
-                ClassMembership.classroom_id == classroom.id,
-                ClassMembership.status == "ACTIVE",
-            )
-            .order_by(ClassMembership.created_at)
-        )
-        members = []
-        for row in result.scalars().all():
-            user = row.user
-            members.append(
-                {
-                    "userId": str(user.id),
-                    "loginId": user.login_id,
-                    "displayName": user.display_name,
-                    "role": row.membership_role,
-                    "email": user.email,
-                    "status": user.status.value if hasattr(user.status, "value") else str(user.status),
-                }
-            )
-        return {
-            "id": str(classroom.id),
-            "code": classroom.code,
-            "name": classroom.name,
-            "gradeLevel": classroom.grade_level,
-            "academicYear": classroom.academic_year,
-            "members": members,
-        }
-
     async def list_materials(
         self,
         teacher: User,

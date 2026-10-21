@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
+import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
@@ -33,10 +35,12 @@ from app.db.models import (
     User,
     UserRole,
     UserStatus,
+    Term,
 )
 from app.db.models.socratic import AssignmentAccess, AssignmentRevision
 from app.db.session import get_session_factory
 from app.identity.domain import normalize_email, normalize_login_id
+from app.services.classroom_service import generate_join_code
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("seed_demo")
@@ -485,7 +489,112 @@ DEMO_CLASS_NAME = "Lớp 12A14 • THPT Đan Phượng"
 LEGACY_CLASS_CODE = "11A14"
 
 
-async def seed_classroom(session: AsyncSession, teacher: User, student: User) -> Classroom:
+@dataclass(frozen=True)
+class LegacyClassroom:
+    """Minimal classroom view used while replaying the pre-0017 seed migration."""
+
+    id: uuid.UUID
+    code: str
+    name: str
+    grade_level: int
+    academic_year: str
+    owner_teacher_id: uuid.UUID
+
+
+async def _seed_legacy_classroom(
+    session: AsyncSession, teacher: User, student: User
+) -> LegacyClassroom:
+    result = await session.execute(
+        text(
+            """
+            SELECT id, code, name, grade_level, academic_year, owner_teacher_id
+            FROM classrooms
+            WHERE owner_teacher_id = :teacher_id
+              AND code IN (:demo_code, :legacy_code)
+            """
+        ),
+        {
+            "teacher_id": teacher.id,
+            "demo_code": DEMO_CLASS_CODE,
+            "legacy_code": LEGACY_CLASS_CODE,
+        },
+    )
+    found = {row.code: row for row in result}
+    classroom = found.get(DEMO_CLASS_CODE)
+    if classroom is None and LEGACY_CLASS_CODE in found:
+        row = found[LEGACY_CLASS_CODE]
+        await session.execute(
+            text(
+                """
+                UPDATE classrooms
+                SET code = :code, name = :name, grade_level = 12, updated_at = now()
+                WHERE id = :id
+                """
+            ),
+            {"code": DEMO_CLASS_CODE, "name": DEMO_CLASS_NAME, "id": row.id},
+        )
+        classroom = LegacyClassroom(
+            id=row.id,
+            code=DEMO_CLASS_CODE,
+            name=DEMO_CLASS_NAME,
+            grade_level=12,
+            academic_year=row.academic_year,
+            owner_teacher_id=row.owner_teacher_id,
+        )
+        logger.info("Renamed classroom %s to %s", LEGACY_CLASS_CODE, DEMO_CLASS_CODE)
+    if classroom is None:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    INSERT INTO classrooms (
+                        owner_teacher_id, code, name, grade_level, academic_year, updated_at
+                    ) VALUES (:teacher_id, :code, :name, 12, '2026-2027', now())
+                    RETURNING id, code, name, grade_level, academic_year, owner_teacher_id
+                    """
+                ),
+                {"teacher_id": teacher.id, "code": DEMO_CLASS_CODE, "name": DEMO_CLASS_NAME},
+            )
+        ).one()
+        classroom = row
+        logger.info("Created classroom %s", DEMO_CLASS_CODE)
+    for user, role in ((teacher, "TEACHER"), (student, "STUDENT")):
+        existing = await session.execute(
+            select(ClassMembership).where(
+                ClassMembership.classroom_id == classroom.id,
+                ClassMembership.user_id == user.id,
+            )
+        )
+        if existing.scalar_one_or_none() is None:
+            session.add(
+                ClassMembership(
+                    classroom_id=classroom.id,
+                    user_id=user.id,
+                    membership_role=role,
+                    status="ACTIVE",
+                )
+            )
+    return LegacyClassroom(
+        id=classroom.id,
+        code=classroom.code,
+        name=classroom.name,
+        grade_level=classroom.grade_level,
+        academic_year=classroom.academic_year,
+        owner_teacher_id=classroom.owner_teacher_id,
+    )
+
+
+async def seed_classroom(
+    session: AsyncSession, teacher: User, student: User
+) -> Classroom | LegacyClassroom:
+    has_terms = (
+        await session.execute(text("SELECT to_regclass('public.terms')"))
+    ).scalar_one()
+    if has_terms is None:
+        return await _seed_legacy_classroom(session, teacher, student)
+    term = (
+        await session.execute(select(Term).where(Term.code == "2026-2027-HK1"))
+    ).scalar_one()
     result = await session.execute(
         select(Classroom).where(
             Classroom.owner_teacher_id == teacher.id,
@@ -509,6 +618,8 @@ async def seed_classroom(session: AsyncSession, teacher: User, student: User) ->
             name=DEMO_CLASS_NAME,
             grade_level=12,
             academic_year="2026-2027",
+            term_id=term.id,
+            join_code=generate_join_code(),
         )
         session.add(classroom)
         await session.flush()

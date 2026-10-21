@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
@@ -15,10 +16,12 @@ from app.db.models import (
     AuthSession,
     ClassMembership,
     Classroom,
+    Term,
     User,
     UserRole,
     UserStatus,
 )
+from app.services.classroom_service import generate_join_code
 from tests.conftest import auth_headers
 
 
@@ -108,14 +111,24 @@ FACTORY_TEXT = (
 
 
 async def seed_classroom_with_student(
-    db_session: AsyncSession, teacher: User, student: User, code: str = "11A14"
+    db_session: AsyncSession,
+    teacher: User,
+    student: User,
+    code: str = "11A14",
+    term: Term | None = None,
 ) -> Classroom:
+    if term is None:
+        term = (
+            await db_session.execute(select(Term).where(Term.code == "2026-2027-HK1"))
+        ).scalar_one()
     classroom = Classroom(
         owner_teacher_id=teacher.id,
+        term_id=term.id,
         code=code,
         name=f"Lớp {code}",
         grade_level=11,
-        academic_year="2026-2027",
+        academic_year=term.academic_year,
+        join_code=generate_join_code(),
     )
     db_session.add(classroom)
     await db_session.flush()
@@ -138,3 +151,24 @@ async def seed_classroom_with_student(
     await db_session.commit()
     await db_session.refresh(classroom)
     return classroom
+
+
+async def create_term(db_session: AsyncSession, *, ended: bool) -> Term:
+    code = f"TEST-{uuid.uuid4().hex[:8]}"
+    if ended:
+        starts_on = date(2020, 1, 1)
+        ends_on = date(2020, 6, 1)
+    else:
+        starts_on = date(2090, 1, 1)
+        ends_on = date(2090, 6, 1)
+    term = Term(
+        code=code,
+        name=f"Kỳ kiểm thử {code}",
+        academic_year="2090-2091" if not ended else "2020-2021",
+        starts_on=starts_on,
+        ends_on=ends_on,
+    )
+    db_session.add(term)
+    await db_session.commit()
+    await db_session.refresh(term)
+    return term
