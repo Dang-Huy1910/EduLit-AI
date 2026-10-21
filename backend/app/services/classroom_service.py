@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import re
-import secrets
 import uuid
-from datetime import date
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -30,17 +28,20 @@ import app.services.outline_prep as outline_prep_service
 from app.services.assignment_service import _is_whole_class
 from app.services.catalog_errors import CatalogError
 from app.services.catalog_service import _grade, _require_teacher
+from app.services.classroom_rules import (
+    JOIN_CODE_ALPHABET,
+    JOIN_CODE_LENGTH,
+    SCHOOL_TZ,
+    classroom_read_only,
+    generate_join_code,
+    grant_access,
+    school_today,
+    term_status,
+)
 
-JOIN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-JOIN_CODE_LENGTH = 6
-SCHOOL_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 CLASSROOM_READ_ONLY_MESSAGE = "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được."
 
 _CLASSROOM_CODE_RE = re.compile(r"^[0-9A-Z.\-]+$")
-
-
-def generate_join_code() -> str:
-    return "".join(secrets.choice(JOIN_CODE_ALPHABET) for _ in range(JOIN_CODE_LENGTH))
 
 
 def normalize_join_code(raw: Any) -> str:
@@ -50,51 +51,6 @@ def normalize_join_code(raw: Any) -> str:
     if len(code) != JOIN_CODE_LENGTH or any(char not in JOIN_CODE_ALPHABET for char in code):
         raise CatalogError(404, "JOIN_CODE_INVALID", "Mã lớp không đúng.")
     return code
-
-
-def school_today() -> date:
-    from datetime import datetime
-
-    return datetime.now(SCHOOL_TZ).date()
-
-
-def term_status(term: Term, today: date) -> str:
-    if today < term.starts_on:
-        return "UPCOMING"
-    if today > term.ends_on:
-        return "ENDED"
-    return "ACTIVE"
-
-
-def classroom_read_only(classroom: Classroom, today: date | None = None) -> bool:
-    return classroom.archived_at is not None or term_status(classroom.term, today or school_today()) == "ENDED"
-
-
-async def grant_access(
-    session: AsyncSession, revision_id: uuid.UUID, student_ids: list[uuid.UUID]
-) -> None:
-    """Grant (or restore) one revision's access to the given students."""
-    seen: set[uuid.UUID] = set()
-    for student_id in student_ids:
-        if student_id in seen:
-            continue
-        seen.add(student_id)
-        existing = await session.execute(
-            select(AssignmentAccess).where(
-                AssignmentAccess.assignment_revision_id == revision_id,
-                AssignmentAccess.student_id == student_id,
-            )
-        )
-        access = existing.scalar_one_or_none()
-        if access is None:
-            session.add(
-                AssignmentAccess(
-                    assignment_revision_id=revision_id,
-                    student_id=student_id,
-                )
-            )
-        elif access.revoked_at is not None:
-            access.revoked_at = None
 
 
 class ClassroomService:
@@ -358,14 +314,32 @@ class ClassroomService:
         if membership is not None and membership.status == "ACTIVE":
             return {"classroom": self._student_summary(classroom), "alreadyMember": True}
         if membership is None:
-            membership = ClassMembership(
-                classroom_id=classroom.id,
-                user_id=student.id,
-                membership_role="STUDENT",
-                status="ACTIVE",
-            )
-            self.session.add(membership)
-        else:
+            inserted_id = (
+                await self.session.execute(
+                    pg_insert(ClassMembership)
+                    .values(
+                        classroom_id=classroom.id,
+                        user_id=student.id,
+                        membership_role="STUDENT",
+                        status="ACTIVE",
+                    )
+                    .on_conflict_do_nothing(
+                        constraint="class_memberships_class_user_key"
+                    )
+                    .returning(ClassMembership.id)
+                )
+            ).scalar_one_or_none()
+            membership = (
+                await self.session.execute(
+                    select(ClassMembership).where(
+                        ClassMembership.classroom_id == classroom.id,
+                        ClassMembership.user_id == student.id,
+                    )
+                )
+            ).scalar_one()
+            if inserted_id is None and membership.status == "ACTIVE":
+                return {"classroom": self._student_summary(classroom), "alreadyMember": True}
+        if membership.status != "ACTIVE":
             membership.status = "ACTIVE"
 
         assignments = (

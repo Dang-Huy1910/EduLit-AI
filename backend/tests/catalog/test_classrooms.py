@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import uuid
+from io import BytesIO
 
 import pytest
 from httpx import AsyncClient
+from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
-from app.db.models import AssignmentAccess, ClassMembership, StudentOutlinePrep, Term, User, UserRole
+from app.db.models import Assignment, AssignmentAccess, ClassMembership, StudentOutlinePrep, Term, User, UserRole
 from app.services.classroom_service import JOIN_CODE_ALPHABET, school_today, term_status
 from tests.catalog.conftest import (
     HEADERS,
@@ -24,6 +26,13 @@ async def _term(db_session: AsyncSession, code: str = "2026-2027-HK1") -> Term:
     return (
         await db_session.execute(select(Term).where(Term.code == code))
     ).scalar_one()
+
+
+def _jpeg_bytes() -> bytes:
+    image = Image.new("RGB", (200, 200), "white")
+    output = BytesIO()
+    image.save(output, format="JPEG")
+    return output.getvalue()
 
 
 async def _publish_whole_class(
@@ -349,6 +358,90 @@ async def test_archived_or_ended_classroom_cannot_publish(
         await db_session.commit()
     blocked = await client.post(
         f"/api/teacher/assignments/{created.json()['id']}/publish", headers=HEADERS, json={}
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "CLASSROOM_READ_ONLY"
+
+
+@pytest.mark.asyncio
+async def test_ended_classroom_disables_submission_payload_and_submit(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+    settings: Settings,
+) -> None:
+    classroom = await seed_classroom_with_student(db_session, teacher_user, student_user)
+    published = await _publish_whole_class(client, classroom.id)
+    await login_as(client, settings, db_session, student_user)
+    uploaded = await client.post(
+        f"/api/assignments/{published['id']}/submission/pages",
+        headers={"Origin": "http://localhost:3000", "X-Edulit-CSRF": "1"},
+        files={"file": ("page.jpg", _jpeg_bytes(), "image/jpeg")},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+
+    ended = await create_term(db_session, ended=True)
+    classroom.term_id = ended.id
+    classroom.academic_year = ended.academic_year
+    await db_session.commit()
+
+    payload = await client.get(f"/api/assignments/{published['id']}/submission", headers=HEADERS)
+    assert payload.status_code == 200, payload.text
+    assert payload.json()["classroomReadOnly"] is True
+    assert payload.json()["canEditPages"] is False
+    assert payload.json()["canSubmit"] is False
+    blocked = await client.post(
+        f"/api/assignments/{published['id']}/submission/submit", headers=HEADERS
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "CLASSROOM_READ_ONLY"
+
+
+@pytest.mark.asyncio
+async def test_draft_can_move_from_ended_classroom_but_cannot_be_edited_in_place(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+) -> None:
+    current_classroom = await seed_classroom_with_student(db_session, teacher_user, student_user)
+    ended = await create_term(db_session, ended=True)
+    ended_classroom = await seed_classroom_with_student(
+        db_session, teacher_user, student_user, code="12A16", term=ended
+    )
+    catalog = await _create_ready_prompt(client)
+    created = await client.post(
+        "/api/teacher/assignments",
+        headers=HEADERS,
+        json={
+            "sourcePromptId": catalog["prompt"]["id"],
+            "rubricId": catalog["rubric"]["id"],
+            "classroomId": str(current_classroom.id),
+            "assignToWholeClass": True,
+        },
+    )
+    assert created.status_code == 201, created.text
+    assignment = await db_session.get(Assignment, uuid.UUID(created.json()["id"]))
+    assert assignment is not None
+    assignment.classroom_id = ended_classroom.id
+    await db_session.commit()
+
+    moved = await client.patch(
+        f"/api/teacher/assignments/{assignment.id}",
+        headers=HEADERS,
+        json={"classroomId": str(current_classroom.id)},
+    )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["classroomId"] == str(current_classroom.id)
+
+    await db_session.refresh(assignment)
+    assignment.classroom_id = ended_classroom.id
+    await db_session.commit()
+    blocked = await client.patch(
+        f"/api/teacher/assignments/{assignment.id}",
+        headers=HEADERS,
+        json={"title": "Không được sửa"},
     )
     assert blocked.status_code == 409
     assert blocked.json()["error"]["code"] == "CLASSROOM_READ_ONLY"

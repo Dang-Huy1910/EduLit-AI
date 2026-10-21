@@ -37,6 +37,7 @@ from app.services.catalog_service import (
     _text,
     unique_chunk_id,
 )
+from app.services.classroom_rules import classroom_read_only, grant_access
 from app.services.rubric import assignment_rubric_document, validate_rubric_payload
 
 CODE_RE = __import__("re").compile(r"^[A-Z0-9-]{4,32}$")
@@ -101,6 +102,19 @@ class AssignmentService:
         if assignment is None or assignment.teacher_id != teacher.id or assignment.status == "DELETED":
             raise CatalogError(404, "NOT_FOUND", "Không tìm thấy bài tập.")
         return assignment
+
+    async def _ensure_classroom_writable(
+        self, teacher: User, classroom_id: uuid.UUID
+    ) -> Classroom:
+        classroom = await self.catalog._owned_classroom(teacher, classroom_id)
+        await self.session.refresh(classroom, ["term"])
+        if classroom_read_only(classroom):
+            raise CatalogError(
+                409,
+                "CLASSROOM_READ_ONLY",
+                ERROR_MESSAGES["CLASSROOM_READ_ONLY"],
+            )
+        return classroom
 
     async def _next_code(self) -> str:
         for _ in range(12):
@@ -202,16 +216,7 @@ class AssignmentService:
         classroom = None
         classroom_id = _optional_uuid(body.get("classroomId"))
         if classroom_id:
-            classroom = await self.catalog._owned_classroom(teacher, classroom_id)
-            await self.session.refresh(classroom, ["term"])
-            from app.services.classroom_service import classroom_read_only
-
-            if classroom_read_only(classroom):
-                raise CatalogError(
-                    409,
-                    "CLASSROOM_READ_ONLY",
-                    "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
-                )
+            classroom = await self._ensure_classroom_writable(teacher, classroom_id)
 
         rubric_doc, rubric_id, rubric_version_id = await self._resolve_assignment_rubric(teacher, body)
         code = self._normalize_code(body.get("code")) or await self._next_code()
@@ -249,17 +254,8 @@ class AssignmentService:
         if assignment.status != "DRAFT":
             raise CatalogError(409, "ASSIGNMENT_STATUS", "Chỉ sửa được bài tập đang ở bản nháp.")
 
-        if assignment.classroom_id:
-            classroom = await self.catalog._owned_classroom(teacher, assignment.classroom_id)
-            await self.session.refresh(classroom, ["term"])
-            from app.services.classroom_service import classroom_read_only
-
-            if classroom_read_only(classroom):
-                raise CatalogError(
-                    409,
-                    "CLASSROOM_READ_ONLY",
-                    "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
-                )
+        if "classroomId" not in body and assignment.classroom_id:
+            await self._ensure_classroom_writable(teacher, assignment.classroom_id)
 
         if "sourcePromptId" in body or "promptId" in body:
             prompt_id = _optional_uuid(body.get("sourcePromptId") or body.get("promptId"))
@@ -281,17 +277,11 @@ class AssignmentService:
             assignment.due_at = _parse_due_at(body.get("dueAt"))
         if "classroomId" in body:
             classroom_id = _optional_uuid(body.get("classroomId"))
-            classroom = await self.catalog._owned_classroom(teacher, classroom_id) if classroom_id else None
-            if classroom is not None:
-                await self.session.refresh(classroom, ["term"])
-                from app.services.classroom_service import classroom_read_only
-
-                if classroom_read_only(classroom):
-                    raise CatalogError(
-                        409,
-                        "CLASSROOM_READ_ONLY",
-                        "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
-                    )
+            classroom = (
+                await self._ensure_classroom_writable(teacher, classroom_id)
+                if classroom_id
+                else None
+            )
             assignment.classroom_id = classroom.id if classroom else None
         if "assignToWholeClass" in body or "recipientStudentIds" in body:
             assignment.recipient_student_ids = _recipient_ids_from_body(body)
@@ -339,16 +329,7 @@ class AssignmentService:
             raise CatalogError(409, "ASSIGNMENT_STATUS", "Không thể phát hành bài tập ở trạng thái này.")
 
         if assignment.classroom_id:
-            classroom = await self.catalog._owned_classroom(teacher, assignment.classroom_id)
-            await self.session.refresh(classroom, ["term"])
-            from app.services.classroom_service import classroom_read_only
-
-            if classroom_read_only(classroom):
-                raise CatalogError(
-                    409,
-                    "CLASSROOM_READ_ONLY",
-                    "Lớp thuộc kỳ học đã kết thúc nên chỉ xem được.",
-                )
+            await self._ensure_classroom_writable(teacher, assignment.classroom_id)
 
         prompt = await self.catalog._owned_prompt(teacher, assignment.source_prompt_id)
         prompt_payload = await self.catalog._prompt_dict(prompt, full=True)
@@ -421,8 +402,6 @@ class AssignmentService:
         )
         self.session.add(revision)
         await self.session.flush()
-
-        from app.services.classroom_service import grant_access
 
         await grant_access(self.session, revision.id, recipients)
 
@@ -769,8 +748,6 @@ class AssignmentService:
             "updatedAt": assignment.updated_at.isoformat() if assignment.updated_at else None,
         }
         if classroom is not None:
-            from app.services.classroom_service import classroom_read_only
-
             payload["classroomReadOnly"] = classroom_read_only(classroom)
         if outline_prep is None and assignment.published_revision_id:
             outline_prep = await outline_prep_service.counts_for_revision(
@@ -855,8 +832,6 @@ class AssignmentService:
             "classroomReadOnly": False,
         }
         if classroom is not None:
-            from app.services.classroom_service import classroom_read_only
-
             payload["classroomReadOnly"] = classroom_read_only(classroom)
         if full:
             payload["materials"] = materials

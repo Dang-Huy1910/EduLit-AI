@@ -31,6 +31,7 @@ from app.db.models import (
     UserRole,
 )
 from app.services.document_convert import safe_filename
+from app.services.classroom_rules import classroom_read_only
 from app.services.image_process import ImageProcessError, validate_and_process
 from app.services.ocr_normalize import public_page
 from app.services.reopen_policy import consume_reopen_grant, student_may_reopen
@@ -571,8 +572,6 @@ class SubmissionService:
         ).scalar_one_or_none()
         if classroom is None:
             return False
-        from app.services.classroom_service import classroom_read_only
-
         return classroom_read_only(classroom)
 
     async def _ensure_submission(self, revision_id: uuid.UUID, student_id: uuid.UUID) -> Submission:
@@ -728,7 +727,7 @@ class SubmissionService:
             "confirmed": confirmed,
             "classroomReadOnly": classroom_read_only,
             "canEditPages": state == DRAFT and not classroom_read_only,
-            "canSubmit": state == DRAFT and bool(pages_out),
+            "canSubmit": state == DRAFT and bool(pages_out) and not classroom_read_only,
             "canRetryOcr": state == FAILED or ocr_status == OcrJobStatus.FAILED.value,
             "canConfirm": state == OCR_REVIEW,
             "waitingForGrade": state == READY_TO_GRADE,
