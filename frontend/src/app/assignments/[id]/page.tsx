@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
@@ -59,7 +59,14 @@ function AssignmentEditorPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { addToast, currentUser } = useAppStore();
-  const { term, classroom: contextClassroom, setClassroom: setContextClassroom } = useTeacherClassContext();
+  const {
+    classroom: contextClassroom,
+    classrooms: contextClassrooms,
+    loading: contextLoading,
+    error: classContextError,
+    reload: reloadClassContext,
+    setClassroom: setContextClassroom,
+  } = useTeacherClassContext();
 
   const assignmentId = (params?.id as string) || 'new';
   const isNew = assignmentId === 'new';
@@ -70,6 +77,8 @@ function AssignmentEditorPage() {
   const draftScope = { userId: currentUser?.id, assignmentId: existingAssignmentId || 'new' };
   const storedDraft = loadAssignmentDraft(draftScope);
   const classroomFromQuery = searchParams.get('classroomId') || storedDraft.classroomId || '';
+  const hasExplicitClassroom = useRef(Boolean(classroomFromQuery));
+  const defaultClassroomResolved = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -78,11 +87,10 @@ function AssignmentEditorPage() {
   const [copyOpen, setCopyOpen] = useState(false);
   const [issue, setIssue] = useState<PageIssue | null>(null);
   const [rubricIssue, setRubricIssue] = useState('');
-  const [classroomIssue, setClassroomIssue] = useState('');
   const [memberIssue, setMemberIssue] = useState('');
   const [prompt, setPrompt] = useState<CatalogPrompt | null>(null);
   const [rubrics, setRubrics] = useState<CatalogRubric[]>([]);
-  const [classrooms, setClassrooms] = useState<ClassroomSummary[]>([]);
+  const [extraClassroom, setExtraClassroom] = useState<ClassroomSummary | null>(null);
   const [members, setMembers] = useState<ClassroomMember[]>([]);
   const [assignment, setAssignment] = useState<TeacherAssignment | null>(null);
   const assignmentRef = useRef<TeacherAssignment | null>(null);
@@ -104,6 +112,12 @@ function AssignmentEditorPage() {
   const [downloading, setDownloading] = useState(false);
   const [loadNonce, setLoadNonce] = useState(0);
   const [memberNonce, setMemberNonce] = useState(0);
+
+  const classrooms = useMemo(() => {
+    const writable = contextClassrooms.filter((item) => !item.readOnly);
+    if (!extraClassroom || writable.some((item) => item.id === extraClassroom.id)) return writable;
+    return [...writable, extraClassroom];
+  }, [contextClassrooms, extraClassroom]);
 
   assignToWholeClassRef.current = assignToWholeClass;
 
@@ -139,7 +153,6 @@ function AssignmentEditorPage() {
     setLoading(true);
     setIssue(null);
     setRubricIssue('');
-    setClassroomIssue('');
 
     void (async () => {
       let rubricItems: CatalogRubric[] = [];
@@ -154,24 +167,6 @@ function AssignmentEditorPage() {
         }
       }
 
-      try {
-        const classRes = await classroomsApi.listTeacherClassrooms({ termId: term?.id });
-        if (stillActive()) {
-          const writable = classRes.items.filter((item) => !item.readOnly);
-          setClassrooms(writable);
-          const draft = loadAssignmentDraft(draftScope);
-          if (!searchParams.get('classroomId') && !draft.classroomId) {
-            const defaultClassroomId = contextClassroom?.id || writable[0]?.id;
-            if (defaultClassroomId) setClassroomId(defaultClassroomId);
-          }
-        }
-      } catch (err) {
-        if (stillActive()) {
-          setClassrooms([]);
-          setClassroomIssue(errorText(err, 'Không tải được danh sách lớp.'));
-        }
-      }
-
       if (!stillActive()) return;
       const draft = loadAssignmentDraft(draftScope);
 
@@ -181,18 +176,6 @@ function AssignmentEditorPage() {
           if (!stillActive()) return;
           assignmentRef.current = existing;
           setAssignment(existing);
-          if (existing.classroomId && !classrooms.some((item) => item.id === existing.classroomId)) {
-            try {
-              const assignmentClassroom = await classroomsApi.getClassroom(existing.classroomId);
-              if (stillActive()) {
-                setClassrooms((current) =>
-                  current.some((item) => item.id === assignmentClassroom.id) ? current : [...current, assignmentClassroom]
-                );
-              }
-            } catch {
-              // The assignment remains readable even when its classroom is no longer available.
-            }
-          }
           applyLoadedAssignment(existing, draft);
           const promptToLoad = isCatalogUuid(promptId) ? promptId : existing.sourcePromptId;
           await hydratePrompt(promptToLoad, draft, stillActive, rubricItems, existing);
@@ -225,7 +208,45 @@ function AssignmentEditorPage() {
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, isNew, promptId, existingAssignmentId, currentUser?.id, loadNonce, term?.id, contextClassroom?.id]);
+  }, [assignmentId, isNew, promptId, existingAssignmentId, currentUser?.id, loadNonce]);
+
+  useEffect(() => {
+    if (!assignment?.classroomId) {
+      setExtraClassroom(null);
+      return;
+    }
+    if (contextLoading) return;
+    if (contextClassrooms.some((item) => item.id === assignment.classroomId && !item.readOnly)) {
+      setExtraClassroom(null);
+      return;
+    }
+    let cancelled = false;
+    void classroomsApi
+      .getClassroom(assignment.classroomId)
+      .then((item) => {
+        if (!cancelled) setExtraClassroom(item);
+      })
+      .catch(() => {
+        if (!cancelled) setExtraClassroom(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignment?.classroomId, contextClassrooms, contextLoading]);
+
+  useEffect(() => {
+    if (defaultClassroomResolved.current || hasExplicitClassroom.current) return;
+    if (existingAssignmentId && !assignment) return;
+    if (assignment?.classroomId) {
+      setClassroomId(assignment.classroomId);
+      defaultClassroomResolved.current = true;
+      return;
+    }
+    const defaultClassroomId = contextClassroom?.id || contextClassrooms.find((item) => !item.readOnly)?.id;
+    if (!defaultClassroomId) return;
+    setClassroomId(defaultClassroomId);
+    defaultClassroomResolved.current = true;
+  }, [assignment?.classroomId, contextClassroom?.id, contextClassrooms, existingAssignmentId, assignment]);
 
   useEffect(() => {
     let cancelled = false;
@@ -460,7 +481,7 @@ function AssignmentEditorPage() {
   };
 
   const handleCopyToClassroom = async () => {
-    const target = classrooms.find((item) => item.id === copyTargetId && !item.readOnly);
+    const target = contextClassrooms.find((item) => item.id === copyTargetId && !item.readOnly && item.id !== classroomId);
     if (!target) {
       addToast('Hãy chọn lớp đích có thể chỉnh sửa.', 'warning');
       return;
@@ -527,6 +548,38 @@ function AssignmentEditorPage() {
       setSaving(false);
     }
   };
+
+  const copyTargets = contextClassrooms.filter((item) => item.id !== classroomId && !item.readOnly);
+  const canCopyToAnotherClassroom = copyTargets.length > 0;
+  const copyAction = (
+    <>
+      <button
+        type="button"
+        onClick={() => setCopyOpen((value) => !value)}
+        disabled={loading || !prompt?.id || !canCopyToAnotherClassroom}
+        className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
+      >
+        Sao chép sang lớp khác
+      </button>
+      {copyOpen && (
+        <div className="w-full flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-1">
+          <select
+            value={copyTargetId}
+            onChange={(event) => setCopyTargetId(event.target.value)}
+            className="h-8 min-w-52 rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2 text-xs text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <option value="">Chọn lớp đích</option>
+            {copyTargets.map((item) => (
+              <option key={item.id} value={item.id}>{classroomLabel(item)} ({item.studentCount} HS)</option>
+            ))}
+          </select>
+          <button type="button" onClick={() => void handleCopyToClassroom()} disabled={copying || !copyTargetId} className="h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold disabled:opacity-40">
+            {copying ? 'Đang sao chép...' : 'Tạo bản sao'}
+          </button>
+        </div>
+      )}
+    </>
+  );
 
   const handleSaveAsRubric = async () => {
     try {
@@ -670,12 +723,15 @@ function AssignmentEditorPage() {
             </p>
           </div>
           {isPublished ? (
-            <Link
-              href="/assignments"
-              className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium"
-            >
-              Về danh sách bài tập
-            </Link>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Link
+                href="/assignments"
+                className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium"
+              >
+                Về danh sách bài tập
+              </Link>
+              {copyAction}
+            </div>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-2">
               <button
@@ -686,15 +742,7 @@ function AssignmentEditorPage() {
               >
                 Lưu bản nháp
               </button>
-              <button
-                type="button"
-                onClick={() => setCopyOpen((value) => !value)}
-                disabled={loading || !prompt?.id || classroomIsReadOnly || !classrooms.some((item) => item.id !== classroomId && !item.readOnly)}
-                title={classroomIsReadOnly ? 'Lớp thuộc kỳ học đã kết thúc — chỉ xem.' : undefined}
-                className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium text-on-surface hover:bg-surface-container transition-all shadow-sm disabled:opacity-40"
-              >
-                Sao chép sang lớp khác
-              </button>
+              {copyAction}
               <button
                 onClick={() => void handlePublish()}
                 disabled={saving || loading || !prompt?.id || classroomIsReadOnly}
@@ -704,23 +752,6 @@ function AssignmentEditorPage() {
                 <span className="material-symbols-outlined text-[16px]">verified</span>
                 Xác nhận Rubric &amp; Giao bài
               </button>
-              {copyOpen && (
-                <div className="w-full flex flex-col sm:flex-row sm:items-center justify-end gap-2 pt-1">
-                  <select
-                    value={copyTargetId}
-                    onChange={(event) => setCopyTargetId(event.target.value)}
-                    className="h-8 min-w-52 rounded-lg border border-outline-variant/60 bg-surface-container-lowest px-2 text-xs text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-                  >
-                    <option value="">Chọn lớp đích</option>
-                    {classrooms.filter((item) => item.id !== classroomId && !item.readOnly).map((item) => (
-                      <option key={item.id} value={item.id}>{classroomLabel(item)} ({item.studentCount} HS)</option>
-                    ))}
-                  </select>
-                  <button type="button" onClick={() => void handleCopyToClassroom()} disabled={copying || !copyTargetId} className="h-8 px-3 rounded-lg bg-primary text-white text-xs font-semibold disabled:opacity-40">
-                    {copying ? 'Đang sao chép...' : 'Tạo bản sao'}
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -769,8 +800,8 @@ function AssignmentEditorPage() {
         {rubricIssue && (
           <InlineRetry message={rubricIssue} onRetry={() => setLoadNonce((value) => value + 1)} />
         )}
-        {classroomIssue && (
-          <InlineRetry message={classroomIssue} onRetry={() => setLoadNonce((value) => value + 1)} />
+        {classContextError && (
+          <InlineRetry message={classContextError} onRetry={() => void reloadClassContext()} />
         )}
 
         {loading ? (

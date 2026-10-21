@@ -37,6 +37,7 @@ export default function TermClassSwitcher() {
           className="h-8 min-w-0 w-full sm:w-auto max-w-[14rem] bg-surface-container-lowest border border-outline-variant/50 rounded-lg px-2 text-sm font-semibold text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         >
           {!classrooms.length && <option value="">Chưa có lớp</option>}
+          {classrooms.length > 0 && !classroom && <option value="" disabled>Chọn lớp</option>}
           {classrooms.map((item) => (
             <option key={item.id} value={item.id}>
               {item.code} • {item.subject}{item.readOnly ? ' (chỉ xem)' : ''}

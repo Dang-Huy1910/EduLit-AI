@@ -1,90 +1,57 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { AuthApiError } from '@/lib/auth-types';
-import type { ClassroomSummary, Term } from '@/features/catalog/types';
-import { classroomsApi } from './api';
+import { useCallback, useEffect } from 'react';
 import { useClassContext } from './class-context';
+import { useClassDataStore } from './class-data-store';
 import { pickDefaultClassroom, pickDefaultTerm } from './model';
 
-export function useTeacherClassContext(
-  { role = 'teacher', includeArchived = false }: { role?: 'teacher' | 'student'; includeArchived?: boolean } = {}
-) {
+export function useTeacherClassContext({ role = 'teacher' }: { role?: 'teacher' | 'student' } = {}) {
   const termId = useClassContext((state) => state.termId);
   const classroomId = useClassContext((state) => state.classroomId);
   const setStoredTerm = useClassContext((state) => state.setTerm);
   const setStoredClassroom = useClassContext((state) => state.setClassroom);
-  const [terms, setTerms] = useState<Term[]>([]);
-  const [classrooms, setClassrooms] = useState<ClassroomSummary[]>([]);
-  const [termsLoading, setTermsLoading] = useState(true);
-  const [classroomsLoading, setClassroomsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [reloadNonce, setReloadNonce] = useState(0);
+  const select = useClassContext((state) => state.select);
+  const terms = useClassDataStore((state) => state.terms);
+  const classrooms = useClassDataStore((state) => state.classrooms);
+  const termsLoaded = useClassDataStore((state) => state.termsLoaded);
+  const classroomsLoadedForTermId = useClassDataStore((state) => state.classroomsLoadedForTermId);
+  const termsLoading = useClassDataStore((state) => state.termsLoading);
+  const classroomsLoading = useClassDataStore((state) => state.classroomsLoading);
+  const error = useClassDataStore((state) => state.error);
+  const loadTerms = useClassDataStore((state) => state.loadTerms);
+  const loadClassrooms = useClassDataStore((state) => state.loadClassrooms);
 
   useEffect(() => {
-    if (role !== 'teacher') {
-      setTerms([]);
-      setClassrooms([]);
-      setTermsLoading(false);
-      return;
-    }
-    let active = true;
-    setTermsLoading(true);
-    setError('');
-    void classroomsApi
-      .listTerms()
-      .then(({ items }) => {
-        if (!active) return;
-        setTerms(items);
-        const storedTermId = useClassContext.getState().termId;
-        const selected = items.find((term) => term.id === storedTermId) || pickDefaultTerm(items);
-        if (selected && selected.id !== storedTermId) setStoredTerm(selected.id);
-      })
-      .catch((err: unknown) => {
-        if (active) setError(err instanceof AuthApiError ? err.message : 'Không tải được danh sách kỳ học.');
-      })
-      .finally(() => {
-        if (active) setTermsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [role, reloadNonce, setStoredTerm]);
+    if (role === 'teacher') void loadTerms();
+  }, [role, loadTerms]);
 
   useEffect(() => {
-    if (role !== 'teacher' || !termId) {
-      setClassrooms([]);
-      setClassroomsLoading(false);
-      return;
-    }
-    let active = true;
-    setClassroomsLoading(true);
-    setError('');
-    void classroomsApi
-      .listTeacherClassrooms({ termId, includeArchived })
-      .then(({ items }) => {
-        if (!active) return;
-        setClassrooms(items);
-        const storedClassroomId = useClassContext.getState().classroomId;
-        const selected = pickDefaultClassroom(items, storedClassroomId);
-        if (selected && selected.id !== storedClassroomId) setStoredClassroom(selected.id);
-        if (!selected && storedClassroomId) setStoredClassroom('');
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          setClassrooms([]);
-          setError(err instanceof AuthApiError ? err.message : 'Không tải được danh sách lớp.');
-        }
-      })
-      .finally(() => {
-        if (active) setClassroomsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [role, termId, includeArchived, reloadNonce, setStoredClassroom]);
+    if (role !== 'teacher' || !termsLoaded) return;
+    const selected = terms.find((item) => item.id === termId) || pickDefaultTerm(terms);
+    if (selected && selected.id !== termId) setStoredTerm(selected.id);
+  }, [role, termsLoaded, terms, termId, setStoredTerm]);
 
-  const reload = useCallback(() => setReloadNonce((value) => value + 1), []);
+  useEffect(() => {
+    if (role === 'teacher' && termsLoaded && termId) void loadClassrooms(termId);
+  }, [role, termsLoaded, termId, loadClassrooms]);
+
+  useEffect(() => {
+    if (role !== 'teacher' || classroomsLoading || classroomsLoadedForTermId !== termId) return;
+    const selected = pickDefaultClassroom(classrooms, classroomId);
+    if (selected && selected.id !== classroomId) setStoredClassroom(selected.id);
+    if (!selected && classroomId) setStoredClassroom('');
+  }, [role, classroomsLoading, classroomsLoadedForTermId, termId, classrooms, classroomId, setStoredClassroom]);
+
+  const reload = useCallback(async () => {
+    if (role !== 'teacher') return;
+    await loadTerms(true);
+    const latestTerms = useClassDataStore.getState().terms;
+    const storedTermId = useClassContext.getState().termId;
+    const selected = latestTerms.find((item) => item.id === storedTermId) || pickDefaultTerm(latestTerms);
+    if (!selected) return;
+    if (selected.id !== storedTermId) setStoredTerm(selected.id);
+    await loadClassrooms(selected.id, true);
+  }, [role, loadTerms, loadClassrooms, setStoredTerm]);
   const term = terms.find((item) => item.id === termId);
   const classroom = classrooms.find((item) => item.id === classroomId);
 
@@ -97,6 +64,7 @@ export function useTeacherClassContext(
     error,
     setTerm: setStoredTerm,
     setClassroom: setStoredClassroom,
+    select,
     reload,
   };
 }

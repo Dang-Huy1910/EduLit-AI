@@ -8,6 +8,7 @@ interface ClassContextState {
   classroomId: string;
   setTerm: (id: string) => void;
   setClassroom: (id: string) => void;
+  select: (termId: string, classroomId: string) => void;
   reset: () => void;
 }
 
@@ -18,6 +19,7 @@ export const useClassContext = create<ClassContextState>()(
       classroomId: '',
       setTerm: (termId) => set({ termId, classroomId: '' }),
       setClassroom: (classroomId) => set({ classroomId }),
+      select: (termId, classroomId) => set({ termId, classroomId }),
       reset: () => set({ termId: '', classroomId: '' }),
     }),
     {

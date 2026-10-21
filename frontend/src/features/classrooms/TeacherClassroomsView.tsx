@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import { AuthApiError } from '@/lib/auth-types';
 import { useAppStore } from '@/lib/store';
+import type { ClassroomSummary } from '@/features/catalog/types';
 import { classroomsApi } from './api';
 import { classroomLabel, termLabel } from './model';
 import { useTeacherClassContext } from './useClassContext';
@@ -16,7 +17,11 @@ export default function TeacherClassroomsView() {
   const router = useRouter();
   const { addToast } = useAppStore();
   const [showArchived, setShowArchived] = useState(false);
-  const { terms, term, classrooms, loading, error, setTerm, setClassroom, reload } = useTeacherClassContext({ includeArchived: showArchived });
+  const { terms, term, classrooms, loading, error, setTerm, setClassroom, reload } = useTeacherClassContext();
+  const [archivedClassrooms, setArchivedClassrooms] = useState<ClassroomSummary[]>([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [archivedError, setArchivedError] = useState('');
+  const [archivedReloadNonce, setArchivedReloadNonce] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
@@ -26,7 +31,39 @@ export default function TeacherClassroomsView() {
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('Ngữ văn');
 
-  const visibleClassrooms = classrooms;
+  useEffect(() => {
+    if (!showArchived || !term) {
+      setArchivedClassrooms([]);
+      setArchivedError('');
+      setArchivedLoading(false);
+      return;
+    }
+    let active = true;
+    setArchivedLoading(true);
+    setArchivedError('');
+    void classroomsApi
+      .listTeacherClassrooms({ termId: term.id, includeArchived: true })
+      .then(({ items }) => {
+        if (active) setArchivedClassrooms(items);
+      })
+      .catch((err: unknown) => {
+        if (active) setArchivedError(err instanceof AuthApiError ? err.message : 'Không tải được danh sách lớp.');
+      })
+      .finally(() => {
+        if (active) setArchivedLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [showArchived, term?.id, archivedReloadNonce]);
+
+  const visibleClassrooms = showArchived ? archivedClassrooms : classrooms;
+  const listLoading = loading || (showArchived && archivedLoading);
+  const listError = showArchived ? archivedError || error : error;
+  const reloadClassrooms = () => {
+    void reload();
+    if (showArchived) setArchivedReloadNonce((value) => value + 1);
+  };
 
   const copyJoinCode = async (joinCode: string) => {
     try {
@@ -62,7 +99,7 @@ export default function TeacherClassroomsView() {
       setSubject('Ngữ văn');
       setShowForm(false);
       addToast(`Đã tạo lớp ${created.code}.`, 'success');
-      reload();
+      reloadClassrooms();
     } catch (err) {
       if (err instanceof AuthApiError) {
         setFormError(err.message);
@@ -125,8 +162,8 @@ export default function TeacherClassroomsView() {
           </form>
         )}
 
-        {error && <div className="rounded-xl bg-error-container/30 text-error text-sm p-4 flex justify-between gap-3"><span>{error}</span><button type="button" onClick={reload} className="font-semibold underline">Tải lại</button></div>}
-        {loading ? (
+        {listError && <div className="rounded-xl bg-error-container/30 text-error text-sm p-4 flex justify-between gap-3"><span>{listError}</span><button type="button" onClick={reloadClassrooms} className="font-semibold underline">Tải lại</button></div>}
+        {listLoading ? (
           <div className="p-12 text-center text-sm text-on-surface-variant">Đang tải lớp học...</div>
         ) : visibleClassrooms.length === 0 ? (
           <div className="glass-panel rounded-2xl p-12 text-center max-w-lg mx-auto space-y-3"><span className="material-symbols-outlined text-4xl text-outline">groups</span><h2 className="font-merriweather font-bold text-on-surface">Chưa có lớp trong kỳ này</h2><p className="text-sm text-on-surface-variant">Tạo lớp để bắt đầu giao bài và mời học sinh bằng mã tham gia.</p></div>

@@ -23,7 +23,7 @@ export default function TeacherClassroomDetailView() {
   const params = useParams();
   const id = typeof params?.id === 'string' ? params.id : '';
   const { addToast } = useAppStore();
-  const { term, setClassroom, reload } = useTeacherClassContext();
+  const { term, select, reload } = useTeacherClassContext();
   const [detail, setDetail] = useState<ClassroomDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,7 +45,7 @@ export default function TeacherClassroomDetailView() {
       setName(next.name);
       setCode(next.code);
       setGradeLevel(next.gradeLevel);
-      setClassroom(next.id);
+      if (!next.archived) select(next.termId, next.id);
     } catch (err) {
       setError(err instanceof AuthApiError ? err.message : 'Không tải được thông tin lớp.');
     } finally {
