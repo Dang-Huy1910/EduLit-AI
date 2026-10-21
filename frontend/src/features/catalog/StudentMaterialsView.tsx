@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AuthApiError } from '@/lib/auth-types';
 import { studentMaterialsApi } from './api';
+import { PreviewLabel } from './PreviewBlocks';
 import type { StudentMaterial } from './types';
 
 type GenreFilter = 'all' | 'NLVH' | 'NLXH';
@@ -12,7 +13,13 @@ const GENRE_LABELS: Record<string, string> = {
   NLXH: 'Nghị luận xã hội',
 };
 
-const READING_SIZES = ['text-sm', 'text-base', 'text-lg'] as const;
+// The first size matches the teacher catalog preview; A−/A+ step around it.
+const READING_SIZES = ['text-[13.5px]', 'text-[15px]', 'text-[17px]'] as const;
+
+const NO_TOPIC = 'Chưa gắn chuyên đề';
+
+const FIELD_CLASS =
+  'h-9 px-2.5 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface';
 
 function formatDate(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -23,15 +30,6 @@ function formatDate(iso: string | null | undefined): string {
 
 function errorText(err: unknown, fallback: string): string {
   return err instanceof AuthApiError ? err.message : fallback;
-}
-
-/** Split stored plain text into paragraphs without interpreting any markup. */
-function paragraphs(content: string): string[] {
-  return content
-    .replace(/\r\n/g, '\n')
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
 }
 
 export default function StudentMaterialsView() {
@@ -84,6 +82,20 @@ export default function StudentMaterialsView() {
     });
   }, [items, query, genre, grade]);
 
+  // Group by topic like the teacher catalog groups by kind; one group shows no header.
+  const groups = useMemo(() => {
+    const byTopic = new Map<string, StudentMaterial[]>();
+    for (const item of filtered) {
+      const key = item.topicTitle || NO_TOPIC;
+      byTopic.set(key, [...(byTopic.get(key) || []), item]);
+    }
+    return Array.from(byTopic, ([label, groupItems]) => ({ label, items: groupItems })).sort((a, b) =>
+      a.label === NO_TOPIC ? 1 : b.label === NO_TOPIC ? -1 : a.label.localeCompare(b.label, 'vi')
+    );
+  }, [filtered]);
+  const showGroups = groups.length > 1;
+  const hasActiveFilters = Boolean(query.trim()) || genre !== 'all' || grade !== 'all';
+
   const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
 
   useEffect(() => {
@@ -127,309 +139,256 @@ export default function StudentMaterialsView() {
   const shown = detail && selected && detail.id === selected.id ? detail : null;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 pb-10">
-      {/* Header */}
-      <div className="glass-panel relative overflow-hidden rounded-3xl p-6 sm:p-7 shadow-sm">
-        <div className="absolute -top-16 -right-10 w-64 h-64 bg-secondary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-secondary to-primary text-white flex items-center justify-center shadow-md shrink-0">
-              <span className="material-symbols-outlined text-2xl">menu_book</span>
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-xl sm:text-2xl font-bold font-merriweather text-on-surface">
-                Tra cứu ngữ liệu đọc hiểu
-              </h1>
-              <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed max-w-2xl">
-                Ngữ liệu do giáo viên lớp em đưa lên kho học liệu. Em đọc để chuẩn bị bài; nội dung chỉ để xem,
-                không chỉnh sửa hay tạo đề.
-              </p>
-            </div>
-          </div>
-          <span className="inline-flex items-center gap-1.5 self-start md:self-auto px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-semibold border border-outline-variant/40">
-            <span className="material-symbols-outlined text-sm">visibility</span>
-            Chế độ chỉ xem
-          </span>
+    <div className="max-w-7xl mx-auto space-y-6 pb-10">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-headline-lg text-2xl sm:text-3xl font-bold text-on-surface font-merriweather">
+            Tra cứu ngữ liệu đọc hiểu
+          </h1>
+          <p className="text-xs sm:text-sm text-on-surface-variant mt-1">
+            Ngữ liệu do giáo viên lớp em đưa lên kho học liệu. Em đọc để chuẩn bị bài; nội dung chỉ để xem, không chỉnh
+            sửa hay tạo đề.
+          </p>
         </div>
+        <span className="inline-flex items-center gap-1.5 self-start sm:self-auto shrink-0 px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant text-xs font-semibold border border-outline-variant/40">
+          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">visibility</span>
+          Chỉ xem
+        </span>
       </div>
 
-      {/* Toolbar */}
-      <div className="glass-panel p-3.5 sm:p-4 rounded-2xl shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full sm:w-72">
-            <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-base">
-              search
-            </span>
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              aria-label="Tìm ngữ liệu"
-              placeholder="Tìm theo tên, tác giả, chuyên đề..."
-              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary"
-            />
-          </div>
-          {hasGenres && (
-            <div className="flex items-center bg-surface-container-low/70 p-1 rounded-xl border border-outline-variant/30 text-xs">
-              {(['all', 'NLVH', 'NLXH'] as GenreFilter[]).map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={genre === value}
-                  onClick={() => setGenre(value)}
-                  className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                    genre === value
-                      ? 'bg-surface-container-lowest text-primary font-bold shadow-xs'
-                      : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                >
-                  {value === 'all' ? 'Tất cả' : GENRE_LABELS[value]}
-                </button>
-              ))}
-            </div>
-          )}
-          {grades.length > 1 && (
-            <select
-              value={grade}
-              onChange={(e) => setGrade(e.target.value)}
-              aria-label="Lọc theo khối"
-              className="px-2.5 py-2 text-xs rounded-xl border border-outline-variant/60 bg-surface"
-            >
-              <option value="all">Tất cả khối</option>
-              {grades.map((value) => (
-                <option key={value} value={String(value)}>
-                  Khối {value}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-        {!loading && !error && (
-          <span className="text-xs text-on-surface-variant">
-            <strong>{filtered.length}</strong> / {items.length} ngữ liệu
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-64">
+          <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-outline text-[18px] pointer-events-none">
+            search
           </span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Tìm ngữ liệu"
+            placeholder="Tìm theo tên, tác giả, chuyên đề..."
+            className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-on-surface focus:outline-none focus:border-secondary"
+          />
+        </div>
+        {hasGenres && (
+          <select
+            value={genre}
+            onChange={(e) => setGenre(e.target.value as GenreFilter)}
+            aria-label="Dạng bài"
+            className={FIELD_CLASS}
+          >
+            <option value="all">Tất cả dạng bài</option>
+            <option value="NLVH">{GENRE_LABELS.NLVH}</option>
+            <option value="NLXH">{GENRE_LABELS.NLXH}</option>
+          </select>
+        )}
+        {grades.length > 1 && (
+          <select value={grade} onChange={(e) => setGrade(e.target.value)} aria-label="Khối lớp" className={FIELD_CLASS}>
+            <option value="all">Tất cả khối</option>
+            {grades.map((value) => (
+              <option key={value} value={String(value)}>
+                Khối {value}
+              </option>
+            ))}
+          </select>
+        )}
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="h-9 px-2 text-xs font-semibold text-secondary hover:underline"
+          >
+            Xoá lọc
+          </button>
         )}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-pulse" aria-busy="true">
-          <div className="lg:col-span-5 space-y-3">
-            {[0, 1, 2].map((key) => (
-              <div key={key} className="h-28 rounded-2xl bg-surface-container" />
-            ))}
-          </div>
-          <div className="lg:col-span-7 h-96 rounded-2xl bg-surface-container" />
-        </div>
+        <div className="p-12 text-center text-sm text-on-surface-variant">Đang tải ngữ liệu...</div>
       ) : error ? (
-        <StateCard
-          icon="cloud_off"
-          title="Không tải được ngữ liệu"
-          body={error}
-          action={
-            <button
-              type="button"
-              onClick={() => void load()}
-              className="px-4 py-1.5 bg-secondary text-white text-xs font-semibold rounded-xl hover:bg-secondary/90 shadow-sm"
-            >
-              Thử lại
-            </button>
-          }
-        />
+        <div className="p-3 bg-error-container/50 text-error text-sm rounded-lg flex items-center justify-between gap-2">
+          <span>{error}</span>
+          <button type="button" className="text-xs font-semibold" onClick={() => void load()}>
+            Thử lại
+          </button>
+        </div>
       ) : items.length === 0 ? (
-        <StateCard
-          icon="local_library"
-          title="Chưa có ngữ liệu để xem"
-          body="Giáo viên lớp em chưa đưa ngữ liệu nào lên kho, hoặc em chưa được thêm vào lớp. Khi có ngữ liệu, em sẽ thấy ở đây."
-        />
-      ) : filtered.length === 0 ? (
-        <StateCard
-          icon="search_off"
-          title="Không tìm thấy ngữ liệu phù hợp"
-          body="Em thử từ khóa khác hoặc bỏ bộ lọc."
-          action={
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="px-4 py-1.5 bg-secondary text-white text-xs font-semibold rounded-xl hover:bg-secondary/90 shadow-sm"
-            >
-              Bỏ bộ lọc
-            </button>
-          }
-        />
+        <div className="p-12 text-center text-sm text-on-surface-variant">
+          Giáo viên lớp em chưa đưa ngữ liệu nào lên kho, hoặc em chưa được thêm vào lớp. Khi có ngữ liệu, em sẽ thấy ở
+          đây.
+        </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* List */}
-          <div className="lg:col-span-5 space-y-3 lg:max-h-[calc(100vh-260px)] lg:overflow-y-auto lg:pr-1 scrollbar-thin">
-            {filtered.map((item) => {
-              const active = selected?.id === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => choose(item.id)}
-                  className={`w-full text-left p-4 rounded-2xl border transition-all glass-card ${
-                    active
-                      ? 'border-secondary shadow-md ring-2 ring-secondary/25'
-                      : 'border-outline-variant/30 hover:border-secondary/40 shadow-xs'
-                  }`}
-                >
-                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                    {item.genre && (
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-secondary bg-secondary-fixed/40 px-2 py-0.5 rounded-md">
-                        {item.genre}
-                      </span>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 items-start">
+          <section
+            aria-label="Danh sách ngữ liệu"
+            className="flex flex-col rounded-xl border border-outline-variant/40 bg-surface-container-lowest overflow-hidden max-h-[60vh] lg:max-h-[calc(100dvh-6.5rem)] lg:sticky lg:top-20"
+          >
+            <div className="px-4 py-2.5 border-b border-outline-variant/30 text-xs text-on-surface-variant">
+              <strong className="font-semibold text-on-surface tabular-nums">{filtered.length}</strong> ngữ liệu
+              {hasActiveFilters ? ' khớp bộ lọc' : ''}
+            </div>
+            <div className="relative flex-1 min-h-0 overflow-y-auto overscroll-contain">
+              {filtered.length === 0 ? (
+                <p className="p-8 text-center text-sm text-on-surface-variant">
+                  Không tìm thấy ngữ liệu phù hợp. Em thử từ khóa khác hoặc bỏ bộ lọc.
+                </p>
+              ) : (
+                groups.map((group) => (
+                  <div key={group.label} role={showGroups ? 'group' : undefined} aria-label={showGroups ? group.label : undefined}>
+                    {showGroups && (
+                      <p className="sticky top-0 z-20 h-8 px-4 flex items-center gap-1.5 bg-surface-container-low border-b border-outline-variant/30 text-xs font-semibold text-on-surface-variant">
+                        <span className="truncate">{group.label}</span>
+                        <span className="font-normal tabular-nums">{group.items.length}</span>
+                      </p>
                     )}
-                    <span className="text-[10px] font-semibold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-md">
-                      Khối {item.gradeLevel}
-                    </span>
-                    {item.topicTitle && (
-                      <span className="text-[10px] text-on-surface-variant truncate max-w-[60%]">{item.topicTitle}</span>
-                    )}
+                    <ul>
+                      {group.items.map((item) => {
+                        const isSelected = selected?.id === item.id;
+                        return (
+                          <li
+                            key={item.id}
+                            className={`relative flex items-start gap-3 px-4 py-3 border-b border-outline-variant/20 last:border-b-0 transition-colors ${
+                              isSelected ? 'bg-surface-container-low' : 'hover:bg-surface-container-low/60'
+                            }`}
+                          >
+                            {isSelected && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px] bg-primary" />}
+                            <span aria-hidden="true" className="material-symbols-outlined text-[20px] mt-0.5 shrink-0 text-on-surface-variant">
+                              menu_book
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => choose(item.id)}
+                              aria-current={isSelected ? 'true' : undefined}
+                              className="flex-1 min-w-0 text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-secondary"
+                            >
+                              <span className="block text-sm font-semibold text-on-surface leading-snug line-clamp-2">
+                                {item.title}
+                              </span>
+                              <span className="mt-0.5 block truncate text-xs text-on-surface-variant">
+                                {item.author || 'Chưa có tác giả'} · Khối {item.gradeLevel}
+                              </span>
+                            </button>
+                            {item.genre && (
+                              <span className="relative z-10 shrink-0 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-secondary-fixed/60 text-secondary">
+                                {item.genre}
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <h3 className="text-sm font-bold text-on-surface font-merriweather line-clamp-2">{item.title}</h3>
-                  {item.author && <p className="text-[11px] text-on-surface-variant mt-0.5">{item.author}</p>}
-                  {item.excerpt && (
-                    <p className="text-xs text-on-surface-variant leading-relaxed mt-2 line-clamp-3">{item.excerpt}</p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                ))
+              )}
+            </div>
+          </section>
 
-          {/* Reader */}
           <div
             ref={readerRef}
-            className="lg:col-span-7 glass-panel rounded-2xl shadow-sm overflow-hidden lg:sticky lg:top-4 scroll-mt-20"
+            className="scroll-mt-20 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6.5rem)] lg:overflow-y-auto overscroll-contain rounded-xl"
           >
             {selected && (
-              <>
-                <div className="p-5 sm:p-6 border-b border-outline-variant/20 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1 min-w-0">
-                      <h2 className="text-lg sm:text-xl font-bold font-merriweather text-on-surface leading-snug">
-                        {selected.title}
-                      </h2>
-                      {selected.author && (
-                        <p className="text-sm text-on-surface-variant">{selected.author}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0" role="group" aria-label="Cỡ chữ đọc">
-                      <button
-                        type="button"
-                        onClick={() => setReadingSize((size) => Math.max(0, size - 1))}
-                        disabled={readingSize === 0}
-                        aria-label="Giảm cỡ chữ"
-                        className="w-8 h-8 rounded-lg border border-outline-variant/50 text-xs font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-40"
-                      >
-                        A−
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setReadingSize((size) => Math.min(READING_SIZES.length - 1, size + 1))}
-                        disabled={readingSize === READING_SIZES.length - 1}
-                        aria-label="Tăng cỡ chữ"
-                        className="w-8 h-8 rounded-lg border border-outline-variant/50 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-40"
-                      >
-                        A+
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-on-surface-variant">
-                    {selected.topicTitle && (
-                      <span className="inline-flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">folder</span>
-                        {selected.topicTitle}
+              <div className="rounded-2xl border border-outline-variant/40 bg-surface-container-lowest p-5 sm:p-7 space-y-6 shadow-sm">
+                <div className="flex items-start justify-between gap-4 pb-5 border-b border-outline-variant/20">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                        Ngữ liệu
                       </span>
-                    )}
-                    {selected.genre && <span>{GENRE_LABELS[selected.genre] || selected.genre}</span>}
-                    <span>Khối {selected.gradeLevel}</span>
-                    {formatDate(selected.updatedAt) && <span>Cập nhật {formatDate(selected.updatedAt)}</span>}
+                      <span className="text-xs text-on-surface-variant font-medium">Khối {selected.gradeLevel}</span>
+                    </div>
+                    <h2 className="font-headline-md text-xl sm:text-2xl font-bold text-on-surface font-merriweather leading-snug">
+                      {selected.title}
+                    </h2>
+                    <p className="text-xs text-on-surface-variant mt-1">
+                      {[
+                        selected.author || 'Chưa có tác giả',
+                        selected.topicTitle,
+                        selected.genre ? GENRE_LABELS[selected.genre] || selected.genre : null,
+                        formatDate(selected.updatedAt) ? `Cập nhật ${formatDate(selected.updatedAt)}` : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0" role="group" aria-label="Cỡ chữ đọc">
+                    <button
+                      type="button"
+                      onClick={() => setReadingSize((size) => Math.max(0, size - 1))}
+                      disabled={readingSize === 0}
+                      aria-label="Giảm cỡ chữ"
+                      className="w-8 h-8 rounded-lg border border-outline-variant/50 text-xs font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-40"
+                    >
+                      A−
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReadingSize((size) => Math.min(READING_SIZES.length - 1, size + 1))}
+                      disabled={readingSize === READING_SIZES.length - 1}
+                      aria-label="Tăng cỡ chữ"
+                      className="w-8 h-8 rounded-lg border border-outline-variant/50 text-sm font-bold text-on-surface-variant hover:bg-surface-container disabled:opacity-40"
+                    >
+                      A+
+                    </button>
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 lg:max-h-[calc(100vh-380px)] overflow-y-auto scrollbar-thin">
-                  {detailLoading ? (
-                    <div className="space-y-3 animate-pulse" aria-busy="true">
-                      {[0, 1, 2, 3, 4].map((key) => (
-                        <div key={key} className="h-4 rounded bg-surface-container" style={{ width: `${92 - key * 9}%` }} />
-                      ))}
+                {detailLoading && <p className="text-sm text-on-surface-variant">Đang tải nội dung ngữ liệu...</p>}
+                {detailError && (
+                  <div className="p-3 bg-error-container/50 text-error text-sm rounded-lg flex items-center justify-between gap-2">
+                    <span>{detailError}</span>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold"
+                      onClick={() => setDetailNonce((value) => value + 1)}
+                    >
+                      Thử lại
+                    </button>
+                  </div>
+                )}
+
+                {shown && (
+                  <>
+                    <div className="space-y-2.5">
+                      <PreviewLabel icon="auto_stories">Nội dung ngữ liệu</PreviewLabel>
+                      <div className="relative px-5 sm:px-6 py-5 rounded-xl bg-[#fffcf7] border border-outline-variant/40">
+                        <span aria-hidden="true" className="absolute left-0 top-4 bottom-4 w-1 rounded-full bg-primary/60" />
+                        <span
+                          aria-hidden="true"
+                          className="absolute right-4 top-1 font-merriweather text-6xl leading-none text-primary-fixed-dim/50 select-none"
+                        >
+                          &rdquo;
+                        </span>
+                        <pre
+                          className={`relative whitespace-pre-wrap font-merriweather leading-[1.9] text-on-surface ${READING_SIZES[readingSize]}`}
+                        >
+                          {shown.content || 'Ngữ liệu này chưa có nội dung văn bản.'}
+                        </pre>
+                      </div>
                     </div>
-                  ) : detailError ? (
-                    <div className="text-sm text-error flex flex-col items-start gap-3">
-                      <p>{detailError}</p>
-                      <button
-                        type="button"
-                        onClick={() => setDetailNonce((value) => value + 1)}
-                        className="px-3 py-1.5 rounded-xl border border-error/40 text-xs font-semibold hover:bg-error/5"
-                      >
-                        Thử lại
-                      </button>
-                    </div>
-                  ) : shown ? (
-                    <article className="space-y-6">
-                      <div
-                        className={`font-merriweather text-on-surface leading-loose space-y-4 ${READING_SIZES[readingSize]}`}
-                      >
-                        {paragraphs(shown.content || '').map((block, index) => (
-                          <p key={index} className="whitespace-pre-line">
-                            {block}
-                          </p>
-                        ))}
-                        {!shown.content && (
-                          <p className="text-sm text-on-surface-variant">Ngữ liệu này chưa có nội dung văn bản.</p>
+
+                    {(shown.sourceInfo || (shown.sourceNotes && shown.sourceNotes.length > 0)) && (
+                      <div className="space-y-1.5">
+                        <PreviewLabel icon="bookmark">Nguồn ngữ liệu</PreviewLabel>
+                        {shown.sourceInfo && (
+                          <p className="text-sm leading-relaxed text-on-surface-variant whitespace-pre-line">{shown.sourceInfo}</p>
+                        )}
+                        {shown.sourceNotes && shown.sourceNotes.length > 0 && (
+                          <ul className="list-disc pl-5 space-y-1 text-sm leading-relaxed text-on-surface-variant">
+                            {shown.sourceNotes.map((note, index) => (
+                              <li key={index}>{note}</li>
+                            ))}
+                          </ul>
                         )}
                       </div>
-
-                      {(shown.sourceInfo || (shown.sourceNotes && shown.sourceNotes.length > 0)) && (
-                        <div className="p-4 rounded-xl bg-surface-container-low/60 border border-outline-variant/30 space-y-2 text-xs text-on-surface-variant">
-                          <p className="font-bold text-on-surface flex items-center gap-1.5">
-                            <span className="material-symbols-outlined text-sm text-secondary">bookmark</span>
-                            Nguồn ngữ liệu
-                          </p>
-                          {shown.sourceInfo && <p className="leading-relaxed whitespace-pre-line">{shown.sourceInfo}</p>}
-                          {shown.sourceNotes && shown.sourceNotes.length > 0 && (
-                            <ul className="list-disc pl-5 space-y-1">
-                              {shown.sourceNotes.map((note, index) => (
-                                <li key={index} className="leading-relaxed">
-                                  {note}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      )}
-                    </article>
-                  ) : null}
-                </div>
-              </>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function StateCard({
-  icon,
-  title,
-  body,
-  action,
-}: {
-  icon: string;
-  title: string;
-  body: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="glass-panel p-10 rounded-2xl shadow-xs text-center flex flex-col items-center gap-3">
-      <div className="w-12 h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center">
-        <span className="material-symbols-outlined text-2xl">{icon}</span>
-      </div>
-      <p className="text-sm font-bold font-merriweather text-on-surface">{title}</p>
-      <p className="text-xs text-on-surface-variant leading-relaxed max-w-md">{body}</p>
-      {action}
     </div>
   );
 }
