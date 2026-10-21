@@ -16,6 +16,7 @@ interface ClassDataState {
   error: string;
   loadTerms: (force?: boolean) => Promise<void>;
   loadClassrooms: (termId: string, force?: boolean) => Promise<void>;
+  invalidateClassrooms: () => void;
   reset: () => void;
 }
 
@@ -83,6 +84,8 @@ export const useClassDataStore = create<ClassDataState>()((set, get) => ({
         classroomsLoading: true,
         error: '',
       });
+    } else if (force) {
+      set({ classroomsLoadedForTermId: '', classroomsLoading: true, error: '' });
     }
     return classroomGate(termId).run(async () => {
       set({ classroomsLoading: true, error: '' });
@@ -107,6 +110,7 @@ export const useClassDataStore = create<ClassDataState>()((set, get) => ({
       }
     });
   },
+  invalidateClassrooms: () => set({ classroomsLoadedForTermId: '' }),
   reset: () => {
     resetRequestGates();
     set(INITIAL_DATA);

@@ -146,6 +146,9 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
 
           {/* Teacher Navigation Group */}
           <div className="px-3 py-space-sm">
+            <div className="lg:hidden pb-3">
+              <TermClassSwitcher fullWidth />
+            </div>
             {!collapsed && (
               <div className="px-space-sm pb-space-xs font-label-sm text-label-sm uppercase tracking-wider text-outline text-[11px]">
                 Không gian Giáo viên

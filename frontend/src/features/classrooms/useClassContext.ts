@@ -24,6 +24,7 @@ export function useTeacherClassContext({ role = 'teacher' }: { role?: 'teacher' 
   const error = useClassDataStore((state) => state.error);
   const loadTerms = useClassDataStore((state) => state.loadTerms);
   const loadClassrooms = useClassDataStore((state) => state.loadClassrooms);
+  const invalidateClassrooms = useClassDataStore((state) => state.invalidateClassrooms);
   const resetData = useClassDataStore((state) => state.reset);
   const resetContext = useClassContext((state) => state.reset);
   const userContextReady = !shouldResetClassContext(storedUserId, currentUserId);
@@ -58,6 +59,7 @@ export function useTeacherClassContext({ role = 'teacher' }: { role?: 'teacher' 
 
   const reload = useCallback(async () => {
     if (role !== 'teacher' || !userContextReady) return;
+    invalidateClassrooms();
     await loadTerms(true);
     const latestTerms = useClassDataStore.getState().terms;
     const storedTermId = useClassContext.getState().termId;
@@ -65,7 +67,7 @@ export function useTeacherClassContext({ role = 'teacher' }: { role?: 'teacher' 
     if (!selected) return;
     if (selected.id !== storedTermId) setStoredTerm(selected.id);
     await loadClassrooms(selected.id, true);
-  }, [role, userContextReady, loadTerms, loadClassrooms, setStoredTerm]);
+  }, [role, userContextReady, loadTerms, loadClassrooms, invalidateClassrooms, setStoredTerm]);
   const term = terms.find((item) => item.id === termId);
   const classroom = classrooms.find((item) => item.id === classroomId);
 

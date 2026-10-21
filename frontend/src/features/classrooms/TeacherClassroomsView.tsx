@@ -17,7 +17,7 @@ export default function TeacherClassroomsView() {
   const router = useRouter();
   const { addToast } = useAppStore();
   const [showArchived, setShowArchived] = useState(false);
-  const { terms, term, classrooms, loading, error, setTerm, setClassroom, reload } = useTeacherClassContext();
+  const { terms, term, classrooms, loading, error, setTerm, setClassroom, select, reload } = useTeacherClassContext();
   const [archivedClassrooms, setArchivedClassrooms] = useState<ClassroomSummary[]>([]);
   const [archivedLoading, setArchivedLoading] = useState(false);
   const [archivedError, setArchivedError] = useState('');
@@ -93,13 +93,14 @@ export default function TeacherClassroomsView() {
         name: name.trim() || undefined,
         subject: subject.trim() || undefined,
       });
-      setClassroom(created.id);
+      await reload();
+      select(term.id, created.id);
       setCode('');
       setName('');
       setSubject('Ngữ văn');
       setShowForm(false);
       addToast(`Đã tạo lớp ${created.code}.`, 'success');
-      reloadClassrooms();
+      if (showArchived) setArchivedReloadNonce((value) => value + 1);
     } catch (err) {
       if (err instanceof AuthApiError) {
         setFormError(err.message);

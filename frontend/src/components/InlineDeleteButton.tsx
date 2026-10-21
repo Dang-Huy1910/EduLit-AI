@@ -4,8 +4,10 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 
 interface InlineDeleteButtonProps {
-  /** Accessible name of the trash button, e.g. "Xóa bài tập Khói nhà máy". */
+  /** Accessible name of the confirmation trigger, e.g. "Xóa bài tập Khói nhà máy". */
   label: string;
+  /** Material Symbols icon for the trigger. */
+  icon?: string;
   title: string;
   description: string;
   /** This item is being deleted. */
@@ -34,6 +36,7 @@ interface Placement {
  */
 export default function InlineDeleteButton({
   label,
+  icon = 'delete',
   title,
   description,
   busy,
@@ -119,7 +122,7 @@ export default function InlineDeleteButton({
         }`}
       >
         <span className="material-symbols-outlined text-[19px]" aria-hidden="true">
-          delete
+          {icon}
         </span>
       </button>
 
