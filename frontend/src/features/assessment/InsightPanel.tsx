@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { InsightState, IssueStat, StatsMode } from './types';
 import { formatPercent, insightStatusLabel, modeShort } from './labels';
 
@@ -117,35 +117,90 @@ export default function InsightPanel({
       ) : (
         <p className="text-xs text-on-surface-variant">Chưa có gợi ý cho bộ lọc hiện tại.</p>
       )}
-      <div className="pt-2 border-t border-outline-variant/20 space-y-2">
-        <span className="text-[11px] font-bold uppercase text-on-surface-variant">Lỗi phổ biến</span>
+      <CommonIssues issues={issues} />
+    </div>
+  );
+}
+
+const VISIBLE_ISSUES = 3;
+
+function issueSourceLabel(issue: IssueStat) {
+  if (issue.teacherConfirmed) return 'Giáo viên đã điều chỉnh/xác nhận toàn bộ occurrence của mã này';
+  if (issue.source === 'mixed') return 'Gồm cả AI và giáo viên; một occurrence xác nhận không biến cả nhóm thành đã xác nhận';
+  return 'AI phát hiện, chưa coi là giáo viên xác nhận';
+}
+
+/** Collapsed by default: AI flags many minor issues, so teachers opt in to the details. */
+function CommonIssues({ issues }: { issues: IssueStat[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? issues : issues.slice(0, VISIBLE_ISSUES);
+  const hidden = issues.length - VISIBLE_ISSUES;
+
+  return (
+    <details className="group/issues pt-2 border-t border-outline-variant/20">
+      <summary className="flex items-center justify-between gap-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <span className="text-[11px] font-bold uppercase text-on-surface-variant">
+          Lỗi phổ biến{issues.length > 0 ? ` (${issues.length})` : ''}
+        </span>
+        <span className="flex items-center gap-1 text-[11px] text-on-surface-variant">
+          <span className="group-open/issues:hidden">Xem</span>
+          <span className="hidden group-open/issues:inline">Thu gọn</span>
+          <span className="material-symbols-outlined text-sm transition-transform group-open/issues:rotate-180" aria-hidden="true">
+            expand_more
+          </span>
+        </span>
+      </summary>
+      <div className="mt-2 space-y-1.5">
         {issues.length === 0 ? (
           <p className="text-xs text-on-surface-variant">Chưa có dữ liệu</p>
         ) : (
-          issues.map((issue) => (
-            <div key={issue.code} className="p-3 bg-surface-container-low/60 rounded-xl border text-xs space-y-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold">{issue.label}</span>
-                <span className="text-[10px] font-bold text-error bg-error-container/40 px-2 py-0.5 rounded-full">
-                  {issue.studentCount}/{issue.denominator} HS
-                </span>
-              </div>
-              <p className="text-[11px] text-on-surface-variant font-mono">{issue.code}</p>
-              <p className="text-[11px] text-on-surface-variant">
-                {issue.occurrenceCount} lần xuất hiện · {issue.paperCount ?? issue.studentCount} bài · {issue.studentCount} học sinh
-                {issue.studentRate !== null ? ` (${formatPercent(issue.studentRate)} / ${issue.denominator} kết quả)` : ''}
-              </p>
-              <p className="text-[11px] text-on-surface-variant">
-                {issue.teacherConfirmed
-                  ? 'Giáo viên đã điều chỉnh/xác nhận toàn bộ occurrence của mã này'
-                  : issue.source === 'mixed'
-                    ? 'Gồm cả AI và giáo viên; một occurrence xác nhận không biến cả nhóm thành đã xác nhận'
-                    : 'AI phát hiện, chưa coi là giáo viên xác nhận'}
-              </p>
-            </div>
-          ))
+          <>
+            <p className="text-[11px] text-on-surface-variant italic">
+              Phần lớn do AI tự phát hiện, chỉ mang tính tham khảo. Bấm vào từng lỗi để xem chi tiết.
+            </p>
+            {visible.map((issue) => (
+              <details
+                key={issue.code}
+                className="group/issue bg-surface-container-low/60 rounded-lg border border-outline-variant/30 text-xs"
+              >
+                <summary className="flex items-center gap-2 px-3 py-2 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                  <span className="material-symbols-outlined text-sm text-on-surface-variant transition-transform group-open/issue:rotate-90" aria-hidden="true">
+                    chevron_right
+                  </span>
+                  <span className="flex-1 min-w-0 font-semibold truncate group-open/issue:whitespace-normal" title={issue.label}>
+                    {issue.label}
+                  </span>
+                  {issue.teacherConfirmed ? (
+                    <span className="material-symbols-outlined text-sm text-primary" title="Giáo viên đã xác nhận" aria-label="Giáo viên đã xác nhận">
+                      verified
+                    </span>
+                  ) : null}
+                  <span className="shrink-0 whitespace-nowrap text-[10px] font-bold text-error bg-error-container/40 px-2 py-0.5 rounded-full">
+                    {issue.studentCount}/{issue.denominator} HS
+                  </span>
+                </summary>
+                <div className="px-3 pb-2 pl-8 space-y-1 text-[11px] text-on-surface-variant">
+                  <p className="font-mono">{issue.code}</p>
+                  <p>
+                    {issue.occurrenceCount} lần xuất hiện · {issue.paperCount ?? issue.studentCount} bài · {issue.studentCount} học sinh
+                    {issue.studentRate !== null ? ` (${formatPercent(issue.studentRate)} / ${issue.denominator} kết quả)` : ''}
+                  </p>
+                  <p>{issueSourceLabel(issue)}</p>
+                </div>
+              </details>
+            ))}
+            {hidden > 0 ? (
+              <button
+                type="button"
+                onClick={() => setShowAll((value) => !value)}
+                className="w-full py-1.5 text-[11px] font-semibold text-primary hover:underline"
+              >
+                {showAll ? 'Ẩn bớt' : `Xem thêm ${hidden} lỗi`}
+              </button>
+            ) : null}
+          </>
         )}
       </div>
-    </div>
+    </details>
   );
 }
