@@ -550,8 +550,7 @@ export default function EvaluationResultView({
             </div>
             {detail.assessment.ai && detail.assessment.working ? (
               <p className="text-xs text-on-surface-variant">
-                Bản AI gốc được giữ; điểm trên là bản giáo viên đã rà soát nếu đã lưu. Chấm bởi {detail.assessment.provider}/
-                {detail.assessment.model} · {detail.assessment.promptVersion}.
+                Bản AI gốc được giữ; điểm trên là bản giáo viên đã rà soát nếu đã lưu.
               </p>
             ) : null}
           </div>

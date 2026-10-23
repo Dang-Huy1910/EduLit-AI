@@ -60,7 +60,6 @@ export default function StudentShell({
     {
       label: 'Chatbot Trợ lý Socratic',
       href: '/chatbot',
-      badge: 'GPT',
     },
     {
       label: 'Tra cứu ngữ liệu đọc hiểu',
@@ -249,11 +248,6 @@ export default function StudentShell({
                       )}
                       {!collapsed && <span>{item.label}</span>}
                     </div>
-                    {!collapsed && item.badge && (
-                      <span className="text-[10px] bg-secondary-fixed/50 text-secondary font-bold px-1.5 py-0.2 rounded-full uppercase">
-                        {item.badge}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
@@ -333,7 +327,6 @@ export default function StudentShell({
             >
               <AssistantMark className="w-4 h-4 shrink-0" />
               <span className="hidden xl:inline">EduLit Chatbot AI</span>
-              <span className="hidden xl:inline text-[10px] bg-white/20 px-1 py-0.2 rounded-full uppercase font-mono">GPT</span>
             </Link>
 
             <div className="hidden 2xl:flex items-center gap-2 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 px-2.5 py-1 rounded-full font-caption text-xs font-semibold shadow-2xs">

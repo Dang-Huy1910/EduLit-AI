@@ -36,7 +36,7 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
     { label: 'Lớp học', href: '/classrooms', icon: 'groups' },
     { label: 'Kho ngữ liệu & Chuyên đề', href: '/materials', icon: 'menu_book' },
     { label: 'Báo cáo năng lực', href: '/reports', icon: 'analytics' },
-    { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot', badge: 'GPT' },
+    { label: 'Chatbot Trợ lý Sư phạm', href: '/chatbot' },
   ];
 
   const handleLogout = async () => {
@@ -179,11 +179,6 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
                       )}
                       {!collapsed && <span>{item.label}</span>}
                     </div>
-                    {!collapsed && item.badge && (
-                      <span className="text-[10px] bg-secondary-fixed/50 text-secondary font-bold px-1.5 py-0.2 rounded-full uppercase">
-                        {item.badge}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
@@ -255,7 +250,6 @@ export default function TeacherShell({ children, breadcrumb }: TeacherShellProps
             >
               <AssistantMark className="w-4 h-4 shrink-0" />
               <span>EduLit Chatbot AI</span>
-              <span className="text-[10px] bg-white/20 px-1 py-0.2 rounded-full uppercase font-mono">GPT</span>
             </Link>
 
             <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/25 px-2.5 py-1 rounded-full font-caption text-xs font-semibold shadow-2xs">
