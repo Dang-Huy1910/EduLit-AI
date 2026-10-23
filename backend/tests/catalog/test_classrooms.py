@@ -471,7 +471,7 @@ async def test_teacher_extends_due_at_of_published_assignment(
     published = await _publish_whole_class(client, classroom.id)
 
     extended = await client.patch(
-        f"/api/teacher/assignments/{published['id']}/due-at",
+        f"/api/teacher/assignments/{published['id']}/settings",
         headers=HEADERS,
         json={"dueAt": "2026-12-01T16:59:00Z"},
     )
@@ -486,7 +486,7 @@ async def test_teacher_extends_due_at_of_published_assignment(
 
     await login_as(client, settings, db_session, teacher_user)
     cleared = await client.patch(
-        f"/api/teacher/assignments/{published['id']}/due-at", headers=HEADERS, json={"dueAt": None}
+        f"/api/teacher/assignments/{published['id']}/settings", headers=HEADERS, json={"dueAt": None}
     )
     assert cleared.status_code == 200, cleared.text
     assert cleared.json()["dueAt"] is None
@@ -496,9 +496,96 @@ async def test_teacher_extends_due_at_of_published_assignment(
     classroom.academic_year = ended.academic_year
     await db_session.commit()
     blocked = await client.patch(
-        f"/api/teacher/assignments/{published['id']}/due-at",
+        f"/api/teacher/assignments/{published['id']}/settings",
         headers=HEADERS,
         json={"dueAt": "2026-12-05T16:59:00Z"},
     )
     assert blocked.status_code == 409
     assert blocked.json()["error"]["code"] == "CLASSROOM_READ_ONLY"
+
+
+@pytest.mark.asyncio
+async def test_published_assignment_edits_safe_settings_and_only_adds_students(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+    settings: Settings,
+) -> None:
+    classroom = await seed_classroom_with_student(db_session, teacher_user, student_user)
+    second = await create_user(db_session, settings, client, role=UserRole.STUDENT, prefix="second")
+    db_session.add(
+        ClassMembership(
+            classroom_id=classroom.id, user_id=second.id, membership_role="STUDENT", status="ACTIVE"
+        )
+    )
+    await db_session.commit()
+
+    catalog = await _create_ready_prompt(client)
+    created = await client.post(
+        "/api/teacher/assignments",
+        headers=HEADERS,
+        json={
+            "sourcePromptId": catalog["prompt"]["id"],
+            "rubricId": catalog["rubric"]["id"],
+            "classroomId": str(classroom.id),
+            "recipientStudentIds": [str(student_user.id)],
+            "title": "Bài chọn học sinh",
+        },
+    )
+    assert created.status_code == 201, created.text
+    published = await client.post(
+        f"/api/teacher/assignments/{created.json()['id']}/publish", headers=HEADERS, json={}
+    )
+    assert published.status_code == 200, published.text
+    assignment_id = published.json()["id"]
+    revision_id = uuid.UUID(published.json()["publishedRevisionId"])
+
+    removed = await client.patch(
+        f"/api/teacher/assignments/{assignment_id}/settings",
+        headers=HEADERS,
+        json={"recipientStudentIds": [str(second.id)]},
+    )
+    assert removed.status_code == 409
+    assert removed.json()["error"]["code"] == "RECIPIENT_REMOVAL"
+
+    updated = await client.patch(
+        f"/api/teacher/assignments/{assignment_id}/settings",
+        headers=HEADERS,
+        json={
+            "title": "Bài chọn học sinh (sửa)",
+            "extraInstructions": "Chú ý trích dẫn.",
+            "recipientStudentIds": [str(student_user.id), str(second.id)],
+        },
+    )
+    assert updated.status_code == 200, updated.text
+    body = updated.json()
+    assert body["title"] == "Bài chọn học sinh (sửa)"
+    assert body["publishedExtraInstructions"] == "Chú ý trích dẫn."
+    assert body["publishedRevisionId"] == str(revision_id)
+    assert body["recipientCount"] == 2
+
+    access = (
+        await db_session.execute(
+            select(AssignmentAccess).where(
+                AssignmentAccess.assignment_revision_id == revision_id,
+                AssignmentAccess.student_id == second.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert access is not None
+    prep = (
+        await db_session.execute(
+            select(StudentOutlinePrep).where(
+                StudentOutlinePrep.assignment_revision_id == revision_id,
+                StudentOutlinePrep.student_id == second.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert prep is not None
+
+    await login_as(client, settings, db_session, second)
+    payload = await client.get(f"/api/assignments/{assignment_id}/submission", headers=HEADERS)
+    assert payload.status_code == 200, payload.text
+    assert payload.json()["assignment"]["title"] == "Bài chọn học sinh (sửa)"
+    assert payload.json()["assignment"]["extraInstructions"] == "Chú ý trích dẫn."

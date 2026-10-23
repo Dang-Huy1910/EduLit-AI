@@ -107,15 +107,15 @@ async def update_teacher_assignment(
         _raise(exc)
 
 
-@teacher_router.patch("/{assignment_id}/due-at")
-async def update_teacher_assignment_due_at(
+@teacher_router.patch("/{assignment_id}/settings")
+async def update_published_assignment_settings(
     assignment_id: uuid.UUID,
     body: dict[str, Any],
     teacher: Annotated[User, Depends(get_teacher)],
     service: Annotated[AssignmentService, Depends(get_assignment_service)],
 ) -> dict[str, Any]:
     try:
-        return await service.update_due_at(teacher, assignment_id, body)
+        return await service.update_published_settings(teacher, assignment_id, body)
     except CatalogError as exc:
         _raise(exc)
 

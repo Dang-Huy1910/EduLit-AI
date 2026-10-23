@@ -313,28 +313,67 @@ class AssignmentService:
             raise CatalogError(409, "ASSIGNMENT_CODE", "Mã bài tập đã tồn tại.") from exc
         return await self.get_teacher_assignment(teacher, assignment.id)
 
-    async def update_due_at(
+    async def update_published_settings(
         self, teacher: User, assignment_id: uuid.UUID, body: dict[str, Any]
     ) -> dict[str, Any]:
-        """Change the deadline of a draft or published assignment (e.g. to extend it)."""
+        """Edit the safe settings of a published assignment.
+
+        Only fields that do not invalidate submitted work or prepared outlines:
+        title, extra instructions, due date, and adding recipients. The prompt,
+        materials and rubric stay frozen in the published revision.
+        """
         _require_teacher(teacher)
         assignment = await self._owned_assignment(teacher, assignment_id)
-        if assignment.status not in {"DRAFT", "PUBLISHED"}:
-            raise CatalogError(409, "ASSIGNMENT_STATUS", "Không thể đổi hạn nộp của bài tập này.")
+        if assignment.status != "PUBLISHED" or not assignment.published_revision_id:
+            raise CatalogError(409, "ASSIGNMENT_STATUS", "Chỉ chỉnh được cấu hình của bài tập đã giao.")
         if assignment.classroom_id:
             await self._ensure_classroom_writable(teacher, assignment.classroom_id)
+        revision = await self.session.get(AssignmentRevision, assignment.published_revision_id)
+        if revision is None:
+            raise CatalogError(409, "ASSIGNMENT_STATUS", "Không tìm thấy bản đã giao của bài tập.")
+        snapshot = dict(revision.snapshot or {})
+        instructions = dict(revision.instructions or {})
 
-        due_at = _parse_due_at(body.get("dueAt"))
-        assignment.due_at = due_at
+        if "title" in body:
+            title = _text(body.get("title"), "title")
+            assignment.title = title
+            revision.title = title
+            snapshot["title"] = title
+            instructions["topic"] = title
+        if "extraInstructions" in body:
+            extra = _text(body.get("extraInstructions"), "extraInstructions", required=False, max_len=8000)
+            assignment.extra_instructions = extra
+            snapshot["extraInstructions"] = extra
+            instructions["extra_instructions"] = extra
+        if "dueAt" in body:
+            due_at = _parse_due_at(body.get("dueAt"))
+            assignment.due_at = due_at
+            revision.due_at = due_at
+            snapshot["dueAt"] = due_at.isoformat() if due_at else None
+
+        if "assignToWholeClass" in body or "recipientStudentIds" in body:
+            previous = list(assignment.recipient_student_ids or [])
+            requested = _recipient_ids_from_body(body)
+            if not _is_whole_class(requested):
+                if _is_whole_class(previous) or not set(previous) <= set(requested):
+                    raise CatalogError(
+                        409,
+                        "RECIPIENT_REMOVAL",
+                        "Bài đã giao chỉ có thể thêm học sinh, không bớt học sinh đã nhận bài.",
+                    )
+            assignment.recipient_student_ids = requested
+            recipients = await self._resolve_recipients(teacher, assignment)
+            await grant_access(self.session, revision.id, recipients)
+            await outline_prep_service.enqueue_for_students(
+                self.session,
+                revision_id=revision.id,
+                student_ids=recipients,
+                max_attempts=get_settings().OUTLINE_PREP_MAX_ATTEMPTS,
+            )
+
+        revision.snapshot = snapshot
+        revision.instructions = instructions
         assignment.updated_at = utcnow()
-        if assignment.published_revision_id:
-            revision = await self.session.get(AssignmentRevision, assignment.published_revision_id)
-            if revision is not None:
-                revision.due_at = due_at
-                revision.snapshot = {
-                    **(revision.snapshot or {}),
-                    "dueAt": due_at.isoformat() if due_at else None,
-                }
         await self.session.commit()
         return await self.get_teacher_assignment(teacher, assignment.id)
 

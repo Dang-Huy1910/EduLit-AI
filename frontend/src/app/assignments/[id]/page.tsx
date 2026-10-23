@@ -150,7 +150,23 @@ function AssignmentEditorPage() {
     : prompt?.writingTask;
   const displayWritingSummary = isPublished ? snapshot?.writingTaskSummary : prompt?.writingTaskSummary;
   const displayMaterials = isPublished ? assignment?.publishedMaterials || snapshot?.materials || prompt?.materials : prompt?.materials;
-  const displayExtra = isPublished ? assignment?.publishedExtraInstructions ?? snapshot?.extraInstructions ?? extraInstructions : extraInstructions;
+  // Published: only title, due date, extra instructions and adding students stay editable.
+  const publishedLocked = isPublished && classroomIsReadOnly;
+  const publishedWholeClass = isPublished && Boolean(assignment?.assignToWholeClass);
+  const lockedRecipientIds = new Set(isPublished && !publishedWholeClass ? assignment?.recipientStudentIds || [] : []);
+  const publishedChanges = (): Record<string, unknown> => {
+    if (!isPublished || !assignment) return {};
+    const changes: Record<string, unknown> = {};
+    if (title.trim() !== assignment.title) changes.title = title;
+    if (extraInstructions !== (assignment.extraInstructions ?? '')) changes.extraInstructions = extraInstructions;
+    if (dueAt !== toDateTimeLocal(assignment.dueAt)) changes.dueAt = dueAt ? new Date(dueAt).toISOString() : null;
+    if (!publishedWholeClass) {
+      if (assignToWholeClass) changes.assignToWholeClass = true;
+      else if (recipientIds.some((id) => !lockedRecipientIds.has(id))) changes.recipientStudentIds = recipientIds;
+    }
+    return changes;
+  };
+  const hasPublishedChanges = Object.keys(publishedChanges()).length > 0;
 
   useEffect(() => {
     const gen = ++loadGen.current;
@@ -487,6 +503,26 @@ function AssignmentEditorPage() {
     }
   };
 
+  const handleSavePublished = async () => {
+    if (!assignment || !hasPublishedChanges) return;
+    setSaving(true);
+    try {
+      const updated = await catalogApi.updatePublishedAssignment(assignment.id, publishedChanges());
+      assignmentRef.current = updated;
+      setAssignment(updated);
+      setTitle(updated.title);
+      setExtraInstructions(updated.extraInstructions ?? '');
+      setDueAt(toDateTimeLocal(updated.dueAt));
+      setAssignToWholeClass(Boolean(updated.assignToWholeClass));
+      setRecipientIds(updated.recipientStudentIds || []);
+      addToast('Đã lưu thay đổi. Học sinh thấy thông tin mới ngay.', 'success');
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không lưu được thay đổi.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleCopyToClassroom = async () => {
     const target = copyTargets.find((item) => item.id === copyTargetId);
     if (!target) {
@@ -749,7 +785,7 @@ function AssignmentEditorPage() {
     >
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-outline-variant/20">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {currentRubric && (
                 <>
@@ -774,12 +810,12 @@ function AssignmentEditorPage() {
             </h1>
             <p className="text-xs text-on-surface-variant mt-1">
               {isPublished
-                ? 'Đề, ngữ liệu và barem đã chốt khi giao. Sửa kho sau đó không đổi bài này.'
+                ? 'Đề, ngữ liệu và barem đã chốt khi giao. Vẫn sửa được tiêu đề, hạn nộp, hướng dẫn bổ sung và thêm học sinh.'
                 : 'Barem đang soạn là bản của bài này, không sửa ngầm barem gốc.'}
             </p>
           </div>
           {isPublished ? (
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-wrap lg:flex-nowrap items-center justify-end gap-2 shrink-0 [&>*]:whitespace-nowrap">
               <Link
                 href="/assignments"
                 className="px-4 py-2 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-xs font-medium"
@@ -787,6 +823,18 @@ function AssignmentEditorPage() {
                 Về danh sách bài tập
               </Link>
               {copyAction}
+              {!publishedLocked && (
+                <button
+                  type="button"
+                  onClick={() => void handleSavePublished()}
+                  disabled={saving || loading || !hasPublishedChanges}
+                  title={hasPublishedChanges ? undefined : 'Chưa có thay đổi'}
+                  className="px-4 py-2 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-40"
+                >
+                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">save</span>
+                  {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-2">
@@ -975,7 +1023,7 @@ function AssignmentEditorPage() {
                     id="assignment-title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    disabled={isPublished}
+                    disabled={publishedLocked}
                     placeholder="Ví dụ: Phân tích hình ảnh làng quê trong bài thơ..."
                     className={`${INPUT_CLASS} text-[15px] font-semibold font-merriweather`}
                   />
@@ -1007,7 +1055,7 @@ function AssignmentEditorPage() {
                       type="datetime-local"
                       value={dueAt}
                       onChange={(e) => setDueAt(e.target.value)}
-                      disabled={isPublished}
+                      disabled={publishedLocked}
                       className={`${INPUT_CLASS} text-sm`}
                     />
                   </FormField>
@@ -1021,9 +1069,9 @@ function AssignmentEditorPage() {
                   <textarea
                     id="assignment-extra"
                     rows={4}
-                    value={isPublished ? displayExtra || extraInstructions : extraInstructions}
+                    value={extraInstructions}
                     onChange={(e) => setExtraInstructions(e.target.value)}
-                    disabled={isPublished}
+                    disabled={publishedLocked}
                     placeholder="Ví dụ: Chú ý phân tích ít nhất hai hình ảnh, trích dẫn chính xác câu thơ..."
                     className={`${INPUT_CLASS} text-sm font-merriweather leading-relaxed resize-y`}
                   />
@@ -1042,7 +1090,7 @@ function AssignmentEditorPage() {
                         members.length ? `Tất cả ${members.length} học sinh trong lớp đã chọn` : 'Tất cả học sinh trong lớp đã chọn'
                       }
                       checked={assignToWholeClass}
-                      disabled={isPublished}
+                      disabled={publishedLocked || publishedWholeClass}
                       onChange={() => {
                         setAssignToWholeClass(true);
                         setRecipientIds(members.map((member) => member.userId));
@@ -1056,10 +1104,17 @@ function AssignmentEditorPage() {
                         assignToWholeClass ? 'Chọn từng học sinh trong danh sách' : `Đã chọn ${recipientIds.length}/${members.length} học sinh`
                       }
                       checked={!assignToWholeClass}
-                      disabled={isPublished}
+                      disabled={publishedLocked || publishedWholeClass}
                       onChange={() => setAssignToWholeClass(false)}
                     />
                   </div>
+                  {isPublished && !publishedLocked && (
+                    <p className="text-[11px] text-on-surface-variant">
+                      {publishedWholeClass
+                        ? 'Bài giao toàn lớp: học sinh vào lớp sau cũng tự nhận bài.'
+                        : 'Bài đã giao chỉ thêm được học sinh, không bỏ được học sinh đã nhận bài.'}
+                    </p>
+                  )}
                   {memberIssue && (
                     <InlineRetry message={memberIssue} onRetry={() => setMemberNonce((value) => value + 1)} />
                   )}
@@ -1070,6 +1125,7 @@ function AssignmentEditorPage() {
                         return (
                           <label
                             key={member.userId}
+                            title={lockedRecipientIds.has(member.userId) ? 'Đã nhận bài — không bỏ được' : undefined}
                             className={`flex items-center gap-2 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${
                               checked ? 'bg-secondary/10 text-on-surface' : 'hover:bg-surface-container-lowest'
                             }`}
@@ -1078,7 +1134,7 @@ function AssignmentEditorPage() {
                               type="checkbox"
                               className="accent-secondary"
                               checked={checked}
-                              disabled={isPublished}
+                              disabled={publishedLocked || lockedRecipientIds.has(member.userId)}
                               onChange={(e) => {
                                 setAssignToWholeClass(false);
                                 setRecipientIds((prev) =>

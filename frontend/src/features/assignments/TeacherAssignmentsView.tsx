@@ -80,7 +80,7 @@ export default function TeacherAssignmentsView() {
   const handleSaveDueAt = async (assignment: TeacherAssignment, dueAt: string | null) => {
     setSavingDueId(assignment.id);
     try {
-      const updated = await catalogApi.updateAssignmentDueAt(assignment.id, dueAt);
+      const updated = await catalogApi.updatePublishedAssignment(assignment.id, { dueAt });
       setAssignments((current) =>
         current.map((item) => (item.id === assignment.id ? { ...item, dueAt: updated.dueAt } : item))
       );
