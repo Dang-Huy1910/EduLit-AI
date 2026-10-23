@@ -42,6 +42,8 @@ export const catalogApi = {
     apiSend<TeacherAssignment>('/api/teacher/assignments', 'POST', body),
   updateAssignment: (id: string, body: unknown) =>
     apiSend<TeacherAssignment>(`/api/teacher/assignments/${id}`, 'PATCH', body),
+  updateAssignmentDueAt: (id: string, dueAt: string | null) =>
+    apiSend<TeacherAssignment>(`/api/teacher/assignments/${encodeURIComponent(id)}/due-at`, 'PATCH', { dueAt }),
   deleteAssignment: (id: string) => apiSend<void>(`/api/teacher/assignments/${encodeURIComponent(id)}`, 'DELETE'),
   publishAssignment: (id: string) =>
     apiSend<TeacherAssignment>(`/api/teacher/assignments/${id}/publish`, 'POST', {}),

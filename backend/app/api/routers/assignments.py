@@ -107,6 +107,19 @@ async def update_teacher_assignment(
         _raise(exc)
 
 
+@teacher_router.patch("/{assignment_id}/due-at")
+async def update_teacher_assignment_due_at(
+    assignment_id: uuid.UUID,
+    body: dict[str, Any],
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[AssignmentService, Depends(get_assignment_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.update_due_at(teacher, assignment_id, body)
+    except CatalogError as exc:
+        _raise(exc)
+
+
 @teacher_router.delete("/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_teacher_assignment(
     assignment_id: uuid.UUID,

@@ -457,3 +457,48 @@ async def test_join_rate_limit_uses_class_join_bucket(
         assert response.status_code == 404
     limited = await client.post("/api/student/classrooms/join", headers=HEADERS, json={"code": "bad"})
     assert limited.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_teacher_extends_due_at_of_published_assignment(
+    client: AsyncClient,
+    teacher_user: User,
+    student_user: User,
+    db_session: AsyncSession,
+    settings: Settings,
+) -> None:
+    classroom = await seed_classroom_with_student(db_session, teacher_user, student_user)
+    published = await _publish_whole_class(client, classroom.id)
+
+    extended = await client.patch(
+        f"/api/teacher/assignments/{published['id']}/due-at",
+        headers=HEADERS,
+        json={"dueAt": "2026-12-01T16:59:00Z"},
+    )
+    assert extended.status_code == 200, extended.text
+    assert extended.json()["status"] == "PUBLISHED"
+    assert extended.json()["dueAt"].startswith("2026-12-01T16:59:00")
+
+    await login_as(client, settings, db_session, student_user)
+    payload = await client.get(f"/api/assignments/{published['id']}/submission", headers=HEADERS)
+    assert payload.status_code == 200, payload.text
+    assert payload.json()["assignment"]["dueAt"].startswith("2026-12-01T16:59:00")
+
+    await login_as(client, settings, db_session, teacher_user)
+    cleared = await client.patch(
+        f"/api/teacher/assignments/{published['id']}/due-at", headers=HEADERS, json={"dueAt": None}
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["dueAt"] is None
+
+    ended = await create_term(db_session, ended=True)
+    classroom.term_id = ended.id
+    classroom.academic_year = ended.academic_year
+    await db_session.commit()
+    blocked = await client.patch(
+        f"/api/teacher/assignments/{published['id']}/due-at",
+        headers=HEADERS,
+        json={"dueAt": "2026-12-05T16:59:00Z"},
+    )
+    assert blocked.status_code == 409
+    assert blocked.json()["error"]["code"] == "CLASSROOM_READ_ONLY"

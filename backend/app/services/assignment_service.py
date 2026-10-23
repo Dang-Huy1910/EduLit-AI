@@ -313,6 +313,31 @@ class AssignmentService:
             raise CatalogError(409, "ASSIGNMENT_CODE", "Mã bài tập đã tồn tại.") from exc
         return await self.get_teacher_assignment(teacher, assignment.id)
 
+    async def update_due_at(
+        self, teacher: User, assignment_id: uuid.UUID, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Change the deadline of a draft or published assignment (e.g. to extend it)."""
+        _require_teacher(teacher)
+        assignment = await self._owned_assignment(teacher, assignment_id)
+        if assignment.status not in {"DRAFT", "PUBLISHED"}:
+            raise CatalogError(409, "ASSIGNMENT_STATUS", "Không thể đổi hạn nộp của bài tập này.")
+        if assignment.classroom_id:
+            await self._ensure_classroom_writable(teacher, assignment.classroom_id)
+
+        due_at = _parse_due_at(body.get("dueAt"))
+        assignment.due_at = due_at
+        assignment.updated_at = utcnow()
+        if assignment.published_revision_id:
+            revision = await self.session.get(AssignmentRevision, assignment.published_revision_id)
+            if revision is not None:
+                revision.due_at = due_at
+                revision.snapshot = {
+                    **(revision.snapshot or {}),
+                    "dueAt": due_at.isoformat() if due_at else None,
+                }
+        await self.session.commit()
+        return await self.get_teacher_assignment(teacher, assignment.id)
+
     async def publish(self, teacher: User, assignment_id: uuid.UUID) -> dict[str, Any]:
         _require_teacher(teacher)
         result = await self.session.execute(

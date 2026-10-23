@@ -9,6 +9,7 @@ import { catalogApi } from '@/features/catalog/api';
 import { beginNewAssignmentDraft, clearAssignmentDraft, pickPromptHref } from '@/features/catalog/draft';
 import type { TeacherAssignment } from '@/features/catalog/types';
 import InlineDeleteButton from '@/components/InlineDeleteButton';
+import DueAtEditor from './DueAtEditor';
 import { termLabel } from '@/features/classrooms/model';
 import { useTeacherClassContext } from '@/features/classrooms/useClassContext';
 
@@ -20,6 +21,7 @@ export default function TeacherAssignmentsView() {
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState('');
   const [deletingId, setDeletingId] = useState('');
+  const [savingDueId, setSavingDueId] = useState('');
   const deletedIds = useRef(new Set<string>());
 
   useEffect(() => {
@@ -72,6 +74,23 @@ export default function TeacherAssignmentsView() {
       addToast(err instanceof AuthApiError ? err.message : 'Không xóa được bài tập. Hãy thử lại.', 'error');
     } finally {
       setDeletingId('');
+    }
+  };
+
+  const handleSaveDueAt = async (assignment: TeacherAssignment, dueAt: string | null) => {
+    setSavingDueId(assignment.id);
+    try {
+      const updated = await catalogApi.updateAssignmentDueAt(assignment.id, dueAt);
+      setAssignments((current) =>
+        current.map((item) => (item.id === assignment.id ? { ...item, dueAt: updated.dueAt } : item))
+      );
+      addToast(dueAt ? 'Đã cập nhật hạn nộp.' : 'Đã bỏ hạn nộp.', 'success');
+      return true;
+    } catch (err) {
+      addToast(err instanceof AuthApiError ? err.message : 'Không đổi được hạn nộp. Hãy thử lại.', 'error');
+      return false;
+    } finally {
+      setSavingDueId('');
     }
   };
 
@@ -252,6 +271,7 @@ export default function TeacherAssignmentsView() {
             {filtered.map((assignment) => {
               const isPublished = assignment.status === 'PUBLISHED';
               const due = describeDue(assignment.dueAt);
+              const canEditDue = isPublished && !(classrooms.find((item) => item.id === assignment.classroomId)?.readOnly);
               const subtitle = [assignment.sourcePromptTitle, assignment.extraInstructions].find(
                 (text) => text && text.trim() && text.trim() !== assignment.title.trim()
               );
@@ -291,14 +311,18 @@ export default function TeacherAssignmentsView() {
                             </>
                           )}
                         </span>
-                        <span
-                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${DUE_TONE[due.tone]}`}
-                          title={due.full}
+                        <DueAtEditor
+                          dueAt={assignment.dueAt}
+                          label={canEditDue ? `${due.full}. Bấm để gia hạn.` : due.full}
+                          busy={savingDueId === assignment.id}
+                          disabled={!canEditDue}
+                          triggerClassName={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${DUE_TONE[due.tone]}`}
+                          onSave={(next) => handleSaveDueAt(assignment, next)}
                         >
                           <span className="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
                           <span>{due.label}</span>
                           {due.relative && <span className="font-bold">· {due.relative}</span>}
-                        </span>
+                        </DueAtEditor>
                       </div>
                       <InlineDeleteButton
                         label={`Xóa bài tập ${assignment.title}`}
