@@ -233,9 +233,6 @@ class AssessmentService:
                     and published.transcription_revision_id != attempt.confirmed_revision_id
                     else None
                 ),
-                "provider": current_result.provider if current_result else None,
-                "model": current_result.model if current_result else None,
-                "promptVersion": current_result.prompt_version if current_result else None,
             },
             "pages": pages,
             "transcriptionPages": transcription,

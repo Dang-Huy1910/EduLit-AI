@@ -159,9 +159,6 @@ export interface TeacherAssessmentDetail {
     ai: AssessmentPayload | null;
     working: AssessmentPayload | null;
     published: AssessmentPayload | null;
-    provider: string | null;
-    model: string | null;
-    promptVersion: string | null;
   };
   pages: {
     id: string;
@@ -239,8 +236,6 @@ export interface InsightState {
   error: string | null;
   payload: InsightPayload | null;
   mode?: string;
-  promptVersion?: string;
-  model?: string | null;
 }
 
 export interface ScoreFormula {

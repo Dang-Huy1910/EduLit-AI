@@ -482,8 +482,6 @@ class ReportService:
             "error": row.last_error if row.status == INSIGHT_FAILED else None,
             "payload": row.payload if row.status == INSIGHT_READY else None,
             "mode": row.mode,
-            "promptVersion": row.prompt_version,
-            "model": row.model or None,
         }
 
     def _insight_hash_payload(
