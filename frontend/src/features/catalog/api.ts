@@ -5,8 +5,6 @@ import type {
   CatalogPrompt,
   CatalogRubric,
   CatalogTopic,
-  ClassroomDetail,
-  ClassroomSummary,
   StudentAssignment,
   StudentMaterial,
   TeacherAssignment,

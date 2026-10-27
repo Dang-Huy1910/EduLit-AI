@@ -1,4 +1,3 @@
-import { DEMO_STUDENTS, DEMO_TEACHER } from './mock/assignmentData';
 import { Role, User } from './types';
 import { PublicUser } from './auth-types';
 

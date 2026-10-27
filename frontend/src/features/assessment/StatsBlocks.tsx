@@ -183,10 +183,9 @@ export function PipelineStrip({ items }: { items: PipelineItem[] }) {
 
 /** The scoring formula sits behind "Cách tính"; the mode toggle already explains the mode. */
 export function FormulaNote({
-  mode,
   description,
 }: {
-  mode: StatsMode | string | undefined;
+  mode?: StatsMode | string;
   description?: string | null;
 }) {
   return (

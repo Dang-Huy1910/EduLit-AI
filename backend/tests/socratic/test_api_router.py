@@ -347,6 +347,7 @@ async def test_outline_init_endpoint_saves_revision(
     db_session: AsyncSession,
     settings: Settings,
     published_assignment: dict,
+    run_outline_prep,
 ) -> None:
     user, _ = await create_authenticated_student(db_session, settings, client)
     await grant_assignment_access(db_session, published_assignment["id"], user.id)
@@ -357,6 +358,23 @@ async def test_outline_init_endpoint_saves_revision(
     )
     assert created.status_code == 201
     session_id = created.json()["id"]
+    init = await client.post(
+        f"/api/socratic-sessions/{session_id}/outline-init",
+        headers=auth_headers(),
+    )
+    assert init.status_code == 200
+    assert init.json()["status"] == "PROCESSING"
+    assert init.json()["outline"] is None
+    assert init.json()["outlineVersion"] == 0
+    assert await run_outline_prep(published_assignment["id"], user.id) == "READY"
+    ready = await client.get(
+        f"/api/socratic-sessions/{session_id}/outline-init",
+        headers=auth_headers(),
+    )
+    assert ready.status_code == 200
+    assert ready.json()["status"] == "READY"
+    assert ready.json()["outline"] is None
+    assert ready.json()["outlineVersion"] == 0
     init = await client.post(
         f"/api/socratic-sessions/{session_id}/outline-init",
         headers=auth_headers(),

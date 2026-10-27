@@ -1,24 +1,22 @@
 from __future__ import annotations
 
-import asyncio
-from datetime import timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select, text
 
-from app.core.http import utcnow
 from app.core.passwords import verify_password_sync
-from app.db.models import AuthSession, User
+from app.db.models import AuthToken, AuthTokenPurpose, User
 from app.db.session import get_session_factory
 from tests.conftest import CapturingEmailAdapter, auth_headers, extract_token, unique_student
 
 
-async def verified_student(client: AsyncClient, email_adapter: CapturingEmailAdapter) -> dict[str, str]:
+async def registered_student(client: AsyncClient) -> dict[str, str]:
     payload = unique_student("st")
-    await client.post("/api/auth/register", json=payload, headers=auth_headers())
-    token = extract_token(email_adapter)
-    await client.post("/api/auth/verify-email", json={"token": token}, headers=auth_headers())
+    response = await client.post("/api/auth/register", json=payload, headers=auth_headers())
+    assert response.status_code == 200
+    assert response.json()["user"]["emailVerified"] is True
     return payload
 
 
@@ -26,7 +24,7 @@ async def verified_student(client: AsyncClient, email_adapter: CapturingEmailAda
 async def test_remember_me_cookie_flags(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = await verified_student(client, email_adapter)
+    payload = await registered_student(client)
     session_login = await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"], "rememberMe": False},
@@ -51,7 +49,7 @@ async def test_remember_me_cookie_flags(
 async def test_forgot_reset_revokes_sessions_and_old_password(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = await verified_student(client, email_adapter)
+    payload = await registered_student(client)
     login = await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"], "rememberMe": True},
@@ -105,7 +103,7 @@ async def test_forgot_reset_revokes_sessions_and_old_password(
 async def test_change_password_revokes_and_requires_relogin(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = await verified_student(client, email_adapter)
+    payload = await registered_student(client)
     await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"]},
@@ -137,7 +135,7 @@ async def test_change_password_revokes_and_requires_relogin(
 async def test_sessions_list_revoke_logout_all(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = await verified_student(client, email_adapter)
+    payload = await registered_student(client)
     first = await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"], "rememberMe": True},
@@ -178,7 +176,7 @@ async def test_sessions_list_revoke_logout_all(
 async def test_logout_is_idempotent_and_revokes(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = await verified_student(client, email_adapter)
+    payload = await registered_student(client)
     await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"]},
@@ -196,7 +194,7 @@ async def test_logout_is_idempotent_and_revokes(
 async def test_expired_session_rejected(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = await verified_student(client, email_adapter)
+    payload = await registered_student(client)
     await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"]},
@@ -255,20 +253,39 @@ async def register_and_dump(client: AsyncClient, payload: dict):
 
 
 @pytest.mark.asyncio
-async def test_email_failure_does_not_skip_verification(
-    client: AsyncClient, email_adapter: CapturingEmailAdapter
+async def test_email_failure_does_not_change_password_or_revoke_sessions(
+    client: AsyncClient, email_adapter: CapturingEmailAdapter, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     email_adapter.fail = True
+    send = AsyncMock(wraps=email_adapter.send)
+    monkeypatch.setattr(email_adapter, "send", send)
     payload = unique_student("smtp")
     res = await client.post("/api/auth/register", json=payload, headers=auth_headers())
-    assert res.status_code == 202
+    assert res.status_code == 200
+    send.assert_not_awaited()
+    assert email_adapter.messages == []
+    assert (await client.get("/api/auth/me")).status_code == 200
+    forgot = await client.post(
+        "/api/auth/forgot-password", json={"email": payload["email"]}, headers=auth_headers()
+    )
+    assert forgot.status_code == 202
+    send.assert_awaited_once()
+    assert send.await_args.args[0] == payload["email"]
+    assert email_adapter.messages == []
+    assert (await client.get("/api/auth/me")).status_code == 200
+    factory = get_session_factory()
+    async with factory() as session:
+        user = (await session.execute(select(User).where(User.login_id == payload["loginId"]))).scalar_one()
+        assert user.email_verified_at is not None
+        assert verify_password_sync(user.password_hash, payload["password"])
+        reset_token = (await session.execute(select(AuthToken))).scalar_one()
+        assert reset_token.purpose == AuthTokenPurpose.PASSWORD_RESET
     login = await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"]},
         headers=auth_headers(),
     )
-    assert login.status_code == 403
-    assert login.json()["error"]["code"] == "AUTH_UNVERIFIED"
+    assert login.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -289,9 +306,8 @@ async def test_rate_limit_login_across_two_apps(email_adapter: CapturingEmailAda
         return AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost:3000")
 
     c1 = await make_client()
-    await c1.post("/api/auth/register", json=payload, headers=auth_headers())
-    token = extract_token(email_adapter)
-    await c1.post("/api/auth/verify-email", json={"token": token}, headers=auth_headers())
+    registered = await c1.post("/api/auth/register", json=payload, headers=auth_headers())
+    assert registered.status_code == 200
     c2 = await make_client()
     codes = []
     for i in range(8):

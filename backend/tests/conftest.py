@@ -3,11 +3,14 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import uuid
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from alembic import command
+from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -44,11 +47,12 @@ os.environ["AI_MODEL"] = "fake-model"
 os.environ["OPENAI_API_KEY"] = "test-key-for-fake"
 os.environ["GEMINI_API_KEY"] = "test-key-for-fake"
 
-from alembic import command
-from alembic.config import Config
-
+# Set sys.path and the test environment before app.main creates its module-level app.
+from app.ai.adapters import FakeAiAdapter
 from app.config import Settings, clear_settings_cache, get_settings
-from app.core.tokens import generate_raw_token, hash_token
+from app.core.passwords import hash_password_sync
+from app.core.tokens import generate_raw_token
+from app.db.models.socratic import AssignmentAccess, AssignmentRevision
 from app.db.session import close_db, configure_engine, get_session_factory
 from app.email.adapter import EmailAdapter
 from app.email.templates import EmailMessage
@@ -202,12 +206,6 @@ def extract_token(email_adapter: CapturingEmailAdapter) -> str:
 # Socratic Test Fixtures
 # ─────────────────────────────────────────────────────────────────────────
 
-import uuid
-from app.ai.adapters import FakeAiAdapter
-from app.core.passwords import hash_password_sync
-from app.db.models.socratic import AssignmentAccess, AssignmentRevision
-
-
 async def grant_assignment_access(
     db_session: AsyncSession, assignment_id, student_id
 ) -> AssignmentAccess:
@@ -225,6 +223,34 @@ async def grant_assignment_access(
 async def fake_ai() -> FakeAiAdapter:
     """Provide a Fake AI adapter for testing."""
     return FakeAiAdapter()
+
+
+@pytest.fixture
+def run_outline_prep(settings: Settings):
+    """Run one durable prep job without starting the polling worker."""
+    from app.services import outline_prep
+
+    async def run(revision_id, student_id, *, ai_port=None, max_attempts=None) -> str:
+        factory = get_session_factory()
+        async with factory() as session:
+            prep = await outline_prep.ensure_job(
+                session,
+                revision_id=revision_id,
+                student_id=student_id,
+                max_attempts=max_attempts or settings.OUTLINE_PREP_MAX_ATTEMPTS,
+            )
+            await session.commit()
+            jobs = await outline_prep.claim_jobs(
+                session, limit=1, lease_seconds=settings.OUTLINE_PREP_LEASE_SECONDS
+            )
+            assert len(jobs) == 1
+            assert jobs[0].id == prep.id
+            await session.commit()
+            return await outline_prep.process_claimed_job(
+                session, jobs[0], settings=settings, ai_port=ai_port
+            )
+
+    return run
 
 
 @pytest_asyncio.fixture

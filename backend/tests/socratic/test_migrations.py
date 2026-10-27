@@ -35,6 +35,7 @@ async def test_upgrade_and_downgrade_0003() -> None:
     cfg = _alembic_cfg()
     engine = create_engine(_sync_url(TEST_DB_URL), pool_pre_ping=True)
     try:
+        command.upgrade(cfg, "head")
         command.downgrade(cfg, "0002_socratic_schema")
         with engine.connect() as conn:
             cols = {
@@ -76,8 +77,11 @@ async def test_upgrade_and_downgrade_0003() -> None:
         command.downgrade(cfg, "0002_socratic_schema")
         command.upgrade(cfg, "head")
     finally:
-        engine.dispose()
-        await close_db()
+        try:
+            command.upgrade(cfg, "head")
+        finally:
+            engine.dispose()
+            await close_db()
 
 
 @pytest.mark.asyncio
@@ -85,8 +89,32 @@ async def test_0017_makes_classroom_term_and_join_code_required() -> None:
     await close_db()
     cfg = _alembic_cfg()
     engine = create_engine(_sync_url(TEST_DB_URL), pool_pre_ping=True)
+    teacher_id = uuid.uuid4()
+    classroom_id = uuid.uuid4()
     try:
+        command.upgrade(cfg, "head")
         command.downgrade(cfg, "0016_writing_profile")
+        with engine.begin() as conn:
+            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            assert version == "0016_writing_profile"
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, login_id, email, display_name, password_hash, role, status) "
+                    "VALUES (:id, :login, :email, 'Legacy Teacher', 'x', 'TEACHER', 'ACTIVE')"
+                ),
+                {
+                    "id": teacher_id,
+                    "login": f"legacy_{teacher_id.hex[:8]}",
+                    "email": f"legacy_{teacher_id.hex[:8]}@test.local",
+                },
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO classrooms (id, owner_teacher_id, code, name, grade_level) "
+                    "VALUES (:id, :teacher_id, 'LEGACY', 'Legacy Classroom', 11)"
+                ),
+                {"id": classroom_id, "teacher_id": teacher_id},
+            )
         command.upgrade(cfg, "head")
         with engine.connect() as conn:
             columns = {
@@ -101,12 +129,21 @@ async def test_0017_makes_classroom_term_and_join_code_required() -> None:
             missing_join_codes = conn.execute(
                 text("SELECT count(*) FROM classrooms WHERE join_code IS NULL")
             ).scalar_one()
+            legacy_classroom = conn.execute(
+                text("SELECT term_id, join_code FROM classrooms WHERE id = :id"),
+                {"id": classroom_id},
+            ).one()
         assert columns["term_id"] == "NO"
         assert columns["join_code"] == "NO"
         assert missing_join_codes == 0
+        assert legacy_classroom.term_id is not None
+        assert len(legacy_classroom.join_code) == 6
     finally:
-        engine.dispose()
-        await close_db()
+        try:
+            command.upgrade(cfg, "head")
+        finally:
+            engine.dispose()
+            await close_db()
 
 
 @pytest.mark.asyncio

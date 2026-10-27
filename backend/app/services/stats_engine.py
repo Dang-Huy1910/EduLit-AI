@@ -560,7 +560,6 @@ class StatsEngine:
         self, revision_ids: list[uuid.UUID]
     ) -> dict[uuid.UUID, dict[str, int]]:
         wanted = [item for item in revision_ids if item]
-        empty = empty_progress()
         if not wanted:
             return {}
         access_rows = (

@@ -17,9 +17,33 @@ Stack giao diện vẫn là Next.js. Phần tài khoản trên `feat/python-auth
 
 ## Kiểm tra thay đổi
 
-Chọn kiểm thử phù hợp với hành vi thay đổi: unit cho quy tắc nghiệp vụ, integration cho tích hợp, contract cho schema, e2e cho luồng sử dụng, performance cho thời gian xử lý. Với thay đổi prompt hoặc nhà cung cấp AI, chạy bộ đánh giá tương ứng trong `evaluations` khi bộ đánh giá đã được triển khai.
+Chọn kiểm thử phù hợp với hành vi thay đổi: unit cho quy tắc nghiệp vụ, integration cho tích hợp, contract cho schema, e2e cho luồng sử dụng, performance cho thời gian xử lý. Với thay đổi prompt hoặc nhà cung cấp AI, chạy bộ đánh giá tương ứng trong `evaluations` khi bộ đánh giá đã được triển khai. Thư mục `evaluations/` hiện chưa có runner.
 
-Frontend đã có lệnh `npm run build` trong `frontend/`; backend và AI evaluations chưa có runner. Chọn kiểm tra theo phần thay đổi; tài liệu cần kiểm tra liên kết và `git diff --check`, không đòi gọi model hoặc build UI khi không đổi code. Không coi thư mục kiểm thử hay workflow trống là một kiểm tra đã được triển khai.
+Lệnh lint, typecheck và test nằm ở mục dưới. Tài liệu cần kiểm tra liên kết và `git diff --check`. Không đòi gọi model hoặc build UI khi không đổi code.
+
+## Lint, test và CI
+
+Từ `backend/`:
+
+```bash
+.venv/bin/ruff check .
+DATABASE_URL_TEST=postgresql://.../ten_db_test .venv/bin/pytest
+```
+
+`DATABASE_URL_TEST` phải trỏ tới database test riêng. Pytest dừng nếu thiếu biến này và không dùng `DATABASE_URL`.
+
+Từ `frontend/`:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm test
+npm run test:ui
+```
+
+`npm run lint` dùng ESLint flat config `eslint.config.mjs`. `npm test` là unit test Node. `npm run test:ui` là Playwright theo `playwright.ui.config.ts`. Frontend cần Node 22.7 trở lên để chạy `npm test`, và pytest backend cần mailpit chạy ở 127.0.0.1:1025/8025 vì `tests/integration/test_smtp_sink.py` không còn skip.
+
+GitHub Actions tại `.github/workflows/ci.yml` chạy lint và test backend lẫn frontend khi push lên `main` và khi mở pull request. Workflow đó không chạy Playwright.
 
 ## Dữ liệu và cấu hình
 

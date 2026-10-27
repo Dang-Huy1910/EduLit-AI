@@ -5,7 +5,6 @@ import {
   mapOutlineToUI,
   mapUIToOutlineContent,
   mapMessageToUI,
-  mapMessagesWithContext,
   deriveOutlineSuggestion,
 } from '../types';
 import type {
@@ -14,10 +13,16 @@ import type {
 } from '../types';
 import { SocraticApiError, ApiErrorCode } from '../api';
 
-// Helper to mock global.fetch
+type SentMessageBody = {
+  selectedPointId?: string;
+  selectedSectionId?: string;
+  expectedOutlineVersion?: number;
+};
+
+// Helper to mock global.fetch without widening the handler to `any`.
 function mockFetch(handler: (url: string, init?: RequestInit) => Promise<Response>) {
-  // @ts-ignore
-  global.fetch = handler as any;
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+    handler(String(input), init)) as typeof fetch;
 }
 
 function jsonResponse(data: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -47,7 +52,6 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
 
   // 1. Chat hiển thị đủ hai phía & gửi thành công
   test('Mục 1 & 2: Gửi tin nhắn thành công có đủ STUDENT và ASSISTANT với ID thật, không thay thế tin sinh viên', async () => {
-    const store = useSocraticStore.getState();
     useSocraticStore.setState({ sessionId: 'session-123', assignmentCode: 'VAN11-NLVH-01' });
 
     let sentIdempotencyKey: string | undefined;
@@ -217,14 +221,15 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     });
 
     const expectedVersionsUsed: number[] = [];
-    const contentsSaved: any[] = [];
 
     mockFetch(async (url, init) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/outline') && init?.method === 'PUT') {
-        const body = JSON.parse(String(init.body));
+        const body = JSON.parse(String(init.body)) as {
+          expectedVersion: number;
+          content: OutlineContent;
+        };
         expectedVersionsUsed.push(body.expectedVersion);
-        contentsSaved.push(body.content);
 
         // Delay slight amount to simulate network latency
         await new Promise((r) => setTimeout(r, 10));
@@ -277,7 +282,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
       },
     });
 
-    mockFetch(async (url, init) => {
+    mockFetch(async () => {
       return errorResponse('OUTLINE_VERSION_CONFLICT', 'Version mismatch', 409);
     });
 
@@ -362,7 +367,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
 
   // 6. Xử lý lỗi đúng contract (parse envelope, giữ status, domain code, Retry-After, không đoán string)
   test('Mục 4: Parse đúng error envelope, giữ code, status, retry-after, phân biệt conflict domain codes', async () => {
-    mockFetch(async (url, init) => {
+    mockFetch(async () => {
       return errorResponse('OUTLINE_VERSION_CONFLICT', 'Lỗi phiên bản', 409, 30);
     });
 
@@ -380,7 +385,8 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     try {
       await apiSendMessage('session-123', 'test');
       assert.fail('Phải ném ra lỗi');
-    } catch (err: any) {
+    } catch (err) {
+      assert.ok(err instanceof SocraticApiError);
       assert.strictEqual(err.status, 409);
       assert.strictEqual(err.code, 'TURN_IN_PROGRESS');
     }
@@ -392,7 +398,8 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     try {
       await apiSendMessage('session-123', 'test');
       assert.fail('Phải ném ra lỗi');
-    } catch (err: any) {
+    } catch (err) {
+      assert.ok(err instanceof SocraticApiError);
       assert.strictEqual(err.status, 503);
       assert.strictEqual(err.code, 'AI_UNAVAILABLE');
       assert.strictEqual(err.retryAfter, 15, 'Retry-After phải được giữ');
@@ -427,7 +434,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     const uiOutline = mapOutlineToUI(backendRawOutline);
     assert.strictEqual(uiOutline.thesis, backendRawOutline.thesis);
     assert.strictEqual(uiOutline.sections[0].content, 'Nội dung chi tiết phần mở bài từ backend');
-    assert.strictEqual((uiOutline.sections[0] as any).extraSectionMeta, 'section-meta-xyz');
+    assert.strictEqual(uiOutline.sections[0].extraSectionMeta, 'section-meta-xyz');
 
     // 2. Chỉnh sửa trên UI (thêm điểm)
     uiOutline.sections[0].points.push('Gợi mở mới được thêm');
@@ -438,14 +445,14 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     assert.strictEqual(payloadToSave.thesis, backendRawOutline.thesis, 'Thesis được bảo toàn');
     assert.deepStrictEqual(payloadToSave.arguments, backendRawOutline.arguments, 'Arguments được bảo toàn');
     assert.deepStrictEqual(payloadToSave.counterArguments, backendRawOutline.counterArguments, 'CounterArguments được bảo toàn');
-    assert.strictEqual((payloadToSave as any).customMetadata, 'meta-val-123', 'Root metadata được bảo toàn');
+    assert.strictEqual(payloadToSave.customMetadata, 'meta-val-123', 'Root metadata được bảo toàn');
     assert.strictEqual(
       payloadToSave.sections[0].content,
       'Nội dung chi tiết phần mở bài từ backend',
       'section.content TUYỆT ĐỐI không bị loại bỏ'
     );
     assert.strictEqual(
-      (payloadToSave.sections[0] as any).extraSectionMeta,
+      payloadToSave.sections[0].extraSectionMeta,
       'section-meta-xyz',
       'section metadata TUYỆT ĐỐI không bị loại bỏ'
     );
@@ -526,8 +533,8 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
   test('Kiểm tra phản hồi đến muộn sau reset bị hủy và không ghi đè state mới', async () => {
     useSocraticStore.setState({ sessionId: 'session-old' });
 
-    let resolveSlowFetch: any;
-    mockFetch(async (url) => {
+    let resolveSlowFetch: (() => void) | undefined;
+    mockFetch(async () => {
       return new Promise((resolve) => {
         resolveSlowFetch = () =>
           resolve(
@@ -548,6 +555,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     useSocraticStore.setState({ sessionId: 'session-new' });
 
     // Phản hồi cũ đến muộn
+    assert.ok(resolveSlowFetch);
     resolveSlowFetch();
     await loadPromise;
 
@@ -775,11 +783,11 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     useSocraticStore.getState().selectPoint('body', 0);
     assert.strictEqual(useSocraticStore.getState().selectedPoint?.id, 'body-b');
 
-    let sentBody: any;
+    let sentBody: SentMessageBody | undefined;
     mockFetch(async (url, init) => {
       const urlStr = String(url);
       if (urlStr.endsWith('/messages') && init?.method === 'POST') {
-        sentBody = JSON.parse(String(init.body));
+        sentBody = JSON.parse(String(init.body)) as SentMessageBody;
         return jsonResponse({
           id: 'ai-1',
           turnId: 1,
@@ -797,6 +805,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     });
 
     await useSocraticStore.getState().sendMessage('Ý này nghĩa là gì?');
+    assert.ok(sentBody);
     assert.strictEqual(sentBody.selectedPointId, 'body-b');
     assert.strictEqual(sentBody.selectedSectionId, 'body');
 
@@ -841,7 +850,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
     useSocraticStore.setState({ outlineVersion: 4 });
     assert.strictEqual(useSocraticStore.getState().selectedPoint?.id, 'body-b');
 
-    let retried: any;
+    let retried: SentMessageBody | undefined;
     let retriedKey: string | undefined;
     mockFetch(async (url, init) => {
       const urlStr = String(url);
@@ -849,7 +858,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
         return jsonResponse({ messages: [], hasMore: false, nextBeforeTurn: null });
       }
       if (urlStr.endsWith('/messages') && init?.method === 'POST') {
-        retried = JSON.parse(String(init.body));
+        retried = JSON.parse(String(init.body)) as SentMessageBody;
         retriedKey = (init.headers as Record<string, string>)['Idempotency-Key'];
         return jsonResponse({
           id: 'ai-retry',
@@ -865,6 +874,7 @@ describe('Luồng Socratic - 8 Hạng mục kiểm chứng hồi quy', () => {
 
     const originalKey = useSocraticStore.getState().pendingOperation?.idempotencyKey;
     await useSocraticStore.getState().retryPendingMessage();
+    assert.ok(retried);
     assert.strictEqual(retried.selectedPointId, 'body-a');
     assert.strictEqual(retried.selectedSectionId, 'body');
     assert.strictEqual(retried.expectedOutlineVersion, 3);

@@ -25,10 +25,9 @@ from app.db.models import (
     Topic,
     User,
     UserRole,
-    UserStatus,
 )
 from app.services.catalog_errors import CatalogError
-from app.services.rubric import decimal_to_number, validate_rubric_payload
+from app.services.rubric import validate_rubric_payload
 
 ALLOWED_GENRES = {"NLVH", "NLXH"}
 ALLOWED_GRADES = {10, 11, 12}

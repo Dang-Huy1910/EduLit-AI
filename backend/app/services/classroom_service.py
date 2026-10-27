@@ -31,7 +31,6 @@ from app.services.catalog_service import _grade, _require_teacher
 from app.services.classroom_rules import (
     JOIN_CODE_ALPHABET,
     JOIN_CODE_LENGTH,
-    SCHOOL_TZ,
     classroom_read_only,
     generate_join_code,
     grant_access,

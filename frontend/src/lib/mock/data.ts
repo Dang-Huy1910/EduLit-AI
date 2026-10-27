@@ -10,6 +10,7 @@ import {
   INITIAL_SUBMISSIONS,
   SUBMISSION_MANIFEST,
 } from './submissionsManifest';
+import type { StudentSubmission } from '../types';
 
 export const SCHOOL_NAME = 'THPT Đan Phượng';
 
@@ -32,11 +33,11 @@ export const MOCK_STUDENT_RESULT = INITIAL_SUBMISSIONS['sub-user-student-11a14-0
 
 // Dynamically calculated report metrics based on current submissions
 export function computeReportMetrics(
-  submissions: Record<string, any>,
+  submissions: Record<string, StudentSubmission>,
   assignmentId: string = CENTRAL_ASSIGNMENT_ID
 ) {
   const allSubs = Object.values(submissions);
-  const subList = allSubs.filter((s: any) => !assignmentId || s.assignmentId === assignmentId);
+  const subList = allSubs.filter((s) => !assignmentId || s.assignmentId === assignmentId);
   const totalStudents = DEMO_STUDENTS.length; // Class size (41 HS)
   const submittedCount = subList.length;
   const assessedCount = subList.filter((s) => s.status === 'graded').length;
@@ -63,20 +64,20 @@ export function computeReportMetrics(
 
   // Dynamic common issues from actual evaluations in subList
   const issueRelationCount = subList.filter((s) =>
-    s.evaluations?.some((e: any) =>
+    s.evaluations?.some((e) =>
       e.criterionId === 'C1_CONTENT_ART_RELATION' &&
-      (e.awardedScore < e.maxScore || (e.weaknesses && e.weaknesses.some((w: string) => w.toLowerCase().includes('liên hệ'))))
+      (e.awardedScore < e.maxScore || (e.weaknesses && e.weaknesses.some((w) => w.toLowerCase().includes('liên hệ'))))
     )
   ).length;
 
   const issueParadoxCount = subList.filter((s) =>
-    s.evaluations?.some((e: any) =>
-      e.weaknesses && e.weaknesses.some((w: string) => w.toLowerCase().includes('nghịch lí') || w.toLowerCase().includes('diễn xuôi'))
+    s.evaluations?.some((e) =>
+      e.weaknesses && e.weaknesses.some((w) => w.toLowerCase().includes('nghịch lí') || w.toLowerCase().includes('diễn xuôi'))
     )
   ).length;
 
   const issueStructureCount = subList.filter((s) =>
-    s.evaluations?.some((e: any) =>
+    s.evaluations?.some((e) =>
       e.criterionId === 'C2_ANALYSIS_ARGUMENT' && e.awardedScore < e.maxScore
     )
   ).length;

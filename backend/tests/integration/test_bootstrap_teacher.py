@@ -5,8 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from app.cli import bootstrap_teacher
-from app.config import Settings, get_settings
-from app.core.passwords import verify_password_sync
+from app.config import get_settings
 from app.db.models import User, UserRole
 from app.db.session import get_session_factory
 from tests.conftest import auth_headers, unique_student

@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
@@ -86,7 +86,6 @@ from app.db.models import (  # noqa: E402
     UserRole,
     UserStatus,
 )
-from app.db.session import get_session_factory  # noqa: E402
 from app.identity.domain import normalize_email, normalize_login_id  # noqa: E402
 from app.services.assessment_scoring import finalize_payload, rubric_from_revision  # noqa: E402
 from app.services.assignment_service import AssignmentService  # noqa: E402
@@ -1067,61 +1066,68 @@ async def run(*, apply: bool, database_url: str | None = None, allow_remote: boo
         "insights_updated": 0,
     }
 
-    factory = get_session_factory(settings)
     password_hash = hash_password_sync(DEMO_PASSWORD)
-    async with factory() as session:
-        teacher = await seed_teacher(session, settings)
-        seed_an = await seed_student(session)
-        classroom = await seed_classroom(session, teacher, seed_an)
-        if classroom.code != CLASS_CODE:
-            raise RuntimeError(f"Expected classroom {CLASS_CODE}, got {classroom.code}")
+    # Alembic runs this coroutine in a worker's event loop.  Keep its pool
+    # local so later runs and the application cannot reuse asyncpg connections
+    # belonging to that loop after asyncio.run() has closed it.
+    engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with factory() as session:
+            teacher = await seed_teacher(session, settings)
+            seed_an = await seed_student(session)
+            classroom = await seed_classroom(session, teacher, seed_an)
+            if classroom.code != CLASS_CODE:
+                raise RuntimeError(f"Expected classroom {CLASS_CODE}, got {classroom.code}")
 
-        demo_users: list[User] = []
-        for row in roster:
-            email = normalize_email(row["email"])
-            login_id = normalize_login_id(email.split("@", 1)[0])
-            user = await get_or_create_student(
+            demo_users: list[User] = []
+            for row in roster:
+                email = normalize_email(row["email"])
+                login_id = normalize_login_id(email.split("@", 1)[0])
+                user = await get_or_create_student(
+                    session,
+                    login_id=login_id,
+                    email=email,
+                    display_name=str(row["name"]),
+                    password_hash=password_hash,
+                    counts=counts,
+                )
+                await ensure_membership(session, classroom, user, "STUDENT", counts)
+                demo_users.append(user)
+
+            assignment, revision = await get_or_create_assignment(
                 session,
-                login_id=login_id,
-                email=email,
-                display_name=str(row["name"]),
-                password_hash=password_hash,
-                counts=counts,
+                teacher,
+                classroom,
+                [str(user.id) for user in demo_users],
+                counts,
             )
-            await ensure_membership(session, classroom, user, "STUDENT", counts)
-            demo_users.append(user)
+            for user, row in zip(demo_users, roster, strict=True):
+                await ensure_access(session, revision, user, counts)
+                await ensure_outline_prep(session, revision, user, counts)
+                await seed_one_submission(
+                    session,
+                    teacher=teacher,
+                    revision=revision,
+                    student=user,
+                    mock_sub=submissions[row["id"]],
+                    counts=counts,
+                )
 
-        assignment, revision = await get_or_create_assignment(
-            session,
-            teacher,
-            classroom,
-            [str(user.id) for user in demo_users],
-            counts,
-        )
-        for user, row in zip(demo_users, roster, strict=True):
-            await ensure_access(session, revision, user, counts)
-            await ensure_outline_prep(session, revision, user, counts)
-            await seed_one_submission(
-                session,
-                teacher=teacher,
-                revision=revision,
-                student=user,
-                mock_sub=submissions[row["id"]],
-                counts=counts,
-            )
+            await session.flush()
+            await seed_class_insight(session, settings, teacher, assignment, revision, classroom, counts)
 
-        await session.flush()
-        await seed_class_insight(session, settings, teacher, assignment, revision, classroom, counts)
-
-        logger.info("Classroom %s assignment %s", classroom.code, assignment.code)
-        logger.info("Students in demo roster: %s", len(demo_users))
-        logger.info("Counts: %s", json.dumps(counts, ensure_ascii=False))
-        if apply:
-            await session.commit()
-            logger.info("Applied classroom demo seed.")
-        else:
-            await session.rollback()
-            logger.info("Dry-run only; rolled back. Pass --apply to write.")
+            logger.info("Classroom %s assignment %s", classroom.code, assignment.code)
+            logger.info("Students in demo roster: %s", len(demo_users))
+            logger.info("Counts: %s", json.dumps(counts, ensure_ascii=False))
+            if apply:
+                await session.commit()
+                logger.info("Applied classroom demo seed.")
+            else:
+                await session.rollback()
+                logger.info("Dry-run only; rolled back. Pass --apply to write.")
+    finally:
+        await engine.dispose()
     return counts
 
 

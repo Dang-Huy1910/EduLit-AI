@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from './api';
 import { downloadOriginalDocument } from './download';
@@ -51,7 +51,7 @@ export default function ImportReview({
   const [busy, setBusy] = useState('');
   const [catalogQuery, setCatalogQuery] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const payload = await catalogApi.getDocument(documentId);
     setDoc(payload);
     setMarkdown(payload.markdown || payload.convertedMarkdown || '');
@@ -62,7 +62,7 @@ export default function ImportReview({
     setGenre(payload.genre || 'NLVH');
     setTopicId(payload.topicId || '');
     return payload;
-  };
+  }, [documentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,15 +78,16 @@ export default function ImportReview({
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
+  }, [load]);
 
+  const documentStatus = doc?.status;
   useEffect(() => {
-    if (!doc || !PROCESSING.has(doc.status)) return;
+    if (!documentStatus || !PROCESSING.has(documentStatus)) return;
     const timer = window.setInterval(() => {
       void load().catch(() => undefined);
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [doc?.status, documentId]);
+  }, [documentStatus, load]);
 
   const persistDraft = async (next = draft, nextMarkdown = markdown, nextSelected = selected) => {
     return catalogApi.saveDocumentDraft(documentId, {

@@ -43,11 +43,6 @@ export default function FloatingChatWidget() {
   const { currentUser, addToast } = useAppStore();
   const isTeacher = currentUser?.role === 'teacher';
 
-  // Do not render floating widget on full chatbot page
-  if (pathname === '/chatbot') {
-    return null;
-  }
-
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -267,6 +262,11 @@ export default function FloatingChatWidget() {
       handleSend();
     }
   };
+
+  // Hooks stay above this return so navigating to /chatbot does not change hook order.
+  if (pathname === '/chatbot') {
+    return null;
+  }
 
   return (
     <>

@@ -7,7 +7,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.http import utcnow
-from app.db.models import AuthSession, AuthToken, AuthTokenPurpose, User, UserRole, UserStatus
+from app.db.models import AuthSession, AuthToken, AuthTokenPurpose, User
 
 
 class IdentityRepository:
