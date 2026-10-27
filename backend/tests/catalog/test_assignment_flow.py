@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings
-from app.db.models import Assignment, AssignmentAccess, AssignmentRevision, User, UserRole
+from app.db.models import AssignmentAccess, AssignmentRevision, User, UserRole
 from app.db.session import get_session_factory
 from app.services.catalog_service import CatalogService
 from tests.catalog.conftest import (

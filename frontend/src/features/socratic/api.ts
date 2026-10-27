@@ -94,17 +94,20 @@ export class SocraticApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    let errorData: any = null;
+    let errorData: Record<string, unknown> | null = null;
     try {
-      errorData = await response.json();
+      const parsed: unknown = await response.json();
+      if (parsed && typeof parsed === 'object') errorData = parsed as Record<string, unknown>;
     } catch {
       // non-JSON response body
     }
 
     // Backend error contract: { error: { code: string, message: string, fields?: Record<string, string> } }
-    const errorObj = errorData?.error || errorData || {};
+    const nested = errorData?.error;
+    const errorObj =
+      nested && typeof nested === 'object' ? (nested as Record<string, unknown>) : errorData || {};
 
-    let code: string = errorObj.code || '';
+    let code = typeof errorObj.code === 'string' ? errorObj.code : '';
     if (!code) {
       switch (response.status) {
         case 401:
@@ -134,13 +137,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
       }
     }
 
-    const message: string =
-      errorObj.message ||
-      errorObj.detail ||
+    const message =
+      (typeof errorObj.message === 'string' && errorObj.message) ||
+      (typeof errorObj.detail === 'string' && errorObj.detail) ||
       response.statusText ||
       'Đã xảy ra lỗi khi giao tiếp với máy chủ.';
 
-    const fields: Record<string, string> | undefined = errorObj.fields;
+    const rawFields = errorObj.fields;
+    const fields =
+      rawFields && typeof rawFields === 'object' && !Array.isArray(rawFields)
+        ? (rawFields as Record<string, string>)
+        : undefined;
     const retryAfterHeader = response.headers.get('Retry-After');
     const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
 
@@ -150,7 +157,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
       message,
       fields,
       Number.isFinite(retryAfter) ? retryAfter : undefined,
-      errorData
+      errorData ?? undefined
     );
   }
 

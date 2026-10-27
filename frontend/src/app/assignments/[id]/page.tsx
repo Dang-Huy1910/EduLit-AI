@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
@@ -168,6 +168,9 @@ function AssignmentEditorPage() {
   };
   const hasPublishedChanges = Object.keys(publishedChanges()).length > 0;
 
+  const hydratePromptRef = useRef(hydratePrompt);
+  hydratePromptRef.current = hydratePrompt;
+
   useEffect(() => {
     const gen = ++loadGen.current;
     let cancelled = false;
@@ -191,7 +194,10 @@ function AssignmentEditorPage() {
       }
 
       if (!stillActive()) return;
-      const draft = loadAssignmentDraft(draftScope);
+      const draft = loadAssignmentDraft({
+        userId: currentUser?.id,
+        assignmentId: existingAssignmentId || 'new',
+      });
 
       if (existingAssignmentId) {
         try {
@@ -201,7 +207,7 @@ function AssignmentEditorPage() {
           setAssignment(existing);
           applyLoadedAssignment(existing, draft);
           const promptToLoad = isCatalogUuid(promptId) ? promptId : existing.sourcePromptId;
-          await hydratePrompt(promptToLoad, draft, stillActive, rubricItems, existing);
+          await hydratePromptRef.current(promptToLoad, draft, stillActive, rubricItems, existing);
         } catch (err) {
           if (!stillActive()) return;
           setIssue({
@@ -212,7 +218,7 @@ function AssignmentEditorPage() {
           });
         }
       } else if (isCatalogUuid(promptId)) {
-        await hydratePrompt(promptId, draft, stillActive, rubricItems);
+        await hydratePromptRef.current(promptId, draft, stillActive, rubricItems);
       } else if (promptId) {
         setIssue({
           kind: 'prompt-not-found',
@@ -390,7 +396,7 @@ function AssignmentEditorPage() {
     }
   }
 
-  const localDraftPayload = (): AssignmentDraftState => ({
+  const localDraftPayload = useCallback((): AssignmentDraftState => ({
     assignmentId: assignmentRef.current?.id || existingAssignmentId || undefined,
     classroomId,
     promptId: prompt?.id || (isCatalogUuid(promptId) ? promptId : undefined),
@@ -403,20 +409,34 @@ function AssignmentEditorPage() {
     maxScore,
     scoreStep,
     criteria,
-  });
+  }), [
+    existingAssignmentId,
+    classroomId,
+    prompt?.id,
+    promptId,
+    title,
+    extraInstructions,
+    dueAt,
+    selectedRubricId,
+    recipientIds,
+    assignToWholeClass,
+    maxScore,
+    scoreStep,
+    criteria,
+  ]);
 
-  const persistLocalDraft = (extra: AssignmentDraftState = {}) => {
+  const persistLocalDraft = useCallback((extra: AssignmentDraftState = {}) => {
     const payload = { ...localDraftPayload(), ...extra };
     if (assignment?.status === 'PUBLISHED') return payload;
     const scopeId = isCatalogUuid(payload.assignmentId) ? payload.assignmentId : 'new';
     saveAssignmentDraft(payload, { userId: currentUser?.id, assignmentId: scopeId });
     return payload;
-  };
+  }, [localDraftPayload, assignment?.status, currentUser?.id]);
 
   useEffect(() => {
     if (loading || issue || assignment?.status === 'PUBLISHED') return;
     persistLocalDraft();
-  }, [title, extraInstructions, classroomId, dueAt, selectedRubricId, criteria, maxScore, scoreStep, recipientIds, assignToWholeClass, prompt?.id, loading, assignment?.status]);
+  }, [loading, issue, assignment?.status, persistLocalDraft]);
 
   const applyRubric = (rubric: CatalogRubric, toast = true) => {
     setSelectedRubricId(rubric.id);

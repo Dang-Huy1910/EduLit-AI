@@ -156,7 +156,9 @@ async def test_search_normalizes_vietnamese_and_does_not_call_llm_without_match(
     finally:
         set_user_guide_content(original_guide)
 
-    assert [chunk.title for chunk in guide_matches] == ["Nộp bài"]
+    # The overview also matches because it lists the guide's section titles.
+    assert [chunk.title for chunk in guide_matches] == ["Nộp bài", "Hướng dẫn sử dụng EduLit-AI"]
+    assert "Nội dung hướng dẫn: Dành cho học sinh; Nộp bài." in guide_matches[1].text
     assert result.answer == "Mình chưa tìm thấy thông tin này trong tài liệu hiện có."
     assert result.sources == []
     assert adapter.call_count == 0

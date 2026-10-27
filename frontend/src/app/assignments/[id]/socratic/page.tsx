@@ -150,12 +150,13 @@ export default function SocraticChatPage() {
     sessionIdentityRef.current = sessionIdentity;
   }, [sessionIdentity, reset]);
 
+  const authUserId = authUser?.id;
   useEffect(() => {
-    if (!isAuthenticated || !assignmentDetail?.code || !authUser) {
+    if (!isAuthenticated || !assignmentDetail?.code || !authUserId) {
       return;
     }
     let cancelled = false;
-    initializeSession(assignmentDetail.code, authUser.id)
+    initializeSession(assignmentDetail.code, authUserId)
       .then(() => {
         if (!cancelled) setIsInitialized(true);
       })
@@ -166,7 +167,7 @@ export default function SocraticChatPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, assignmentDetail?.code, authUser?.id, initializeSession]);
+  }, [isAuthenticated, assignmentDetail?.code, authUserId, initializeSession]);
 
   useEffect(() => {
     return () => {

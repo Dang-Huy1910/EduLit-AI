@@ -23,7 +23,6 @@ from app.services.document_import import DocumentImportService
 from tests.catalog.conftest import HEADERS, create_user, login_as, seed_classroom_with_student
 from tests.catalog.fixtures import (
     FACTORY_MATERIAL,
-    WRITING_TASK_FULL,
     corrupt_docx_bytes,
     mixed_markdown_bytes,
     poetry_rubric_docx_bytes,

@@ -75,7 +75,10 @@ function MaterialsContent() {
   const importId = isCatalogUuid(searchParams.get('importId')) ? searchParams.get('importId') || '' : '';
   const selectParam = searchParams.get('select') || '';
   const kindParam = searchParams.get('kind') as ListKind | null;
-  const draftScope = { userId: currentUser?.id, assignmentId: assignmentId || 'new' };
+  const draftScope = useMemo(
+    () => ({ userId: currentUser?.id, assignmentId: assignmentId || 'new' }),
+    [currentUser?.id, assignmentId]
+  );
   const catalogState = {
     mode: pickMode ? 'pick-prompt' : undefined,
     classroomId: classroomId || undefined,
@@ -148,7 +151,7 @@ function MaterialsContent() {
     }
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!isTeacher) {
       setLoading(false);
       return;
@@ -172,11 +175,11 @@ function MaterialsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isTeacher, pickMode]);
 
   useEffect(() => {
     void load();
-  }, [isTeacher, pickMode]);
+  }, [load]);
 
   useEffect(() => {
     if (selectParam) setSelectedKey(selectParam);
@@ -202,7 +205,7 @@ function MaterialsContent() {
         draftScope
       );
     }
-  }, [pickMode, classroomId, assignmentId, currentUser?.id]);
+  }, [pickMode, classroomId, draftScope]);
 
   const matchesFilters = useCallback(
     (item: ListItem) => {
@@ -277,6 +280,8 @@ function MaterialsContent() {
     : [{ key: 'list', label: '', items }];
 
   const selected = items.find((item) => `${item.kind}:${item.data.id}` === selectedKey) || items[0];
+  const selectedKind = selected?.kind;
+  const selectedItemId = selected?.data.id;
 
   const listRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -292,13 +297,13 @@ function MaterialsContent() {
   // Keep the selected row visible inside the list (after an import or a ?select= link) without scrolling the page.
   useEffect(() => {
     const list = listRef.current;
-    const row = selected ? document.getElementById(`catalog-row-${selected.kind}-${selected.data.id}`) : null;
+    const row = selectedKind && selectedItemId ? document.getElementById(`catalog-row-${selectedKind}-${selectedItemId}`) : null;
     if (!list || !row) return;
     const top = row.offsetTop - (showGroups ? GROUP_HEADER_HEIGHT : 0);
     const bottom = row.offsetTop + row.offsetHeight;
     if (top < list.scrollTop) list.scrollTop = top;
     else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
-  }, [selected?.kind, selected?.data.id, showGroups]);
+  }, [selectedKind, selectedItemId, showGroups]);
 
   useEffect(() => {
     setPreviewPrompt(null);
@@ -306,7 +311,7 @@ function MaterialsContent() {
     setPreviewRubric(null);
     setPreviewError('');
     setFullMaterial(false);
-    if (!selected) {
+    if (!selectedKind || !selectedItemId) {
       setPreviewLoading(false);
       return;
     }
@@ -314,14 +319,14 @@ function MaterialsContent() {
     setPreviewLoading(true);
     void (async () => {
       try {
-        if (selected.kind === 'prompt') {
-          const full = await catalogApi.getPrompt(selected.data.id);
+        if (selectedKind === 'prompt') {
+          const full = await catalogApi.getPrompt(selectedItemId);
           if (!cancelled) setPreviewPrompt(full);
-        } else if (selected.kind === 'material') {
-          const full = await catalogApi.getMaterial(selected.data.id);
+        } else if (selectedKind === 'material') {
+          const full = await catalogApi.getMaterial(selectedItemId);
           if (!cancelled) setPreviewMaterial(full);
         } else {
-          const full = await catalogApi.getRubric(selected.data.id);
+          const full = await catalogApi.getRubric(selectedItemId);
           if (!cancelled) setPreviewRubric(full);
         }
         if (!cancelled) setPreviewError('');
@@ -339,7 +344,7 @@ function MaterialsContent() {
     return () => {
       cancelled = true;
     };
-  }, [selected?.kind, selected?.data.id, previewNonce]);
+  }, [selectedKind, selectedItemId, previewNonce]);
 
   const selectedPrompt =
     selected?.kind === 'prompt'

@@ -20,7 +20,6 @@ import {
   MOCK_ASSIGNMENT_NLXH_ID,
   MOCK_ASSIGNMENT_BEP_LUA_ID,
   RUBRIC_MAU_TU_DO_DAT,
-  RUBRIC_CAPACITY_CREATIVE_5T,
   AVAILABLE_RUBRICS,
   MATERIALS_MAU_TU_DO_DAT,
   DEMO_TEACHER,
@@ -287,7 +286,7 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      resetDemoState: (targetRole?: Role) => {
+      resetDemoState: (_targetRole?: Role) => {
         if (activeAiResponseTimeout) {
           clearTimeout(activeAiResponseTimeout);
           activeAiResponseTimeout = null;

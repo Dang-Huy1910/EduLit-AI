@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TeacherShell from '@/components/TeacherShell';
 import StudentShell from '@/components/StudentShell';
@@ -25,7 +25,7 @@ export default function AccountSecurityPage() {
   const isTeacher = authUser?.role === 'TEACHER';
   const Shell = isTeacher ? TeacherShell : StudentShell;
 
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     setLoadingSessions(true);
     try {
       const res = await authClient.listSessions();
@@ -35,11 +35,11 @@ export default function AccountSecurityPage() {
     } finally {
       setLoadingSessions(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
     void loadSessions();
-  }, []);
+  }, [loadSessions]);
 
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();

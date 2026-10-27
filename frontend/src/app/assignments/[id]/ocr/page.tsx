@@ -61,9 +61,9 @@ export default function OcrVerificationPage() {
     };
   }, [assignmentId, applyPayload]);
 
+  const ocrStatus = payload?.status;
   useEffect(() => {
-    if (!payload) return;
-    if (payload.status !== 'queued' && payload.status !== 'processing') return;
+    if (ocrStatus !== 'queued' && ocrStatus !== 'processing') return;
     const timer = window.setInterval(() => {
       void submissionApi
         .getOcr(assignmentId)
@@ -73,7 +73,7 @@ export default function OcrVerificationPage() {
         });
     }, 2500);
     return () => window.clearInterval(timer);
-  }, [assignmentId, payload?.status, applyPayload]);
+  }, [assignmentId, ocrStatus, applyPayload]);
 
   const pages = payload?.pages || [];
   const activeImage = pages.find((p) => p.pageIndex === activePageIndex) || pages[0];

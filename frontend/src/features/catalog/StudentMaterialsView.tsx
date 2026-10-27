@@ -97,18 +97,19 @@ export default function StudentMaterialsView() {
   const hasActiveFilters = Boolean(query.trim()) || genre !== 'all' || grade !== 'all';
 
   const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
+  const visibleMaterialId = selected?.id;
 
   useEffect(() => {
     setDetail(null);
     setDetailError('');
-    if (!selected) {
+    if (!visibleMaterialId) {
       setDetailLoading(false);
       return;
     }
     let cancelled = false;
     setDetailLoading(true);
     void studentMaterialsApi
-      .get(selected.id)
+      .get(visibleMaterialId)
       .then((full) => {
         if (!cancelled) setDetail(full);
       })
@@ -121,7 +122,7 @@ export default function StudentMaterialsView() {
     return () => {
       cancelled = true;
     };
-  }, [selected?.id, detailNonce]);
+  }, [visibleMaterialId, detailNonce]);
 
   const choose = (id: string) => {
     setSelectedId(id);

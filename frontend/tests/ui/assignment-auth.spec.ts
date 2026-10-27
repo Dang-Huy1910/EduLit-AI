@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import type { StudentAssignment } from '../../src/features/catalog/types';
+import type { StudentAssignment, StudentClassroom, Term } from '../../src/features/catalog/types';
 import type { StudentAssessmentResponse } from '../../src/features/assessment/types';
 
 type AssessmentResult = NonNullable<StudentAssessmentResponse['assessment']['result']>;
@@ -13,6 +13,31 @@ const student = {
   emailVerified: true,
 };
 
+const term: Term = {
+  id: '77777777-7777-4777-8777-777777777777',
+  code: 'HK1',
+  name: 'Học kỳ I',
+  academicYear: '2026-2027',
+  startsOn: '2026-08-15',
+  endsOn: '2027-01-10',
+  status: 'ACTIVE',
+  isCurrent: true,
+};
+
+const studentClassroom: StudentClassroom = {
+  id: '33333333-3333-4333-8333-333333333333',
+  code: '11A14',
+  name: 'Lớp 11A14',
+  subject: 'Ngữ văn',
+  gradeLevel: 11,
+  termId: term.id,
+  termName: term.name,
+  termStatus: 'ACTIVE',
+  academicYear: term.academicYear,
+  readOnly: false,
+  teacherName: 'Giáo viên kiểm thử',
+};
+
 function assignment(id: string, maxScore = 4): StudentAssignment {
   return {
     id,
@@ -22,6 +47,10 @@ function assignment(id: string, maxScore = 4): StudentAssignment {
     dueAt: null,
     writingTask: 'Viết bài nghị luận về trách nhiệm của tuổi trẻ.',
     rubric: { maxScore },
+    classroomId: studentClassroom.id,
+    classroomCode: studentClassroom.code,
+    classroomName: studentClassroom.name,
+    termId: term.id,
   };
 }
 
@@ -79,6 +108,8 @@ async function mockStudent(
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/api/auth/me') return route.fulfill({ json: student });
+    if (path === '/api/terms') return route.fulfill({ json: { items: [term] } });
+    if (path === '/api/student/classrooms') return route.fulfill({ json: { items: [studentClassroom] } });
     if (path === '/api/assignments') return route.fulfill({ json: { items } });
     const id = /^\/api\/assignments\/([^/]+)\/assessment$/.exec(path)?.[1];
     if (id && assessments[id]) return route.fulfill({ json: assessments[id] });
@@ -174,6 +205,8 @@ for (const lateResult of ['unauthorized', 'network-error', 'old-user'] as const)
         return route.fulfill({ status: 401, json: { error: { code: 'AUTH_INVALID' } } });
       }
       if (path === '/api/auth/login') return route.fulfill({ json: { user: student } });
+      if (path === '/api/terms') return route.fulfill({ json: { items: [term] } });
+      if (path === '/api/student/classrooms') return route.fulfill({ json: { items: [studentClassroom] } });
       if (path === '/api/assignments') return route.fulfill({ json: { items: [] } });
       return route.fulfill({ status: 404, json: {} });
     });
@@ -182,7 +215,7 @@ for (const lateResult of ['unauthorized', 'network-error', 'old-user'] as const)
     await meRequested;
     await page.locator('#loginId').fill(student.loginId);
     await page.locator('#password').fill('test-password');
-    await page.getByRole('button', { name: /Đăng nhập hệ thống/ }).click();
+    await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
     await expect(page).toHaveURL(/\/assignments$/);
     const completed = lateResult === 'network-error'
       ? page.waitForEvent('requestfailed', { predicate: (request) => request.url().endsWith('/api/auth/me') })

@@ -399,7 +399,7 @@ def build_workflow(ai_port: AiPort):
     post_guardrail either validates or falls back. Recursion limit is a
     safety cap, not the retry mechanism.
     """
-    from langgraph.graph import END, StateGraph
+    from app.workflows.langgraph_compat import END, StateGraph
 
     async def call_ai_node(state: SocraticGraphState | dict[str, Any]) -> SocraticGraphState:
         return await call_ai(_as_state(state), ai_port)

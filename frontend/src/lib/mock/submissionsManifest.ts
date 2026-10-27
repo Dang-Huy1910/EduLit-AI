@@ -1,9 +1,4 @@
 import { StudentSubmission } from '../types';
-import {
-  CENTRAL_ASSIGNMENT_ID,
-  MOCK_ASSIGNMENT_NLXH_ID,
-  MOCK_ASSIGNMENT_BEP_LUA_ID,
-} from './assignmentData';
 
 export interface SubmissionManifestEntry {
   assignmentId: string;

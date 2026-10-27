@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.adapters import AiUnavailableError, FakeAiAdapter
 from app.core.passwords import hash_password_sync
 from app.db.models import (
-    ChatMessage,
     OutlineRevision,
     SocraticSession,
     User,
@@ -22,7 +21,6 @@ from app.db.models import (
 from app.db.models.socratic import AssignmentAccess, AssignmentRevision
 from app.db.session import get_session_factory
 from app.services.socratic_service import (
-    AiUnavailableServiceError,
     ConflictError,
     ForbiddenError,
     SocraticService,
@@ -30,7 +28,7 @@ from app.services.socratic_service import (
 from app.workflows.outline_ops import apply_outline_ops, normalize_outline_content
 from app.ai.schemas import OutlineOp
 from tests.conftest import grant_assignment_access
-from tests.socratic.test_service import VALID_AI, _service
+from tests.socratic.test_service import _service
 
 
 SEED_OUTLINE = {
@@ -166,7 +164,11 @@ async def _seed_student_outline(
 class TestOutlineInitOnce:
     @pytest.mark.asyncio
     async def test_init_persists_revision_before_return(
-        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+        self,
+        db_session: AsyncSession,
+        student_user: dict,
+        published_assignment: dict,
+        run_outline_prep,
     ):
         ai = FakeAiAdapter()
         service = SocraticService(db_session, ai_port=ai)
@@ -176,7 +178,16 @@ class TestOutlineInitOnce:
         outline, status, message = await service.ensure_initial_outline(
             session.id, student_user["user"]
         )
+        assert (outline, status, message) == (None, "PROCESSING", None)
+        assert ai.call_count == 0
+        assert await run_outline_prep(
+            published_assignment["id"], student_user["id"], ai_port=ai
+        ) == "READY"
+        outline, status, message = await service.ensure_initial_outline(
+            session.id, student_user["user"]
+        )
         assert status == "COMPLETED"
+        assert ai.call_count == 1
         assert outline is not None
         assert outline.revision == 1
         assert outline.author == "ASSISTANT"
@@ -197,12 +208,19 @@ class TestOutlineInitOnce:
 
     @pytest.mark.asyncio
     async def test_retry_does_not_create_second_outline(
-        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+        self,
+        db_session: AsyncSession,
+        student_user: dict,
+        published_assignment: dict,
+        run_outline_prep,
     ):
         service = _service(db_session)
         session = await service.create_session(
             student_user["user"], published_assignment["code"]
         )
+        assert await run_outline_prep(
+            published_assignment["id"], student_user["id"]
+        ) == "READY"
         first, _, _ = await service.ensure_initial_outline(session.id, student_user["user"])
         ai = FakeAiAdapter()
         ai.add_outline_response(
@@ -242,7 +260,12 @@ class TestOutlineInitOnce:
 
     @pytest.mark.asyncio
     async def test_concurrent_init_only_one_revision(
-        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+        self,
+        db_session: AsyncSession,
+        student_user: dict,
+        published_assignment: dict,
+        run_outline_prep,
+        monkeypatch: pytest.MonkeyPatch,
     ):
         factory = get_session_factory()
         setup = SocraticService(db_session, ai_port=FakeAiAdapter())
@@ -252,27 +275,43 @@ class TestOutlineInitOnce:
         await db_session.commit()
 
         ai = FakeAiAdapter()
-        ai.hold_before_generate = asyncio.Event()
-        ai.release_generate = asyncio.Event()
+        assert await run_outline_prep(
+            published_assignment["id"], student_user["id"], ai_port=ai
+        ) == "READY"
         async with factory() as s1, factory() as s2:
             svc1 = SocraticService(s1, ai_port=ai)
             svc2 = SocraticService(s2, ai_port=ai)
-            t1 = asyncio.create_task(
-                svc1.ensure_initial_outline(session.id, student_user["user"])
+            reserved = asyncio.Event()
+            release = asyncio.Event()
+            finalize = svc1._finalize_outline_init
+
+            async def held_finalize(**kwargs):
+                reserved.set()
+                await release.wait()
+                return await finalize(**kwargs)
+
+            monkeypatch.setattr(svc1, "_finalize_outline_init", held_finalize)
+            async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+                t1 = tasks.create_task(
+                    svc1.ensure_initial_outline(session.id, student_user["user"])
+                )
+                await reserved.wait()
+                pending = await svc2.ensure_initial_outline(
+                    session.id, student_user["user"]
+                )
+                assert pending == (None, "PROCESSING", None)
+                release.set()
+                outline, status, _ = await t1
+                assert status == "COMPLETED"
+                assert outline is not None
+                assert outline.revision == 1
+            replay, status, _ = await svc2.ensure_initial_outline(
+                session.id, student_user["user"]
             )
-            await asyncio.wait_for(ai.hold_before_generate.wait(), timeout=5)
-            t2 = asyncio.create_task(
-                svc2.ensure_initial_outline(session.id, student_user["user"])
-            )
-            done, _pending = await asyncio.wait({t2}, timeout=5)
-            assert t2 in done
-            with pytest.raises(ConflictError) as exc:
-                t2.result()
-            assert exc.value.code == "OUTLINE_INIT_IN_PROGRESS"
-            ai.release_generate.set()
-            outline, status, _ = await t1
             assert status == "COMPLETED"
-            assert outline is not None
+            assert replay is not None
+            assert replay.id == outline.id
+            assert ai.call_count == 1
         count = (
             await db_session.execute(
                 select(func.count()).select_from(OutlineRevision).where(
@@ -284,7 +323,11 @@ class TestOutlineInitOnce:
 
     @pytest.mark.asyncio
     async def test_ai_failure_does_not_store_fake_outline(
-        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+        self,
+        db_session: AsyncSession,
+        student_user: dict,
+        published_assignment: dict,
+        run_outline_prep,
     ):
         ai = FakeAiAdapter()
         ai.set_fail_next(AiUnavailableError)
@@ -292,11 +335,22 @@ class TestOutlineInitOnce:
         session = await service.create_session(
             student_user["user"], published_assignment["code"]
         )
-        with pytest.raises(AiUnavailableServiceError):
-            await service.ensure_initial_outline(session.id, student_user["user"])
+        assert await run_outline_prep(
+            published_assignment["id"], student_user["id"], ai_port=ai, max_attempts=1
+        ) == "FAILED"
+        outline, status, message = await service.ensure_initial_outline(
+            session.id, student_user["user"]
+        )
+        assert outline is None
+        assert status == "FAILED"
+        assert message
+        assert ai.call_count == 1
         await db_session.refresh(session)
         assert session.outline_version == 0
-        assert session.outline_init_status == "FAILED"
+        assert session.reservation_token is None
+        prep = await service.get_outline_prep(session)
+        assert prep.status == "FAILED"
+        assert prep.last_error == "AI_UNAVAILABLE"
         rows = (
             await db_session.execute(
                 select(OutlineRevision).where(OutlineRevision.session_id == session.id)
@@ -306,7 +360,7 @@ class TestOutlineInitOnce:
 
     @pytest.mark.asyncio
     async def test_missing_context_asks_clarification(
-        self, db_session: AsyncSession, student_user: dict
+        self, db_session: AsyncSession, student_user: dict, run_outline_prep
     ):
         assignment = AssignmentRevision(
             code=f"SPARSE_{uuid.uuid4().hex[:8]}",
@@ -341,6 +395,9 @@ class TestOutlineInitOnce:
         ai = FakeAiAdapter()
         service = SocraticService(db_session, ai_port=ai)
         session = await service.create_session(student, assignment.code)
+        assert await run_outline_prep(
+            assignment.id, student.id, ai_port=ai
+        ) == "NEEDS_CLARIFICATION"
         outline, status, message = await service.ensure_initial_outline(session.id, student)
         assert outline is None
         assert status == "NEEDS_CLARIFICATION"
@@ -631,7 +688,11 @@ class TestVersionManualAndReplay:
 class TestOutlineInitAccessRecheck:
     @pytest.mark.asyncio
     async def test_revoked_access_during_init_does_not_persist(
-        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+        self,
+        db_session: AsyncSession,
+        student_user: dict,
+        published_assignment: dict,
+        run_outline_prep,
     ):
         factory = get_session_factory()
         setup = SocraticService(db_session, ai_port=FakeAiAdapter())
@@ -643,10 +704,11 @@ class TestOutlineInitAccessRecheck:
         ai = FakeAiAdapter()
         ai.hold_before_generate = asyncio.Event()
         ai.release_generate = asyncio.Event()
-        async with factory() as worker_db:
-            service = SocraticService(worker_db, ai_port=ai)
-            task = asyncio.create_task(
-                service.ensure_initial_outline(session.id, student_user["user"])
+        async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+            task = tasks.create_task(
+                run_outline_prep(
+                    published_assignment["id"], student_user["id"], ai_port=ai
+                )
             )
             await asyncio.wait_for(ai.hold_before_generate.wait(), timeout=5)
             async with factory() as other:
@@ -664,8 +726,14 @@ class TestOutlineInitAccessRecheck:
                 access.revoked_at = utcnow()
                 await other.commit()
             ai.release_generate.set()
-            with pytest.raises(ForbiddenError):
-                await task
+            assert await task == "FAILED"
+
+        prep = await setup.get_outline_prep(session)
+        assert prep.status == "FAILED"
+        assert prep.outline is None
+        assert prep.lease_token is None
+        with pytest.raises(ForbiddenError):
+            await setup.ensure_initial_outline(session.id, student_user["user"])
 
         await db_session.refresh(session)
         assert session.outline_version == 0
@@ -678,7 +746,11 @@ class TestOutlineInitAccessRecheck:
 
     @pytest.mark.asyncio
     async def test_closed_assignment_during_init_does_not_persist(
-        self, db_session: AsyncSession, student_user: dict, published_assignment: dict
+        self,
+        db_session: AsyncSession,
+        student_user: dict,
+        published_assignment: dict,
+        run_outline_prep,
     ):
         factory = get_session_factory()
         setup = SocraticService(db_session, ai_port=FakeAiAdapter())
@@ -690,10 +762,11 @@ class TestOutlineInitAccessRecheck:
         ai = FakeAiAdapter()
         ai.hold_before_generate = asyncio.Event()
         ai.release_generate = asyncio.Event()
-        async with factory() as worker_db:
-            service = SocraticService(worker_db, ai_port=ai)
-            task = asyncio.create_task(
-                service.ensure_initial_outline(session.id, student_user["user"])
+        async with asyncio.timeout(5), asyncio.TaskGroup() as tasks:
+            task = tasks.create_task(
+                run_outline_prep(
+                    published_assignment["id"], student_user["id"], ai_port=ai
+                )
             )
             await asyncio.wait_for(ai.hold_before_generate.wait(), timeout=5)
             async with factory() as other:
@@ -703,9 +776,15 @@ class TestOutlineInitAccessRecheck:
                 assignment.status = "CLOSED"
                 await other.commit()
             ai.release_generate.set()
-            with pytest.raises(ConflictError) as exc:
-                await task
-            assert exc.value.code == "ASSIGNMENT_CLOSED"
+            assert await task == "FAILED"
+
+        prep = await setup.get_outline_prep(session)
+        assert prep.status == "FAILED"
+        assert prep.outline is None
+        assert prep.lease_token is None
+        with pytest.raises(ConflictError) as exc:
+            await setup.ensure_initial_outline(session.id, student_user["user"])
+        assert exc.value.code == "ASSIGNMENT_CLOSED"
 
         count = (
             await db_session.execute(

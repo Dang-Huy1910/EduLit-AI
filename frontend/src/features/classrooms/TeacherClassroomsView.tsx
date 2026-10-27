@@ -31,8 +31,9 @@ export default function TeacherClassroomsView() {
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('Ngữ văn');
 
+  const termId = term?.id;
   useEffect(() => {
-    if (!showArchived || !term) {
+    if (!showArchived || !termId) {
       setArchivedClassrooms([]);
       setArchivedError('');
       setArchivedLoading(false);
@@ -42,7 +43,7 @@ export default function TeacherClassroomsView() {
     setArchivedLoading(true);
     setArchivedError('');
     void classroomsApi
-      .listTeacherClassrooms({ termId: term.id, includeArchived: true })
+      .listTeacherClassrooms({ termId, includeArchived: true })
       .then(({ items }) => {
         if (active) setArchivedClassrooms(items);
       })
@@ -55,7 +56,7 @@ export default function TeacherClassroomsView() {
     return () => {
       active = false;
     };
-  }, [showArchived, term?.id, archivedReloadNonce]);
+  }, [showArchived, termId, archivedReloadNonce]);
 
   const visibleClassrooms = showArchived ? archivedClassrooms : classrooms;
   const listLoading = loading || (showArchived && archivedLoading);

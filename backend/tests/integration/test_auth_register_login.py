@@ -8,9 +8,9 @@ from httpx import AsyncClient
 from sqlalchemy import select, text
 
 from app.core.http import utcnow
-from app.core.passwords import verify_password_sync
+from app.core.passwords import hash_password_sync, verify_password_sync
 from app.core.tokens import generate_raw_token, hash_token
-from app.db.models import AuthToken, AuthTokenPurpose, User, UserRole, UserStatus
+from app.db.models import AuthSession, AuthToken, AuthTokenPurpose, User, UserRole, UserStatus
 from app.db.session import get_session_factory
 from tests.conftest import CapturingEmailAdapter, auth_headers, extract_token, unique_student
 
@@ -19,55 +19,98 @@ async def register(client: AsyncClient, payload: dict) -> object:
     return await client.post("/api/auth/register", json=payload, headers=auth_headers())
 
 
+async def legacy_student(prefix: str) -> dict[str, str]:
+    """Create an account from before registration automatically verified students."""
+    payload = unique_student(prefix)
+    factory = get_session_factory()
+    async with factory() as session:
+        session.add(
+            User(
+                login_id=payload["loginId"],
+                email=payload["email"],
+                display_name=payload["displayName"],
+                password_hash=hash_password_sync(payload["password"]),
+                role=UserRole.STUDENT,
+                status=UserStatus.ACTIVE,
+                email_verified_at=None,
+            )
+        )
+        await session.commit()
+    return payload
+
+
+async def request_verification(client: AsyncClient, payload: dict[str, str]) -> None:
+    response = await client.post(
+        "/api/auth/resend-verification", json={"email": payload["email"]}, headers=auth_headers()
+    )
+    assert response.status_code == 202
+
+
 @pytest.mark.asyncio
 async def test_register_stores_student_and_hides_token(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
     payload = unique_student("reg")
     res = await register(client, payload)
-    assert res.status_code == 202
+    assert res.status_code == 200
     body = res.json()
-    assert body["status"] == "verification_required"
-    assert "token" not in str(body).lower() or "#token" not in str(body).lower()
+    assert body["status"] == "success"
+    assert body["user"]["loginId"] == payload["loginId"]
+    assert body["user"]["emailVerified"] is True
+    assert "token" not in str(body).lower()
     assert payload["password"] not in str(body)
+    assert email_adapter.messages == []
+    assert "httponly" in res.headers["set-cookie"].lower()
+    assert "max-age=" in res.headers["set-cookie"].lower()
+    raw_session = client.cookies["edulit_session"]
 
     factory = get_session_factory()
     async with factory() as session:
         user = (await session.execute(select(User).where(User.login_id == payload["loginId"]))).scalar_one()
         assert user.role == UserRole.STUDENT
-        assert user.email_verified_at is None
+        assert user.email_verified_at is not None
         assert user.password_hash != payload["password"]
         assert verify_password_sync(user.password_hash, payload["password"])
         tokens = (await session.execute(select(AuthToken))).scalars().all()
-        assert len(tokens) == 1
-        raw = extract_token(email_adapter)
-        assert tokens[0].token_hash == hash_token(raw)
-        assert raw not in (tokens[0].token_hash or "")
+        assert tokens == []
+        stored_session = (await session.execute(select(AuthSession))).scalar_one()
+        assert stored_session.user_id == user.id
+        assert stored_session.token_hash == hash_token(raw_session)
+        assert raw_session not in stored_session.token_hash
+    me = await client.get("/api/auth/me")
+    assert me.status_code == 200
+    assert me.json()["id"] == body["user"]["id"]
 
 
 @pytest.mark.asyncio
-async def test_unverified_cannot_login_or_read_me(
+async def test_legacy_unverified_student_can_login_and_read_me(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = unique_student("uv")
-    assert (await register(client, payload)).status_code == 202
+    payload = await legacy_student("uv")
+    assert (await client.get("/api/auth/me")).status_code == 401
     login = await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"]},
         headers=auth_headers(),
     )
-    assert login.status_code == 403
-    assert login.json()["error"]["code"] == "AUTH_UNVERIFIED"
+    assert login.status_code == 200
+    assert login.json()["user"]["emailVerified"] is True
+    assert email_adapter.messages == []
     me = await client.get("/api/auth/me")
-    assert me.status_code == 401
+    assert me.status_code == 200
+    assert me.json()["id"] == login.json()["user"]["id"]
+    factory = get_session_factory()
+    async with factory() as session:
+        user = (await session.execute(select(User).where(User.login_id == payload["loginId"]))).scalar_one()
+        assert user.email_verified_at is not None
 
 
 @pytest.mark.asyncio
 async def test_verify_then_login_refresh(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = unique_student("ok")
-    await register(client, payload)
+    payload = await legacy_student("ok")
+    await request_verification(client, payload)
     token = extract_token(email_adapter)
     verify = await client.post("/api/auth/verify-email", json={"token": token}, headers=auth_headers())
     assert verify.status_code == 200
@@ -94,9 +137,16 @@ async def test_verify_then_login_refresh(
 async def test_verify_rejects_bad_expired_used_and_wrong_purpose(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = unique_student("tok")
-    await register(client, payload)
+    payload = await legacy_student("tok")
+    await request_verification(client, payload)
     good = extract_token(email_adapter)
+    assert email_adapter.messages[-1][0] == payload["email"]
+    factory = get_session_factory()
+    async with factory() as session:
+        stored_token = (await session.execute(select(AuthToken))).scalar_one()
+        assert stored_token.purpose == AuthTokenPurpose.EMAIL_VERIFICATION
+        assert stored_token.token_hash == hash_token(good)
+        assert good not in stored_token.token_hash
     bad = await client.post("/api/auth/verify-email", json={"token": "not-a-real-token"}, headers=auth_headers())
     assert bad.status_code == 400
 
@@ -141,8 +191,8 @@ async def test_verify_rejects_bad_expired_used_and_wrong_purpose(
 async def test_concurrent_verify_uses_token_once(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = unique_student("race")
-    await register(client, payload)
+    payload = await legacy_student("race")
+    await request_verification(client, payload)
     token = extract_token(email_adapter)
     results = await asyncio.gather(
         *[
@@ -162,15 +212,17 @@ async def test_duplicate_username_and_email_policy(
     await register(client, first)
     same_user = await register(client, first)
     assert same_user.status_code == 409
+    assert same_user.json()["error"]["code"] == "USERNAME_TAKEN"
     other = unique_student("dup2")
     other["loginId"] = first["loginId"].upper()
     case = await register(client, other)
     assert case.status_code == 409
+    assert case.json()["error"]["code"] == "USERNAME_TAKEN"
     email_taken = unique_student("dup3")
     email_taken["email"] = first["email"]
-    hidden = await register(client, email_taken)
-    assert hidden.status_code == 202
-    assert hidden.json()["status"] == "verification_required"
+    duplicate_email = await register(client, email_taken)
+    assert duplicate_email.status_code == 409
+    assert duplicate_email.json()["error"]["code"] == "EMAIL_TAKEN"
     factory = get_session_factory()
     async with factory() as session:
         rows = (
@@ -203,8 +255,7 @@ async def test_concurrent_register_same_username() -> None:
             return res.status_code
 
     codes = sorted(await asyncio.gather(one(), one()))
-    assert 202 in codes
-    assert 409 in codes or codes == [202, 202]
+    assert codes == [200, 409]
     factory = get_session_factory()
     async with factory() as session:
         users = (
@@ -217,8 +268,7 @@ async def test_concurrent_register_same_username() -> None:
 async def test_resend_does_not_change_password(
     client: AsyncClient, email_adapter: CapturingEmailAdapter
 ) -> None:
-    payload = unique_student("rs")
-    await register(client, payload)
+    payload = await legacy_student("rs")
     resend = await client.post(
         "/api/auth/resend-verification",
         json={"email": payload["email"]},
@@ -232,10 +282,19 @@ async def test_resend_does_not_change_password(
     )
     assert missing.status_code == 202
     assert missing.json() == resend.json()
+    assert len(email_adapter.messages) == 1
+    token = extract_token(email_adapter)
     factory = get_session_factory()
     async with factory() as session:
         user = (await session.execute(select(User).where(User.login_id == payload["loginId"]))).scalar_one()
+        assert user.email_verified_at is None
         assert verify_password_sync(user.password_hash, payload["password"])
+    verify = await client.post("/api/auth/verify-email", json={"token": token}, headers=auth_headers())
+    assert verify.status_code == 200
+    assert (await client.post(
+        "/api/auth/resend-verification", json={"email": payload["email"]}, headers=auth_headers()
+    )).status_code == 202
+    assert len(email_adapter.messages) == 1
 
 
 @pytest.mark.asyncio
@@ -261,8 +320,6 @@ async def test_wrong_password_and_nonexistent_and_no_trim(
     payload = unique_student("pw")
     payload["password"] = "  leading-space-15"
     await register(client, payload)
-    token = extract_token(email_adapter)
-    await client.post("/api/auth/verify-email", json={"token": token}, headers=auth_headers())
     trimmed = await client.post(
         "/api/auth/login",
         json={"loginId": payload["loginId"], "password": payload["password"].strip()},
@@ -290,11 +347,6 @@ async def test_inactive_after_verified_password(
 ) -> None:
     payload = unique_student("inact")
     await register(client, payload)
-    await client.post(
-        "/api/auth/verify-email",
-        json={"token": extract_token(email_adapter)},
-        headers=auth_headers(),
-    )
     factory = get_session_factory()
     async with factory() as session:
         await session.execute(

@@ -4,6 +4,8 @@ import argparse
 import asyncio
 import logging
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import timedelta
 
 from sqlalchemy import delete, select
@@ -18,9 +20,15 @@ from app.identity.domain import normalize_email, normalize_login_id
 logger = logging.getLogger("edulit.cli")
 
 
-def _session_factory(settings: Settings) -> async_sessionmaker[AsyncSession]:
+@asynccontextmanager
+async def _session(settings: Settings) -> AsyncIterator[AsyncSession]:
     engine = create_async_engine(settings.async_database_url, pool_pre_ping=True)
-    return async_sessionmaker(engine, expire_on_commit=False)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        async with factory() as session:
+            yield session
+    finally:
+        await engine.dispose()
 
 
 async def bootstrap_teacher(settings: Settings, *, reset_password: bool = False) -> None:
@@ -31,8 +39,7 @@ async def bootstrap_teacher(settings: Settings, *, reset_password: bool = False)
     if settings.is_production and password == LOCAL_PROTOTYPE_TEACHER_PASSWORD:
         raise SystemExit("Production rejects the prototype teacher password.")
 
-    factory = _session_factory(settings)
-    async with factory() as session:
+    async with _session(settings) as session:
         result = await session.execute(select(User).where(User.login_id == login_id))
         existing = result.scalar_one_or_none()
         if existing is None:
@@ -80,10 +87,9 @@ async def bootstrap_teacher(settings: Settings, *, reset_password: bool = False)
 
 
 async def cleanup_expired(settings: Settings) -> None:
-    factory = _session_factory(settings)
     now = utcnow()
     cutoff = now - timedelta(days=7)
-    async with factory() as session:
+    async with _session(settings) as session:
         sessions = await session.execute(
             delete(AuthSession).where(
                 (AuthSession.expires_at < now) | (AuthSession.revoked_at.is_not(None) & (AuthSession.revoked_at < cutoff))
@@ -107,8 +113,7 @@ async def cleanup_expired(settings: Settings) -> None:
 async def seed_demo(settings: Settings) -> None:
     from app.db.models.socratic import AssignmentRevision
 
-    factory = _session_factory(settings)
-    async with factory() as session:
+    async with _session(settings) as session:
         # 1. Bootstrap teacher
         await bootstrap_teacher(settings, reset_password=False)
 
