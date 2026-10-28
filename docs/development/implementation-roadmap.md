@@ -1,83 +1,69 @@
-# Lộ trình chuyển prototype thành MVP
+# Lộ trình triển khai và kiểm chứng MVP
 
-Ngày: 12/10/2026. Phụ thuộc: [system design](../architecture/system-design.md), [data model](../architecture/data-model.md), [API design](../api/api-design.md), [Gemini pipeline](../architecture/gemini-pipeline.md).
+Rà lại **2026-10-28** theo `backend/app/main.py`, router/service/worker, models, migration `0001`–`0019`, frontend App Router và CI. Stack hiện tại được ghi ở [ADR-0004](../architecture/decisions/0004-python-monolith.md), thay thiết kế NestJS ban đầu. “Đã có” bên dưới là đã có code Python/giao diện tương ứng, không phải xác nhận đạt chất lượng hay đã triển khai production.
 
-Đợt hiện tại hoàn thành tài liệu kiến trúc và lựa chọn công nghệ. Các milestone dưới đây là công việc triển khai tiếp theo, chưa phải chức năng đã chạy. Không ấn định số tuần khi chưa biết nhân lực, quyền API, dataset và phản hồi giáo viên.
+## M0 — Điều kiện và chính sách: đã có một phần, còn kiểm chứng
 
-## M0 — Kiểm tra điều kiện và chốt chính sách
+**Đã có:** cấu hình `AI_PROVIDER`/`AI_MODEL`, adapter openai/gemini/fake; học sinh sửa/xác nhận OCR rồi nộp chính thức; giáo viên rà soát/công bố/ẩn, cấp quyền mở lại bài từng công bố; barem có max score/score step.
 
-- Dùng đúng project/API key dự định triển khai để smoke test `gemini-2.5-flash`: text, ảnh giả lập, structured output, quota và usage.
-- Chốt review OCR, công bố điểm, quyền teacher đọc chat, outline readiness/nộp bài, bài nộp lại, score step và retention theo SRS.
-- Thu thập dataset được phép sử dụng, gỡ PII, có bản chép chuẩn và rubric/teacher scores; tách tuning/holdout.
+**Còn lại:** smoke test provider/model trên project triển khai, quota/chi phí, quyền riêng tư/retention, dataset được phép dùng và ngưỡng đồng thuận giáo viên. Không có số đo chất lượng để kết luận model đạt thí điểm.
 
-**Hoàn thành khi:** quyền gọi model được xác nhận; các policy ảnh hưởng workflow được ghi; teacher thống nhất bộ thử/ngưỡng ban đầu. Model unavailable được báo rõ, không tự thay model.
+## M1 — Nền tảng và dữ liệu: đã có bản Python, còn contract/vận hành
 
-## M1 — Nền tảng và dữ liệu thật
+**Đã có:** Python 3.12/FastAPI, SQLAlchemy async/PostgreSQL, Alembic tới `0019`, cookie session/Argon2id, role/owner/membership, CSRF/Origin, rate limit, Compose và CI. Các router nghiệp vụ cùng prefix `/api`. Ba worker claim/lease có helper chung; profile có sweep riêng trong API.
 
-- Scaffold NestJS API/worker trên Node.js 24 LTS/npm, lock patch runtime và dependencies, cấu hình lint/typecheck/test.
-- PostgreSQL/Prisma, migrations, pg-boss và transactional outbox; dev Docker Compose và storage adapter riêng tư.
-- Identity/session, membership authorization, CSRF, request IDs, usage reservations, idempotency và audit.
-- JSON Schemas/OpenAPI, mapper từ prototype camelCase/mock sang contract chính thức; fixture giả lập cho một lớp.
-- Thêm API client/TanStack Query; chuyển assignments/materials khỏi Zustand persisted data dần theo feature.
+Frontend dùng fetch client và Zustand theo feature; store chung bỏ dữ liệu prototype, chỉ persist sidebar. Seed lớp/ảnh đã chuyển sang `backend/demo/`, Dockerfile copy nguồn mới.
 
-**Hoàn thành khi:** teacher/student đăng nhập, request chéo lớp/chủ sở hữu bị chặn; restart không mất dữ liệu; upload không public; mutation conflict/idempotency có kiểm tra tích hợp.
+**Còn lại:** spec OpenAPI xuất riêng, bộ contract đồng bộ client ở M6; request correlation, usage reservation/audit chung và vận hành nhiều replica nếu cần. Không có Prisma/pg-boss/outbox/TanStack Query trong bản đang chạy.
 
-## M2 — Học liệu, rubric và giao đề
+## M2 — Học liệu, rubric và giao bài: đã có bản Python
 
-- PDF/DOCX/TXT parsing, privacy review, material versions/chunks, Gemini rubric extraction, teacher approve.
-- Assignment draft/publish, pin rubric/material versions, mục tiêu theo tiêu chí; retrieval đúng scope.
-- UI chỉ thấy trạng thái backend; không dùng thời gian chờ cố định để giả lập READY.
+**Đã có:** catalog chuyên đề/ngữ liệu/đề nguồn/barem; import DOCX/PDF có chữ/XLSX/TXT/Markdown qua MarkItDown, phân tích AI, giáo viên sửa/confirm; draft/publish bài tập, snapshot đề/barem/ngữ liệu, quyền theo người nhận, outline-prep và sửa settings bài đã giao. Giao diện đọc trạng thái backend. Ánh xạ FR-01–FR-05.
 
-**Hoàn thành khi:** từ tài liệu thật đã rà soát tạo được rubric hợp lệ; giáo viên sửa/approve/giao; rubric sửa không thay lịch sử đề đã giao. Ánh xạ FR-01–FR-05, AC-01.
+**Còn lại:** privacy gate tự động được kiểm chứng, OCR PDF scan nhập kho (`NEEDS_OCR` hiện chỉ giữ bản gốc), worker ingestion bền vững nếu cần. Không có endpoint approve rubric/privacy-review riêng như thiết kế cũ.
 
-## M3 — Socratic thật
+## M3 — Socratic và hỏi đáp: đã có bản Python
 
-- Chat session/messages/outline/FSM, policy readiness; Gemini adapter, context budget, refusal và response guardrail.
-- Buffer output trước trả UI; fallback câu hỏi đã duyệt; reconnect/idempotency/concurrent turn handling.
-- Đánh giá bộ yêu cầu viết hộ, prompt injection trong học liệu và câu hỏi ngoài phạm vi.
+**Đã có:** session/messages/outline/FSM/readiness, LangGraph pre/post guardrail, provider cấu hình, reservation và idempotency turn, kiểm version outline, dàn ý chuẩn bị nền. Chat trả toàn bộ nội dung sau kiểm tra. Chatbot `/api/chatbot` tìm từ khóa trên nguồn có quyền và hướng dẫn sử dụng. Ánh xạ FR-06–FR-10, BR-01–BR-04.
 
-**Hoàn thành khi:** hướng dẫn theo đúng đề/nguồn, giữ dàn ý học sinh, không xuất bản đoạn vi phạm guardrail; có báo cáo độ trễ thực tế. Ánh xạ FR-06–FR-10, BR-01–BR-04, AC-02/03.
+**Còn lại:** evaluation viết hộ/prompt injection/nguồn, chất lượng gợi mở và độ trễ thực tế. Streaming/SSE và semantic retrieval chưa có; chỉ bổ sung khi có nhu cầu/đánh giá riêng.
 
-## M4 — OCR (học sinh xác nhận) rồi chấm rubric
+## M4 — OCR rồi chấm rubric: đã có bản Python
 
-- Upload/che vùng riêng tư 1–4 trang, freeze attempt, queue OCR, segment mapping và transcription revision.
-- Học sinh đối chiếu/sửa/xác nhận bản chép; không có màn giáo viên duyệt OCR.
-- “Xác nhận bản chép & Nộp bài” là nộp chính thức (`READY_TO_GRADE`, `official_submitted_at`). Thời điểm gửi ảnh OCR (`submitted_at`) tách riêng.
-- Worker chấm durable trong API (`assessment_jobs`): concurrency/lease/retry; GET chỉ đọc; xác nhận lặp lại idempotent. Chấm theo AssignmentRevision đã giao + bản chép đã xác nhận, không dùng OCR thô hay barem catalog mới nhất.
-- Giáo viên rà soát/công bố/ẩn; CAS `resultId` + `transcriptionRevisionId` + `expectedVersion` → 409 nếu lệch bản đang xem. Học sinh chỉ xem điểm sau công bố. Phiên bản từng công bố (kể cả đang ẩn) cần giáo viên cấp quyền mới sửa; ẩn điểm không tự cấp quyền sửa. Grant bị tiêu thụ khi học sinh bắt đầu lượt sửa/nộp lại.
+**Đã có:** upload 1–4 trang và công cụ tự che vùng riêng tư, attempt/ảnh riêng tư trong PostgreSQL, OCR job/lease/retry, transcription revisions. Học sinh sửa/xác nhận; `submitted_at` và `official_submitted_at` tách nhau, xác nhận xếp chấm đúng revision.
 
-**Hoàn thành khi:** một bài đi hết chụp → OCR → học sinh xác nhận → hàng đợi chấm → giáo viên công bố → học sinh xem điểm. Ánh xạ FR-11–FR-17.
+Assessment worker xử lý job bền vững trong API; GET không xếp chấm. Đề/barem dùng snapshot, kết quả AI/teacher/published tách riêng. Lưu/công bố/ẩn kiểm tra `resultId`, `transcriptionRevisionId`, `expectedVersion`; học sinh xem điểm sau công bố. Bản từng công bố cần grant mở lại, ẩn điểm không tự cấp quyền. Ánh xạ FR-11–FR-17.
 
-## M5 — Báo cáo lớp (và cá nhân hóa sau)
+**Còn lại:** CER/WER, độ đúng bằng chứng/điểm trên bài thực, privacy/hiệu năng và thử phục hồi lỗi trong môi trường thí điểm. Không coi demo seed là báo cáo chất lượng.
 
-- Giáo viên tách hai luồng: chi tiết từng bài (`/assignments/[id]` tab đề / bài nộp / thống kê) và báo cáo năng lực nhiều bài (`/reports`). URL cũ `/reports?assignmentId=` và `/reports/[id]/students/[sid]` chuyển về luồng bài tập.
-- SQL metrics theo bài và theo nhiều bài, hai chế độ: tạm tính (bản nộp chính thức hiện hành, ưu tiên overlay giáo viên) và chính thức (published snapshot hiện hành). Thiếu điểm không coi là 0; mỗi học sinh/bài tập một kết quả; bài khác maxScore quy về thang 10 trước khi tổng hợp. Phổ điểm `[0,2)…[8,10]` do backend tính.
-- Tổng hợp lỗi theo `code` ổn định, tách số học sinh và số lần xuất hiện, ghi rõ mẫu số; phân biệt AI phát hiện với giáo viên xác nhận.
-- Gợi ý điều chỉnh dạy học từ số liệu server đã tính; cache theo hash đầu vào; GET/refresh không gọi AI; lỗi phân tích không làm mất bảng điểm.
-- Hồ sơ văn phong (goal survey, observations, snapshot Socratic) vẫn là bước sau; không dùng profile để chấm.
+## M5 — Báo cáo và hồ sơ viết: đã có bản Python
 
-**Hoàn thành khi:** báo cáo khớp bài đã công bố, kể cả nộp lại chưa công bố vẫn giữ điểm cũ. Ánh xạ FR-18–FR-21. Profile là mở rộng ngoài FR hiện tại.
+**Đã có:** trang chi tiết bài tập tách với báo cáo năng lực nhiều bài; số liệu backend từ PostgreSQL theo mode `provisional`/`official`, quy thang điểm 10, tách số học sinh/số lỗi và mẫu số. POST insight tạo job/cache theo hash dữ liệu, GET không gọi AI. Ánh xạ FR-18–FR-21.
 
-## M6 — Kiểm chứng và thí điểm
+Hồ sơ văn phong cũng đã có: GET cache, POST refresh, observations/evidence trong payload từ bài đã công bố, source hash, history version và UI tiến bộ. Worker tự tạo hồ sơ đầu tiên; các cập nhật sau do học sinh yêu cầu. Profile không dùng để chấm.
 
-- Chạy evaluations trên holdout; giáo viên đối chiếu OCR, scoring, Socratic và style observations.
-- Đo p50/p95 theo tải/ảnh/quota cụ thể, phân biệt queue/provider/review wait và NFR-03/04. Báo rõ mục tiêu chưa đạt để điều chỉnh policy cùng người phụ trách.
-- CI build/typecheck/tests/contracts; kiểm tra dữ liệu log, secrets, cleanup/provider files, backup/restore và cookie/CSRF trong môi trường HTTPS.
-- Deploy staging trước; sau khi đạt các quality gate và policy, thí điểm một lớp, theo dõi phản hồi/chi phí.
+**Còn lại:** goal survey/bảng observation độc lập của thiết kế cũ chưa có; cần evaluation profile, tính hữu ích của insight và kiểm chứng số liệu với giáo viên.
 
-**Hoàn thành khi:** có báo cáo evaluation và giới hạn thực tế, không chỉ demo; backend/worker vận hành bền vững, teacher workflow được sử dụng và chính sách lưu/xóa đã kiểm tra.
+## M6 — Contracts, đánh giá và thí điểm: còn mở
+
+`contracts/` và `evaluations/` được giữ làm chỗ dành sẵn, **chưa có nội dung thực thi**. Cần:
+
+- Xuất/đồng bộ HTTP spec/schema/ví dụ và bộ kiểm contract; đối chiếu API thực trong [API design](../api/api-design.md).
+- Dataset có quyền sử dụng, bản chép/điểm chuẩn, tách tune/holdout; báo cáo OCR, chấm, Socratic và profile.
+- Đo p50/p95, queue/provider/review wait theo điều kiện tải cụ thể; làm rõ phạm vi NFR-03/04.
+- CI hiện đã có Ruff/pytest, ESLint/typecheck/Node tests; còn contracts, kiểm chứng HTTPS/cookie/email thật, backup/restore, retention/cleanup và quota/chi phí trong môi trường triển khai.
+- Triển khai staging và thí điểm sau khi có kết quả quality gate/chính sách được chốt. Compose local chưa là cấu hình production đã nghiệm thu.
 
 ## Chuyển frontend từng phần
 
-| Prototype hiện tại | MVP đích |
+| Phần | Trạng thái hiện tại |
 | --- | --- |
-| `setRole`/tài khoản 1-click | Session backend; demo chỉ bật trong chế độ mock |
-| Assignments/materials trong `store.ts` | TanStack Query + API; Zustand giữ UI/draft |
-| `activeRubric` dùng chung | Rubric revision theo đề/session/attempt |
-| Outline/chat dùng chung toàn app | Scope theo student + session + assignment revision |
-| `piiMasked: boolean` | Ảnh đã rà soát xuất bitmap (xoay/che vùng); học sinh tự che, không tự mờ danh tính |
-| Học sinh sửa text OCR trực tiếp | Học sinh đối chiếu/sửa/xác nhận; expectedRevision; không màn giáo viên duyệt OCR |
-| Điểm 7.5 và confidence 0.94 mock | Sau xác nhận: bài đã nộp chính thức; điểm rubric khi hệ thống mở chấm |
-| Reset demo | Xóa state mock của trình duyệt; không có endpoint xóa production data |
+| Đăng nhập/đăng ký | API session thật; đăng ký học sinh được đánh dấu email xác minh và cấp phiên ngay |
+| Assignments/materials | API theo feature; store chung không còn persist dữ liệu nghiệp vụ |
+| Chat/outline | Scope student/session/revision, lưu backend, kiểm idempotency/version |
+| Nộp ảnh/che vùng riêng tư | Ảnh xuất từ UI và upload thật; người dùng tự rà soát |
+| OCR | Worker và bản chép thật, học sinh đối chiếu/sửa/xác nhận |
+| Điểm/báo cáo | Kết quả backend, học sinh chỉ xem điểm đã công bố |
+| Hồ sơ viết | Nguồn bài công bố, cache/history và cập nhật chủ động |
 
-Mock/API mode phải tách bằng cấu hình và adapter rõ, không silently fallback sang mock khi API lỗi. Không chuyển toàn bộ store trước khi feature tương ứng có API và kiểm tra; mỗi milestone giữ demo có thể chạy để so giao diện.
+Lệnh chạy/kiểm tra ở [README](../../README.md#khởi-chạy-local), [README backend](../../backend/README.md) và [CONTRIBUTING](../../CONTRIBUTING.md#lint-test-và-ci). Danh sách nợ đã xử lý/còn mở ở [tech-debt](tech-debt.md).

@@ -1,5 +1,7 @@
 # Prompt Grok — Hoàn thiện đăng ký, đăng nhập cho người dùng thật
 
+> **Prompt lịch sử — rà lại 2026-10-28:** Nội dung giao việc bên dưới phản ánh thời điểm tạo, không phải hiện trạng hay lệnh vận hành hiện tại. Dữ liệu lớp/ảnh demo đã dời sang `backend/demo/`; các file store/mock prototype đã bỏ. Backend hiện dùng Python theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md); không áp dụng nguyên trạng yêu cầu scaffold, tạo nhánh hoặc khôi phục mock trong prompt này.
+
 Ngày: 18/10/2026.
 
 Sao chép toàn bộ khối bên dưới vào Grok có quyền sửa repository. Công việc bắt đầu trên nhánh mới tạo từ `main`, chỉ tập trung xác thực và tài khoản. Các nhánh Python cũ dùng để tham khảo, không làm base hoặc mang cả backend sang.
@@ -63,9 +65,9 @@ Kiểm tra lại trước khi sửa; các thông tin dưới đây là mốc tha
 - Không tạo schema bài tập/chấm bài chỉ để import được auth. Server phải chạy
   độc lập mà không cần module học tập, SDK AI, API key AI hoặc dữ liệu mẫu học sinh.
 
-Đọc main: README.md, CONTRIBUTING.md, SRS.md, DESIGN.md, frontend/package.json,
+Đọc main: README.md, CONTRIBUTING.md, SRS.md, prototype/stitch_edulit_ai_platform_mvp/edulit_serene_paper/DESIGN.md, frontend/package.json,
 frontend/src/app/layout.tsx, app/login/page.tsx, lib/store.ts, lib/types.ts,
-lib/mock/data.ts, lib/mock/assignmentData.ts, TeacherShell.tsx, StudentShell.tsx,
+backend/demo/roster_11a14.json (nguồn demo hiện tại; module mock cũ đã bỏ), TeacherShell.tsx, StudentShell.tsx,
 backend/README.md, backend/.env.example và docs/architecture/decisions/.
 Đọc AGENTS.md trong các thư mục định sửa nếu có.
 

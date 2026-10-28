@@ -1,5 +1,7 @@
 # ADR-0001 — Stack MVP và Gemini 2.5 Flash
 
+> Trạng thái hiện tại: **Superseded by [0004](0004-python-monolith.md)** (2026-10-28). Nội dung dưới đây giữ nguyên để lưu quyết định lịch sử.
+
 - Ngày: 12/10/2026.
 - Trạng thái: chọn làm cơ sở triển khai; Gemini 2.5 Flash là lựa chọn rõ của người dùng, các thành phần còn lại do thiết kế này đề xuất.
 - Phạm vi: thí điểm EduLit-AI từ prototype hiện có; chưa triển khai backend/hạ tầng.

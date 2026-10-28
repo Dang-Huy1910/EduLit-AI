@@ -117,7 +117,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
-        title="EduLit-AI Auth API",
+        title="EduLit-AI API: Auth, Socratic Writing, Teacher Tools, and Assessment",
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/docs" if not settings.is_production else None,

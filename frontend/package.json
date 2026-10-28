@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test --experimental-strip-types --import ./scripts/register-test-loader.mjs src/features/socratic/__tests__/regression.test.mts src/features/socratic/__tests__/reveal.test.mts src/features/catalog/__tests__/assignment-flow.test.mts src/features/catalog/__tests__/import-markdown.test.mts src/features/chatbot/__tests__/chatbot.test.mts src/features/writing-profile/__tests__/model.test.mts src/features/assessment/__tests__/score-bins.test.mts src/features/classrooms/__tests__/model.test.mts src/features/classrooms/__tests__/request-gate.test.mts",
+    "test": "node --test --experimental-strip-types --import ./scripts/register-test-loader.mjs src/features/socratic/__tests__/regression.test.mts src/features/socratic/__tests__/reveal.test.mts src/features/catalog/__tests__/assignment-flow.test.mts src/features/catalog/__tests__/import-markdown.test.mts src/features/chatbot/__tests__/chatbot.test.mts src/features/writing-profile/__tests__/model.test.mts src/features/assessment/__tests__/score-bins.test.mts src/features/classrooms/__tests__/model.test.mts src/features/classrooms/__tests__/request-gate.test.mts src/lib/__tests__/store.test.mts",
     "test:e2e": "playwright test",
     "test:ui": "playwright test --config=playwright.ui.config.ts"
   },

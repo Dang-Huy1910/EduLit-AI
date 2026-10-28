@@ -137,7 +137,6 @@ class Settings(BaseSettings):
     BOOTSTRAP_TEACHER_PASSWORD: str = ""
     BOOTSTRAP_TEACHER_EMAIL_ALIASES: str = ""
 
-    ALLOW_DEMO_LOGIN: bool = False
     RUN_MIGRATIONS: bool | None = None
 
     @field_validator("APP_ENV")
@@ -296,8 +295,6 @@ class Settings(BaseSettings):
 
     def validate_runtime(self) -> None:
         self.normalized_origin
-        if self.ALLOW_DEMO_LOGIN and self.is_production:
-            raise RuntimeError("ALLOW_DEMO_LOGIN cannot be enabled when APP_ENV=production")
         if not self.is_production:
             return
         if not self.DATABASE_URL.strip():

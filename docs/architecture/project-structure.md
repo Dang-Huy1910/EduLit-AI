@@ -1,182 +1,86 @@
 # Cấu trúc dự án EduLit-AI
 
-Ngày cập nhật: 12/10/2026. Trạng thái: frontend có prototype; backend là khung thư mục. Công nghệ MVP đã được chọn trong [ADR-0001](decisions/0001-mvp-stack.md); xem [system design](system-design.md) để biết các thành phần còn phải triển khai.
+Rà lại: **2026-10-28**, theo cây file được Git theo dõi và entrypoint `backend/app/main.py`. Backend Python là monolith hiện có theo [ADR-0004](decisions/0004-python-monolith.md); frontend dùng Next.js App Router.
 
-## 1. Cách tổ chức
-
-Repository dùng monorepo để giữ giao diện, backend, hợp đồng và tài liệu cùng phiên bản. Backend dự kiến là modular monolith: các phân hệ có ranh giới nghiệp vụ riêng trong một ứng dụng. Cách tổ chức này giúp nhóm nhỏ phát triển và kiểm thử chu trình liên quan đến rubric, hướng dẫn, bài nộp và báo cáo trong cùng repository.
-
-Các tích hợp AI/OCR, storage, database và queue nằm ở lớp hạ tầng. Các use case nghiệp vụ làm việc qua interface để có thể thay adapter khi công nghệ hoặc nhà cung cấp thay đổi. Thiết kế đích dùng NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và Gemini 2.5 Flash. API/worker dùng hai entrypoint trong `backend/`, không tách repository.
-
-## 2. Cây thư mục
-
-Cây dưới đây thể hiện cách tổ chức đích. Frontend đã có code prototype; phần backend, contracts, prompts nghiệp vụ và tests phần lớn mới là vị trí dự kiến. Không coi tên file trong cây là chức năng đã được triển khai.
+## Cây thư mục đang dùng
 
 ```text
 EduLit-AI/
-├── .github/
-│   └── workflows/
+├── .github/workflows/ci.yml
 ├── frontend/
-│   ├── public/
 │   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── features/
-│   │   │   ├── analytics/
-│   │   │   ├── assessment/
-│   │   │   ├── assignments/
-│   │   │   ├── classrooms/
-│   │   │   ├── grounding/
-│   │   │   ├── identity/
-│   │   │   └── socratic/
-│   │   ├── lib/
+│   │   ├── app/                    # Trang và layout App Router
+│   │   ├── components/             # Shell, auth, UI dùng chung
+│   │   ├── features/               # catalog, assignments, classrooms, socratic,
+│   │   │                          # submission, assessment, chatbot, writing-profile
+│   │   ├── lib/                    # HTTP/auth client, types, UI store
 │   │   └── styles/
-│   ├── tests/
-│   │   ├── integration/
-│   │   └── unit/
-│   └── README.md
+│   ├── public/                     # Tài nguyên giao diện công khai
+│   ├── tests/                      # Playwright
+│   ├── scripts/                    # Loader cho unit tests Node
+│   ├── package.json
+│   └── package-lock.json
 ├── backend/
-│   ├── prisma/                 # schema.prisma và migrations khi scaffold
-│   ├── .env.example            # template cấu hình đã có
-│   ├── src/
-│   │   ├── main.ts             # API entrypoint dự kiến
-│   │   ├── worker.ts           # worker entrypoint dự kiến
-│   │   ├── core/
-│   │   ├── infrastructure/
-│   │   │   ├── ai/
-│   │   │   ├── database/
-│   │   │   ├── queue/
-│   │   │   ├── storage/
-│   │   │   └── vision/
-│   │   ├── jobs/
-│   │   │   └── ingestion/
-│   │   └── modules/
-│   │       ├── analytics/
-│   │       ├── assessment/
-│   │       ├── assignments/
-│   │       ├── classrooms/
-│   │       ├── grounding/
-│   │       │   └── application/
-│   │       │       ├── ingestion/
-│   │       │       ├── retrieval/
-│   │       │       └── rubrics/
-│   │       ├── identity/
-│   │       ├── writing-profile/
-│   │       └── socratic/
-│   │           └── application/
-│   │               ├── conversations/
-│   │               └── guardrails/
-│   ├── tests/
-│   │   ├── integration/
-│   │   └── unit/
-│   └── README.md
-├── contracts/
-│   ├── examples/
-│   ├── openapi/
-│   ├── schemas/
-│   └── README.md
-├── prompts/
-│   ├── analytics/
-│   ├── assessment/
-│   ├── grounding/
-│   ├── socratic/
-│   ├── writing-profile/
-│   └── README.md
-├── tests/
-│   ├── contracts/
-│   ├── e2e/
-│   └── performance/
-├── evaluations/
-│   ├── datasets/
-│   ├── grading/
-│   ├── ocr/
-│   ├── socratic/
-│   ├── writing-profile/
-│   └── README.md
+│   ├── app/
+│   │   ├── main.py                 # FastAPI, /api, lifespan worker
+│   │   ├── config.py
+│   │   ├── identity/               # Auth router/service/repository/dependencies
+│   │   ├── api/routers/            # Router nghiệp vụ
+│   │   ├── core/                   # HTTP, lỗi, password/token/rate limit
+│   │   ├── db/models/              # SQLAlchemy models
+│   │   ├── services/               # Nghiệp vụ, import, OCR, chấm, reports/profile
+│   │   ├── workflows/              # Socratic LangGraph và guardrail
+│   │   ├── workers/                # OCR, outline, assessment, writing profile
+│   │   ├── ai/                     # Adapter, schema, prompt assets
+│   │   └── email/                  # Adapter email
+│   ├── alembic/versions/           # 0001–0019
+│   ├── demo/                       # Roster, manifest TypeScript và submissions/
+│   ├── scripts/                    # Seed dữ liệu
+│   ├── tests/                      # Unit, integration, Socratic
+│   ├── _prompt_build.py            # Hook đóng gói prompt
+│   ├── pyproject.toml
+│   └── uv.lock
+├── contracts/                      # Dành sẵn M6, chưa có contract xuất riêng
+├── evaluations/                    # Dành sẵn M6, chưa có dataset/runner
+├── prompts/                        # socratic, catalog, ocr, assessment + lịch sử
 ├── docs/
 │   ├── api/
-│   │   └── api-design.md
-│   ├── architecture/
-│   │   ├── decisions/
-│   │   │   └── 0001-mvp-stack.md
-│   │   ├── system-design.md
-│   │   ├── data-model.md
-│   │   ├── gemini-pipeline.md
-│   │   ├── knowledge-and-chatbot.md
-│   │   └── project-structure.md
-│   ├── deployment/
+│   ├── architecture/decisions/
 │   └── development/
-│       └── implementation-roadmap.md
-├── infra/
-│   ├── docker/
-│   ├── environments/
-│   │   ├── development/
-│   │   ├── production/
-│   │   └── staging/
-│   └── README.md
-├── scripts/
-│   ├── dev/
-│   └── maintenance/
-├── .editorconfig
-├── .gitignore
+├── infra/docker/                   # Compose, Dockerfile API/web, SQL init test DB
+├── prototype/                      # Archive Stitch, giữ nguyên
 ├── CONTRIBUTING.md
 ├── README.md
 └── SRS.md
 ```
 
-## 3. Ánh xạ SRS vào mã
+## Ánh xạ nghiệp vụ vào code
 
-| Nghiệp vụ | Module backend và feature frontend | Yêu cầu SRS |
+| Nghiệp vụ | Backend | Frontend |
 | --- | --- | --- |
-| Nạp tri thức, học liệu, rubric | `grounding` | FR-01–FR-05 |
-| Hướng dẫn lập dàn ý | `socratic` | FR-06–FR-10, BR-01–BR-04 |
-| Nộp ảnh, OCR và chấm bài | `assessment` | FR-11–FR-17, BR-05–BR-08 |
-| Phân tích và điều chỉnh dạy học | `analytics` | FR-18–FR-21 |
-| Tài khoản và phân quyền | `identity` | TBD-01; phạm vi chi tiết cần chốt |
-| Lớp và thành viên | `classrooms` | TBD-01, TBD-07; phạm vi chi tiết cần chốt |
-| Mã đề, bài tập và liên kết rubric | `assignments` | FR-05, FR-06, TBD-02 |
-| Hồ sơ viết, bằng chứng và progressive profiling | `writing-profile` | Mở rộng theo trao đổi sản phẩm; chưa có FR riêng trong SRS |
+| Tài khoản/phiên | `app/identity/`, models user/session/token | `app/login/`, `app/register/`, `app/account/security/`, `lib/auth-*` |
+| Lớp/học kỳ | router `classrooms.py`, `services/classroom_service.py`, models catalog | `features/classrooms/`, `app/classrooms/` |
+| Học liệu/barem/import | router `catalog.py`, `catalog_service.py`, `document_import.py`, `document_convert.py` | `features/catalog/`, `app/materials/` |
+| Đề/giao bài | router `assignments.py`, `assignment_service.py`, `outline_prep.py` | `features/assignments/`, `app/assignments/` |
+| Socratic | router/service `socratic`, `workflows/`, `workers/outline_prep.py` | `features/socratic/`, trang `assignments/[id]/socratic` |
+| Bài nộp/OCR | router `submissions.py`, `submission_service.py`, `ocr_service.py`, `workers/ocr.py` | `features/submission/`, trang `submit`, `ocr` |
+| Chấm/báo cáo | router `assessments.py`, `assessment_service.py`, `assessment_jobs.py`, `stats_engine.py`, `report_service.py` | `features/assessment/`, trang `result`, `reports` |
+| Chatbot tra cứu | router/service `chatbot` | `app/chatbot/`, `features/chatbot/` |
+| Hồ sơ viết | router/service `writing_profile`, models `writing_profile.py`, worker cùng tên | `app/profile/`, `features/writing-profile/` |
 
-## 4. Ranh giới trách nhiệm
+Các đường dẫn backend trong bảng tính từ `backend/app/` trừ chỗ đã ghi `app/`. HTTP router gọi service; worker chạy service nền. Ba worker claim/lease dùng `workers/_loop.py`; writing profile sweep riêng. Đây là phân chia code hiện tại, không phải ranh giới microservice.
 
-- **Frontend:** Hiển thị và tương tác, tổ chức theo feature. Logic chấm điểm, quyền truy cập và gọi dịch vụ AI do backend thực hiện.
-- **Module backend:** Sở hữu use case và quy tắc nghiệp vụ. Tách mã HTTP, nghiệp vụ và persistence khi bắt đầu triển khai.
-- **Infrastructure:** Triển khai adapter theo interface của ứng dụng. Quy tắc sư phạm và điểm số thuộc module nghiệp vụ.
-- **Jobs:** Điều phối việc chạy use case nền. Có thể chạy trong tiến trình riêng và dùng lại mã của backend.
-- **Contracts:** Giữ đặc tả giao tiếp dùng chung. `docs/api` giải thích cách dùng API; `contracts/openapi` giữ đặc tả có thể xử lý bằng công cụ.
-- **Prompts:** Quản lý chỉ dẫn mô hình có phiên bản. Dữ liệu bài làm và học liệu được nạp ở thời điểm xử lý.
-- **Docs:** Lưu hướng dẫn và quyết định. `docs/architecture/decisions` dùng cho quyết định về framework, persistence, nhà cung cấp hoặc deployment khi được chốt.
+## Kiểm tra và dữ liệu
 
-Luồng giáo viên nhập học liệu và chatbot sử dụng ngữ cảnh được mô tả tại [luồng học liệu và chatbot](knowledge-and-chatbot.md). Các thư mục `grounding/application` và `socratic/application` được chuẩn bị riêng cho các use case này.
+- Backend: `backend/tests/unit/`, `backend/tests/integration/`, `backend/tests/socratic/`; Ruff và pytest cấu hình trong `pyproject.toml`.
+- Frontend: unit test tại `src/features/**/__tests__/` và `src/lib/__tests__/`; Playwright tại `frontend/tests/`. Lệnh nằm trong [CONTRIBUTING](../../CONTRIBUTING.md#lint-test-và-ci).
+- `contracts/{openapi,schemas,examples}/` và `evaluations/{datasets,ocr,grading,socratic}/` là chỗ dành sẵn cho M6; chưa có schema xuất riêng, runner hay báo cáo đánh giá. Không có runner contract/e2e/performance ở gốc repo.
+- Seed lớp đọc `backend/demo/` theo thứ tự override `DEMO_DATA_ROOT`, `DEMO_FRONTEND_ROOT`, mặc định. Fixture riêng nằm cạnh kiểm thử sử dụng nó. Xem [README backend](../../backend/README.md).
+- Tài liệu gốc và ảnh bài nộp runtime lưu bytes trong PostgreSQL, đọc qua API có kiểm tra quyền. Tài nguyên `frontend/public/` phục vụ giao diện công khai.
+- Template cấu hình: `backend/.env.example`, `frontend/.env.example`. Không commit secret.
 
-## 5. Vị trí kiểm tra
+## Hạ tầng và thay đổi tiếp theo
 
-| Loại kiểm tra | Vị trí | Ví dụ |
-| --- | --- | --- |
-| Unit / integration frontend | `frontend/tests/` | Hiển thị báo cáo, phối hợp trạng thái và API |
-| Unit / integration backend | `backend/tests/` | FSM, giới hạn điểm, truy cập persistence |
-| Contract | `tests/contracts/` | Kiểm tra rubric và báo cáo đúng schema |
-| E2E | `tests/e2e/` | Giáo viên tạo đề → học sinh lập dàn ý/nộp bài → giáo viên xem thống kê |
-| Performance | `tests/performance/` | TTFT và xử lý bài hai trang theo NFR-03, NFR-04 |
-| AI evaluation | `evaluations/` | Chất lượng OCR, đồng thuận điểm và guardrail Socratic |
+`.github/workflows/ci.yml` đã chạy lint/test backend và frontend, kèm frontend typecheck. `infra/docker/` có Compose PostgreSQL/Mailpit/API/web và Dockerfile; xem [infra](../../infra/README.md). Các placeholder hạ tầng, script bảo trì và feature không có nội dung đã được bỏ.
 
-Các thư mục chỉ dành vị trí cho kiểm tra; runner, fixture và ngưỡng chấp nhận được bổ sung theo phạm vi chức năng thực tế.
-
-## 6. Dữ liệu và môi trường
-
-Dữ liệu minh họa dùng chung nằm trong `contracts/examples`; fixture riêng đặt gần kiểm thử sử dụng nó. Bộ dữ liệu đánh giá AI nằm trong `evaluations/datasets` và phải có nguồn cùng trạng thái ẩn danh rõ ràng.
-
-Nếu cần lưu cục bộ lúc phát triển, dùng `var/` hoặc `data/` ở gốc repository; cả hai đường dẫn được Git bỏ qua và chưa được tạo trong khung này. Cấu hình lưu trữ thật phải thực hiện kiểm soát truy cập, lưu giữ và xóa theo SRS. Tài nguyên tĩnh `frontend/public` chỉ chứa tài nguyên công khai của sản phẩm.
-
-`.github/workflows` dành cho CI/CD; `infra` dành cho cấu hình hạ tầng; `scripts` dành cho tiện ích. Hiện các vị trí này chưa có workflow hoặc cấu hình thực thi.
-
-## 7. Mở rộng khi bắt đầu viết mã
-
-1. Triển khai stack trong ADR-0001; khóa phiên bản runtime/dependency và xác nhận project có quyền gọi `gemini-2.5-flash`.
-2. Thêm manifest, lockfile, entrypoint, cấu hình lint/format và lệnh phát triển cho ứng dụng tương ứng.
-3. Hoàn thiện hợp đồng dữ liệu theo SRS và các điểm TBD; sau đó triển khai module với kiểm tra phù hợp.
-4. Thêm cấu hình container, CI và hướng dẫn triển khai khi ứng dụng đã có lệnh chạy/kiểm tra thực tế.
-
-Khi phát sinh mã dùng chung giữa các ứng dụng với cùng hệ công nghệ, có thể thêm `packages/` cho thư viện đó. Khi cần triển khai worker độc lập, có thể thêm `worker/` và tách thư viện nghiệp vụ dùng chung. Mỗi bước mở rộng cần có nhu cầu cụ thể và được phản ánh trong tài liệu.
-
-Chi tiết tiến trình và milestone: [lộ trình triển khai](../development/implementation-roadmap.md). Logical entities và constraints: [mô hình dữ liệu](data-model.md). Migration nghiệp vụ tương lai dùng `backend/prisma/migrations/`; thư mục `backend/migrations/` hiện là placeholder, chưa có migration cần chuyển.
+Migration duy nhất ở `backend/alembic/versions/`; không sửa revision đã áp dụng. Kiến trúc mới ghi bằng ADR, theo số trống tiếp theo. Contracts xuất riêng, evaluations và vận hành thí điểm theo [roadmap](../development/implementation-roadmap.md); mô hình thực thi ở [data model](data-model.md).

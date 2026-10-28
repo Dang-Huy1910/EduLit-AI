@@ -33,7 +33,6 @@ os.environ["APP_ORIGIN"] = "http://localhost:3000"
 os.environ["SMTP_HOST"] = "127.0.0.1"
 os.environ["SMTP_PORT"] = os.environ.get("SMTP_PORT", "1025")
 os.environ["BOOTSTRAP_TEACHER_PASSWORD"] = "DanPhuong@2024"
-os.environ["ALLOW_DEMO_LOGIN"] = "false"
 os.environ["RATE_LIMIT_LOGIN_ACCOUNT_MAX"] = "5"
 os.environ["RATE_LIMIT_LOGIN_IP_MAX"] = "30"
 os.environ["RATE_LIMIT_REGISTER_IP_MAX"] = "30"

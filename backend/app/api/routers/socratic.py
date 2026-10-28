@@ -281,12 +281,6 @@ async def list_sessions(
     return [_session_response(s) for s in sessions]
 
 
-class FindSessionRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    assignmentCode: str = Field(..., min_length=1, max_length=32)
-
-
 class FindSessionResponse(BaseModel):
     session: SessionResponse | None
     exists: bool

@@ -1,5 +1,7 @@
 # Triển khai hồ sơ văn phong học sinh — MVP đơn giản
 
+> **Prompt lịch sử — rà lại 2026-10-28:** Nội dung giao việc bên dưới phản ánh thời điểm tạo, không phải hiện trạng hay lệnh vận hành hiện tại. Dữ liệu lớp/ảnh demo đã dời sang `backend/demo/`; các file store/mock prototype đã bỏ. Backend hiện dùng Python theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md); không áp dụng nguyên trạng yêu cầu scaffold, tạo nhánh hoặc khôi phục mock trong prompt này.
+
 Hãy thực hiện luôn tính năng hồ sơ văn phong học sinh cho EduLit-AI theo yêu cầu dưới đây. Ưu tiên ít code, tận dụng phần đã có, giữ giao diện đẹp như prototype.
 
 ## 1. Worktree và phạm vi
@@ -16,12 +18,12 @@ Stack đang chạy: FastAPI + SQLAlchemy/PostgreSQL và Next.js/React/Tailwind. 
 
 Các file cần xem:
 - `frontend/src/app/profile/page.tsx`: trang hiện đang lấy `MOCK_BUI_HA_MY_PROFILE`.
-- `frontend/src/lib/mock/writingProfileData.ts`: hình dạng dữ liệu và 8 nhóm diễn đạt của prototype; chỉ tham khảo bố cục/type, không dùng nhận xét mẫu làm dữ liệu thật.
+- `frontend/src/features/writing-profile/types.ts`: kiểu dữ liệu UI hiện tại; hồ sơ mock prototype cũ đã bỏ.
 - `backend/app/services/assessment_service.py`: quyền xem kết quả, snapshot đã công bố và bản chép tương ứng.
 - `backend/app/db/models/assessment.py`, `submission.py`, `socratic.py`: kết quả công bố, bản chép và quyền truy cập bài tập.
 - `backend/app/ai/adapters.py`: tái sử dụng AI client/config hiện có.
 - `backend/app/ai/prompt_assets.py`, `backend/_prompt_build.py`: cách đóng gói prompt nếu dùng file Markdown.
-- `frontend/src/lib/school-context.ts`: học kỳ I, năm học 2026–2027, lớp mặc định 12A14. Lấy thông tin người học/lớp từ dữ liệu thật khi có.
+- `frontend/src/features/classrooms/class-context.ts`: lưu lựa chọn user/học kỳ/lớp theo ID, mặc định rỗng; thông tin lớp lấy từ API, không còn context lớp cố định của prototype.
 
 ## 3. Luồng duy nhất
 

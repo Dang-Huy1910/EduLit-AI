@@ -1,12 +1,12 @@
 # Handoff — xác thực Python (feat/python-auth)
 
-Ngày: 18/10/2026. Base local `main` `5e24268`.
+Ngày bàn giao: 18/10/2026. Base local `main` `5e24268`. Chính sách/contract đăng ký đã rà lại 2026-10-28 theo `backend/app/identity/`; bảng kết quả kiểm thử bên dưới vẫn là lịch sử ngày bàn giao.
 
 ## Chính sách đã chốt
 
 | Vai trò | Đăng ký | Đăng nhập | Email |
 | --- | --- | --- | --- |
-| Học sinh | Tự đăng ký (họ tên, loginId, email, mật khẩu). Role luôn `STUDENT`. | Sau khi `email_verified_at` có giá trị | Xác minh + quên mật khẩu |
+| Học sinh | Tự đăng ký (họ tên, loginId, email, mật khẩu). Role luôn `STUDENT`. | Có phiên ngay sau đăng ký, `email_verified_at` được gán ngay | Verify/resend endpoint vẫn giữ; quên mật khẩu |
 | Giáo viên | Không. CLI `bootstrap-teacher` | Cùng API, username `dang.loan` hoặc email cấu hình | Đánh dấu verified vì người vận hành cấp, không vì domain mẫu là mailbox thật |
 
 Email chuẩn hóa: strip + lowercase toàn bộ địa chỉ; **không** xóa dấu chấm hay `+tag`.  
@@ -16,7 +16,7 @@ Mật khẩu mới: 15–128 ký tự, không strip. Login không áp minimum đ
 
 JSON camelCase. Lỗi `{ error: { code, message, fields? } }`.
 
-- `POST /register` → 202 `verification_required` (không cấp session)
+- `POST /register` → 200 `{status: "success", message, user}` và cookie phiên; đánh dấu đã xác minh ngay
 - `POST /verify-email` `{ token }`
 - `POST /resend-verification` `{ email }` (phản hồi trung tính)
 - `POST /login` `{ loginId, password, rememberMe? }` + cookie `edulit_session`
@@ -35,11 +35,19 @@ PublicUser = `{ id, loginId, email, displayName, role, emailVerified }`.
 Xem [backend/README.md](../../backend/README.md). Tóm tắt:
 
 ```bash
-cd backend && cp .env.example .env && uv sync --extra dev
+docker compose -f infra/docker/compose.auth.yml up -d postgres mailpit
+cd backend
+cp .env.example .env
+uv sync --extra dev
+export DATABASE_URL=postgresql://edulit:edulit_dev@localhost:5434/edulit_auth
 uv run alembic upgrade head
 uv run python -m app.cli bootstrap-teacher
 uv run uvicorn app.main:app --port 4000
-cd ../frontend && cp .env.example .env.local && npm install && npm run dev
+# Cửa sổ khác, từ gốc repo:
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
 ```
 
 Mailpit UI: `http://localhost:8025`. Không gửi thư tới địa chỉ thật khi test.

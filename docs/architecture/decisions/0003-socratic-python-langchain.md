@@ -83,6 +83,8 @@ Prompts được lưu tại `prompts/socratic/` với version tracking. Assets �
 
 ## Hạn chế
 
+Các giới hạn dưới đây ghi tại thời điểm ADR (2026-10-18). Rà lại 2026-10-28: OCR, chấm, quản lý lớp và hồ sơ viết đã có bản Python; xem [ADR-0004](0004-python-monolith.md) và [roadmap](../../development/implementation-roadmap.md). Guardrail heuristic và việc chưa có streaming/SSE vẫn áp dụng.
+
 - OCR và Assessment chưa được triển khai
 - Guardrail viết hộ là heuristic (câu hỏi gợi mở vs đoạn văn mẫu); không bảo đảm tuyệt đối
 - Streaming/SSE chưa được hỗ trợ
@@ -90,6 +92,6 @@ Prompts được lưu tại `prompts/socratic/` với version tracking. Assets �
 
 ## References
 
-- [SRS.md](../../SRS.md) — Yêu cầu chức năng FR-06 đến FR-10
+- [SRS.md](../../../SRS.md) — Yêu cầu chức năng FR-06 đến FR-10
 - [gemini-pipeline.md](../gemini-pipeline.md) — AI pipeline design
 - [data-model.md](../data-model.md) — Data model specifications

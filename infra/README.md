@@ -1,17 +1,36 @@
 # Hạ tầng triển khai
 
-Kiến trúc MVP chọn PostgreSQL 17, frontend Next.js và backend NestJS chạy hai tiến trình API/worker; pg-boss dùng schema riêng trong PostgreSQL. Tham khảo [system design](../docs/architecture/system-design.md#9-triển-khai-theo-môi-trường) và [ADR-0001](../docs/architecture/decisions/0001-mvp-stack.md).
+Rà lại 2026-10-28 theo [Compose](docker/compose.auth.yml), [Dockerfile API](docker/Dockerfile.api) và [Dockerfile web](docker/Dockerfile.web). Stack hiện có là PostgreSQL 17, Mailpit, FastAPI/Python 3.12 và Next.js; các worker mặc định chạy trong process API theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md).
 
-| Môi trường | Hạ tầng đích |
-| --- | --- |
-| Development | Docker Compose cho PostgreSQL; frontend/API/worker local; file riêng tư ở `var/` |
-| Staging | Container API/worker/frontend, database và GCS bucket riêng, credentials riêng |
-| Pilot production | VM container có HTTPS reverse proxy, PostgreSQL managed, GCS, secret manager, backup/cleanup |
+## Compose local
 
-Worker phải thường trú để nhận job; không xử lý lâu bên trong Next.js route handler hoặc dựa vào lifecycle của serverless request. File production không lưu bền vững trong filesystem container. API và frontend cùng origin, `/api/v1` proxy tới NestJS; migration chạy một lần trước rollout.
+Từ gốc repo, tạo `backend/.env` theo `backend/.env.example`, rồi chạy:
 
-`docker/` dành cho Dockerfile và cấu hình container sau khi xác định ứng dụng cần chạy. `environments/development`, `staging`, `production` dành cho cấu hình khác biệt giữa các môi trường.
+```bash
+docker compose -f infra/docker/compose.auth.yml up --build
+```
 
-Chỉ commit template và cấu hình không chứa secret. Credentials và giá trị cấu hình nhạy cảm được cấp qua môi trường triển khai. Tài liệu vận hành nằm trong `docs/deployment/`; lệnh hỗ trợ bảo trì nằm trong `scripts/maintenance/`.
+| Dịch vụ | Host port mặc định | Ghi chú |
+| --- | --- | --- |
+| PostgreSQL | `5434` | DB `edulit_auth`, init script tạo DB test; volume giữ dữ liệu |
+| Mailpit | `1025`, `8025` | SMTP sink và giao diện xem thư |
+| API | `4000` | Health `/api/health`; nội bộ DB host `postgres:5432` |
+| Web | `3000` | Rewrite `/api/*` tới API; build dùng `API_PROXY_TARGET=http://api:4000` |
 
-Compose xác thực local: [`docker/compose.auth.yml`](docker/compose.auth.yml) (PostgreSQL, Mailpit, API Python, frontend). Không dùng làm cấu hình production. Hướng dẫn: [python-auth-handoff](../docs/development/python-auth-handoff.md).
+Muốn chỉ chạy DB/mail cho phát triển local: thêm `up -d postgres mailpit` thay cho `up --build`; lệnh chạy backend/frontend ở [README](../README.md#khởi-chạy-local). Settings Python mặc định DB port `5433`, nên khi kết nối từ host tới Compose cần đặt `DATABASE_URL` dùng `5434`.
+
+Dockerfile API copy **`backend/demo/` vào `/app/demo`**, đặt `DEMO_DATA_ROOT=/app/demo`; không cần copy dữ liệu từ frontend để seed. Manifest và roster giữ tên lịch sử 11A14, seed lớp hiện là 12A14. File tài liệu/ảnh runtime lưu bytes trong PostgreSQL. Image còn copy `docs/` cho hướng dẫn chatbot; prompt runtime được đóng gói vào package backend ở bước build.
+
+CMD API chạy `alembic upgrade head` trước Uvicorn. Có thể bootstrap giáo viên qua container:
+
+```bash
+docker compose -f infra/docker/compose.auth.yml exec api python -m app.cli bootstrap-teacher
+```
+
+OCR/outline/chấm dùng job/lease PostgreSQL và helper vòng lặp; writing profile sweep riêng. Nếu tách một trong ba worker có CLI ra process riêng, cần tắt cờ worker đó trong API. Xem [README backend](../backend/README.md#cli-vận-hành).
+
+## Phần vận hành còn lại
+
+Compose này phục vụ local, chưa là bộ cấu hình production được kiểm chứng. HTTPS/reverse proxy cùng origin `/api`, email thật, secret riêng, backup/restore, retention, quota và cách chạy migration khi có nhiều replica cần hoàn thiện ở [M6](../docs/development/implementation-roadmap.md#m6--contracts-đánh-giá-và-thí-điểm-còn-mở). Chưa có storage GCS hoặc cấu hình môi trường staging/production thực thi trong cây repo.
+
+Chỉ commit template không chứa secret. Hành vi kiểm cấu hình production và biến `RUN_MIGRATIONS` phải đối chiếu `backend/app/config.py`; không suy ra từ tên Compose có chữ auth rằng API chỉ phục vụ xác thực.

@@ -2,7 +2,7 @@
 
 Phiên bản: 2.0 · Cập nhật: 12/10/2026.
 
-Prompt dựa trên [SRS](../SRS.md) và bảng màu [DESIGN.md](../DESIGN.md), bao phủ bốn phân hệ ở mức MVP. Sao chép toàn bộ nội dung trong khối bên dưới vào Stitch; prompt đã chứa ngữ cảnh cần thiết để dùng độc lập.
+Prompt dựa trên [SRS](../SRS.md) và bảng màu [DESIGN.md](../prototype/stitch_edulit_ai_platform_mvp/edulit_serene_paper/DESIGN.md), bao phủ bốn phân hệ ở mức MVP. Sao chép toàn bộ nội dung trong khối bên dưới vào Stitch; prompt đã chứa ngữ cảnh cần thiết để dùng độc lập.
 
 Giả định UX để thiết kế: đăng nhập bằng tài khoản có sẵn; giáo viên xác nhận rubric trước khi giao đề; học sinh xem bản chép OCR nhưng không tự sửa nội dung sau khi nộp; giáo viên rà soát đoạn OCR được đánh dấu. Đây là đề xuất cho prototype, cần chốt theo TBD-01–TBD-05 của SRS trước khi triển khai. Prompt không quy định công nghệ backend hoặc ngưỡng chất lượng OCR.
 

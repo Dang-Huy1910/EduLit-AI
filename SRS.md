@@ -13,7 +13,7 @@
 
 > Tài liệu mô tả yêu cầu dự kiến của hệ thống, không xác nhận các chức năng đã được triển khai. Các nội dung chưa được xác định trong nguồn được ghi tại mục 11; các quy tắc chuẩn hóa bổ sung được nêu rõ để xem xét.
 
-Ngày 12/10/2026, người dùng chọn **Gemini 2.5 Flash**. [Thiết kế kiến trúc](docs/architecture/system-design.md) và [ADR-0001](docs/architecture/decisions/0001-mvp-stack.md) chọn stack triển khai từ prototype. Các đề xuất policy review/retention/outline và ngưỡng chất lượng trong thiết kế không tự trở thành yêu cầu đã nghiệm thu.
+Ngày 12/10/2026, người dùng chọn **Gemini 2.5 Flash**; đây là lựa chọn tại thời điểm đặc tả. Rà lại 2026-10-28: [kiến trúc hiện tại](docs/architecture/system-design.md) và [ADR-0004](docs/architecture/decisions/0004-python-monolith.md) ghi nhận backend Python cùng provider/model cấu hình; [ADR-0001](docs/architecture/decisions/0001-mvp-stack.md) là quyết định lịch sử đã thay thế. Các đề xuất policy review/retention/outline và ngưỡng chất lượng trong thiết kế không tự trở thành yêu cầu đã nghiệm thu.
 
 ## 1. Giới thiệu
 
@@ -108,8 +108,8 @@ Hệ thống không cung cấp chức năng viết thay đoạn văn hoặc bài
 - Phân hệ 2 và 3 phụ thuộc vào học liệu, đề bài và rubric từ phân hệ 1.
 - Phân hệ 4 phụ thuộc vào kết quả đánh giá từ phân hệ 3 và mục tiêu giáo án từ phân hệ 1.
 - Khả năng nhận dạng chữ viết tay tiếng Việt phụ thuộc chất lượng ảnh và dịch vụ OCR/Vision được lựa chọn.
-- Người dùng đã chọn `gemini-2.5-flash` cho Vision/OCR, đánh giá và hướng dẫn. Quyền truy cập model trên project cần kiểm tra trước tích hợp; không tự thay model.
-- Stack triển khai được thiết kế từ prototype Next.js: NestJS/TypeScript, PostgreSQL/Prisma, pg-boss và file riêng tư local/GCS. Đây là lựa chọn kiến trúc bổ sung, không phải mô tả hệ thống đã chạy.
+- Lựa chọn model ban đầu là `gemini-2.5-flash`; code hiện tại chọn `openai`, `gemini` hoặc `fake` qua `AI_PROVIDER`, model qua `AI_MODEL` và override tác vụ trong `backend/app/config.py`. Quyền/quota model thật vẫn cần kiểm tra trên project triển khai.
+- Stack thực thi hiện tại: Next.js App Router, Python 3.12/FastAPI, SQLAlchemy async, PostgreSQL/Alembic; worker trong process API và tệp/ảnh lưu bytes trong PostgreSQL. Căn cứ `backend/app/main.py`, models và workers; xem ADR-0004. Chức năng có code không đồng nghĩa đã nghiệm thu các yêu cầu chất lượng của SRS.
 
 ## 3. Phân hệ 1 — Teacher Knowledge Grounding & Rubric Engine
 

@@ -1,5 +1,60 @@
 # Nợ kỹ thuật đã kiểm chứng
 
+Ngày rà lại: **2026-10-28**, trên `main` sau mốc `d364b14`. Bảng dưới là trạng thái hiện tại của 15 mục. Bản kiểm kê gốc ngày 27/10/2026 được giữ ở phần lịch sử cuối file; vị trí `file:dòng` và kết luận ở phần đó phản ánh mốc cũ.
+
+## Trạng thái TD-01 đến TD-15
+
+| Mã | Trạng thái | Đã làm |
+| --- | --- | --- |
+| TD-01 | Đã xử lý | `frontend/src/lib/store.ts` chỉ còn user, toast và sidebar; chỉ persist `sidebarCollapsed`, `migrate`/`merge` bỏ state prototype đã lưu. Hằng fallback Socratic tách vào `features/socratic/constants.ts`. Có unit test cho store. Mock và ảnh demo đã rời frontend (TD-03) |
+| TD-02 | Đã xử lý | Thêm [ADR-0004](../architecture/decisions/0004-python-monolith.md), đánh dấu ADR-0001 superseded. README, CONTRIBUTING, SRS, tài liệu kiến trúc, API, roadmap, infra, prompts và frontend mô tả theo `main.py`, Settings, router, model và worker thực tế |
+| TD-03 | Đã dời nguồn; định dạng giữ nguyên | Roster, manifest và ảnh nằm ở `backend/demo/`. `seed_classroom_demo.py` ưu tiên `DEMO_DATA_ROOT`, rồi `DEMO_FRONTEND_ROOT` (bố cục cũ), rồi `backend/demo/`. `Dockerfile.api` copy `backend/demo`. Manifest vẫn là `.ts` do seed parse; revision `0013` giữ nguyên |
+| TD-04 | Đã xử lý | `backend/app/workers/_loop.py` là vòng claim/lease/poll chung cho OCR, outline-prep và assessment. Assessment giữ backfill và thứ tự grade trước insight; writing profile vẫn sweep riêng. Có test trong `tests/unit/test_worker_loop.py` |
+| TD-05 | Xử lý một phần | Bỏ `filterwarnings` toàn cục; pytest chạy không còn warning. `workflows/langgraph_compat.py` vẫn vá serializer nội bộ, chờ nâng LangGraph để dùng allowlist public |
+| TD-06 | Đã xử lý | Xoá 17 placeholder khung Nest dưới `backend/src/` và `backend/migrations/`. CONTRIBUTING và project-structure trỏ tới `backend/app/` và `backend/alembic/versions/` |
+| TD-07 | Đã xử lý | [API design](../api/api-design.md) ghi prefix `/api`, envelope `{error: {code, message, fields?}}`, bảng route đối chiếu decorator; route còn là thiết kế được tách riêng |
+| TD-08 | Đã xử lý theo chính sách đã chốt | Giữ hành vi code: `AuthService.register` gán email đã xác minh và cấp phiên ngay. ADR-0002 và README backend đã sửa cho khớp; endpoint verify/resend vẫn giữ |
+| TD-09 | Đã xử lý | README frontend mô tả đăng nhập thật qua API session và App Router; bỏ tài khoản 1-click, lớp 12A1 và nút reset prototype |
+| TD-10 | Đã xử lý | Bỏ enum Python không caller; revision `0019_drop_material_status_enum` xoá type, downgrade tạo lại. Cột `material_versions.status` vẫn `VARCHAR`. Có test migration |
+| TD-11 | Đã xử lý | Xoá script SQL đổi mã lớp, đã được revision `0015_classroom_12a14` thay thế. Docstring `0015` còn nhắc script như lịch sử |
+| TD-12 | Đã xử lý | Xoá mock, OCR batch, source manifest, barrel và helper frontend không caller; xoá schema auth, request Socratic, helper stats, setting `ALLOW_DEMO_LOGIN` và khóa lỗi `AUTH_UNVERIFIED`. Test vẫn khẳng định biến môi trường cũ bị bỏ qua |
+| TD-13 | Đã xử lý | Xoá placeholder ngoài kế hoạch. Giữ `contracts/` và `evaluations/` cho M6, README của hai thư mục ghi rõ chưa có nội dung thực thi |
+| TD-14 | Xử lý một phần | Bỏ glob `src/pages` trong Tailwind, gộp `package-data` thành một glob. Archive Stitch để lại |
+| TD-15 | Xử lý một phần | Đổi description trong `pyproject.toml` và title FastAPI. Tên distribution `edulit-ai-auth` và CLI `edulit-auth` giữ nguyên |
+
+## Những phần còn mở và lý do
+
+- **TD-03:** manifest vẫn là TypeScript mà seed phải parse; chuyển sang JSON thuần là bước sau. Nhánh `DEMO_FRONTEND_ROOT` giữ cho bố cục cũ. Mô tả revision `0013` không sửa vì migration đã chạy trên production.
+- **TD-05:** bỏ phụ thuộc `langchain_core._api`/`Reviver` và việc gán `LC_REVIVER` cần nâng và kiểm tương thích LangGraph/checkpoint.
+- **TD-14:** archive Stitch trong `prototype/` chờ chủ repo quyết định. Symlink `backend/node_modules` trên máy dev không nằm trong Git.
+- **TD-15:** đổi tên distribution và CLI là thay đổi tương thích, để riêng.
+- **M6:** `contracts/` và `evaluations/` chưa có schema, dataset hay runner. Kiểm chứng AI, NFR, email/HTTPS thật, backup/restore, retention và quota vẫn mở.
+
+## Kết quả kiểm tra ngày 2026-10-28
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| `backend/.venv/bin/ruff check .` | Sạch |
+| `pytest -q` trên DB test riêng | 309 passed, không có warning |
+| `npm run lint`, `npx tsc --noEmit` | Sạch, 0 cảnh báo |
+| `npm test` | 68/68 |
+| `npm run test:ui` | 16/16 |
+| `npx next build` | Thành công |
+| `alembic upgrade head` trên DB trống | Chạy tới `0019`; seed `0013` tạo 41 bài nộp từ `backend/demo/`. `downgrade -1` tạo lại enum, `upgrade head` xoá lại |
+| Wheel backend | Chứa đủ 9 file prompt `.md` dưới `app/ai/prompts/` |
+| Link tương đối trong tài liệu đã sửa | 0 link hỏng; `git diff --check` sạch |
+
+Tìm lại tên file, symbol và đường dẫn đã xoá thì chỉ còn các chỗ hợp lệ:
+
+- `backend/tests/unit/test_domain.py`: test khẳng định `ALLOW_DEMO_LOGIN` trong môi trường bị bỏ qua và không còn là field của Settings.
+- `backend/scripts/seed_classroom_demo.py`: docstring và help mô tả nhánh tương thích `DEMO_FRONTEND_ROOT`.
+- `backend/alembic/versions/0015_classroom_12a14.py`: docstring nhắc script SQL đã chạy trước đây; không sửa revision.
+- `/api/v1` trong test SMTP và e2e là API của Mailpit, không phải API của ứng dụng.
+
+## Lịch sử kiểm kê ngày 27/10/2026
+
+Phần dưới giữ bằng chứng và hướng xử lý tại mốc `d364b14`. Các câu “vẫn”, “chưa”, tên file đã xóa và số dòng chỉ là lịch sử; trạng thái mới nằm trong bảng phía trên.
+
 Ngày rà: 27/10/2026. Phạm vi: đọc code trên worktree này, đối chiếu `git ls-files`. Không chạy test, không đụng database.
 
 Lệnh kiểm tra nằm ở [CONTRIBUTING.md](../../CONTRIBUTING.md) mục «Lint, test và CI».

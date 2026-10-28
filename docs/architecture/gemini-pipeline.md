@@ -1,114 +1,80 @@
-# Pipeline AI với Gemini 2.5 Flash
+# Pipeline AI — OpenAI, Gemini và fake
 
-Ngày: 12/10/2026. Model cố định theo lựa chọn người dùng: `gemini-2.5-flash`, qua adapter backend và SDK `@google/genai`. Đây là thiết kế, chưa gọi API thật hoặc đánh giá chất lượng model trên bài Ngữ văn.
+Rà lại **2026-10-28** theo `backend/app/config.py`, `app/ai/adapters.py`, `prompt_assets.py`, các service và worker. Tên file giữ để các liên kết cũ tiếp tục hoạt động; model không cố định là Gemini 2.5 Flash. [ADR-0004](decisions/0004-python-monolith.md) ghi nhận cấu hình hiện tại.
 
-## 1. Khả năng và điều kiện tích hợp
+## 1. Adapter và cấu hình thực thi
 
-[Trang model chính thức](https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash) xác nhận model nhận văn bản/ảnh và hỗ trợ structured outputs. [Google GenAI SDK](https://ai.google.dev/gemini-api/docs/libraries) là SDK lựa chọn; adapter cho luồng này dùng nhóm API `models.generateContent`/`generateContentStream`, kiểm tra tương thích với phiên bản SDK được khóa khi scaffold.
+`AI_PROVIDER` chọn `openai`, `gemini` hoặc `fake`; mặc định `openai`. `AI_MODEL` mặc định trống và cần điền cho provider thật. OpenAI dùng SDK Responses API với structured parse; Gemini dùng REST qua HTTPX; fake tạo dữ liệu kiểm thử. Khóa tương ứng là `OPENAI_API_KEY`, `GEMINI_API_KEY`, chỉ đọc ở backend.
 
-Google hiện ghi hạn chế truy cập model 2.5 theo lịch sử sử dụng tài khoản. Trước milestone tích hợp, chạy smoke test text, ảnh giả lập và JSON schema trên project thực tế. Không có quyền hoặc quota thì trả `MODEL_UNAVAILABLE`, giữ model cấu hình, không tự fallback sang model khác.
+Factory mặc định báo lỗi khi thiếu key/model; nhánh `allow_missing_key` là tùy chọn nội bộ, không phải cơ chế frontend chuyển sang dữ liệu giả khi API lỗi. Dịch vụ ánh xạ lỗi cấu hình/hạ tầng phù hợp sang `AI_UNAVAILABLE` hoặc lỗi tác vụ. Không suy luận quyền/quota một model từ tên model ghi trong tài liệu; muốn dùng provider thật cần smoke test project được cấp.
 
-Model không tự cung cấp cơ sở dữ liệu bộ nhớ học sinh. Profile và context do ứng dụng lưu/chọn. Không dùng fine-tuning, embedding model hoặc Google Search trong MVP; tài liệu/dẫn chứng dùng nguồn giáo viên đã duyệt, phù hợp BR-03.
+| Cấu hình | Vai trò hiện tại |
+| --- | --- |
+| `AI_TIMEOUT_SECONDS`, `AI_MAX_OUTPUT_TOKENS`, `AI_MAX_RETRIES` | Giới hạn chung; retry transport OpenAI do SDK quản lý |
+| `OCR_MODEL`, `OCR_TIMEOUT_SECONDS`, `OCR_MAX_OUTPUT_TOKENS` | Override OCR; model trống kế thừa `AI_MODEL` |
+| `ASSESSMENT_MODEL`, `ASSESSMENT_TIMEOUT_SECONDS`, `ASSESSMENT_MAX_OUTPUT_TOKENS` | Override chấm |
+| `WRITING_PROFILE_MODEL`, `WRITING_PROFILE_TIMEOUT_SECONDS`, `WRITING_PROFILE_MAX_OUTPUT_TOKENS` | Override tổng hợp profile |
+| `IMPORT_AI_TIMEOUT_SECONDS`, `IMPORT_AI_MAX_OUTPUT_TOKENS`, `IMPORT_AI_MAX_INPUT_CHARS` | Phân tích tài liệu sau chuyển Markdown |
+| `INSIGHT_TIMEOUT_SECONDS`, `INSIGHT_MAX_OUTPUT_TOKENS` | Gợi ý dạy học từ số liệu |
 
-## 2. Adapter và prompt theo nhiệm vụ
+Đây là cấu hình có trong Settings, không phải cam kết độ trễ/chi phí hay chất lượng model.
 
-| Task | Input được phép | Output | Điểm kiểm tra |
+## 2. Prompt và nhiệm vụ đang có
+
+| Luồng | Prompt canonical | Version setting | Kiểm tra/cách chạy |
 | --- | --- | --- | --- |
-| `extract-rubric` | Barem/ngữ liệu đã kiểm tra PII, đoạn nguồn | Rubric draft + source refs | Schema, maxima, ID; giáo viên approve |
-| `socratic-turn` | Assignment revision, outline, context đúng đề, profile chọn lọc, chat đã lọc PII | Câu hỏi, nguồn, gợi ý chuyển FSM/outline | 4 câu, câu hỏi cuối, không viết hộ, source scope |
-| `transcribe-page` | Ảnh học sinh đã rà soát (xoay/che vùng riêng tư), pageId/index | Segment nguyên văn + vùng không rõ | Thứ tự, ID, cấu trúc; học sinh đối chiếu/sửa/xác nhận |
-| `grade-transcription` | Bản chép CONFIRMED + đề/rubric/học liệu đã chốt | Điểm từng tiêu chí, evidence, lỗi, gợi ý | Bounds, criterion set, quote match; teacher review |
-| `extract-writing-observations` | Bản chép và assessment đã công bố, genre, observations trước | Đặc điểm/tiến bộ với evidence | Chỉ nguồn xác nhận; không suy diễn tính cách |
-| `recommend-teaching-actions` | Aggregate SQL, learning goals, taxonomy | Hành động sư phạm + metric refs | Không tạo/sửa con số; đề xuất đúng mục tiêu |
+| Hội thoại Socratic | `prompts/socratic/system.v1.md` | `SOCRATIC_PROMPT_VERSION=v1` | LangGraph pre/post guardrail, schema và source refs |
+| Chuẩn bị dàn ý | `prompts/socratic/outline-init.v2.md` (còn v1) | `OUTLINE_INIT_PROMPT_VERSION=v2` | Job theo học sinh, worker outline-prep |
+| Import catalog | `prompts/catalog/document-extract.v1.md` | `IMPORT_PROMPT_VERSION=v1` | Pydantic/validator barem; giáo viên rà soát và confirm |
+| OCR | `prompts/ocr/transcribe-page.v1.md` | `OCR_PROMPT_VERSION=v1` | Worker OCR, chép từng trang, học sinh xác nhận |
+| Chấm | `prompts/assessment/grade-essay.v1.md` | `ASSESSMENT_PROMPT_VERSION=v1` | Bản chép CONFIRMED, rubric/đề đã chốt, kiểm điểm/evidence |
+| Insight lớp | `prompts/assessment/class-insight.v1.md` | `INSIGHT_PROMPT_VERSION=v1` | Assessment worker nhận job từ POST; GET không tạo AI call |
+| Hồ sơ viết | `prompts/assessment/writing-profile.v2.md` (còn v1) | `WRITING_PROFILE_PROMPT_VERSION=v2` | Nguồn là bài đã công bố, kiểm bằng chứng và source hash |
 
-Prompt dự kiến ở `prompts/{grounding,socratic,assessment,analytics,writing-profile}`. Trong build, đóng gói prompt thành assets; không phụ thuộc đường dẫn từ cwd của worker. Mỗi prompt có version, hash, input/output schema version và bộ evaluation liên quan.
+`prompt_assets.py` đọc file canonical khi chạy trong checkout, hoặc asset đóng gói khi cài wheel. Hook `backend/_prompt_build.py` đồng bộ prompt vào package; phiên bản không tồn tại là lỗi, không tự lấy bản khác. Schema/validator thực thi nằm ở `app/ai/schemas.py` và service/workflow Python, không phải Ajv. `contracts/schemas/` chưa có schema xuất riêng.
 
-Application ports: `StructuredAiPort`, `VisionTranscriptionPort`. Adapter trả output chưa tin cậy + usage/latency/error; use case kiểm tra schema/nghiệp vụ trước persist hoặc trả UI. Key chỉ đọc từ secret environment của API/worker, không có tiền tố `NEXT_PUBLIC_`.
+## 3. OCR rồi chấm rubric
 
-## 3. Cấu hình theo tác vụ
+1. Học sinh tải ảnh, tự rà soát/che vùng riêng tư; backend kiểm tra ảnh JPEG/PNG thật, giới hạn trang/dung lượng/kích thước và chuẩn hóa bằng Pillow.
+2. Submit đóng băng bộ ảnh và xếp OCR trên `submission_attempts`; worker claim lease, chép theo trang và lưu output/segments/bản chép. Không dùng output một trang để coi cả bộ ảnh là đã xong.
+3. Học sinh đối chiếu, sửa và xác nhận transcription revision. Đây là nộp chính thức, ghi `official_submitted_at` và xếp assessment job. Không có bước giáo viên duyệt OCR.
+4. Chấm nhận assignment revision/barem đã chốt và bản chép CONFIRMED, không nhận profile học sinh để tính điểm. Mã Python kiểm tra tiêu chí, điểm và bằng chứng trước lưu.
+5. Giữ AI payload, bản rà soát giáo viên và snapshot công bố riêng. Học sinh thấy điểm sau công bố; thay đổi bản nộp/version gây conflict cho mutation cũ.
 
-Thiết kế cấu hình tách `model`, `maxOutputTokens`, timeout, retry và thinking policy theo task. Với API/model 2.5, chỉ dùng tham số thinking mà phiên bản SDK và tài liệu endpoint xác nhận hỗ trợ; không sao chép cấu hình Gemini 3 sang 2.5. Tham khảo [thinking guide](https://ai.google.dev/gemini-api/docs/thinking) khi triển khai.
+OCR không phải tự sửa văn. Confidence do model khai không phải accuracy đã hiệu chuẩn; học sinh vẫn cần đối chiếu ảnh. Privacy detection tự động và OCR tài liệu PDF scan nhập kho chưa có pipeline hoàn chỉnh.
 
-| Task | Chính sách ban đầu | Cần đo |
-| --- | --- | --- |
-| OCR | Chép sát ảnh, output đủ cho một trang; kiểm tra ảnh khó bằng người | CER/WER, bỏ dòng, tự sửa câu và latency |
-| Socratic | Output ngắn, thinking hạn chế nếu API hỗ trợ | Tính hữu ích, viết hộ, độ trễ tới nội dung đã duyệt |
-| Rubric/chấm | Output JSON và evidence, tăng suy luận khi benchmark cho thấy ích lợi | Đồng thuận giáo viên, consistency, token cost |
-| Profile/analytics | Job nền, chỉ dữ liệu có nguồn đã xác nhận | Nhận xét có bằng chứng, nhầm genre, metric fidelity |
+## 4. Socratic và chatbot
 
-Không đặt temperature thấp rồi coi kết quả là chắc chắn hoặc hoàn toàn tái lập. Không dùng output limit quá nhỏ khiến JSON/bài chép bị cắt; truncation/incomplete finish phải trở thành lỗi tác vụ.
+Socratic dùng session/FSM, outline và ngữ cảnh revision có quyền. LangGraph áp dụng pre-guardrail và post-validation, giới hạn phản hồi gợi mở và kiểm tra nguồn. Lượt chat có reservation và idempotency; không giữ transaction claim trong thời gian chờ provider. Response trả sau kiểm tra, chưa có raw token streaming/SSE.
 
-## 4. OCR hai bước và contract
+Chatbot tra cứu là `/api/chatbot`, dùng keyword retrieval trên chunks có quyền và tài liệu hướng dẫn, không dùng vector database. Xem [luồng học liệu và chatbot](knowledge-and-chatbot.md). Chất lượng gợi mở, từ chối viết hộ và độ đúng trích dẫn vẫn cần evaluation riêng.
 
-Chép từng trang với cùng prompt/version; giữ mapping page order. Chỉ chạy song song trong quota đã xác định. Ghép theo pageIndex, không theo thời điểm request hoàn tất. Không tiếp tục chấm một bài thiếu trang thành công.
+## 5. Hồ sơ văn phong
 
-Ví dụ logical output để hoàn thiện JSON Schema:
+`WritingProfileService` tổng hợp từ những bài đã công bố và bản chép tương ứng, giới hạn nguồn/input theo Settings, kiểm observation/evidence rồi lưu cache cùng source hash và history version. GET đọc; POST refresh tổng hợp khi cần. Worker sweep tạo profile đầu tiên cho học sinh đủ nguồn, backoff lỗi trong bộ nhớ; chưa có bảng job profile.
 
-```json
-{
-  "pageId": "PAGE_SYNTHETIC_1",
-  "pageIndex": 1,
-  "segments": [
-    {
-      "segmentId": "p1-s1",
-      "order": 1,
-      "text": "Em cho rằng sự kiên trì giúp chúng ta...",
-      "needsReview": true,
-      "reviewReason": "Cuối dòng bị mờ",
-      "confidence": null,
-      "confidenceSource": "unavailable"
-    }
-  ]
-}
-```
+Không lấy câu chatbot sinh làm bằng chứng bài tự viết, không suy tính cách từ lỗi văn, không coi số bài là confidence đã đo. Goal survey và bảng observation độc lập của thiết kế ban đầu chưa có. Profile phục vụ hướng dẫn, không tham gia chấm điểm.
 
-Đây là ví dụ thiết kế, chưa là schema thực thi. Server sinh/chuẩn hóa segment IDs ổn định trong revision, kiểm tra thứ tự và text. Prompt yêu cầu giữ nguyên lỗi dấu/chính tả/dấu câu; không đoán chữ không rõ, không dùng điểm/lập luận để tự sửa bản chép.
+## 6. Job và lỗi
 
-Không coi `0.94` trong mock là độ đúng OCR đã đo. Nếu model trả self-confidence, lưu source `model-self-report`; để `null` khi không có căn cứ. Học sinh xác nhận bản chép trước khi bài sang `READY_TO_GRADE`. Coordinates cần kiểm chứng trên ảnh; UI dùng liên kết trang/đoạn.
+OCR/outline-prep/chấm có job trạng thái, lease, concurrency và số lần thử trong PostgreSQL; dùng helper `workers/_loop.py`. Assessment còn xử lý class insights. Bốn worker gắn vào process API theo cờ Settings, trừ môi trường test. Không có pg-boss/outbox dispatcher hay usage reservation ledger chung.
 
-## 5. Chấm và kiểm tra bằng chứng
+Timeout, lỗi provider hoặc output không hợp lệ phải được thể hiện bằng lỗi/trạng thái tác vụ. Lease chống ghi đè kết quả mới bằng job cũ, không bảo đảm không lặp lượt gọi provider sau crash. Giới hạn retry/concurrency là cơ chế có sẵn, chưa thay thế việc đo quota và chi phí.
 
-1. Lấy submission snapshot và transcription revision đã xác nhận; không nạp profile học sinh vào scoring context.
-2. Lấy rubric version APPROVED, criteria maxima, score step, chính sách lỗi và học liệu của đúng assignment revision.
-3. Gemini trả rubric-bound JSON với evidence `{pageId, segmentId, quote}`; thiếu nội dung là `missingElement`, không bịa quote cho đoạn không tồn tại.
-4. Ajv kiểm tra schema local đầy đủ; schema gửi provider được chuyển về subset hỗ trợ, không làm mất validation local. Structured output đúng hình dạng chưa chứng minh nội dung đúng. Tham khảo [structured outputs](https://ai.google.dev/gemini-api/docs/structured-output).
-5. Domain kiểm tra criterion IDs đầy đủ/duy nhất, từng điểm hợp lệ, score step, tổng điểm, evidence quote tồn tại, source thuộc revision. Không normalize lỗi thành một kết quả “hợp lệ” mà không ghi nhận.
-6. Teacher review: thấy điểm đề xuất, bằng chứng, đoạn còn nghi ngờ; sửa phải giữ AI draft, final revision, lý do và actor. Chỉ published final result đi vào báo cáo chính thức.
+## 7. Kiểm thử phần mềm
 
-Teacher điều chỉnh rubric tạo version mới, không chấm lại bài cũ theo version mới âm thầm. Đo đồng thuận model so với rubric/giáo viên, không chỉ so tổng điểm.
-
-## 6. Guardrail Socratic
-
-Guardrail nhiều lớp: system prompt theo BR-01–BR-04; phân loại yêu cầu viết hộ; response validator; bộ tình huống adversarial. Không kỳ vọng regex phát hiện mọi đoạn viết hộ; dùng đánh giá sư phạm và manual inspection để hiệu chỉnh.
-
-MVP không phát raw tokens trực tiếp. Dùng REST để trả toàn bộ message sau kiểm tra; có thể bổ sung SSE cho trạng thái và `message.completed` đã duyệt. Provider streaming chỉ được buffer nội bộ. Nếu response vi phạm, sửa tối đa một lần hoặc dùng câu hỏi fallback viết sẵn liên quan tới bước FSM, không lộ response bị chặn.
-
-History/context có ranh giới dữ liệu rõ. Chỉ profile feature liên quan tới bài và có evidence còn hiệu lực được nạp. Khi học sinh yêu cầu “bỏ qua chỉ dẫn”, đoạn này vẫn là dữ liệu user; tài liệu và ảnh chứa instruction không có quyền thay system policy.
-
-Source refs của assistant phải trỏ đúng chunk/version được nạp. Kiểm tra refs tồn tại không chứng minh mọi câu được nguồn hỗ trợ; bộ evaluation đánh giá cả nội dung. NFR-03 đo provider first token và thời gian nhận nội dung đã kiểm tra riêng, không đếm thông báo “đang xử lý” như token trả lời.
-
-## 7. Bộ nhớ và progressive profiling
-
-- Khảo sát ghi mục tiêu và tự đánh giá; grade-level prior là yêu cầu chương trình, không tự gán yếu điểm cho học sinh.
-- Bài đầu tạo observations `PROVISIONAL` về câu, từ, bố cục, dẫn chứng và cách biểu đạt; mỗi observation có evidence.
-- Bài sau đối chiếu đúng genre và cơ hội quan sát. Lỗi không xuất hiện ở một bài không tự trở thành `RESOLVED`.
-- Snapshot lấy recent observations liên quan và lịch sử tiến bộ. Không cố định “3 bài = 70%” hoặc “bài 4 = tin cậy cao” trước khi đánh giá.
-- Khi observation mâu thuẫn, giữ cả bằng chứng/điều kiện thay vì model tự hợp nhất thành kết luận chắc chắn. Nhận xét style không suy thành tính cách hoặc khả năng tổng quát của em.
-- Không lấy văn bản chatbot sinh ra làm bài tự viết; record hỗ trợ/sửa bài nếu biết. Teacher có thể loại bài không phù hợp khỏi tập profiling.
-- Profile worker xử lý event idempotent, cập nhật theo version/lock, không để job cũ ghi đè snapshot mới.
+Backend có fake adapter/MockTransport và pytest; frontend có Node unit tests/Playwright. Build prompt có kiểm tra asset. Hướng dẫn chạy ở [CONTRIBUTING](../../CONTRIBUTING.md#lint-test-và-ci) và [README backend](../../backend/README.md). Các test này không chứng minh OCR/chấm đạt chất lượng trên bài thật.
 
 ## 8. Quota, retry và evaluation
 
-AI adapter cần deadline, circuit-breaker theo lỗi provider, usage reservation chung ở PostgreSQL và per-task budget. Tránh rate limiter chỉ in-memory khi có API và worker song song. Mỗi execution ghi usage thực tế; trường hợp timeout/crash chưa biết token vẫn giữ reservation pending reconciliation thay vì báo chi phí bằng 0.
+M6 còn cần dataset được phép sử dụng, tách tuning/holdout, bản chép chuẩn và điểm/nhận xét giáo viên. `evaluations/` mới là chỗ dành sẵn, chưa có runner hoặc báo cáo chất lượng.
 
-Evaluation thí điểm đề xuất: 30–50 bài ẩn danh, đa dạng ảnh/genre, bản chép chuẩn, rubric và nhận xét giáo viên. Tách tập tune prompt với tập holdout; khi làm profile, dựng hồ sơ từ các bài đầu và đánh giá trên bài tiếp theo, tránh dùng chính bài cần dự đoán.
-
-| Mục | Chỉ số cần báo cáo |
+| Luồng | Cần đo trước thí điểm |
 | --- | --- |
-| OCR | CER/WER có giữ dấu tiếng Việt, page/line omission, tỷ lệ tự sửa nội dung, ảnh cần review |
-| Grading | MAE tổng điểm/tiêu chí, agreement với teacher, evidence đúng, test rubric khác nhau |
-| Socratic | Tỷ lệ viết hộ/vượt phạm vi, đúng 4 câu/câu hỏi cuối, mức hữu ích do teacher đánh giá |
-| Profile | Observation đúng bằng chứng, teacher agreement, nhầm genre, nhận xét lỗi đã sửa bị nhắc lại |
-| Operational | Latency p50/p95, queue age, retry/incomplete/safety failures, token và chi phí thực tế |
+| OCR | CER/WER tiếng Việt, thiếu dòng/trang, tự sửa nội dung và latency |
+| Chấm | Sai lệch tổng/tiêu chí, đồng thuận giáo viên, bằng chứng đúng |
+| Socratic | Viết hộ/vượt phạm vi, câu hỏi hữu ích, guardrail và độ trễ nội dung đã duyệt |
+| Profile | Observation có bằng chứng, nhầm thể loại, lịch sử tiến bộ |
+| Vận hành | Queue wait, p50/p95, retry/failure, token/chi phí, giới hạn quota |
 
-Ngưỡng đạt cần chốt theo TBD-10 trước nghiệm thu; chưa có số đo trong repository. Chỉ chuyển sang thí điểm sau khi kiểm tra quyền riêng tư, quality gate và workflow teacher review đã chạy.
+Usage ledger, circuit-breaker chung, retention dữ liệu/provider files và backup/restore là việc còn lại, không được ghi như thành phần đang hoạt động. NFR-03/04 vẫn là mục tiêu chưa có số đo xác nhận trong đợt này. Xem [roadmap](../development/implementation-roadmap.md).

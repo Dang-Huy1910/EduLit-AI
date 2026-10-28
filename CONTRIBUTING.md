@@ -4,14 +4,14 @@
 
 Đọc [SRS](SRS.md) và [cấu trúc dự án](docs/architecture/project-structure.md). Khi một thay đổi giải quyết yêu cầu cụ thể, ghi mã `FR`, `BR`, `NFR` hoặc `AC` liên quan trong mô tả thay đổi.
 
-Stack giao diện vẫn là Next.js. Phần tài khoản trên `feat/python-auth` dùng Python/FastAPI theo [ADR-0002](docs/architecture/decisions/0002-python-auth.md); ADR-0001 mô tả NestJS cho các phân hệ khác khi được triển khai. Backend Python khóa bằng `uv.lock`; frontend khóa bằng `package-lock.json`.
+Giao diện dùng Next.js App Router; toàn bộ backend dùng Python 3.12/FastAPI, SQLAlchemy async và Alembic theo [ADR-0004](docs/architecture/decisions/0004-python-monolith.md). ADR-0001 là quyết định lịch sử đã thay thế. Backend khóa bằng `backend/uv.lock`; frontend khóa bằng `frontend/package-lock.json`. Lệnh khởi chạy cả hai ứng dụng ở [README](README.md#khởi-chạy-local) và [README backend](backend/README.md).
 
 ## Tổ chức mã
 
-- Đặt nghiệp vụ trong module tương ứng, tích hợp dịch vụ bên ngoài trong `infrastructure`.
+- Đặt nghiệp vụ trong `backend/app/services/`, tích hợp AI trong `backend/app/ai/`, email trong `backend/app/email/` và persistence trong `backend/app/db/`.
 - Giữ controller/route và tác vụ nền tập trung vào nhận đầu vào, gọi use case và trả kết quả.
 - Chỉ đưa vào `core` các thành phần thực sự dùng chung; giữ quy tắc chấm điểm và FSM trong module sở hữu chúng.
-- Đặt xử lý và cung cấp học liệu trong `backend/src/modules/grounding`; đặt phiên chat và guardrail trong `backend/src/modules/socratic`. Tham khảo [luồng học liệu và chatbot](docs/architecture/knowledge-and-chatbot.md) khi thay đổi hai phần này.
+- Đặt học liệu/import trong `catalog_service.py`, `document_import.py`, truy xuất chatbot trong `chatbot_service.py` dưới `backend/app/services/`; phiên Socratic trong `socratic_service.py`, workflow/guardrail trong `backend/app/workflows/`. Worker nằm trong `backend/app/workers/`. Tham khảo [luồng học liệu và chatbot](docs/architecture/knowledge-and-chatbot.md).
 - Thay đổi hợp đồng dữ liệu phải cập nhật schema, ví dụ, bên sử dụng và kiểm thử liên quan cùng lúc.
 - Đặt thay đổi kiến trúc có tác động lâu dài trong `docs/architecture/decisions/`, theo tên `NNNN-ten-quyet-dinh.md`.
 
@@ -49,5 +49,5 @@ GitHub Actions tại `.github/workflows/ci.yml` chạy lint và test backend l�
 
 - Chỉ đưa dữ liệu tổng hợp giả lập hoặc dữ liệu đã được kiểm tra ẩn danh vào fixture và bộ đánh giá được commit.
 - Ảnh bài làm thật, dữ liệu định danh học sinh, token và API key không thuộc repository.
-- Cấu hình thật đặt trong môi trường hoặc cơ chế quản lý secret của nền tảng triển khai; file `.env.example` tương lai chỉ ghi tên biến và giá trị minh họa.
+- Cấu hình thật đặt trong môi trường hoặc cơ chế quản lý secret của nền tảng triển khai; template hiện có là [backend/.env.example](backend/.env.example) và [frontend/.env.example](frontend/.env.example), chỉ chứa cấu hình minh họa.
 - Việc Git bỏ qua file chỉ ngăn theo dõi ngoài ý muốn; chính sách truy cập, lưu giữ và xóa dữ liệu vẫn phải được triển khai theo SRS.

@@ -60,19 +60,6 @@ class PublicUser(CamelModel):
     email_verified: bool
 
 
-class LoginResponse(CamelModel):
-    user: PublicUser
-
-
-class MessageResponse(CamelModel):
-    message: str
-
-
-class RegisterResponse(CamelModel):
-    status: str
-    message: str
-
-
 class SessionItem(CamelModel):
     id: str
     created_at: datetime
@@ -88,10 +75,6 @@ class SessionItem(CamelModel):
         if value.tzinfo is None:
             return value.isoformat() + "Z"
         return value.isoformat()
-
-
-class SessionListResponse(CamelModel):
-    sessions: list[SessionItem]
 
 
 def user_to_public(user: Any) -> PublicUser:

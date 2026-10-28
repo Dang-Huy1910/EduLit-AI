@@ -1,6 +1,9 @@
-"""Seed lớp 12A14 demo from frontend mock data.
+"""Seed lớp 12A14 demo from backend/demo data.
 
 Additive and idempotent. Does not reset the live database and does not call AI.
+
+Data paths: DEMO_DATA_ROOT overrides backend/demo (roster, manifest, submissions/).
+If unset, DEMO_FRONTEND_ROOT supports the legacy src/lib/mock and public layout.
 
 Creates/updates:
 - 41 student accounts from roster_11a14.json (password 123456)
@@ -11,9 +14,9 @@ Creates/updates:
 - cached class insight for the default official report filters
 
 Usage (from backend/):
-  uv run python scripts/seed_classroom_demo.py
-  uv run python scripts/seed_classroom_demo.py --apply
-  uv run python scripts/seed_classroom_demo.py --apply --allow-remote --database-url "$SEED_DATABASE_URL"
+  .venv/bin/python scripts/seed_classroom_demo.py --dry-run
+  .venv/bin/python scripts/seed_classroom_demo.py --apply
+  .venv/bin/python scripts/seed_classroom_demo.py --apply --allow-remote --database-url "$SEED_DATABASE_URL"
 """
 
 from __future__ import annotations
@@ -37,11 +40,23 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
-REPO_ROOT = BACKEND_DIR.parent
-_FRONTEND_OVERRIDE = os.environ.get("DEMO_FRONTEND_ROOT", "").strip()
-FRONTEND_ROOT = Path(_FRONTEND_OVERRIDE) if _FRONTEND_OVERRIDE else REPO_ROOT / "frontend"
-MOCK_DIR = FRONTEND_ROOT / "src" / "lib" / "mock"
-PUBLIC_ROOT = FRONTEND_ROOT / "public"
+
+
+def resolve_demo_paths() -> tuple[Path, Path]:
+    # Prefer the flat data override, then the legacy frontend layout, then backend/demo.
+    data_override = os.environ.get("DEMO_DATA_ROOT", "").strip()
+    if data_override:
+        root = Path(data_override)
+        return root, root
+    frontend_override = os.environ.get("DEMO_FRONTEND_ROOT", "").strip()
+    if frontend_override:
+        root = Path(frontend_override)
+        return root / "src" / "lib" / "mock", root / "public"
+    root = BACKEND_DIR / "demo"
+    return root, root
+
+
+MOCK_DIR, PUBLIC_ROOT = resolve_demo_paths()
 
 sys.path.insert(0, str(SCRIPT_DIR))
 
@@ -1132,7 +1147,13 @@ async def run(*, apply: bool, database_url: str | None = None, allow_remote: boo
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed 12A14 classroom demo data from mock files")
+    parser = argparse.ArgumentParser(
+        description="Seed 12A14 classroom demo data from backend/demo.",
+        epilog=(
+            "Data paths: DEMO_DATA_ROOT (roster_11a14.json, submissionsManifest.ts, submissions/) "
+            "> DEMO_FRONTEND_ROOT (legacy src/lib/mock and public layout) > backend/demo."
+        ),
+    )
     parser.add_argument("--apply", action="store_true", help="Write to the database")
     parser.add_argument("--dry-run", action="store_true", help="Parse and plan without writing (default)")
     parser.add_argument(

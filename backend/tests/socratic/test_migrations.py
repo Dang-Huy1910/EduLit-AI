@@ -85,6 +85,54 @@ async def test_upgrade_and_downgrade_0003() -> None:
 
 
 @pytest.mark.asyncio
+async def test_0019_drops_unused_material_status_enum_and_restores_on_downgrade() -> None:
+    await close_db()
+    cfg = _alembic_cfg()
+    engine = create_engine(_sync_url(TEST_DB_URL), pool_pre_ping=True)
+    try:
+        for migrate, target, expected_labels in (
+            (command.upgrade, "head", []),
+            (
+                command.downgrade,
+                "0018_writing_profile_history",
+                ["UPLOADED", "PRIVACY_REVIEW", "READY", "FAILED"],
+            ),
+            (command.upgrade, "head", []),
+        ):
+            migrate(cfg, target)
+            with engine.connect() as conn:
+                version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+                enum_type = conn.execute(
+                    text("SELECT to_regtype('material_version_status')")
+                ).scalar_one()
+                labels = conn.execute(
+                    text(
+                        "SELECT enumlabel FROM pg_enum "
+                        "WHERE enumtypid = to_regtype('material_version_status') "
+                        "ORDER BY enumsortorder"
+                    )
+                ).scalars().all()
+                status_column = conn.execute(
+                    text(
+                        "SELECT data_type, character_maximum_length "
+                        "FROM information_schema.columns "
+                        "WHERE table_schema = 'public' AND table_name = 'material_versions' "
+                        "AND column_name = 'status'"
+                    )
+                ).one()
+            assert version == ("0019_drop_material_status_enum" if target == "head" else target)
+            assert status_column == ("character varying", 16)
+            assert enum_type == ("material_version_status" if expected_labels else None)
+            assert labels == expected_labels
+    finally:
+        try:
+            command.upgrade(cfg, "head")
+        finally:
+            engine.dispose()
+            await close_db()
+
+
+@pytest.mark.asyncio
 async def test_0017_makes_classroom_term_and_join_code_required() -> None:
     await close_db()
     cfg = _alembic_cfg()

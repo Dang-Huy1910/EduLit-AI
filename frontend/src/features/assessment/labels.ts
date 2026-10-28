@@ -37,10 +37,6 @@ export function insightStatusLabel(status: string, stale: boolean, scoredCount: 
   return 'Chưa có phân tích';
 }
 
-export function modeLabel(mode: StatsMode | string | undefined): string {
-  return mode === 'provisional' ? 'Tạm tính — Chưa phải kết quả chính thức' : 'Chính thức đã công bố';
-}
-
 export function modeShort(mode: StatsMode | string | undefined): string {
   return mode === 'provisional' ? 'Tạm tính' : 'Chính thức';
 }
