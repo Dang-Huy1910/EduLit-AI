@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -108,6 +109,9 @@ class SubmissionAttempt(Base):
         nullable=False,
     )
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    revision_round: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
     state: Mapped[str] = mapped_column(
         String(32), nullable=False, default=SubmissionAttemptState.DRAFT.value
     )
@@ -166,6 +170,7 @@ class SubmissionAttempt(Base):
             "attempt_number",
             name="submission_attempts_submission_number_key",
         ),
+        CheckConstraint("revision_round >= 1", name="submission_attempts_revision_round_check"),
         Index("submission_attempts_state_idx", "state"),
         Index(
             "submission_attempts_ocr_claim_idx",

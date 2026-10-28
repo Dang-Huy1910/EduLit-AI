@@ -35,8 +35,14 @@ from app.services.assessment_scoring import (
     apply_teacher_overlay,
     rubric_from_revision,
 )
-from app.services.reopen_policy import consume_reopen_grant, needs_reopen_grant, student_may_reopen
+from app.services.assignment_service import _parse_due_at
+from app.services.catalog_errors import CatalogError
+from app.services.deadline import effective_due_at, is_late
+from app.services.reopen_policy import consume_reopen_grant, needs_reopen_grant
+from app.services.revision_policy import current_round
+from app.services.round_compare import compare_rounds
 from app.services.rubric import decimal_to_number
+from app.services.stats_engine import published_payload, row_status, scores_from_payload, working_payload
 from app.services.submission_errors import SubmissionError
 from app.services.submission_locks import lock_attempt, lock_submission
 from app.services.submission_service import SubmissionService, format_size
@@ -47,6 +53,7 @@ CONFIRMED_TX = TranscriptionRevisionStatus.CONFIRMED.value
 JOB_QUEUED = AssessmentJobStatus.QUEUED.value
 JOB_PROCESSING = AssessmentJobStatus.PROCESSING.value
 JOB_FAILED = AssessmentJobStatus.FAILED.value
+JOB_READY = AssessmentJobStatus.READY.value
 
 
 def public_assessment_status(
@@ -109,9 +116,6 @@ class AssessmentService:
         payload["ocrSubmittedAt"] = (
             attempt.submitted_at.isoformat() if attempt and attempt.submitted_at else None
         )
-        payload["canReopenTranscription"] = await student_may_reopen(
-            self.session, submission=submission, attempt=attempt
-        )
         if published and published.is_published:
             published_pages, published_tx = await self._published_student_artifacts(
                 revision, published
@@ -130,6 +134,119 @@ class AssessmentService:
             else None,
         }
         return payload
+
+    async def student_rounds(self, student: User, assignment_key: str) -> dict[str, Any]:
+        revision, submission, attempt = await self._student_context(student, assignment_key)
+        return await self._rounds_view(revision, submission, attempt, teacher=False)
+
+    async def teacher_rounds(
+        self, teacher: User, assignment_id: uuid.UUID, student_id: uuid.UUID
+    ) -> dict[str, Any]:
+        _assignment, revision, submission, attempt, _student = await self._teacher_student(
+            teacher, assignment_id, student_id
+        )
+        return await self._rounds_view(revision, submission, attempt, teacher=True)
+
+    async def _rounds_view(
+        self,
+        revision: AssignmentRevision,
+        submission: Submission | None,
+        attempt: SubmissionAttempt | None,
+        *,
+        teacher: bool,
+    ) -> dict[str, Any]:
+        rounds = []
+        current = None
+        if submission is not None:
+            stmt = (
+                select(AssessmentResult, SubmissionAttempt)
+                .join(SubmissionAttempt, AssessmentResult.attempt_id == SubmissionAttempt.id)
+                .where(
+                    AssessmentResult.submission_id == submission.id,
+                    AssessmentResult.published_at.is_not(None),
+                )
+                .order_by(
+                    SubmissionAttempt.revision_round, AssessmentResult.published_at,
+                    AssessmentResult.created_at, AssessmentResult.id,
+                )
+            )
+            if not teacher:
+                stmt = stmt.where(
+                    AssessmentResult.superseded_at.is_not(None)
+                    | (
+                        (AssessmentResult.id == submission.current_published_result_id)
+                        & AssessmentResult.is_published.is_(True)
+                    )
+                )
+            for result, result_attempt in (await self.session.execute(stmt)).all():
+                # History always uses the frozen publication, never later teacher/AI edits.
+                payload = published_payload(result) or result.published_payload
+                if not isinstance(payload, dict) or not payload:
+                    continue
+                live = result.is_published and result.id == submission.current_published_result_id
+                entry = self._round_result_view(result, result_attempt, revision, payload)
+                entry.update(
+                    isPublished=bool(live),
+                    visibleToStudent=bool(live or result.superseded_at),
+                    status="published" if live else "superseded" if result.superseded_at else "unpublished",
+                )
+                rounds.append(entry)
+                if live:
+                    current = entry
+
+            if teacher and attempt and attempt.state == READY_TO_GRADE:
+                job, result, published = await self._load_results(submission)
+                if (
+                    job and job.attempt_id == attempt.id
+                    and job.transcription_revision_id == attempt.confirmed_revision_id
+                    and job.status in {JOB_QUEUED, JOB_PROCESSING, JOB_READY}
+                ):
+                    bound = bool(
+                        result and result.attempt_id == attempt.id
+                        and result.transcription_revision_id == attempt.confirmed_revision_id
+                    )
+                    if not bound or not result.published_at:
+                        payload = working_payload(result) if bound else None
+                        entry = self._round_result_view(result if bound else None, attempt, revision, payload or {})
+                        entry.update(
+                            isPublished=False, visibleToStudent=False,
+                            status=row_status(attempt=attempt, job=job, published=published),
+                            jobStatus=job.status,
+                        )
+                        rounds.append(entry)
+
+        previous = next((item for item in reversed(rounds) if (
+            current and item["round"] == current["round"] - 1 and item["publishedAt"]
+        )), None)
+        return {
+            "rounds": rounds,
+            "revisionRound": current_round(attempt),
+            "currentPublishedRound": current["round"] if current else None,
+            "comparison": compare_rounds(previous, current) if previous and current else None,
+        }
+
+    def _round_result_view(
+        self,
+        result: AssessmentResult | None,
+        attempt: SubmissionAttempt,
+        revision: AssignmentRevision,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        total, scale, maximum = scores_from_payload(payload, result) if result else (None, None, None)
+        return {
+            "round": current_round(attempt),
+            "resultId": str(result.id) if result else None,
+            "publishedAt": result.published_at.isoformat() if result and result.published_at else None,
+            "totalScore": decimal_to_number(total) if total is not None else None,
+            "scoreScale10": decimal_to_number(scale) if scale is not None else None,
+            "maxScore": decimal_to_number(maximum) if maximum is not None else None,
+            "scoreStep": payload.get("scoreStep"),
+            "evaluations": payload.get("evaluations") or [],
+            "overallComment": payload.get("overallComment") or "",
+            "improvementGuidance": payload.get("improvementGuidance") or [],
+            "assignmentTitle": revision.title,
+            "rubricTitle": ((result.rubric_snapshot or {}).get("title") or "") if result else "",
+        }
 
     async def teacher_detail(
         self, teacher: User, assignment_id: uuid.UUID, student_id: uuid.UUID
@@ -156,6 +273,7 @@ class AssessmentService:
             published=published,
             current_tx_id=attempt.confirmed_revision_id if attempt else None,
         )
+        effective_due = effective_due_at(assignment, student.id)
         return {
             "assignment": {
                 "id": str(assignment.id),
@@ -168,6 +286,8 @@ class AssessmentService:
                 "writingTask": snapshot.get("writingTask") or "",
                 "extraInstructions": snapshot.get("extraInstructions") or assignment.extra_instructions,
                 "rubric": rubric,
+                "dueAt": assignment.due_at.isoformat() if assignment.due_at else None,
+                "latePolicy": assignment.late_policy,
             },
             "student": {
                 "id": str(student.id),
@@ -175,6 +295,9 @@ class AssessmentService:
                 "loginId": student.login_id,
             },
             "submission": {
+                "isLate": current_round(attempt) == 1 and is_late(attempt.submitted_at if attempt else None, effective_due),
+                "effectiveDueAt": effective_due.isoformat() if effective_due else None,
+                "hasExtension": str(student.id) in (assignment.due_extensions or {}),
                 "id": str(submission.id) if submission else None,
                 "attemptId": str(attempt.id) if attempt else None,
                 "attemptNumber": attempt.attempt_number if attempt else 0,
@@ -354,6 +477,10 @@ class AssessmentService:
                 previous.is_published = False
                 previous.unpublished_at = now
                 previous.updated_at = now
+                previous_attempt = await self.session.get(SubmissionAttempt, previous.attempt_id)
+                superseded = current_round(previous_attempt) < current_round(attempt)
+                if superseded:
+                    previous.superseded_at = now
                 hist = list(submission.published_history or [])
                 hist.append(
                     {
@@ -362,6 +489,7 @@ class AssessmentService:
                         "publishedAt": previous.published_at.isoformat() if previous.published_at else None,
                         "unpublishedAt": now.isoformat(),
                         "totalScore": decimal_to_number(previous.total_score),
+                        **({"reason": "superseded"} if superseded else {}),
                     }
                 )
                 submission.published_history = hist
@@ -449,6 +577,7 @@ class AssessmentService:
                 "publishedAt": published.published_at.isoformat() if published.published_at else None,
                 "unpublishedAt": now.isoformat(),
                 "totalScore": decimal_to_number(published.total_score),
+                "reason": "unpublished",
             }
         )
         submission.published_history = hist
@@ -474,6 +603,46 @@ class AssessmentService:
         submission.reopen_granted_at = now
         submission.reopen_granted_by = teacher.id
         submission.updated_at = now
+        await self.session.commit()
+        return await self.teacher_detail(teacher, assignment_id, student_id)
+
+    async def set_due_extension(
+        self,
+        teacher: User,
+        assignment_id: uuid.UUID,
+        student_id: uuid.UUID,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        assignment, revision, _submission, _attempt, _student = await self._teacher_student(
+            teacher, assignment_id, student_id
+        )
+        await self.submissions._ensure_writable(revision)
+        if (
+            "dueAt" not in body
+            or body["dueAt"] == ""
+            or (body["dueAt"] is not None and not isinstance(body["dueAt"], str))
+        ):
+            raise SubmissionError(400, "VALIDATION", "Chọn hạn gia hạn hoặc gửi null để gỡ gia hạn.")
+        try:
+            due_at = _parse_due_at(body["dueAt"])
+        except CatalogError as exc:
+            raise SubmissionError(exc.status_code, exc.code, exc.message, exc.fields) from exc
+        # Serialize JSON updates so extensions for different students are retained.
+        assignment = (
+            await self.session.execute(
+                select(Assignment)
+                .where(Assignment.id == assignment.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one()
+        extensions = dict(assignment.due_extensions or {})
+        if due_at is None:
+            extensions.pop(str(student_id), None)
+        else:
+            extensions[str(student_id)] = due_at.isoformat()
+        assignment.due_extensions = extensions
+        assignment.updated_at = utcnow()
         await self.session.commit()
         return await self.teacher_detail(teacher, assignment_id, student_id)
 
@@ -809,6 +978,8 @@ class AssessmentService:
         tx = None
         if attempt.confirmed_revision_id:
             tx = await self.session.get(TranscriptionRevision, attempt.confirmed_revision_id)
+        if tx is None and attempt.current_revision == 0:
+            return []
         if tx is None:
             tx = await self._current_tx(attempt)
         from app.services.ocr_normalize import public_page

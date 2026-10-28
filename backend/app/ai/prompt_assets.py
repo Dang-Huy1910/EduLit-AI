@@ -33,6 +33,7 @@ FAMILY_KIND_SCHEMA = {
     ("socratic", "system"): SOCRATIC_SCHEMA_VERSION,
     ("socratic", "outline-init"): OUTLINE_INIT_SCHEMA_VERSION,
     ("catalog", "document-extract"): DOCUMENT_ANALYSIS_SCHEMA_VERSION,
+    ("catalog", "ocr-printed-page"): "document_ocr_page.v1",
     ("ocr", "transcribe-page"): OCR_PAGE_SCHEMA_VERSION,
     ("assessment", "grade-essay"): ASSESSMENT_OUTPUT_SCHEMA_VERSION,
     ("assessment", "class-insight"): CLASS_INSIGHT_SCHEMA_VERSION,
@@ -40,7 +41,7 @@ FAMILY_KIND_SCHEMA = {
 }
 FAMILY_ALLOWED_KINDS = {
     "socratic": {"system", "outline-init"},
-    "catalog": {"document-extract"},
+    "catalog": {"document-extract", "ocr-printed-page"},
     "ocr": {"transcribe-page"},
     "assessment": {"grade-essay", "class-insight", "writing-profile"},
 }

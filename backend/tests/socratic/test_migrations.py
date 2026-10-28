@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, text
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from app.ai.adapters import FakeAiAdapter
 from app.db.models import User
 from app.db.session import close_db, configure_engine, get_session_factory
@@ -88,6 +89,7 @@ async def test_upgrade_and_downgrade_0003() -> None:
 async def test_0019_drops_unused_material_status_enum_and_restores_on_downgrade() -> None:
     await close_db()
     cfg = _alembic_cfg()
+    head = ScriptDirectory.from_config(cfg).get_current_head()
     engine = create_engine(_sync_url(TEST_DB_URL), pool_pre_ping=True)
     try:
         for migrate, target, expected_labels in (
@@ -120,7 +122,7 @@ async def test_0019_drops_unused_material_status_enum_and_restores_on_downgrade(
                         "AND column_name = 'status'"
                     )
                 ).one()
-            assert version == ("0019_drop_material_status_enum" if target == "head" else target)
+            assert version == (head if target == "head" else target)
             assert status_column == ("character varying", 16)
             assert enum_type == ("material_version_status" if expected_labels else None)
             assert labels == expected_labels

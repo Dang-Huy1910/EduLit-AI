@@ -1,15 +1,20 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { assessmentApi } from './api';
 import type { ClassReport } from './types';
 import { formatScore, rowStatusLabel } from './labels';
+import { revisionScoreTrail, roundLabel } from './revision';
+import DueAtEditor from '@/features/assignments/DueAtEditor';
+import { downloadBlob } from '@/features/catalog/download';
+import StatsModeToggle from './StatsModeToggle';
 import { AuthApiError } from '@/lib/auth-types';
 
 const PAGE_SIZE = 10;
 
-export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmentId: string }) {
+export default function AssignmentSubmissionsPanel({ assignmentId, readOnly = false, reportView = false }: { assignmentId: string; readOnly?: boolean; reportView?: boolean }) {
+  const loadSequence = useRef(0);
   const [report, setReport] = useState<ClassReport | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -17,8 +22,14 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortOrder, setSortOrder] = useState<'default' | 'score_desc' | 'score_asc'>('default');
   const [currentPage, setCurrentPage] = useState(1);
+  const [busyStudent, setBusyStudent] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [mode, setMode] = useState(reportView ? '' : 'provisional');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const load = useCallback(async () => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
     setError('');
     try {
@@ -28,20 +39,51 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
         sort: sortOrder,
         page: currentPage,
         pageSize: PAGE_SIZE,
-        mode: 'provisional',
+        mode: mode || undefined,
+        from: dateFrom,
+        to: dateTo,
       });
-      setReport(data);
+      if (sequence === loadSequence.current) setReport(data);
     } catch (err) {
+      if (sequence !== loadSequence.current) return;
       setError(err instanceof AuthApiError ? err.message : 'Không tải được danh sách bài nộp.');
       setReport(null);
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) setLoading(false);
     }
-  }, [assignmentId, studentSearch, filterStatus, sortOrder, currentPage]);
+  }, [assignmentId, studentSearch, filterStatus, sortOrder, currentPage, mode, dateFrom, dateTo]);
 
   useEffect(() => {
+    const requests = loadSequence;
     void load();
+    return () => { requests.current++; };
   }, [load]);
+
+  const saveExtension = async (studentId: string, dueAt: string | null) => {
+    setBusyStudent(studentId);
+    setError('');
+    try {
+      await assessmentApi.setDueExtension(assignmentId, studentId, dueAt);
+      await load();
+      return true;
+    } catch (err) {
+      setError(err instanceof AuthApiError ? err.message : 'Không lưu được gia hạn.');
+      return false;
+    } finally { setBusyStudent(''); }
+  };
+
+  const exportReport = async () => {
+    setExporting(true);
+    setError('');
+    try {
+      downloadBlob(await assessmentApi.exportReport(assignmentId, {
+        search: studentSearch, status: filterStatus, sort: sortOrder,
+        mode: mode || report?.mode, from: dateFrom, to: dateTo,
+      }));
+    } catch (err) {
+      setError(err instanceof AuthApiError ? err.message : 'Không xuất được Excel.');
+    } finally { setExporting(false); }
+  };
 
   const students = report?.students;
   const stats = report?.stats;
@@ -52,6 +94,19 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {reportView && <StatsModeToggle mode={mode || report?.mode || 'provisional'} onChange={(next) => { setMode(next); setCurrentPage(1); }} />}
+        <button type="button" onClick={() => void exportReport()} disabled={exporting || loading || !report}
+          className="px-3 py-2 rounded-lg border border-outline-variant/60 font-semibold hover:bg-surface-container focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-40">
+          {exporting ? 'Đang xuất...' : 'Xuất Excel'}
+        </button>
+        <Link href={`/reports/${assignmentId}/print`} className="font-semibold text-secondary hover:underline">In phiếu cả lớp</Link>
+        {!reportView && <Link href={`/reports/${assignmentId}`} className="font-semibold text-secondary hover:underline">Báo cáo bài tập</Link>}
+      </div>
+      {reportView && <div className="flex flex-wrap gap-3 text-xs">
+        <label>Từ ngày <input aria-label="Từ ngày" type="date" value={dateFrom} onChange={(event) => { setDateFrom(event.target.value); setCurrentPage(1); }} className="p-2 border rounded-lg" /></label>
+        <label>Đến ngày <input aria-label="Đến ngày" type="date" value={dateTo} onChange={(event) => { setDateTo(event.target.value); setCurrentPage(1); }} className="p-2 border rounded-lg" /></label>
+      </div>}
       {error ? <p className="text-sm text-error">{error}</p> : null}
       {stats ? (
         <div className="p-4 glass-panel rounded-2xl shadow-xs flex flex-wrap gap-4 text-xs">
@@ -61,6 +116,7 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
           <span>Đã nộp chính thức: <strong>{stats.officialSubmitted}</strong></span>
           <span>Chờ rà soát: <strong>{stats.awaitingReview}</strong></span>
           <span>Đã công bố: <strong>{stats.published}</strong></span>
+          <span>Nộp muộn: <strong>{stats.late ?? 0}</strong></span>
           <span>Lỗi xử lý: <strong>{stats.failed}</strong></span>
         </div>
       ) : null}
@@ -87,6 +143,7 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
               className="px-3 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface focus:outline-none focus:border-secondary w-44 sm:w-52"
             />
             <select
+              aria-label="Lọc trạng thái"
               value={filterStatus}
               onChange={(e) => {
                 setFilterStatus(e.target.value);
@@ -95,6 +152,8 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
               className="px-2.5 py-1.5 text-xs rounded-lg border border-outline-variant/60 bg-surface text-on-surface"
             >
               <option value="all">Tất cả trạng thái</option>
+              <option value="late">Nộp muộn</option>
+              <option value="revised">Đã viết lại</option>
               <option value="not_submitted">Chưa nộp</option>
               <option value="processing">Đang xử lý</option>
               <option value="ocr_review">Đang rà OCR</option>
@@ -168,6 +227,11 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
                       >
                         {rowStatusLabel(st.status)}
                       </span>
+                      {st.isLate && <span className="block text-xs font-semibold text-error mt-1">Nộp muộn</span>}
+                      <span className="block text-xs font-semibold mt-1">{roundLabel(st.revisionRound)}</span>
+                      {revisionScoreTrail(st) && <span className="block text-xs mt-1">{revisionScoreTrail(st)}</span>}
+                      {st.hasExtension && <span className="block text-xs mt-1">Đã được gia hạn</span>}
+                      {st.effectiveDueAt && <span className="block text-xs text-on-surface-variant mt-1">Hạn: {new Date(st.effectiveDueAt).toLocaleString('vi-VN')}</span>}
                       {st.hasNewUnpublishedVersion ? (
                         <span className="block text-[10px] text-[#854D0E] mt-1">Có bản nộp mới chưa công bố</span>
                       ) : null}
@@ -180,6 +244,14 @@ export default function AssignmentSubmissionsPanel({ assignmentId }: { assignmen
                         <span>Xem chi tiết chấm</span>
                         <span className="material-symbols-outlined text-xs">visibility</span>
                       </Link>
+                      <div className="flex flex-wrap items-center justify-end gap-2 mt-2">
+                        <DueAtEditor dueAt={st.hasExtension ? st.effectiveDueAt || null : null} extension label={`Gia hạn cho ${st.name}`}
+                          busy={busyStudent === st.studentId} disabled={readOnly || busyStudent !== ''} triggerClassName="inline-flex items-center gap-1 text-secondary font-semibold"
+                          onSave={(dueAt) => saveExtension(st.studentId, dueAt)}>Gia hạn</DueAtEditor>
+                        {st.hasExtension && <button type="button" disabled={readOnly || busyStudent !== ''} onClick={() => void saveExtension(st.studentId, null)}
+                          className="text-error hover:underline disabled:opacity-40">Gỡ gia hạn</button>}
+                        {st.isPublished && <Link href={`/reports/${assignmentId}/students/${st.studentId}/print`} className="text-secondary font-semibold hover:underline">In phiếu</Link>}
+                      </div>
                     </td>
                   </tr>
                 ))

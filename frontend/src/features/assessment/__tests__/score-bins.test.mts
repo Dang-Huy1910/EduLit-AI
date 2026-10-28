@@ -1,3 +1,5 @@
+import './feature-extensions.test.mts';
+import './revision.test.mts';
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { meanPosition, parseBins } from '../score-bins';

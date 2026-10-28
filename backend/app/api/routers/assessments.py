@@ -18,6 +18,7 @@ from app.db.models import User, UserRole
 from app.identity.deps import get_session_context, require_mutation_guards
 from app.identity.service import SessionContext
 from app.services.assessment_service import AssessmentService
+from app.services.report_export import XLSX_MEDIA_TYPE, export_class_report
 from app.services.report_service import ReportService
 from app.services.submission_errors import SubmissionError
 
@@ -83,6 +84,18 @@ async def student_assessment(
 ) -> dict[str, Any]:
     try:
         return await service.student_view(student, assignment_key)
+    except SubmissionError as exc:
+        _raise(exc)
+
+
+@student_router.get("/{assignment_key}/assessment/rounds")
+async def student_assessment_rounds(
+    assignment_key: str,
+    student: Annotated[User, Depends(get_student)],
+    service: Annotated[AssessmentService, Depends(get_assessment_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.student_rounds(student, assignment_key)
     except SubmissionError as exc:
         _raise(exc)
 
@@ -247,6 +260,34 @@ async def enqueue_insight(
         raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "VALIDATION", ERROR_MESSAGES["VALIDATION"])
 
 
+@teacher_router.get("/reports/{assignment_id}/export.xlsx")
+async def export_report(
+    assignment_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[ReportService, Depends(get_report_service)],
+    search: str = "",
+    status_filter: Annotated[str, Query(alias="status")] = "all",
+    sort: str = "default",
+    mode: str | None = None,
+    date_from: Annotated[str | None, Query(alias="from")] = None,
+    date_to: Annotated[str | None, Query(alias="to")] = None,
+    date_from_alias: Annotated[str | None, Query(alias="dateFrom")] = None,
+    date_to_alias: Annotated[str | None, Query(alias="dateTo")] = None,
+    student_id: Annotated[uuid.UUID | None, Query(alias="studentId")] = None,
+) -> Response:
+    try:
+        content, disposition = await export_class_report(
+            service, teacher, assignment_id, mode=mode, search=search, status=status_filter,
+            sort=sort, date_from=date_from if date_from is not None else date_from_alias,
+            date_to=date_to if date_to is not None else date_to_alias, student_id=student_id,
+        )
+        return Response(content=content, media_type=XLSX_MEDIA_TYPE, headers={"Content-Disposition": disposition})
+    except SubmissionError as exc:
+        _raise(exc)
+    except ValueError:
+        raise ApiHttpException(status.HTTP_400_BAD_REQUEST, "VALIDATION", ERROR_MESSAGES["VALIDATION"])
+
+
 @teacher_router.get("/assignments/{assignment_id}/students/{student_id}/assessment")
 async def teacher_student_assessment(
     assignment_id: uuid.UUID,
@@ -256,6 +297,19 @@ async def teacher_student_assessment(
 ) -> dict[str, Any]:
     try:
         return await service.teacher_detail(teacher, assignment_id, student_id)
+    except SubmissionError as exc:
+        _raise(exc)
+
+
+@teacher_router.get("/assignments/{assignment_id}/students/{student_id}/rounds")
+async def teacher_student_rounds(
+    assignment_id: uuid.UUID,
+    student_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[AssessmentService, Depends(get_assessment_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.teacher_rounds(teacher, assignment_id, student_id)
     except SubmissionError as exc:
         _raise(exc)
 
@@ -324,6 +378,20 @@ async def grant_reopen(
 ) -> dict[str, Any]:
     try:
         return await service.grant_reopen(teacher, assignment_id, student_id)
+    except SubmissionError as exc:
+        _raise(exc)
+
+
+@teacher_router.put("/assignments/{assignment_id}/students/{student_id}/due-extension")
+async def set_due_extension(
+    assignment_id: uuid.UUID,
+    student_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[AssessmentService, Depends(get_assessment_service)],
+    body: dict[str, Any],
+) -> dict[str, Any]:
+    try:
+        return await service.set_due_extension(teacher, assignment_id, student_id, body)
     except SubmissionError as exc:
         _raise(exc)
 

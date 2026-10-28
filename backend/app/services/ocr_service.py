@@ -521,7 +521,11 @@ class OcrReviewService:
                 return await self.submissions.commit_payload(
                     revision, student, submission, attempt
                 )
+            await self.session.refresh(attempt, ["pages"])
             return await self.submissions._payload(revision, student, submission, attempt)
+        await self.submissions._ensure_writable(revision)
+        if submission.reopen_granted_at is None or attempt.revision_round > 1:
+            await self.submissions._ensure_open_for_student(revision, submission, attempt)
         await self._assert_can_reopen(submission, attempt)
         now = utcnow()
         if current.status == CONFIRMED_TX:

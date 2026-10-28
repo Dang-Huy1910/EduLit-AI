@@ -293,6 +293,7 @@ export default function CompetencyReportView() {
               />
             </label>
           </div>
+          {assignmentIds.length === 1 && <Link href={`/reports/${assignmentIds[0]}`} className="inline-flex text-sm font-semibold text-secondary hover:underline">Báo cáo bài tập · Xuất Excel · In phiếu</Link>}
           <p className="text-[11px] text-on-surface-variant">
             Mặc định lấy tất cả bài đã giao trong phạm vi lọc. Thời điểm theo nộp chính thức của phiên bản đang thống kê.
           </p>

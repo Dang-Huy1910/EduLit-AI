@@ -1,3 +1,5 @@
+import type { DeadlineFields } from '../assignments/deadline';
+
 export type SubmissionStatus =
   | 'draft'
   | 'queued'
@@ -6,7 +8,7 @@ export type SubmissionStatus =
   | 'failed'
   | 'confirmed';
 
-export interface SubmissionAssignment {
+export interface SubmissionAssignment extends DeadlineFields {
   id: string;
   revisionId: string;
   code: string;
@@ -58,7 +60,7 @@ export interface TranscriptionPage {
   segments: TranscriptionSegment[];
 }
 
-export interface SubmissionPayload {
+export interface SubmissionPayload extends DeadlineFields {
   assignment: SubmissionAssignment;
   student: { id: string; displayName: string; loginId: string };
   submissionId: string | null;
@@ -86,4 +88,10 @@ export interface SubmissionPayload {
   canConfirm: boolean;
   waitingForGrade: boolean;
   canReopenTranscription?: boolean;
+  revisionRound?: number;
+  maxRevisions?: number;
+  revisionDueAt?: string | null;
+  revisionsRemaining?: number;
+  canStartRevision?: boolean;
+  startRevisionBlockedReason?: string | null;
 }

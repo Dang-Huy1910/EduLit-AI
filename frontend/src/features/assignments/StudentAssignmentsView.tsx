@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
+import DeadlineNotice from './DeadlineNotice';
+import { deadlineState } from './deadline';
 import { catalogApi } from '@/features/catalog/api';
 import { assessmentApi } from '@/features/assessment/api';
 import { formatScore } from '@/features/assessment/labels';
@@ -326,7 +328,7 @@ export default function StudentAssignmentsView() {
                           ) : (
                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-tertiary-container/30 text-tertiary flex items-center gap-1">
                               <span className="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
-                              Đang mở nộp
+                              {deadlineState(assignment).closed ? 'Chỉ xem bài' : 'Đang mở nộp'}
                             </span>
                           )}
                           {classroomLabelFor(assignment) && (
@@ -343,6 +345,7 @@ export default function StudentAssignmentsView() {
                       <h3 className="font-merriweather font-bold text-lg text-on-surface leading-snug">
                         {assignment.title}
                       </h3>
+                      <DeadlineNotice fields={assignment} compact />
 
                       <div className="text-xs text-on-surface-variant">
                         <p className={`leading-relaxed ${isExpanded ? 'whitespace-pre-line' : 'line-clamp-3'}`}>
@@ -442,6 +445,7 @@ export default function StudentAssignmentsView() {
                       <h3 className="font-merriweather font-bold text-lg text-on-surface leading-snug">
                         {assignment.title}
                       </h3>
+                      <DeadlineNotice fields={assignment} compact />
 
                       {/* Score Highlight Box */}
                       {result ? (

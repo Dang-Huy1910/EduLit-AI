@@ -31,6 +31,9 @@ import type {
   TeacherAssignment,
   Term,
 } from '@/features/catalog/types';
+import LatePolicySelect from '@/features/assignments/LatePolicySelect';
+import RevisionSettings from '@/features/assignments/RevisionSettings';
+import type { LatePolicy } from '@/features/assignments/deadline';
 import AssignmentSubmissionsPanel from '@/features/assessment/AssignmentSubmissionsPanel';
 import AssignmentStatisticsPanel from '@/features/assessment/AssignmentStatisticsPanel';
 
@@ -108,6 +111,10 @@ function AssignmentEditorPage() {
   const [extraInstructions, setExtraInstructions] = useState(storedDraft.extraInstructions || '');
   const [classroomId, setClassroomId] = useState(classroomFromQuery);
   const [dueAt, setDueAt] = useState(storedDraft.dueAt || '');
+  const [latePolicy, setLatePolicy] = useState<LatePolicy>(storedDraft.latePolicy || 'ALLOW_LATE');
+  const [maxRevisions, setMaxRevisions] = useState(storedDraft.maxRevisions ?? 0);
+  const [revisionDueAt, setRevisionDueAt] = useState(storedDraft.revisionDueAt || '');
+  const [revisionError, setRevisionError] = useState('');
   const [selectedRubricId, setSelectedRubricId] = useState(storedDraft.rubricId || '');
   const [criteria, setCriteria] = useState<CatalogRubricCriterion[]>(storedDraft.criteria || []);
   const [maxScore, setMaxScore] = useState(storedDraft.maxScore || 0);
@@ -150,7 +157,7 @@ function AssignmentEditorPage() {
     : prompt?.writingTask;
   const displayWritingSummary = isPublished ? snapshot?.writingTaskSummary : prompt?.writingTaskSummary;
   const displayMaterials = isPublished ? assignment?.publishedMaterials || snapshot?.materials || prompt?.materials : prompt?.materials;
-  // Published: only title, due date, extra instructions and adding students stay editable.
+  // Published: title, due date, late policy, rewrite settings, extra instructions and adding students stay editable.
   const publishedLocked = isPublished && classroomIsReadOnly;
   const publishedWholeClass = isPublished && Boolean(assignment?.assignToWholeClass);
   const lockedRecipientIds = new Set(isPublished && !publishedWholeClass ? assignment?.recipientStudentIds || [] : []);
@@ -159,7 +166,10 @@ function AssignmentEditorPage() {
     const changes: Record<string, unknown> = {};
     if (title.trim() !== assignment.title) changes.title = title;
     if (extraInstructions !== (assignment.extraInstructions ?? '')) changes.extraInstructions = extraInstructions;
+    if (latePolicy !== (assignment.latePolicy || 'ALLOW_LATE')) changes.latePolicy = latePolicy;
     if (dueAt !== toDateTimeLocal(assignment.dueAt)) changes.dueAt = dueAt ? new Date(dueAt).toISOString() : null;
+    if (maxRevisions !== (assignment.maxRevisions ?? 0)) changes.maxRevisions = maxRevisions;
+    if (revisionDueAt !== toDateTimeLocal(assignment.revisionDueAt)) changes.revisionDueAt = revisionDueAt ? new Date(revisionDueAt).toISOString() : null;
     if (!publishedWholeClass) {
       if (assignToWholeClass) changes.assignToWholeClass = true;
       else if (recipientIds.some((id) => !lockedRecipientIds.has(id))) changes.recipientStudentIds = recipientIds;
@@ -374,6 +384,10 @@ function AssignmentEditorPage() {
     else if (existing) setExtraInstructions(existing.extraInstructions ?? '');
     if (draft.classroomId) setClassroomId(draft.classroomId);
     else if (existing?.classroomId) setClassroomId(existing.classroomId);
+    setLatePolicy(draft.latePolicy || existing?.latePolicy || 'ALLOW_LATE');
+    setMaxRevisions(typeof draft.maxRevisions === 'number' ? draft.maxRevisions : existing?.maxRevisions ?? 0);
+    if (typeof draft.revisionDueAt === 'string') setRevisionDueAt(draft.revisionDueAt);
+    else if (existing) setRevisionDueAt(toDateTimeLocal(existing.revisionDueAt));
     if (draft.dueAt) setDueAt(draft.dueAt);
     else if (existing) setDueAt(toDateTimeLocal(existing.dueAt));
     if (draft.recipientStudentIds) setRecipientIds(draft.recipientStudentIds);
@@ -403,6 +417,9 @@ function AssignmentEditorPage() {
     title,
     extraInstructions,
     dueAt,
+    latePolicy,
+    maxRevisions,
+    revisionDueAt,
     rubricId: selectedRubricId,
     recipientStudentIds: recipientIds,
     assignToWholeClass,
@@ -417,6 +434,9 @@ function AssignmentEditorPage() {
     title,
     extraInstructions,
     dueAt,
+    latePolicy,
+    maxRevisions,
+    revisionDueAt,
     selectedRubricId,
     recipientIds,
     assignToWholeClass,
@@ -464,6 +484,9 @@ function AssignmentEditorPage() {
     classroomId: classroomId || undefined,
     title,
     extraInstructions,
+    latePolicy,
+    maxRevisions,
+    revisionDueAt: revisionDueAt ? new Date(revisionDueAt).toISOString() : null,
     dueAt: dueAt ? new Date(dueAt).toISOString() : null,
     assignToWholeClass,
     recipientStudentIds: assignToWholeClass ? [] : recipientIds,
@@ -533,11 +556,17 @@ function AssignmentEditorPage() {
       setTitle(updated.title);
       setExtraInstructions(updated.extraInstructions ?? '');
       setDueAt(toDateTimeLocal(updated.dueAt));
+      setLatePolicy(updated.latePolicy || 'ALLOW_LATE');
+      setMaxRevisions(updated.maxRevisions ?? 0);
+      setRevisionDueAt(toDateTimeLocal(updated.revisionDueAt));
+      setRevisionError('');
       setAssignToWholeClass(Boolean(updated.assignToWholeClass));
       setRecipientIds(updated.recipientStudentIds || []);
       addToast('Đã lưu thay đổi. Học sinh thấy thông tin mới ngay.', 'success');
     } catch (err) {
-      addToast(err instanceof AuthApiError ? err.message : 'Không lưu được thay đổi.', 'error');
+      const message = err instanceof AuthApiError ? err.message : 'Không lưu được thay đổi.';
+      setRevisionError(err instanceof AuthApiError && err.code === 'REVISION_LIMIT_IN_USE' ? message : '');
+      addToast(message, 'error');
     } finally {
       setSaving(false);
     }
@@ -830,7 +859,7 @@ function AssignmentEditorPage() {
             </h1>
             <p className="text-xs text-on-surface-variant mt-1">
               {isPublished
-                ? 'Đề, ngữ liệu và barem đã chốt khi giao. Vẫn sửa được tiêu đề, hạn nộp, hướng dẫn bổ sung và thêm học sinh.'
+                ? 'Đề, ngữ liệu và barem đã chốt khi giao. Vẫn sửa được tiêu đề, hạn nộp, số lần viết lại, hướng dẫn bổ sung và thêm học sinh.'
                 : 'Barem đang soạn là bản của bài này, không sửa ngầm barem gốc.'}
             </p>
           </div>
@@ -931,7 +960,7 @@ function AssignmentEditorPage() {
         {loading ? (
           <div className="p-12 text-center text-sm text-on-surface-variant">Đang tải dữ liệu bài tập...</div>
         ) : isPublished && activeTab === 'submissions' ? (
-          <AssignmentSubmissionsPanel assignmentId={existingAssignmentId || assignmentId} />
+          <AssignmentSubmissionsPanel assignmentId={existingAssignmentId || assignmentId} readOnly={classroomIsReadOnly} />
         ) : isPublished && activeTab === 'statistics' ? (
           <AssignmentStatisticsPanel assignmentId={existingAssignmentId || assignmentId} />
         ) : (
@@ -1080,6 +1109,10 @@ function AssignmentEditorPage() {
                     />
                   </FormField>
                 </div>
+                <LatePolicySelect value={latePolicy} onChange={setLatePolicy} disabled={publishedLocked} />
+                <RevisionSettings maxRevisions={maxRevisions} revisionDueAt={revisionDueAt} disabled={publishedLocked} error={revisionError}
+                  onMaxRevisions={(value) => { setRevisionError(''); setMaxRevisions(value); }}
+                  onRevisionDueAt={setRevisionDueAt} />
                 <FormField
                   icon="notes"
                   label="Hướng dẫn bổ sung"

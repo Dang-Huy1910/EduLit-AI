@@ -75,6 +75,7 @@ ERROR_MESSAGES: dict[str, str] = {
     "SUBMISSION_PAGE_LIMIT": "Mỗi bài nộp từ 1 đến 4 trang ảnh.",
     "SUBMISSION_NOT_DRAFT": "Bộ ảnh đã nộp. Hãy tạo lượt mới nếu muốn thay ảnh.",
     "SUBMISSION_EMPTY": "Cần ít nhất một trang ảnh trước khi nộp.",
+    "SUBMISSION_CLOSED": "Bài tập đã hết hạn nộp. Liên hệ giáo viên nếu cần gia hạn.",
     "OCR_IN_PROGRESS": "Bài đang được số hóa. Em chờ kết quả rồi đối chiếu.",
     "REVISION_CONFLICT": "Bản chép đã được sửa ở tab khác. Hãy tải lại rồi lưu.",
     "OCR_NOT_READY": "Bản chép chưa sẵn sàng để xác nhận.",

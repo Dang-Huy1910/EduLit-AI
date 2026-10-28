@@ -13,6 +13,7 @@ export function formatPercent(value: number | null | undefined): string {
 export function rowStatusLabel(status: string): string {
   const map: Record<string, string> = {
     not_submitted: 'Chưa nộp',
+    late: 'Nộp muộn',
     processing: 'Đang xử lý',
     ocr_review: 'Đang rà OCR',
     ocr_failed: 'Lỗi OCR',
@@ -39,4 +40,18 @@ export function insightStatusLabel(status: string, stale: boolean, scoredCount: 
 
 export function modeShort(mode: StatsMode | string | undefined): string {
   return mode === 'provisional' ? 'Tạm tính' : 'Chính thức';
+}
+
+/** Keep in step with backend REVISION_MESSAGES. */
+export function revisionBlockedLabel(code: string | null | undefined): string {
+  if (!code) return '';
+  const map: Record<string, string> = {
+    REVISION_DISABLED: 'Giáo viên chưa bật viết lại cho bài tập này.',
+    REVISION_NOT_PUBLISHED: 'Em cần chờ bản hiện tại được công bố điểm trước khi viết lại.',
+    REVISION_LIMIT_REACHED: 'Em đã dùng hết lượt viết lại của bài tập này.',
+    REVISION_CLOSED: 'Đã hết hạn viết lại. Em hãy liên hệ giáo viên nếu cần thêm thời gian.',
+    REVISION_LIMIT_IN_USE: 'Không thể giảm số lượt dưới số bản viết lại học sinh đã bắt đầu.',
+    CLASSROOM_READ_ONLY: 'Lớp thuộc kỳ học đã kết thúc nên chỉ xem được bài.',
+  };
+  return map[code] || '';
 }

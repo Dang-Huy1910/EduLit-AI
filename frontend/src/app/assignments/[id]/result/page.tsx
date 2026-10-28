@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import EvaluationResultView from '@/features/assessment/EvaluationResultView';
+import StudentRevisionActions from '@/features/assessment/StudentRevisionActions';
 import { assessmentApi } from '@/features/assessment/api';
 import type { StudentAssessmentResponse } from '@/features/assessment/types';
 import { AuthApiError } from '@/lib/auth-types';
@@ -123,6 +124,7 @@ export default function StudentResultPage() {
             <p className="text-sm text-on-surface-variant leading-relaxed">
               {statusBody(status, data?.assessment.jobError || null)}
             </p>
+            {data && <StudentRevisionActions assignmentId={assignmentId} submission={data} />}
             <div className="flex flex-wrap gap-3 pt-1">
               <Link href={`/assignments/${assignmentId}/ocr`} className="text-primary text-sm font-semibold">
                 Xem lại bản chép

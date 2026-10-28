@@ -78,9 +78,26 @@ Seed idempotent: lớp 12A14, `nguyen.van.an` trong lớp, `bui.hamy` ngoài l�
 
 `POST /api/teacher/documents` multipart field `file` (không JSON). Chuyển Markdown bằng MarkItDown cục bộ (`markitdown[pdf,docx,xlsx]`, `enable_plugins=False`). Bytes gốc lưu BYTEA, tải lại `GET /api/teacher/documents/{id}/original`.
 
-Hỗ trợ: DOCX, PDF có lớp văn bản, TXT/Markdown, XLSX. Giới hạn mặc định 8MB; `IMPORT_MIN_TEXT_CHARS=40`. PDF scan/rỗng: trạng thái `NEEDS_OCR`, giữ file gốc, không phân tích đoán nội dung. OCR chữ viết tay của học sinh là luồng nộp bài riêng (`prompts/ocr/transcribe-page.v1.md`), không dùng cho import PDF scan.
+Hỗ trợ: DOCX, PDF có lớp văn bản, TXT/Markdown, XLSX. Giới hạn mặc định 8MB; `IMPORT_MIN_TEXT_CHARS=40`. PDF scan/rỗng: trạng thái `NEEDS_OCR`, giữ file gốc, không tự phân tích. Giáo viên gọi `POST /api/teacher/documents/{id}/ocr`; worker nền nhận dạng chữ in. OCR chữ viết tay của học sinh là luồng nộp bài riêng (`prompts/ocr/transcribe-page.v1.md`), không dùng prompt đó cho PDF scan.
 
 Sau convert, agent (cùng adapter/provider hiện tại, prompt `document-extract.v1`, `IMPORT_AI_MAX_OUTPUT_TOKENS=4096`) tách ngữ liệu / yêu cầu viết đầy đủ / tóm tắt / barem. Giáo viên rà soát rồi `POST .../confirm`. Barem vào kho; chọn khi tạo bài tập. Snapshot bài đã giao dùng yêu cầu đầy đủ.
+
+### OCR PDF scan trong kho
+
+Không chạy khi upload. `POST /api/teacher/documents/{id}/ocr` chỉ xếp hàng khi tài liệu của giáo viên đó đang `NEEDS_OCR`, là PDF, và `ocr_status` là `NONE` hoặc `FAILED`. Vượt `IMPORT_OCR_MAX_PAGES` thì `400 IMPORT_OCR_TOO_MANY_PAGES`. Đang `QUEUED` hoặc `PROCESSING` thì trả payload hiện tại.
+
+Worker `app/workers/document_ocr.py` gắn vào process API khi `IMPORT_OCR_WORKER_ENABLED` và không phải `APP_ENV=test`. Nó dùng `run_claim_loop` trong `app/workers/_loop.py`: `FOR UPDATE SKIP LOCKED`, lease, job hết lease được claim lại. Hết `IMPORT_OCR_MAX_ATTEMPTS` thì `ocr_status=FAILED`, `status` giữ `NEEDS_OCR`, `ocr_last_error` là "Nhận dạng chữ bị gián đoạn. Thầy/cô hãy thử lại." Không có lệnh CLI riêng; `ocr-worker` vẫn chỉ là OCR chữ viết tay của bài nộp.
+
+Mỗi trang render bằng `pypdfium2` ở `IMPORT_OCR_RENDER_DPI`, JPEG qua Pillow, gọi `generate_with_images` với prompt `prompts/catalog/ocr-printed-page.v1.md` (schema `document_ocr_page.v1`). Model và timeout lấy `OCR_MODEL` (trống thì `AI_MODEL`), `OCR_TIMEOUT_SECONDS`, `OCR_MAX_OUTPUT_TOKENS`. Xong thì ghép Markdown, mỗi trang mở đầu `<!-- Trang N -->`, `status=CONVERTED`, `ocr_status=DONE`, `needs_ocr=false`, và `conversion_warning` nhắc rà soát. OCR không gọi `analyze`. Giáo viên sửa Markdown rồi bấm phân tích bằng endpoint đang có.
+
+```bash
+IMPORT_OCR_WORKER_ENABLED=true
+IMPORT_OCR_MAX_PAGES=20
+IMPORT_OCR_RENDER_DPI=150
+IMPORT_OCR_MAX_ATTEMPTS=3
+IMPORT_OCR_LEASE_SECONDS=900
+IMPORT_OCR_POLL_SECONDS=3
+```
 
 ## Kiểm thử
 
@@ -103,7 +120,7 @@ uv run python -m app.cli ocr-worker
 uv run python -m app.cli assessment-worker
 ```
 
-API process gắn bốn worker: outline (`OUTLINE_PREP_WORKER_ENABLED`), OCR (`OCR_WORKER_ENABLED`), chấm/phân tích lớp (`ASSESSMENT_WORKER_ENABLED`) và khởi tạo hồ sơ viết (`WRITING_PROFILE_AUTO_ENABLED`); mặc định đều bật, trừ khi `APP_ENV=test`. Ba worker đầu dùng helper `app/workers/_loop.py`; profile dùng sweep riêng và backoff trong bộ nhớ. Chỉ chạy CLI worker nếu tách process và tắt cờ tương ứng trong API. Chưa có CLI riêng cho writing profile. Chấm dùng `ASSESSMENT_MODEL` (trống thì kế thừa `AI_MODEL`). Migration hiện tới `0019_drop_material_status_enum`.
+API process gắn năm worker: outline (`OUTLINE_PREP_WORKER_ENABLED`), OCR bài nộp (`OCR_WORKER_ENABLED`), OCR PDF kho (`IMPORT_OCR_WORKER_ENABLED`), chấm/phân tích lớp (`ASSESSMENT_WORKER_ENABLED`) và khởi tạo hồ sơ viết (`WRITING_PROFILE_AUTO_ENABLED`); mặc định đều bật, trừ khi `APP_ENV=test`. Bốn worker đầu dùng helper `app/workers/_loop.py`; profile dùng sweep riêng và backoff trong bộ nhớ. Chỉ chạy CLI worker nếu tách process và tắt cờ tương ứng trong API. Chưa có CLI riêng cho OCR PDF kho và writing profile. Chấm dùng `ASSESSMENT_MODEL` (trống thì kế thừa `AI_MODEL`). OCR PDF kho dùng `OCR_MODEL` theo cùng cách. Migration hiện tới `0022_revision_rounds`.
 
 `reset-teacher-password` chỉ dành người vận hành; thu hồi mọi phiên của giáo viên.
 

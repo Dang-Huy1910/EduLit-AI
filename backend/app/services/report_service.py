@@ -575,6 +575,7 @@ class ReportService:
             "awaitingReview": counts["awaitingReview"],
             "published": counts["published"],
             "failed": counts["failed"],
+            "late": counts["late"],
             "scoredCount": computed["scoredCount"],
             "publishedCount": computed["scoredCount"] if computed["mode"] == MODE_OFFICIAL else counts["published"],
             "meanScore": computed["meanScore"],

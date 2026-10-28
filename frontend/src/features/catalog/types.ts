@@ -1,3 +1,5 @@
+import type { DeadlineFields, LatePolicy } from '../assignments/deadline';
+
 export type CatalogKind = 'material' | 'prompt' | 'rubric' | 'topic';
 
 export interface CatalogTopic {
@@ -155,6 +157,9 @@ export interface Term {
 }
 
 export interface TeacherAssignment {
+  latePolicy?: LatePolicy;
+  maxRevisions?: number;
+  revisionDueAt?: string | null;
   id: string;
   code: string;
   title: string;
@@ -184,6 +189,7 @@ export interface TeacherAssignment {
     needsClarification: number;
   };
   submissionProgress?: {
+    late?: number;
     assigned: number;
     officialSubmitted: number;
     grading: number;
@@ -210,7 +216,7 @@ export interface TeacherAssignment {
   sourcePrompt?: CatalogPrompt;
 }
 
-export interface StudentAssignment {
+export interface StudentAssignment extends DeadlineFields {
   id: string;
   revisionId?: string;
   code: string;
@@ -239,6 +245,9 @@ export interface StudentAssignment {
 }
 
 export interface AssignmentDraftState {
+  latePolicy?: LatePolicy;
+  maxRevisions?: number;
+  revisionDueAt?: string;
   assignmentId?: string;
   classroomId?: string;
   promptId?: string;
@@ -304,6 +313,11 @@ export interface DocumentAnalysis {
 }
 
 export interface TeacherDocument {
+  ocrStatus?: 'NONE' | 'QUEUED' | 'PROCESSING' | 'DONE' | 'FAILED';
+  ocrPageCount?: number;
+  ocrPagesDone?: number;
+  ocrError?: string | null;
+  ocrMaxPages?: number;
   id: string;
   originalFilename: string;
   mimeType: string;
@@ -337,7 +351,7 @@ export interface TeacherDocument {
 export const IMPORT_DOCUMENT_LABEL = 'Import tài liệu';
 
 export const IMPORT_FORMAT_HELP =
-  'Hỗ trợ DOCX, PDF có lớp văn bản, TXT/Markdown và XLSX. PDF scan/không có chữ được giữ nguyên file gốc và cần bản chữ hoặc OCR sau. Không nhận đường dẫn máy tính hay URL.';
+  'Hỗ trợ DOCX, PDF có lớp văn bản, TXT/Markdown và XLSX. PDF scan có thể nhận dạng chữ (OCR) bằng AI rồi rà soát trước khi phân tích. Không nhận đường dẫn máy tính hay URL.';
 
 export const PICK_PROMPT_NOTICE =
   'Chọn đề trước khi tạo bài tập.\nĐề trong kho cung cấp yêu cầu viết và ngữ liệu cho bài tập. Sau khi chọn đề, thầy/cô sẽ chọn barem, lớp nhận bài và hạn nộp.';

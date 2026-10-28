@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { assessmentApi } from './api';
 import type { ClassReport, StatsMode } from './types';
@@ -86,6 +87,7 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
 
   return (
     <div className="space-y-5">
+      <Link href={`/reports/${assignmentId}`} className="inline-flex text-sm text-secondary font-semibold hover:underline">Báo cáo bài tập · Xuất Excel · In phiếu</Link>
       <StatsModeToggle
         mode={mode || report?.suggestedMode || 'provisional'}
         onChange={handleMode}
@@ -120,6 +122,7 @@ export default function AssignmentStatisticsPanel({ assignmentId }: { assignment
               { label: 'Đang xử lý OCR', count: stats.processing ?? 0, icon: 'document_scanner' },
               { label: 'Chờ / đang chấm', count: stats.grading ?? 0, icon: 'hourglass_top' },
               { label: 'Chấm xong, chờ rà soát', count: stats.awaitingReview ?? 0, icon: 'rate_review' },
+              { label: 'Nộp muộn', count: stats.late ?? 0, icon: 'schedule' },
               { label: 'Lỗi xử lý', count: stats.failed ?? 0, icon: 'error', tone: 'error' },
             ]}
           />

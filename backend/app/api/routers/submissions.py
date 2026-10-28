@@ -231,6 +231,18 @@ async def new_attempt(
         _raise(exc)
 
 
+@router.post("/{assignment_key}/submission/start-revision")
+async def start_revision(
+    assignment_key: str,
+    student: Annotated[User, Depends(get_student)],
+    service: Annotated[SubmissionService, Depends(get_submission_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.start_revision(student, assignment_key)
+    except SubmissionError as exc:
+        _raise(exc)
+
+
 @router.get("/{assignment_key}/ocr")
 async def get_ocr(
     assignment_key: str,

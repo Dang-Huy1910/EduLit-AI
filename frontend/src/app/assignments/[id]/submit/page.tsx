@@ -3,19 +3,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import RevisionBanner from '@/features/submission/RevisionBanner';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { submissionApi } from '@/features/submission/api';
 import type { MaskRegion, SubmissionPage, SubmissionPayload } from '@/features/submission/types';
-
-function formatDue(value: string | null | undefined): string {
-  if (!value) return 'Chưa có hạn nộp';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('vi-VN');
-}
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof AuthApiError ? err.message : fallback;
@@ -86,7 +80,7 @@ export default function SubmitPhotosPage() {
   }, []);
 
   const pages = payload?.pages || [];
-  const canEdit = payload?.canEditPages !== false && payload?.status === 'draft';
+  const canEdit = payload?.canEditPages !== false && payload?.status === 'draft' && !payload?.classroomReadOnly && !payload?.isClosed;
 
   const run = async (work: () => Promise<SubmissionPayload>, ok?: string) => {
     setBusy(true);
@@ -97,6 +91,9 @@ export default function SubmitPhotosPage() {
       return next;
     } catch (err) {
       addToast(errorMessage(err, 'Không thực hiện được thao tác.'), 'error');
+      if (err instanceof AuthApiError && (err.code === 'SUBMISSION_CLOSED' || err.code === 'REVISION_CLOSED')) {
+        try { setPayload(await submissionApi.get(assignmentId)); } catch { /* Keep the error message. */ }
+      }
       return null;
     } finally {
       setBusy(false);
@@ -104,7 +101,7 @@ export default function SubmitPhotosPage() {
   };
 
   const handleFiles = async (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
+    if (!canEdit || !fileList || fileList.length === 0) return;
     if (pages.length + fileList.length > 4) {
       addToast('Mỗi bài nộp tối đa 4 trang ảnh.', 'warning');
       return;
@@ -261,7 +258,6 @@ export default function SubmitPhotosPage() {
               <span className="text-xs bg-primary-fixed text-primary font-bold px-2.5 py-0.5 rounded-full">
                 Bước 3: Viết tay &amp; Nộp ảnh bài làm
               </span>
-              <span className="text-xs text-on-surface-variant font-medium">Hạn nộp: {formatDue(assignment.dueAt)}</span>
             </div>
             <h1 className="font-headline-md text-xl font-bold text-on-surface font-merriweather">
               Nộp ảnh bài viết tay &amp; Che thông tin cá nhân
@@ -277,6 +273,7 @@ export default function SubmitPhotosPage() {
         </div>
 
         <AssignmentWorkflowStepper currentStep="submit" assignmentId={assignmentId} />
+        <RevisionBanner payload={payload} />
 
         {payload.classroomReadOnly && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
@@ -302,7 +299,7 @@ export default function SubmitPhotosPage() {
               </button>
               <button
                 type="button"
-                disabled={busy || payload.classroomReadOnly}
+                disabled={busy || payload.classroomReadOnly || payload.isClosed}
                 onClick={() => void handleNewAttempt()}
                 className="px-3 py-1.5 border rounded-lg font-semibold disabled:opacity-50"
               >
@@ -535,17 +532,17 @@ export default function SubmitPhotosPage() {
               {canEdit ? (
                 <button
                   type="button"
-                  disabled={pages.length === 0 || busy || payload.classroomReadOnly}
+                  disabled={pages.length === 0 || busy || payload.classroomReadOnly || payload.isClosed}
                   onClick={() => void handleSubmit()}
                   className="py-2.5 px-6 bg-primary text-white font-bold text-xs rounded-lg hover:bg-primary/90 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-base">check_circle</span>
+                  <span className="material-symbols-outlined text-base" aria-hidden="true">check_circle</span>
                   <span>Xác nhận Nộp &amp; Chuyển sang Đối chiếu OCR</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  disabled={busy || payload.classroomReadOnly}
+                  disabled={busy || payload.classroomReadOnly || payload.isClosed}
                   onClick={() => void handleNewAttempt()}
                   className="py-2.5 px-6 border border-outline-variant text-xs font-bold rounded-lg disabled:opacity-50"
                 >

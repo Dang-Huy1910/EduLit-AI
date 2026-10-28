@@ -10,6 +10,7 @@ import { beginNewAssignmentDraft, clearAssignmentDraft, pickPromptHref } from '@
 import type { TeacherAssignment } from '@/features/catalog/types';
 import InlineDeleteButton from '@/components/InlineDeleteButton';
 import DueAtEditor from './DueAtEditor';
+import type { LatePolicy } from './deadline';
 import { termLabel } from '@/features/classrooms/model';
 import { useTeacherClassContext } from '@/features/classrooms/useClassContext';
 
@@ -77,12 +78,12 @@ export default function TeacherAssignmentsView() {
     }
   };
 
-  const handleSaveDueAt = async (assignment: TeacherAssignment, dueAt: string | null) => {
+  const handleSaveDueAt = async (assignment: TeacherAssignment, dueAt: string | null, latePolicy?: LatePolicy) => {
     setSavingDueId(assignment.id);
     try {
-      const updated = await catalogApi.updatePublishedAssignment(assignment.id, { dueAt });
+      const updated = await catalogApi.updatePublishedAssignment(assignment.id, { dueAt, latePolicy });
       setAssignments((current) =>
-        current.map((item) => (item.id === assignment.id ? { ...item, dueAt: updated.dueAt } : item))
+        current.map((item) => (item.id === assignment.id ? { ...item, dueAt: updated.dueAt, latePolicy: updated.latePolicy } : item))
       );
       addToast(dueAt ? 'Đã cập nhật hạn nộp.' : 'Đã bỏ hạn nộp.', 'success');
       return true;
@@ -313,11 +314,12 @@ export default function TeacherAssignmentsView() {
                         </span>
                         <DueAtEditor
                           dueAt={assignment.dueAt}
+                          latePolicy={assignment.latePolicy || 'ALLOW_LATE'}
                           label={canEditDue ? `${due.full}. Bấm để gia hạn.` : due.full}
                           busy={savingDueId === assignment.id}
                           disabled={!canEditDue}
                           triggerClassName={`text-[11px] font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 ${DUE_TONE[due.tone]}`}
-                          onSave={(next) => handleSaveDueAt(assignment, next)}
+                          onSave={(next, policy) => handleSaveDueAt(assignment, next, policy)}
                         >
                           <span className="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
                           <span>{due.label}</span>
@@ -374,6 +376,7 @@ export default function TeacherAssignmentsView() {
                           >
                             <span>Chờ rà soát: <b className="text-on-surface">{progress.awaitingReview}</b></span>
                             <span>Đã công bố: <b className="text-on-surface">{progress.published}</b></span>
+                            <span>Nộp muộn: <b className="text-on-surface">{progress.late ?? 0}</b></span>
                           </MetricTile>
                         )}
                         {prep && (

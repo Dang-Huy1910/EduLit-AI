@@ -2,6 +2,8 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import LatePolicySelect from './LatePolicySelect';
+import type { LatePolicy } from './deadline';
 
 interface DueAtEditorProps {
   dueAt: string | null;
@@ -12,7 +14,14 @@ interface DueAtEditorProps {
   /** Trigger content: the existing due-date badge. */
   children: React.ReactNode;
   triggerClassName: string;
-  onSave: (dueAt: string | null) => Promise<boolean>;
+  latePolicy?: LatePolicy;
+  extension?: boolean;
+  dialogLabel?: string;
+  dialogTitle?: string;
+  dialogHint?: string;
+  clearLabel?: string;
+  fieldLabel?: string;
+  onSave: (dueAt: string | null, latePolicy?: LatePolicy) => Promise<boolean>;
 }
 
 const POPOVER_WIDTH = 304;
@@ -47,8 +56,16 @@ export default function DueAtEditor({
   children,
   triggerClassName,
   onSave,
+  latePolicy,
+  extension = false,
+  dialogLabel,
+  dialogTitle,
+  dialogHint,
+  clearLabel,
+  fieldLabel,
 }: DueAtEditorProps) {
   const [open, setOpen] = useState(false);
+  const [policy, setPolicy] = useState<LatePolicy>(latePolicy || 'ALLOW_LATE');
   const [value, setValue] = useState('');
   const [placement, setPlacement] = useState<Placement | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -102,12 +119,17 @@ export default function DueAtEditor({
   };
 
   const save = async (next: string | null) => {
-    if (await onSave(next)) setOpen(false);
+    if (await onSave(next, latePolicy ? policy : undefined)) setOpen(false);
   };
 
   const parsed = value ? new Date(value) : null;
   const invalid = Boolean(value) && (!parsed || Number.isNaN(parsed.getTime()));
-  const unchanged = value === toDateTimeLocal(dueAt);
+  const unchanged = value === toDateTimeLocal(dueAt) && (!latePolicy || policy === latePolicy);
+  const resolvedDialogLabel = dialogLabel || (extension ? 'Gia hạn cho học sinh' : 'Đổi hạn nộp');
+  const resolvedTitle = dialogTitle || (extension ? 'Gia hạn cho học sinh' : 'Hạn nộp và chính sách');
+  const resolvedHint = dialogHint || 'Học sinh thấy hạn mới ngay sau khi lưu.';
+  const resolvedClear = clearLabel || (extension ? 'Gỡ gia hạn' : 'Bỏ hạn nộp');
+  const resolvedField = fieldLabel || 'Hạn nộp mới';
 
   return (
     <>
@@ -118,11 +140,12 @@ export default function DueAtEditor({
         aria-expanded={open}
         aria-haspopup="dialog"
         title={label}
-        disabled={disabled}
+        disabled={disabled || busy}
         onClick={(event) => {
           event.stopPropagation();
           if (!open) {
             setValue(toDateTimeLocal(dueAt));
+            setPolicy(latePolicy || 'ALLOW_LATE');
             place();
           }
           setOpen(!open);
@@ -142,7 +165,7 @@ export default function DueAtEditor({
           <div
             ref={popoverRef}
             role="dialog"
-            aria-label="Đổi hạn nộp"
+            aria-label={resolvedDialogLabel}
             onClick={(event) => event.stopPropagation()}
             style={{
               position: 'fixed',
@@ -154,9 +177,9 @@ export default function DueAtEditor({
             className="z-[70] max-w-[calc(100vw-1rem)] rounded-2xl bg-surface-container-lowest p-4 shadow-[0_18px_40px_-12px_rgba(18,28,42,0.35)] ring-1 ring-black/5 text-left space-y-3"
           >
             <div>
-              <p className="text-sm font-bold text-on-surface">Gia hạn nộp bài</p>
+              <p className="text-sm font-bold text-on-surface">{resolvedTitle}</p>
               <p className="text-xs text-on-surface-variant leading-relaxed">
-                Học sinh thấy hạn mới ngay sau khi lưu.
+                {resolvedHint}
               </p>
             </div>
             <div className="flex gap-1.5">
@@ -177,9 +200,10 @@ export default function DueAtEditor({
               value={value}
               onChange={(event) => setValue(event.target.value)}
               disabled={busy}
-              aria-label="Hạn nộp mới"
+              aria-label={resolvedField}
               className="w-full h-9 px-2.5 rounded-lg border border-outline-variant/60 bg-surface-container-lowest text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30"
             />
+            {latePolicy && <LatePolicySelect value={policy} onChange={setPolicy} disabled={busy} />}
             <div className="flex items-center justify-between gap-2">
               {dueAt ? (
                 <button
@@ -188,7 +212,7 @@ export default function DueAtEditor({
                   disabled={busy}
                   className="text-xs font-semibold text-on-surface-variant hover:text-error hover:underline disabled:opacity-50"
                 >
-                  Bỏ hạn nộp
+                  {resolvedClear}
                 </button>
               ) : (
                 <span />
@@ -204,8 +228,8 @@ export default function DueAtEditor({
                 </button>
                 <button
                   type="button"
-                  onClick={() => void save(parsed ? parsed.toISOString() : null)}
-                  disabled={busy || !value || invalid || unchanged}
+                  onClick={() => void save(value === toDateTimeLocal(dueAt) ? dueAt : parsed ? parsed.toISOString() : null)}
+                  disabled={busy || invalid || unchanged || (!value && !dueAt && !latePolicy)}
                   className="h-8 px-3.5 rounded-lg bg-primary text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {busy ? (

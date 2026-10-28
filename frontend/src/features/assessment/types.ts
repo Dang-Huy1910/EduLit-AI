@@ -1,3 +1,5 @@
+import type { DeadlineFields } from '../assignments/deadline';
+
 export type AssessmentStatus =
   | 'none'
   | 'queued'
@@ -70,6 +72,7 @@ export interface StudentAssessmentResponse {
     code: string;
     title: string;
     dueAt: string | null;
+    classroomName?: string | null;
     writingTask: string;
     extraInstructions: string;
   };
@@ -81,6 +84,12 @@ export interface StudentAssessmentResponse {
   ocrSubmittedAt: string | null;
   confirmedAt: string | null;
   canReopenTranscription: boolean;
+  revisionRound?: number;
+  maxRevisions?: number;
+  revisionDueAt?: string | null;
+  revisionsRemaining?: number;
+  canStartRevision?: boolean;
+  startRevisionBlockedReason?: string | null;
   pages: {
     id: string;
     pageIndex: number;
@@ -131,7 +140,7 @@ export interface TeacherAssessmentDetail {
     };
   };
   student: { id: string; displayName: string; loginId: string };
-  submission: {
+  submission: DeadlineFields & {
     id: string | null;
     attemptId: string | null;
     attemptNumber: number;
@@ -245,6 +254,7 @@ export interface ScoreFormula {
 }
 
 export interface ReportStats {
+  late?: number;
   assigned: number;
   assignedStudents?: number;
   assignedPapers?: number;
@@ -289,7 +299,7 @@ export interface AssignmentTrendPoint {
   meanScoreScale10: number | null;
 }
 
-export interface ClassReportRow {
+export interface ClassReportRow extends DeadlineFields {
   studentId: string;
   name: string;
   code: string;
@@ -306,6 +316,52 @@ export interface ClassReportRow {
   isPublished: boolean;
   hasNewUnpublishedVersion: boolean;
   scoreSource?: string | null;
+  revisionRound?: number;
+  publishedRound?: number | null;
+  firstPublishedScore?: number | null;
+  firstPublishedScoreScale10?: number | null;
+}
+
+export interface PublishedRound {
+  round: number;
+  resultId: string | null;
+  publishedAt: string | null;
+  totalScore: number | null;
+  scoreScale10: number | null;
+  maxScore: number | null;
+  scoreStep?: number | null;
+  evaluations: AssessmentEvaluation[];
+  overallComment: string;
+  improvementGuidance: string[];
+  assignmentTitle?: string;
+  rubricTitle?: string;
+  isPublished: boolean;
+  visibleToStudent: boolean;
+  status: string;
+}
+
+export interface RoundComparisonView {
+  previousRound: number;
+  currentRound: number;
+  totalScoreDelta: number | null;
+  scoreScale10Delta: number | null;
+  criteria: {
+    criterionId: string;
+    criterionName: string;
+    previousScore: number | null;
+    currentScore: number | null;
+    previousMaxScore?: number | null;
+    currentMaxScore?: number | null;
+    delta: number | null;
+    status: 'matched' | 'added' | 'removed' | string;
+  }[];
+}
+
+export interface RoundsView {
+  rounds: PublishedRound[];
+  revisionRound: number;
+  currentPublishedRound: number | null;
+  comparison: RoundComparisonView | null;
 }
 
 export interface ClassReport {

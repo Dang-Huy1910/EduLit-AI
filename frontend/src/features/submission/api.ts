@@ -38,6 +38,8 @@ export const submissionApi = {
     apiSend<SubmissionPayload>(path(assignmentId, '/submission/retry-ocr'), 'POST', {}),
   newAttempt: (assignmentId: string) =>
     apiSend<SubmissionPayload>(path(assignmentId, '/submission/new-attempt'), 'POST', {}),
+  startRevision: (assignmentId: string) =>
+    apiSend<SubmissionPayload>(path(assignmentId, '/submission/start-revision'), 'POST', {}),
   saveSegments: (
     assignmentId: string,
     body: { expectedRevision: number; pages: TranscriptionPage[] }

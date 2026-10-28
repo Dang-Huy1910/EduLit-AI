@@ -1,7 +1,10 @@
 import { catalogApi } from './api';
 
 export async function downloadOriginalDocument(documentId: string): Promise<void> {
-  const { blob, filename } = await catalogApi.downloadDocumentOriginal(documentId);
+  await downloadBlob(await catalogApi.downloadDocumentOriginal(documentId));
+}
+
+export function downloadBlob({ blob, filename }: { blob: Blob; filename: string }): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;

@@ -245,6 +245,14 @@ class DocumentAnalysisResult(BaseModel):
         return value or []
 
 
+class DocumentOcrPage(BaseModel):
+    """Printed page transcription, separate from handwritten submission OCR."""
+
+    markdown: str = Field(..., min_length=1)
+    needs_review: bool
+    review_reason: str | None
+
+
 class OcrSegmentModel(BaseModel):
     """One ordered line or paragraph transcribed from a handwritten page."""
 

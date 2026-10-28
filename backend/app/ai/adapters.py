@@ -35,6 +35,7 @@ from app.ai.schemas import (
     ClassInsightOutput,
     WritingProfileOutput,
     DocumentAnalysisResult,
+    DocumentOcrPage,
     OcrPageModel,
     SocraticOutlineInit,
 )
@@ -846,6 +847,17 @@ class FakeAiAdapter(AiPort):
                 content = _fake_outline_init_for_prompt(system_prompt, prompt)
         elif wants_document and not self.responses:
             content = fake_document_analysis_json(prompt)
+        elif structured_output is DocumentOcrPage and not self.responses:
+            content = json.dumps({
+                "markdown": (
+                    "# Tài liệu nhận dạng giả lập\n\n"
+                    "[không rõ] Đây là nội dung minh hoạ cho PDF scan, không phải chữ đọc từ ảnh.\n\n"
+                    "Yêu cầu viết: Viết bài nghị luận khoảng 600 chữ về ý chí vượt khó.\n"
+                    "Giữ bố cục rõ ràng và dùng dẫn chứng phù hợp."
+                ),
+                "needs_review": True,
+                "review_reason": "Chế độ giả lập không đọc ảnh thật.",
+            }, ensure_ascii=False)
         elif wants_assessment and not self.responses:
             content = _fake_assessment_json(prompt)
         elif wants_insight and not self.responses:

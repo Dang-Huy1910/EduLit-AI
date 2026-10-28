@@ -308,6 +308,18 @@ async def download_original(
     )
 
 
+@router.post("/documents/{document_id}/ocr")
+async def ocr_document(
+    document_id: uuid.UUID,
+    teacher: Annotated[User, Depends(get_teacher)],
+    service: Annotated[DocumentImportService, Depends(get_import_service)],
+) -> dict[str, Any]:
+    try:
+        return await service.queue_ocr(teacher, document_id)
+    except CatalogError as exc:
+        _raise(exc)
+
+
 @router.post("/documents/{document_id}/analyze")
 async def analyze_document(
     document_id: uuid.UUID,

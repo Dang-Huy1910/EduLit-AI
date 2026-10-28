@@ -1,6 +1,6 @@
 # Lộ trình triển khai và kiểm chứng MVP
 
-Rà lại **2026-10-28** theo `backend/app/main.py`, router/service/worker, models, migration `0001`–`0019`, frontend App Router và CI. Stack hiện tại được ghi ở [ADR-0004](../architecture/decisions/0004-python-monolith.md), thay thiết kế NestJS ban đầu. “Đã có” bên dưới là đã có code Python/giao diện tương ứng, không phải xác nhận đạt chất lượng hay đã triển khai production.
+Rà lại **2026-10-28** theo `backend/app/main.py`, router/service/worker, models, migration `0001`–`0022`, frontend App Router và CI. Stack hiện tại được ghi ở [ADR-0004](../architecture/decisions/0004-python-monolith.md), thay thiết kế NestJS ban đầu. “Đã có” bên dưới là đã có code Python/giao diện tương ứng, không phải xác nhận đạt chất lượng hay đã triển khai production.
 
 ## M0 — Điều kiện và chính sách: đã có một phần, còn kiểm chứng
 
@@ -10,7 +10,7 @@ Rà lại **2026-10-28** theo `backend/app/main.py`, router/service/worker, mode
 
 ## M1 — Nền tảng và dữ liệu: đã có bản Python, còn contract/vận hành
 
-**Đã có:** Python 3.12/FastAPI, SQLAlchemy async/PostgreSQL, Alembic tới `0019`, cookie session/Argon2id, role/owner/membership, CSRF/Origin, rate limit, Compose và CI. Các router nghiệp vụ cùng prefix `/api`. Ba worker claim/lease có helper chung; profile có sweep riêng trong API.
+**Đã có:** Python 3.12/FastAPI, SQLAlchemy async/PostgreSQL, Alembic tới `0022`, cookie session/Argon2id, role/owner/membership, CSRF/Origin, rate limit, Compose và CI. Các router nghiệp vụ cùng prefix `/api`. Bốn worker claim/lease dùng helper chung (dàn ý, OCR bài nộp, OCR PDF kho, chấm); profile có sweep riêng trong API.
 
 Frontend dùng fetch client và Zustand theo feature; store chung bỏ dữ liệu prototype, chỉ persist sidebar. Seed lớp/ảnh đã chuyển sang `backend/demo/`, Dockerfile copy nguồn mới.
 
@@ -18,9 +18,9 @@ Frontend dùng fetch client và Zustand theo feature; store chung bỏ dữ li�
 
 ## M2 — Học liệu, rubric và giao bài: đã có bản Python
 
-**Đã có:** catalog chuyên đề/ngữ liệu/đề nguồn/barem; import DOCX/PDF có chữ/XLSX/TXT/Markdown qua MarkItDown, phân tích AI, giáo viên sửa/confirm; draft/publish bài tập, snapshot đề/barem/ngữ liệu, quyền theo người nhận, outline-prep và sửa settings bài đã giao. Giao diện đọc trạng thái backend. Ánh xạ FR-01–FR-05.
+**Đã có:** catalog chuyên đề/ngữ liệu/đề nguồn/barem; import DOCX/PDF có chữ/XLSX/TXT/Markdown qua MarkItDown, phân tích AI, giáo viên sửa/confirm; OCR PDF scan nhập kho: giáo viên bấm nhận dạng, worker claim/lease chạy nền, Markdown có marker trang để rà soát rồi mới `analyze`. Draft/publish bài tập, snapshot đề/barem/ngữ liệu, quyền theo người nhận, outline-prep và sửa settings bài đã giao. Giao diện đọc trạng thái backend. Ánh xạ FR-01–FR-05.
 
-**Còn lại:** privacy gate tự động được kiểm chứng, OCR PDF scan nhập kho (`NEEDS_OCR` hiện chỉ giữ bản gốc), worker ingestion bền vững nếu cần. Không có endpoint approve rubric/privacy-review riêng như thiết kế cũ.
+**Còn lại:** privacy gate tự động được kiểm chứng, worker ingestion bền vững cho mọi định dạng nếu cần (PDF scan đã có worker riêng). Không có endpoint approve rubric/privacy-review riêng như thiết kế cũ.
 
 ## M3 — Socratic và hỏi đáp: đã có bản Python
 
@@ -32,13 +32,15 @@ Frontend dùng fetch client và Zustand theo feature; store chung bỏ dữ li�
 
 **Đã có:** upload 1–4 trang và công cụ tự che vùng riêng tư, attempt/ảnh riêng tư trong PostgreSQL, OCR job/lease/retry, transcription revisions. Học sinh sửa/xác nhận; `submitted_at` và `official_submitted_at` tách nhau, xác nhận xếp chấm đúng revision.
 
-Assessment worker xử lý job bền vững trong API; GET không xếp chấm. Đề/barem dùng snapshot, kết quả AI/teacher/published tách riêng. Lưu/công bố/ẩn kiểm tra `resultId`, `transcriptionRevisionId`, `expectedVersion`; học sinh xem điểm sau công bố. Bản từng công bố cần grant mở lại, ẩn điểm không tự cấp quyền. Ánh xạ FR-11–FR-17.
+Assessment worker xử lý job bền vững trong API; GET không xếp chấm. Đề/barem dùng snapshot, kết quả AI/teacher/published tách riêng. Lưu/công bố/ẩn kiểm tra `resultId`, `transcriptionRevisionId`, `expectedVersion`; học sinh xem điểm sau công bố. Bản từng công bố cần grant mở lại, ẩn điểm không tự cấp quyền.
+
+Hạn nộp: `ALLOW_LATE` (mặc định) gắn muộn theo `submitted_at`, `CLOSE_AT_DUE` khoá sau hạn hiệu lực; giáo viên gia hạn từng học sinh. Viết lại: `max_revisions` 0–2, học sinh tự bắt đầu bản mới sau khi bản trước đã công bố; bản cũ bị thay vẫn xem được, bản ẩn thủ công thì không. Ánh xạ FR-11–FR-17.
 
 **Còn lại:** CER/WER, độ đúng bằng chứng/điểm trên bài thực, privacy/hiệu năng và thử phục hồi lỗi trong môi trường thí điểm. Không coi demo seed là báo cáo chất lượng.
 
 ## M5 — Báo cáo và hồ sơ viết: đã có bản Python
 
-**Đã có:** trang chi tiết bài tập tách với báo cáo năng lực nhiều bài; số liệu backend từ PostgreSQL theo mode `provisional`/`official`, quy thang điểm 10, tách số học sinh/số lỗi và mẫu số. POST insight tạo job/cache theo hash dữ liệu, GET không gọi AI. Ánh xạ FR-18–FR-21.
+**Đã có:** trang chi tiết bài tập tách với báo cáo năng lực nhiều bài; số liệu backend từ PostgreSQL theo mode `provisional`/`official`, quy thang điểm 10, tách số học sinh/số lỗi và mẫu số. POST insight tạo job/cache theo hash dữ liệu, GET không gọi AI. Xuất Excel cùng bộ lọc báo cáo (cột nộp muộn, hạn hiệu lực, bản và điểm bản 1); trang in phiếu chỉ gồm kết quả đã công bố. Báo cáo thêm bản và điểm bản 1; điểm trung bình vẫn là bản mới nhất đã chọn. Ánh xạ FR-18–FR-21.
 
 Hồ sơ văn phong cũng đã có: GET cache, POST refresh, observations/evidence trong payload từ bài đã công bố, source hash, history version và UI tiến bộ. Worker tự tạo hồ sơ đầu tiên; các cập nhật sau do học sinh yêu cầu. Profile không dùng để chấm.
 
@@ -62,8 +64,8 @@ Hồ sơ văn phong cũng đã có: GET cache, POST refresh, observations/eviden
 | Assignments/materials | API theo feature; store chung không còn persist dữ liệu nghiệp vụ |
 | Chat/outline | Scope student/session/revision, lưu backend, kiểm idempotency/version |
 | Nộp ảnh/che vùng riêng tư | Ảnh xuất từ UI và upload thật; người dùng tự rà soát |
-| OCR | Worker và bản chép thật, học sinh đối chiếu/sửa/xác nhận |
-| Điểm/báo cáo | Kết quả backend, học sinh chỉ xem điểm đã công bố |
+| OCR | Worker và bản chép thật, học sinh đối chiếu/sửa/xác nhận; PDF scan trong kho do giáo viên bấm nhận dạng |
+| Điểm/báo cáo | Kết quả backend, học sinh chỉ xem điểm đã công bố; xuất Excel, in phiếu và xem các bản viết lại |
 | Hồ sơ viết | Nguồn bài công bố, cache/history và cập nhật chủ động |
 
 Lệnh chạy/kiểm tra ở [README](../../README.md#khởi-chạy-local), [README backend](../../backend/README.md) và [CONTRIBUTING](../../CONTRIBUTING.md#lint-test-và-ci). Danh sách nợ đã xử lý/còn mở ở [tech-debt](tech-debt.md).

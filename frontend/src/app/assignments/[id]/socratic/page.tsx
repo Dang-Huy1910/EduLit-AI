@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import DeadlineNotice from '@/features/assignments/DeadlineNotice';
 import StudentShell from '@/components/StudentShell';
 import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
@@ -362,6 +363,7 @@ export default function SocraticChatPage() {
 
         {/* 5-Step Workflow Stepper */}
         <AssignmentWorkflowStepper currentStep="socratic" assignmentId={assignmentId} />
+        {assignmentDetail && <DeadlineNotice fields={assignmentDetail} />}
 
         {/* Pedagogical Guideline Alert */}
         <div className="p-3 bg-surface-container-low/50 rounded-xl border border-secondary/20 flex items-center gap-2.5 text-xs text-on-surface-variant">

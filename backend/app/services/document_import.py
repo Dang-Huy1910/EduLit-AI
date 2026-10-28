@@ -30,7 +30,9 @@ from app.db.models import TeacherDocument, TeacherDocumentBlob, User
 from app.services.catalog_errors import CatalogError
 from app.services.catalog_service import CatalogService, _genre, _grade, _optional_uuid, _text
 from app.services.document_convert import (
+    MIME_PDF,
     convert_upload,
+    pdf_page_count,
     safe_filename,
     sha256_bytes,
     sha256_text,
@@ -199,6 +201,11 @@ class DocumentImportService:
             "status": document.status,
             "intent": document.intent,
             "needsOcr": document.needs_ocr,
+            "ocrStatus": document.ocr_status,
+            "ocrPageCount": document.ocr_page_count,
+            "ocrPagesDone": document.ocr_pages_done,
+            "ocrError": document.ocr_last_error or None,
+            "ocrMaxPages": self.settings.IMPORT_OCR_MAX_PAGES,
             "truncated": document.truncated,
             "conversionWarning": document.conversion_warning,
             "errorCode": document.error_code or None,
@@ -343,6 +350,53 @@ class DocumentImportService:
         except CatalogError:
             fresh = await self.session.get(TeacherDocument, document.id)
             return self._dict(fresh or document, full=True)
+
+    async def queue_ocr(self, teacher: User, document_id: uuid.UUID) -> dict[str, Any]:
+        # Serialize repeated requests so queueing never resets an active lease.
+        document = (
+            await self.session.execute(
+                select(TeacherDocument)
+                .where(TeacherDocument.id == document_id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ).scalar_one_or_none()
+        if document is None:
+            raise CatalogError(404, "NOT_FOUND", ERROR_MESSAGES["NOT_FOUND"])
+        if document.owner_teacher_id != teacher.id:
+            raise CatalogError(403, "ACCESS_DENIED", ERROR_MESSAGES["ACCESS_DENIED"])
+        if document.ocr_status in {"QUEUED", "PROCESSING"}:
+            return self._dict(document, full=True)
+        if (
+            document.status != "NEEDS_OCR"
+            or document.mime_type != MIME_PDF
+            or document.ocr_status not in {"NONE", "FAILED"}
+        ):
+            raise CatalogError(409, "IMPORT_NOT_READY", "Chỉ nhận dạng được PDF đang cần OCR.")
+        data, _, _ = await self.original_bytes(teacher, document_id)
+        try:
+            count = await asyncio.to_thread(pdf_page_count, data)
+        except Exception as exc:
+            raise CatalogError(400, "IMPORT_TYPE", "Không đọc được PDF. Thầy/cô hãy tải lại file hợp lệ.") from exc
+        if count > self.settings.IMPORT_OCR_MAX_PAGES:
+            raise CatalogError(
+                400, "IMPORT_OCR_TOO_MANY_PAGES",
+                f"Chỉ nhận dạng tối đa {self.settings.IMPORT_OCR_MAX_PAGES} trang. Thầy/cô hãy tách PDF.",
+            )
+        if count < 1:
+            raise CatalogError(400, "IMPORT_TYPE", "PDF không có trang để nhận dạng.")
+        document.ocr_status = "QUEUED"
+        document.ocr_attempt_count = 0
+        document.ocr_page_count = count
+        document.ocr_pages_done = 0
+        document.ocr_last_error = ""
+        document.ocr_lease_token = None
+        document.ocr_lease_expires_at = None
+        document.ocr_finished_at = None
+        document.ocr_model_metadata = {}
+        document.updated_at = utcnow()
+        await self.session.commit()
+        return self._dict(document, full=True)
 
     async def analyze(
         self,

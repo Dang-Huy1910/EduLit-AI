@@ -1,0 +1,38 @@
+.feedback-print-view { color: #111; max-width: 210mm; margin: 24px auto; padding: 0 16px; }
+.print-controls { padding: 16px; margin-bottom: 24px; border: 1px solid #ccc; border-radius: 8px; }
+.print-controls h1 { font-size: 24px; font-weight: 700; }
+.print-controls p { margin: 8px 0; }
+.print-controls button { margin: 8px 8px 0 0; padding: 8px 16px; border: 1px solid #444; border-radius: 8px; }
+.print-controls button:hover { background: #eee; }
+.print-controls button:active { transform: scale(.98); }
+.print-controls button:focus-visible { outline: 2px solid #333; outline-offset: 2px; }
+.print-controls button:disabled { opacity: .4; cursor: not-allowed; }
+.feedback-sheet { background: white; padding: 16mm; margin-bottom: 24px; min-height: 270mm; border: 1px solid #ccc; font-size: 11pt; line-height: 1.5; overflow-wrap: anywhere; }
+.sheet-heading { border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
+.sheet-heading p { font-size: 9pt; letter-spacing: .08em; }
+.sheet-heading h1 { font-size: 19pt; font-weight: 700; margin-top: 8px; }
+.sheet-meta div { display: flex; gap: 16px; margin: 4px 0; }
+.sheet-meta dt { width: 100px; flex-shrink: 0; font-weight: 600; }
+.sheet-score { margin: 16px 0; padding: 12px 0; border-block: 1px solid #aaa; }
+.feedback-sheet table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+.feedback-sheet th, .feedback-sheet td { border: 1px solid #777; padding: 8px; text-align: left; vertical-align: top; }
+.feedback-sheet th { font-weight: 700; }
+.feedback-sheet th:nth-child(2) { width: 25%; }
+.feedback-sheet section { margin-top: 16px; }
+.feedback-sheet h2, .print-skipped h2 { font-size: 12pt; font-weight: 700; margin-bottom: 8px; }
+.feedback-sheet p { white-space: pre-line; }
+.feedback-sheet ul, .print-skipped ul { list-style: disc; padding-left: 20px; }
+.print-skipped { background: white; padding: 16mm; }
+@page { size: A4; margin: 15mm; }
+@media print {
+  body:has(.feedback-print-view) { background: white !important; color: black !important; }
+  body:has(.feedback-print-view) aside, body:has(.feedback-print-view) nav,
+  .print-controls { display: none !important; }
+  .feedback-print-view { margin: 0; padding: 0; max-width: none; }
+  .feedback-sheet { border: 0; padding: 0; margin: 0; min-height: 0; break-after: page; }
+  .feedback-sheet:last-child { break-after: auto; }
+  .feedback-sheet tr { break-inside: avoid; }
+  .feedback-sheet thead { display: table-header-group; }
+  .feedback-sheet h2 { break-after: avoid; }
+  .print-skipped { padding: 0; }
+}

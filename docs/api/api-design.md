@@ -61,13 +61,14 @@ Không có đăng ký giáo viên công khai; giáo viên do CLI bootstrap. Chí
 | GET, POST | `/api/teacher/documents` | Danh sách/upload multipart field `file` |
 | GET | `/api/teacher/documents/{document_id}` | File metadata, Markdown, trạng thái và draft |
 | GET | `/api/teacher/documents/{document_id}/original` | Bytes gốc có kiểm tra quyền |
+| POST | `/api/teacher/documents/{document_id}/ocr` | Xếp nhận dạng chữ cho PDF đang `NEEDS_OCR` |
 | POST | `/api/teacher/documents/{document_id}/analyze` | Phân tích Markdown qua AI |
 | POST | `/api/teacher/documents/{document_id}/draft` | Lưu bản giáo viên rà soát |
 | POST | `/api/teacher/documents/{document_id}/confirm` | Confirm mục chọn vào catalog |
 | GET | `/api/student/materials` | Ngữ liệu học sinh có quyền |
 | GET | `/api/student/materials/{material_id}` | Chi tiết ngữ liệu có quyền |
 
-Upload import chuyển Markdown và phân tích trong service của request, chưa có worker ingestion riêng. PDF scan giữ file gốc và trạng thái `NEEDS_OCR`.
+Upload file có chữ vẫn chuyển Markdown và phân tích trong request. PDF chỉ có ảnh giữ file gốc, `status=NEEDS_OCR`. `POST .../ocr` chỉ nhận tài liệu của giáo viên đó, là PDF, đang `NEEDS_OCR`, và `ocrStatus` thuộc `NONE` hoặc `FAILED`. Quá `IMPORT_OCR_MAX_PAGES` thì `400 IMPORT_OCR_TOO_MANY_PAGES`. Đang `QUEUED` hoặc `PROCESSING` thì trả payload hiện tại, không xếp job mới. Worker `document_ocr` trong process API nhận dạng từng trang; xong thì `CONVERTED`, `needs_ocr=false`, Markdown có marker `<!-- Trang N -->`. Giáo viên rà soát rồi gọi `analyze` như tài liệu có chữ. Payload tài liệu thêm `ocrStatus`, `ocrPageCount`, `ocrPagesDone`, `ocrError`.
 
 ### Giao bài — `assignments.py`
 
@@ -106,7 +107,8 @@ Upload import chuyển Markdown và phân tích trong service của request, ch�
 | POST | `/api/assignments/{assignment_key}/submission/reorder` | Đổi thứ tự trang |
 | POST | `/api/assignments/{assignment_key}/submission/submit` | Đóng băng attempt, xếp OCR |
 | POST | `/api/assignments/{assignment_key}/submission/retry-ocr` | Thử lại OCR |
-| POST | `/api/assignments/{assignment_key}/submission/new-attempt` | Tạo lượt mới nếu được phép |
+| POST | `/api/assignments/{assignment_key}/submission/new-attempt` | Tạo lượt mới trong cùng bản nếu được phép |
+| POST | `/api/assignments/{assignment_key}/submission/start-revision` | Bắt đầu bản viết lại tiếp theo |
 | GET | `/api/assignments/{assignment_key}/ocr` | Bản chép và trạng thái |
 | PATCH | `/api/assignments/{assignment_key}/ocr/segments` | Học sinh sửa segments với kiểm tra revision |
 | POST | `/api/assignments/{assignment_key}/ocr/confirm` | Học sinh xác nhận/nộp chính thức, xếp chấm |
@@ -117,19 +119,55 @@ Upload import chuyển Markdown và phân tích trong service của request, ch�
 | Method | Đường dẫn | Hành vi |
 | --- | --- | --- |
 | GET | `/api/assignments/{assignment_key}/assessment` | Học sinh chỉ thấy điểm đã công bố |
+| GET | `/api/assignments/{assignment_key}/assessment/rounds` | Các bản học sinh được xem và khối so sánh |
 | GET | `/api/teacher/reports` | Danh sách bài cho báo cáo |
 | GET | `/api/teacher/reports/{assignment_id}` | Thống kê theo bài, mode provisional/official |
 | POST | `/api/teacher/reports/{assignment_id}/insights` | Xếp gợi ý dạy học |
+| GET | `/api/teacher/reports/{assignment_id}/export.xlsx` | Excel toàn bộ dòng khớp bộ lọc báo cáo |
 | GET | `/api/teacher/competency-reports` | Báo cáo nhiều bài theo bộ lọc |
 | POST | `/api/teacher/competency-reports/insights` | Xếp gợi ý nhiều bài |
 | GET, PATCH | `/api/teacher/assignments/{assignment_id}/students/{student_id}/assessment` | Đọc/lưu rà soát |
 | POST | `/api/teacher/assignments/{assignment_id}/students/{student_id}/assessment/publish` | Công bố với kiểm tra result/revision/version |
 | POST | `/api/teacher/assignments/{assignment_id}/students/{student_id}/assessment/unpublish` | Ẩn kết quả với kiểm tra version |
 | POST | `/api/teacher/assignments/{assignment_id}/students/{student_id}/assessment/retry` | Thử lại chấm |
-| POST | `/api/teacher/assignments/{assignment_id}/students/{student_id}/assessment/grant-reopen` | Cấp quyền mở lại bản chép |
+| POST | `/api/teacher/assignments/{assignment_id}/students/{student_id}/assessment/grant-reopen` | Cấp quyền mở lại bản chép trong bản hiện tại |
+| GET | `/api/teacher/assignments/{assignment_id}/students/{student_id}/rounds` | Mọi bản đã công bố, kể cả bản bị ẩn |
+| PUT | `/api/teacher/assignments/{assignment_id}/students/{student_id}/due-extension` | Đặt hoặc gỡ hạn riêng của một học sinh |
 | GET | `/api/teacher/assignments/{assignment_id}/students/{student_id}/pages/{page_id}/image` | Giáo viên xem ảnh có quyền |
 
 GET báo cáo chỉ đọc; POST insights xếp job/cache theo dữ liệu đầu vào, assessment worker xử lý. Học sinh xác nhận OCR, giáo viên rà soát điểm. Các mutation không được tự chuyển sang result khác khi request đang cầm bản cũ.
+
+### Field và mã lỗi của hạn nộp, OCR kho và viết lại
+
+Tạo bài (`POST /api/teacher/assignments`) và sửa bài đã giao (`PATCH /api/teacher/assignments/{assignment_id}/settings`) nhận thêm `latePolicy` (`ALLOW_LATE` hoặc `CLOSE_AT_DUE`, mặc định `ALLOW_LATE`), `maxRevisions` (số nguyên 0–2, mặc định 0) và `revisionDueAt` (ISO có múi giờ hoặc `null`). Ba field này được ghi vào `revision.snapshot` cạnh `dueAt`. `latePolicy` không hợp lệ, `maxRevisions` ngoài 0–2 hoặc `revisionDueAt` không phải ISO trả `400 VALIDATION`.
+
+`PUT .../due-extension` cần body `{"dueAt": "<ISO>" | null}`. `null` gỡ gia hạn. Thiếu `dueAt`, chuỗi rỗng hoặc kiểu khác trả `400 VALIDATION` với message "Chọn hạn gia hạn hoặc gửi null để gỡ gia hạn." Giáo viên phải sở hữu bài đã giao, học sinh thuộc người nhận, lớp không read-only. Response là payload chi tiết học sinh như các route cùng nhóm.
+
+Payload bài nộp của học sinh thêm `dueAt`, `effectiveDueAt`, `latePolicy`, `hasExtension`, `isClosed`, `isLate`, `revisionRound`, `maxRevisions`, `revisionDueAt`, `revisionsRemaining`, `canStartRevision`, `startRevisionBlockedReason`. Danh sách bài của học sinh thêm `effectiveDueAt`, `latePolicy`, `maxRevisions`, `revisionDueAt`, `hasExtension`, `isClosed`. Hạn hiệu lực là mốc trong `due_extensions` của học sinh đó nếu có, ngược lại là `dueAt`. Không có `dueAt` thì không muộn và không khoá. `isLate` chỉ đúng khi bản 1 có `submitted_at` sau hạn hiệu lực. Bản viết lại luôn `isLate=false`; `isClosed` của bản đó là đã quá `revisionDueAt`, không phải khoá hạn bản 1.
+
+`409 SUBMISSION_CLOSED`: "Bài tập đã hết hạn nộp. Liên hệ giáo viên nếu cần gia hạn." Áp dụng khi `latePolicy=CLOSE_AT_DUE` và đã quá hạn hiệu lực, cho các thao tác sửa ảnh nháp, nộp ảnh, lượt mới và học sinh tự mở lại bản chép khi chưa có quyền. Không chặn đọc bài, xem ảnh, `retry-ocr`, sửa hoặc xác nhận OCR của ảnh đã nộp trước hạn, và reopen đã được giáo viên cấp quyền.
+
+`POST .../start-revision` khoá bài nộp, tạo `SubmissionAttempt` với `revision_round` tăng 1 và `attempt_number` tăng như `new-attempt`. Không tiêu quyền mở lại và không đổi kết quả đang công bố. Gọi lại khi bản viết lại đang dở thì trả payload hiện tại. `new-attempt`, `retry-ocr` và `reopen` trong một bản giữ `revision_round` của bản đó. Bản viết lại bỏ qua `latePolicy` và gia hạn; quá `revisionDueAt` thì `409 REVISION_CLOSED`.
+
+| Mã | HTTP | Message |
+| --- | --- | --- |
+| `REVISION_DISABLED` | 409 | Giáo viên chưa bật viết lại cho bài tập này. |
+| `REVISION_NOT_PUBLISHED` | 409 | Em cần chờ bản hiện tại được công bố điểm trước khi viết lại. |
+| `REVISION_LIMIT_REACHED` | 409 | Em đã dùng hết lượt viết lại của bài tập này. |
+| `REVISION_CLOSED` | 409 | Đã hết hạn viết lại. Em hãy liên hệ giáo viên nếu cần thêm thời gian. |
+| `REVISION_LIMIT_IN_USE` | 409 | Không thể giảm số lượt dưới số bản viết lại học sinh đã bắt đầu. |
+| `SUBMISSION_CLOSED` | 409 | Bài tập đã hết hạn nộp. Liên hệ giáo viên nếu cần gia hạn. |
+| `IMPORT_OCR_TOO_MANY_PAGES` | 400 | Chỉ nhận dạng tối đa N trang. Thầy/cô hãy tách PDF. |
+
+`REVISION_LIMIT_IN_USE` trả khi bài đã giao giảm `maxRevisions` xuống dưới số bản viết lại một học sinh đã bắt đầu. Lớp kỳ học đã kết thúc thì `POST .../start-revision` trả `409 CLASSROOM_READ_ONLY`, message "Lớp thuộc kỳ học đã kết thúc nên không nộp bài được." PDF không ở trạng thái nhận dạng được thì `POST .../ocr` trả `409 IMPORT_NOT_READY`, message "Chỉ nhận dạng được PDF đang cần OCR." Chi tiết học sinh cho giáo viên thêm `assignment.latePolicy` và, trong `submission`, `isLate`, `effectiveDueAt`, `hasExtension`.
+
+`GET .../assessment/rounds` của học sinh chỉ gồm bản đang công bố và bản có `superseded_at`. Không gồm bản bị ẩn thủ công hay chưa công bố. Mỗi bản có `round`, `resultId`, `publishedAt`, `totalScore`, `scoreScale10`, `maxScore`, `evaluations` (`criterionId`, tên, điểm đạt, điểm tối đa), `overallComment`, `isPublished`, `visibleToStudent`. Khối `comparison` so bản đang công bố với bản ngay trước: `totalScoreDelta`, `scoreScale10Delta`, và từng tiêu chí khớp `criterionId`. Tiêu chí chỉ có một bên thì `status` là `added` hoặc `removed`, không có `delta`. Response còn `revisionRound` và `currentPublishedRound`.
+
+`GET .../students/{student_id}/rounds` của giáo viên gồm mọi bản đã từng công bố, kể cả bản bị ẩn (`visibleToStudent=false`), và bản mới nhất đang chấm hoặc chờ duyệt nếu có.
+
+Dòng `student_rows_for_assignment` thêm `isLate`, `effectiveDueAt`, `hasExtension`, `revisionRound`, `publishedRound`, `firstPublishedScore`, `firstPublishedScoreScale10`. `firstPublishedScore` là điểm bản 1 nếu đã từng công bố, kể cả khi đã bị thay. Query `status=late` và `status=revised` lọc nộp muộn và bản có `revisionRound` lớn hơn 1. Khối tiến độ thêm `late`. Điểm trung bình và các thống kê khác không đổi: vẫn là điểm bản mới nhất đang được chọn theo mode.
+
+`GET .../export.xlsx` nhận cùng `mode`, `search`, `status`, `sort`, `from` hoặc `dateFrom`, `to` hoặc `dateTo`, `studentId` như báo cáo lớp. `mode` trống thì dùng `suggest_mode` của trang báo cáo. File xuất mọi dòng khớp, không phân trang. `Content-Disposition` là `attachment`, tên ASCII `bang-diem-<mã>-<yyyymmdd>.xlsx` và `filename*` UTF-8 `bảng-điểm-...`. Sheet **Bảng điểm** có STT, họ tên, mã đăng nhập, trạng thái, nộp ảnh lúc, xác nhận lúc, điểm barem, điểm thang 10, nguồn điểm, mỗi tiêu chí một cột, rồi **Nộp muộn**, **Hạn hiệu lực**, **Bản**, **Điểm bản 1**, **Chênh so với bản 1**. Thời gian theo `Asia/Ho_Chi_Minh`, định dạng Excel `dd/mm/yyyy hh:mm`. Ô chữ bắt đầu bằng `=`, `+`, `-`, `@`, tab hoặc CR được thêm tiền tố `'`. Sheet **Thống kê** có tên bài, lớp, chế độ điểm, thời điểm xuất, số được giao / đã nộp chính thức / đã công bố / có điểm, điểm trung bình, thấp nhất, cao nhất và các khoảng phân bố. Giáo viên không sở hữu bài bị từ chối như các route báo cáo khác.
 
 ### Chatbot và hồ sơ viết — `chatbot.py`, `writing_profile.py`
 

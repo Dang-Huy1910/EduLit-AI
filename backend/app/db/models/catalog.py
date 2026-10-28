@@ -386,6 +386,16 @@ class Assignment(Base):
     max_score: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False, default=4)
     score_step: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False, default=0.25)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    late_policy: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="ALLOW_LATE", server_default=text("'ALLOW_LATE'")
+    )
+    due_extensions: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+    max_revisions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    revision_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     code: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="DRAFT")
     recipient_student_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
@@ -409,6 +419,12 @@ class Assignment(Base):
 
     __table_args__ = (
         UniqueConstraint("code", name="assignments_code_key"),
+        CheckConstraint(
+            "late_policy IN ('ALLOW_LATE', 'CLOSE_AT_DUE')", name="assignments_late_policy_check"
+        ),
+        CheckConstraint(
+            "max_revisions >= 0 AND max_revisions <= 2", name="assignments_max_revisions_check"
+        ),
         Index("assignments_teacher_id_idx", "teacher_id"),
         Index("assignments_classroom_id_idx", "classroom_id"),
         Index("assignments_source_prompt_id_idx", "source_prompt_id"),
@@ -437,6 +453,29 @@ class TeacherDocument(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="UPLOADED")
     intent: Mapped[str] = mapped_column(String(16), nullable=False, default="MIXED")
     needs_ocr: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ocr_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="NONE", server_default=text("'NONE'")
+    )
+    ocr_attempt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    ocr_lease_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    ocr_lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    ocr_page_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    ocr_pages_done: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+    ocr_last_error: Mapped[str] = mapped_column(
+        Text, nullable=False, default="", server_default=text("''")
+    )
+    ocr_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ocr_model_metadata: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
     truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     conversion_warning: Mapped[str] = mapped_column(Text, nullable=False, default="")
     error_code: Mapped[str] = mapped_column(String(64), nullable=False, default="")
@@ -470,9 +509,18 @@ class TeacherDocument(Base):
     )
 
     __table_args__ = (
+        CheckConstraint(
+            "ocr_status IN ('NONE', 'QUEUED', 'PROCESSING', 'DONE', 'FAILED')",
+            name="teacher_documents_ocr_status_check",
+        ),
         Index("teacher_documents_owner_teacher_id_idx", "owner_teacher_id"),
         Index("teacher_documents_status_idx", "status"),
         Index("teacher_documents_sha256_idx", "sha256"),
+        Index(
+            "teacher_documents_ocr_claim_idx",
+            "ocr_status",
+            postgresql_where=text("ocr_status IN ('QUEUED', 'PROCESSING')"),
+        ),
     )
 
 

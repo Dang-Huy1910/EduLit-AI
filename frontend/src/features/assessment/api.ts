@@ -1,9 +1,11 @@
-import { apiGet, apiSend } from '@/lib/api/http';
+import { apiBlob, apiGet, apiSend } from '@/lib/api/http';
+import { reportExportPath } from './report-query';
 import type {
   ClassReport,
   CompetencyReport,
   ReportMeta,
   StatsMode,
+  RoundsView,
   StudentAssessmentResponse,
   TeacherAssessmentDetail,
 } from './types';
@@ -46,6 +48,8 @@ function withQuery(path: string, params: Record<string, string | number | undefi
 export const assessmentApi = {
   student: (assignmentId: string) =>
     apiGet<StudentAssessmentResponse>(`/api/assignments/${encodeURIComponent(assignmentId)}/assessment`),
+  studentRounds: (assignmentId: string) =>
+    apiGet<RoundsView>(`/api/assignments/${encodeURIComponent(assignmentId)}/assessment/rounds`),
   listAssignments: (classroomId?: string) =>
     apiGet<ReportMeta>(withQuery('/api/teacher/reports', { classroomId })),
   classReport: (assignmentId: string, params?: ClassReportQuery) => {
@@ -64,6 +68,7 @@ export const assessmentApi = {
       `/api/teacher/reports/${encodeURIComponent(assignmentId)}${q ? `?${q}` : ''}`
     );
   },
+  exportReport: (assignmentId: string, params?: ClassReportQuery) => apiBlob(reportExportPath(assignmentId, params)),
   enqueueInsight: (assignmentId: string, body?: { mode?: StatsMode | string }) =>
     apiSend<ClassReport>(
       `/api/teacher/reports/${encodeURIComponent(assignmentId)}/insights`,
@@ -97,6 +102,10 @@ export const assessmentApi = {
     apiGet<TeacherAssessmentDetail>(
       `/api/teacher/assignments/${encodeURIComponent(assignmentId)}/students/${encodeURIComponent(studentId)}/assessment`
     ),
+  teacherRounds: (assignmentId: string, studentId: string) =>
+    apiGet<RoundsView>(
+      `/api/teacher/assignments/${encodeURIComponent(assignmentId)}/students/${encodeURIComponent(studentId)}/rounds`
+    ),
   saveReview: (assignmentId: string, studentId: string, body: unknown) =>
     apiSend<TeacherAssessmentDetail>(
       `/api/teacher/assignments/${encodeURIComponent(assignmentId)}/students/${encodeURIComponent(studentId)}/assessment`,
@@ -128,6 +137,11 @@ export const assessmentApi = {
       `/api/teacher/assignments/${encodeURIComponent(assignmentId)}/students/${encodeURIComponent(studentId)}/assessment/retry`,
       'POST',
       {}
+    ),
+  setDueExtension: (assignmentId: string, studentId: string, dueAt: string | null) =>
+    apiSend<TeacherAssessmentDetail>(
+      `/api/teacher/assignments/${encodeURIComponent(assignmentId)}/students/${encodeURIComponent(studentId)}/due-extension`,
+      'PUT', { dueAt }
     ),
   grantReopen: (assignmentId: string, studentId: string) =>
     apiSend<TeacherAssessmentDetail>(

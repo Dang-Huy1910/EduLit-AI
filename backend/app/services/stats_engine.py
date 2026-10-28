@@ -33,6 +33,8 @@ from app.db.models import (
     UserRole,
 )
 from app.services.assessment_scoring import issue_occurrence_id, rubric_from_revision
+from app.services.deadline import effective_due_at, is_late
+from app.services.revision_policy import current_round
 from app.services.rubric import decimal_to_number, scale10
 
 READY_TO_GRADE = SubmissionAttemptState.READY_TO_GRADE.value
@@ -249,6 +251,7 @@ class PaperContext:
     published_result: AssessmentResult | None
     rubric: dict[str, Any]
     status: str = "not_submitted"
+    first_published_result: AssessmentResult | None = None
 
     @property
     def paper_key(self) -> tuple[uuid.UUID, uuid.UUID]:
@@ -295,10 +298,15 @@ def empty_progress() -> dict[str, int]:
         "published": 0,
         "failed": 0,
         "processing": 0,
+        "late": 0,
     }
 
 
-def apply_operational_counts(counts: dict[str, int], status: str, *, official: bool, published: bool) -> None:
+def apply_operational_counts(
+    counts: dict[str, int], status: str, *, official: bool, published: bool, late: bool = False
+) -> None:
+    if late:
+        counts["late"] += 1
     if official:
         counts["officialSubmitted"] += 1
     if status in {"processing", "ocr_review", "grading", "new_version_grading"}:
@@ -587,6 +595,11 @@ class StatsEngine:
         attempts = await self._map_attempts(attempt_ids)
         jobs = await self._map_jobs(job_ids)
         results = await self._map_results(result_ids)
+        deadlines = dict((await self.session.execute(
+            select(AssignmentRevision.id, Assignment)
+            .outerjoin(Assignment, AssignmentRevision.assignment_id == Assignment.id)
+            .where(AssignmentRevision.id.in_(wanted))
+        )).all())
         out: dict[uuid.UUID, dict[str, int]] = {}
         for revision_id in wanted:
             counts = empty_progress()
@@ -601,7 +614,13 @@ class StatsEngine:
                 status = row_status(attempt=attempt, job=job, published=published)
                 official = bool(attempt and attempt.state == READY_TO_GRADE and attempt.official_submitted_at)
                 apply_operational_counts(
-                    counts, status, official=official, published=bool(published and published.is_published)
+                    counts, status, official=official, published=bool(published and published.is_published),
+                    late=bool(
+                        attempt and current_round(attempt) == 1 and deadlines.get(revision_id) and is_late(
+                            attempt.submitted_at,
+                            effective_due_at(deadlines[revision_id], sub.student_id),
+                        )
+                    ),
                 )
             out[revision_id] = counts
         return out
@@ -676,6 +695,11 @@ class StatsEngine:
                 },
             )
             info["assigned"] += 1
+            submitted_at = paper.attempt.submitted_at if paper.attempt else None
+            if current_round(paper.attempt) == 1 and is_late(submitted_at, effective_due_at(paper.assignment, paper.student.id)) and in_time_window(
+                submitted_at, start, end
+            ):
+                counts["late"] += 1
             published_live = bool(paper.published_result and paper.published_result.is_published)
             if mode == MODE_OFFICIAL and not published_live:
                 continue
@@ -792,6 +816,7 @@ class StatsEngine:
     ) -> dict[str, Any]:
         rows: list[dict[str, Any]] = []
         for paper in papers:
+            effective_due = effective_due_at(paper.assignment, paper.student.id)
             selected = select_score(paper, mode)
             in_window = True
             if start or end:
@@ -814,12 +839,26 @@ class StatsEngine:
                 published10 = decimal_to_number(scale) if scale is not None else None
             score = decimal_to_number(selected.total) if selected and in_window else None
             scale = decimal_to_number(selected.scale10) if selected and in_window else None
+            first_score = first_scale = None
+            first = paper.first_published_result
+            if first and first.published_payload:
+                first_total, first10, _max = scores_from_payload(first.published_payload, first)
+                first_score = decimal_to_number(first_total) if first_total is not None else None
+                first_scale = decimal_to_number(first10) if first10 is not None else None
             rows.append(
                 {
                     "studentId": str(paper.student.id),
                     "name": paper.student.display_name,
                     "code": paper.student.login_id,
                     "status": paper.status,
+                    "revisionRound": current_round(paper.attempt),
+                    "publishedRound": current_round(paper.published_attempt)
+                    if paper.published_result and paper.published_result.is_published else None,
+                    "firstPublishedScore": first_score,
+                    "firstPublishedScoreScale10": first_scale,
+                    "isLate": current_round(paper.attempt) == 1 and is_late(paper.attempt.submitted_at if paper.attempt else None, effective_due),
+                    "effectiveDueAt": effective_due.isoformat() if effective_due else None,
+                    "hasExtension": str(paper.student.id) in (paper.assignment.due_extensions or {}),
                     "pageCount": paper.attempt.page_count if paper.attempt else 0,
                     "officialSubmittedAt": paper.attempt.official_submitted_at.isoformat()
                     if paper.attempt and paper.attempt.official_submitted_at
@@ -854,7 +893,11 @@ class StatsEngine:
                     continue
                 if status == "pending" and row["isPublished"]:
                     continue
-                if status not in {"published", "pending", "all"} and row["status"] != status:
+                if status == "late" and not row["isLate"]:
+                    continue
+                if status == "revised" and row["revisionRound"] <= 1:
+                    continue
+                if status not in {"published", "pending", "late", "revised", "all"} and row["status"] != status:
                     continue
             filtered.append(row)
         if sort == "score_desc":
@@ -979,6 +1022,26 @@ class StatsEngine:
             if result.attempt_id:
                 attempt_ids.append(result.attempt_id)
         attempts = await self._map_attempts(attempt_ids)
+        # Load round 1 publications in one query, including hidden/replaced results.
+        # If a round was corrected and republished, its latest publication is the baseline.
+        first_results: dict[uuid.UUID, AssessmentResult] = {}
+        if submissions:
+            first_rows = (await self.session.execute(
+                select(AssessmentResult)
+                .join(SubmissionAttempt, AssessmentResult.attempt_id == SubmissionAttempt.id)
+                .where(
+                    AssessmentResult.submission_id.in_([sub.id for sub in submissions.values()]),
+                    SubmissionAttempt.revision_round == 1,
+                    AssessmentResult.published_at.is_not(None),
+                    AssessmentResult.published_payload.is_not(None),
+                )
+                .order_by(
+                    AssessmentResult.published_at.desc(), AssessmentResult.created_at.desc(), AssessmentResult.id.desc(),
+                )
+            )).scalars().all()
+            for result in first_rows:
+                if result.published_payload:
+                    first_results.setdefault(result.submission_id, result)
         try:
             rubric = rubric_from_revision(revision.rubric, revision.snapshot)
         except Exception:
@@ -1013,6 +1076,7 @@ class StatsEngine:
                     published_result=published,
                     rubric=rubric,
                     status=status,
+                    first_published_result=first_results.get(sub.id) if sub else None,
                 )
             )
         return papers

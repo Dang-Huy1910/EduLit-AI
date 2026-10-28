@@ -51,6 +51,8 @@ def _configure_logging() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    from app.workers.document_ocr import start_document_ocr_worker
+
     _configure_logging()
     settings = get_settings()
     if settings.should_run_migrations:
@@ -60,6 +62,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     stop_worker = None
     ocr_task = None
     stop_ocr = None
+    document_ocr_task = None
+    stop_document_ocr = None
     grade_task = None
     stop_grade = None
     profile_task = None
@@ -70,6 +74,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     if settings.OCR_WORKER_ENABLED and not settings.is_test:
         ocr_task, stop_ocr = start_ocr_worker(settings=settings)
         logger.info("ocr worker attached to api process")
+    if settings.IMPORT_OCR_WORKER_ENABLED and not settings.is_test:
+        document_ocr_task, stop_document_ocr = start_document_ocr_worker(settings=settings)
+        logger.info("document_ocr worker attached to api process")
     if settings.ASSESSMENT_WORKER_ENABLED and not settings.is_test:
         grade_task, stop_grade = start_assessment_worker(settings=settings)
         logger.info("assessment worker attached to api process")
@@ -91,6 +98,8 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             stop_worker()
         if stop_ocr is not None:
             stop_ocr()
+        if stop_document_ocr is not None:
+            stop_document_ocr()
         if stop_grade is not None:
             stop_grade()
         if worker_task is not None:
@@ -103,6 +112,12 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             ocr_task.cancel()
             try:
                 await ocr_task
+            except asyncio.CancelledError:
+                pass
+        if document_ocr_task is not None:
+            document_ocr_task.cancel()
+            try:
+                await document_ocr_task
             except asyncio.CancelledError:
                 pass
         if grade_task is not None:

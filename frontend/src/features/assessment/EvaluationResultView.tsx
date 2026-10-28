@@ -6,10 +6,15 @@ import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { assessmentApi } from './api';
+import RoundCompare from './RoundCompare';
+import RoundHistory from './RoundHistory';
+import StudentRevisionActions from './StudentRevisionActions';
+import { comparisonForRound, defaultRound, roundAsAssessment, roundLabel, sortRounds } from './revision';
 import type {
   AssessmentEvaluation,
   AssessmentPayload,
   AssessmentResultRef,
+  RoundsView,
   StudentAssessmentResponse,
   TeacherAssessmentDetail,
 } from './types';
@@ -104,6 +109,9 @@ export default function EvaluationResultView({
   const [rotationAngle, setRotationAngle] = useState(0);
   const [guideOpen, setGuideOpen] = useState(false);
   const [highlightSegment, setHighlightSegment] = useState<string | null>(null);
+  const [roundsView, setRoundsView] = useState<RoundsView | null>(null);
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [teacherRounds, setTeacherRounds] = useState<RoundsView | null>(null);
 
   const loadTeacher = async () => {
     if (viewMode !== 'teacher' || !studentId) return;
@@ -154,9 +162,34 @@ export default function EvaluationResultView({
     return () => window.cancelAnimationFrame(frame);
   }, [activeTab, highlightSegment]);
 
+  useEffect(() => {
+    if (viewMode !== 'student') return;
+    let cancelled = false;
+    void assessmentApi.studentRounds(assignmentId).then((view) => {
+      if (cancelled) return;
+      setRoundsView(view);
+      setSelectedRound((current) => current ?? defaultRound(view.rounds, view.currentPublishedRound));
+    }).catch(() => {
+      if (!cancelled) setRoundsView(null);
+    });
+    return () => { cancelled = true; };
+  }, [assignmentId, viewMode, studentData?.revisionRound, studentData?.assessment.status]);
+
+  useEffect(() => {
+    if (viewMode !== 'teacher' || !studentId || !detail) return;
+    let cancelled = false;
+    void assessmentApi.teacherRounds(assignmentId, studentId).then((view) => {
+      if (!cancelled) setTeacherRounds(view);
+    }).catch(() => {
+      if (!cancelled) setTeacherRounds(null);
+    });
+    return () => { cancelled = true; };
+  }, [assignmentId, studentId, viewMode, detail]);
+
   const studentResult = studentData?.assessment.result || null;
+  const selectedSnapshot = viewMode === 'student' ? roundsView?.rounds.find((item) => item.round === selectedRound) : undefined;
   const working: AssessmentPayload | null =
-    viewMode === 'teacher' ? detail?.assessment.working || null : studentResult;
+    viewMode === 'teacher' ? detail?.assessment.working || null : selectedSnapshot ? roundAsAssessment(selectedSnapshot) : studentResult;
   const pages = viewMode === 'teacher' ? detail?.pages || [] : studentData?.pages || [];
   const transcription =
     viewMode === 'teacher' ? detail?.transcriptionPages || [] : studentData?.transcriptionPages || [];
@@ -325,12 +358,22 @@ export default function EvaluationResultView({
   const updateEvaluation = (criterionId: string, patch: Partial<AssessmentEvaluation>) =>
     setEditedEvaluations((prev) => prev.map((item) => (item.criterionId === criterionId ? { ...item, ...patch } : item)));
 
+  const viewingOtherRound = Boolean(
+    viewMode === 'student' && selectedSnapshot && roundsView && selectedRound !== roundsView.currentPublishedRound
+  );
+  const shownComparison = viewMode !== 'student' || !roundsView || selectedRound == null
+    ? null
+    : selectedRound === roundsView.currentPublishedRound && roundsView.comparison
+      ? roundsView.comparison
+      : comparisonForRound(roundsView.rounds, selectedRound);
   const statusText =
     viewMode === 'teacher'
       ? statusCopy(detail?.assessment.status || '')
-      : studentSeesPreviousVersion
-        ? 'Kết quả đã công bố của bản nộp trước.'
-        : 'Giáo viên đã rà soát và công bố kết quả này.';
+      : viewingOtherRound
+        ? `Đang xem kết quả đã công bố của ${roundLabel(selectedRound)}.`
+        : studentSeesPreviousVersion
+          ? 'Kết quả đã công bố của bản nộp trước.'
+          : 'Giáo viên đã rà soát và công bố kết quả này.';
   const guidance = working?.improvementGuidance || [];
   const tabs: { id: TabId; label: string; icon: string }[] = [
     { id: 'eval', label: 'Đánh giá', icon: 'fact_check' },
@@ -424,6 +467,7 @@ export default function EvaluationResultView({
       </header>
 
       {viewMode === 'student' && <AssignmentWorkflowStepper currentStep="result" assignmentId={assignmentId} />}
+      {viewMode === 'student' && studentData && <StudentRevisionActions assignmentId={assignmentId} submission={studentData} />}
 
       {viewMode === 'teacher' && detail?.assessment.historyLabel ? (
         <div className={NOTICE}>{detail.assessment.historyLabel}</div>
@@ -433,6 +477,19 @@ export default function EvaluationResultView({
       ) : null}
 
       {/* Score summary: total, scale-10 conversion, per-criterion bars, then the teacher's actions. */}
+      {viewMode === 'student' && studentData?.assessment.canViewResult && studentResult && <Link href={`/assignments/${assignmentId}/result/print`} className={BTN_OUTLINE}>In phiếu</Link>}
+      {viewMode === 'teacher' && studentId && detail?.assessment.isPublished && <Link href={`/reports/${assignmentId}/students/${studentId}/print`} className={BTN_OUTLINE}>In phiếu</Link>}
+      {viewMode === 'student' && roundsView && roundsView.rounds.length > 0 && <label className="block max-w-xs text-sm font-semibold text-on-surface space-y-1">
+        <span>Chọn bản</span>
+        <select aria-label="Chọn bản" value={selectedRound ?? ''} onChange={(event) => setSelectedRound(Number(event.target.value))}
+          className="w-full rounded-lg border border-outline-variant/60 bg-surface-container-lowest p-2 text-sm">
+          {sortRounds(roundsView.rounds).map((round) => <option key={round.round} value={round.round}>
+            {roundLabel(round.round)}{round.round === roundsView.currentPublishedRound ? ' (đang công bố)' : ''}
+          </option>)}
+        </select>
+      </label>}
+      {viewingOtherRound && <p className="text-sm text-on-surface-variant">Ảnh và bản chép trên trang thuộc bản đang công bố. Điểm và nhận xét là của bản đã chọn.</p>}
+      {shownComparison && <RoundCompare comparison={shownComparison} />}
       <section
         aria-label="Tổng điểm"
         className="rounded-xl border border-outline-variant/40 bg-surface-container-lowest p-5 sm:p-6"
@@ -556,6 +613,8 @@ export default function EvaluationResultView({
           </div>
         ) : null}
       </section>
+
+      {viewMode === 'teacher' && teacherRounds && <RoundHistory rounds={teacherRounds.rounds} />}
 
       <div role="tablist" aria-label="Nội dung bài chấm" className="flex gap-1 border-b border-outline-variant/40 overflow-x-auto">
         {tabs.map((tab) => {

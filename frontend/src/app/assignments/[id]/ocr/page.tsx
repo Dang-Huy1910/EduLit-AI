@@ -8,6 +8,7 @@ import AssignmentWorkflowStepper from '@/components/AssignmentWorkflowStepper';
 import { useAppStore } from '@/lib/store';
 import { AuthApiError } from '@/lib/auth-types';
 import { submissionApi } from '@/features/submission/api';
+import RevisionBanner from '@/features/submission/RevisionBanner';
 import type { SubmissionPayload, TranscriptionPage, TranscriptionSegment } from '@/features/submission/types';
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -215,6 +216,7 @@ export default function OcrVerificationPage() {
         </div>
 
         <AssignmentWorkflowStepper currentStep="ocr" assignmentId={assignmentId} />
+        <RevisionBanner payload={payload} />
 
         {payload.status === 'draft' && (
           <div className="p-3 rounded-xl border border-outline-variant/40 bg-surface-container-low text-xs">

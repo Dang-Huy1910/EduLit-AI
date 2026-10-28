@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,6 +23,8 @@ from app.db.models import (
     ClassMembership,
     Classroom,
     SourcePrompt,
+    Submission,
+    SubmissionAttempt,
     Term,
     User,
     UserRole,
@@ -38,6 +40,8 @@ from app.services.catalog_service import (
     unique_chunk_id,
 )
 from app.services.classroom_rules import classroom_read_only, grant_access
+from app.services.deadline import effective_due_at, is_closed
+from app.services.revision_policy import REVISION_MESSAGES, revision_is_closed
 from app.services.rubric import assignment_rubric_document, validate_rubric_payload
 
 CODE_RE = __import__("re").compile(r"^[A-Z0-9-]{4,32}$")
@@ -90,6 +94,31 @@ def _uuid_list(values: Any) -> list[str]:
             seen.add(uid)
             out.append(uid)
     return out
+
+
+def _parse_late_policy(value: Any) -> str:
+    if value not in ("ALLOW_LATE", "CLOSE_AT_DUE"):
+        raise CatalogError(
+            400, "VALIDATION", "Chọn chính sách hạn nộp hợp lệ.", {"latePolicy": "Không hợp lệ."}
+        )
+    return value
+
+
+def _parse_max_revisions(value: Any) -> int:
+    if type(value) is not int or not 0 <= value <= 2:
+        raise CatalogError(
+            400, "VALIDATION", "Chọn từ 0 đến 2 lượt viết lại.", {"maxRevisions": "Không hợp lệ."}
+        )
+    return value
+
+
+def _parse_revision_due_at(value: Any) -> datetime | None:
+    try:
+        return _parse_due_at(value)
+    except CatalogError as exc:
+        raise CatalogError(
+            400, "VALIDATION", "Hạn viết lại phải là ngày giờ ISO.", {"revisionDueAt": "Không hợp lệ."}
+        ) from exc
 
 
 class AssignmentService:
@@ -233,6 +262,9 @@ class AssignmentService:
             max_score=rubric_doc["maxScore"],
             score_step=rubric_doc["scoreStep"],
             due_at=_parse_due_at(body.get("dueAt")),
+            late_policy=_parse_late_policy(body.get("latePolicy", "ALLOW_LATE")),
+            max_revisions=_parse_max_revisions(body.get("maxRevisions", 0)),
+            revision_due_at=_parse_revision_due_at(body.get("revisionDueAt")),
             code=code,
             status="DRAFT",
             recipient_student_ids=_recipient_ids_from_body(body),
@@ -275,6 +307,12 @@ class AssignmentService:
             )
         if "dueAt" in body:
             assignment.due_at = _parse_due_at(body.get("dueAt"))
+        if "latePolicy" in body:
+            assignment.late_policy = _parse_late_policy(body["latePolicy"])
+        if "maxRevisions" in body:
+            assignment.max_revisions = _parse_max_revisions(body["maxRevisions"])
+        if "revisionDueAt" in body:
+            assignment.revision_due_at = _parse_revision_due_at(body["revisionDueAt"])
         if "classroomId" in body:
             classroom_id = _optional_uuid(body.get("classroomId"))
             classroom = (
@@ -319,11 +357,13 @@ class AssignmentService:
         """Edit the safe settings of a published assignment.
 
         Only fields that do not invalidate submitted work or prepared outlines:
-        title, extra instructions, due date, and adding recipients. The prompt,
+        title, extra instructions, deadlines, revision limits, and adding recipients. The prompt,
         materials and rubric stay frozen in the published revision.
         """
         _require_teacher(teacher)
         assignment = await self._owned_assignment(teacher, assignment_id)
+        # Serialize revision limit changes with students starting a new round.
+        await self.session.refresh(assignment, with_for_update=True)
         if assignment.status != "PUBLISHED" or not assignment.published_revision_id:
             raise CatalogError(409, "ASSIGNMENT_STATUS", "Chỉ chỉnh được cấu hình của bài tập đã giao.")
         if assignment.classroom_id:
@@ -350,6 +390,25 @@ class AssignmentService:
             assignment.due_at = due_at
             revision.due_at = due_at
             snapshot["dueAt"] = due_at.isoformat() if due_at else None
+        if "latePolicy" in body:
+            assignment.late_policy = _parse_late_policy(body["latePolicy"])
+        snapshot["latePolicy"] = assignment.late_policy
+        if "maxRevisions" in body:
+            maximum = _parse_max_revisions(body["maxRevisions"])
+            highest_round = (
+                await self.session.execute(
+                    select(func.max(SubmissionAttempt.revision_round))
+                    .join(AssignmentRevision, SubmissionAttempt.assignment_revision_id == AssignmentRevision.id)
+                    .where(AssignmentRevision.assignment_id == assignment.id)
+                )
+            ).scalar_one()
+            if maximum < int(highest_round or 1) - 1:
+                raise CatalogError(409, "REVISION_LIMIT_IN_USE", REVISION_MESSAGES["REVISION_LIMIT_IN_USE"])
+            assignment.max_revisions = maximum
+        if "revisionDueAt" in body:
+            assignment.revision_due_at = _parse_revision_due_at(body["revisionDueAt"])
+        snapshot["maxRevisions"] = assignment.max_revisions
+        snapshot["revisionDueAt"] = assignment.revision_due_at.isoformat() if assignment.revision_due_at else None
 
         if "assignToWholeClass" in body or "recipientStudentIds" in body:
             previous = list(assignment.recipient_student_ids or [])
@@ -436,6 +495,9 @@ class AssignmentService:
             ],
             "rubric": rubric_doc,
             "dueAt": assignment.due_at.isoformat() if assignment.due_at else None,
+            "latePolicy": assignment.late_policy,
+            "maxRevisions": assignment.max_revisions,
+            "revisionDueAt": assignment.revision_due_at.isoformat() if assignment.revision_due_at else None,
         }
         instructions = {
             "topic": assignment.title,
@@ -498,11 +560,28 @@ class AssignmentService:
         if student.role != UserRole.STUDENT:
             raise CatalogError(403, "STUDENT_REQUIRED", ERROR_MESSAGES["STUDENT_REQUIRED"])
         result = await self.session.execute(
-            select(AssignmentAccess, AssignmentRevision, Classroom)
+            select(
+                AssignmentAccess,
+                AssignmentRevision,
+                Classroom,
+                Assignment,
+                SubmissionAttempt.revision_round,
+            )
             .join(AssignmentRevision, AssignmentAccess.assignment_revision_id == AssignmentRevision.id)
             .outerjoin(Assignment, AssignmentRevision.assignment_id == Assignment.id)
             .outerjoin(Classroom, Assignment.classroom_id == Classroom.id)
             .outerjoin(Term, Classroom.term_id == Term.id)
+            .outerjoin(
+                Submission,
+                and_(
+                    Submission.assignment_revision_id == AssignmentRevision.id,
+                    Submission.student_id == student.id,
+                ),
+            )
+            .outerjoin(
+                SubmissionAttempt,
+                SubmissionAttempt.id == Submission.current_attempt_id,
+            )
             .options(selectinload(Classroom.term))
             .where(
                 AssignmentAccess.student_id == student.id,
@@ -513,11 +592,17 @@ class AssignmentService:
         )
         items = []
         seen_codes: set[str] = set()
-        for access, revision, classroom in result.all():
+        for access, revision, classroom, assignment, revision_round in result.all():
             if revision.code in seen_codes:
                 continue
             seen_codes.add(revision.code)
-            items.append(self._student_dict(revision, student_id=student.id, classroom=classroom))
+            items.append(self._student_dict(
+                revision,
+                student_id=student.id,
+                classroom=classroom,
+                assignment=assignment,
+                revision_round=int(revision_round or 1),
+            ))
         return items
 
     async def get_student_assignment(self, student: User, assignment_key: str) -> dict[str, Any]:
@@ -536,15 +621,33 @@ class AssignmentService:
         if access.scalar_one_or_none() is None:
             raise CatalogError(403, "ACCESS_DENIED", "Em chưa được giao bài tập này.")
         row = await self.session.execute(
-            select(AssignmentRevision, Classroom)
+            select(AssignmentRevision, Classroom, Assignment, SubmissionAttempt.revision_round)
             .outerjoin(Assignment, AssignmentRevision.assignment_id == Assignment.id)
             .outerjoin(Classroom, Assignment.classroom_id == Classroom.id)
             .outerjoin(Term, Classroom.term_id == Term.id)
+            .outerjoin(
+                Submission,
+                and_(
+                    Submission.assignment_revision_id == AssignmentRevision.id,
+                    Submission.student_id == student.id,
+                ),
+            )
+            .outerjoin(
+                SubmissionAttempt,
+                SubmissionAttempt.id == Submission.current_attempt_id,
+            )
             .options(selectinload(Classroom.term))
             .where(AssignmentRevision.id == revision.id)
         )
-        revision, classroom = row.one()
-        return self._student_dict(revision, student_id=student.id, full=True, classroom=classroom)
+        revision, classroom, assignment, revision_round = row.one()
+        return self._student_dict(
+            revision,
+            student_id=student.id,
+            full=True,
+            classroom=classroom,
+            assignment=assignment,
+            revision_round=int(revision_round or 1),
+        )
 
     async def get_public_teacher_or_student(
         self, user: User, assignment_key: str
@@ -794,6 +897,9 @@ class AssignmentService:
             "extraInstructions": assignment.extra_instructions,
             "status": assignment.status,
             "dueAt": assignment.due_at.isoformat() if assignment.due_at else None,
+            "latePolicy": assignment.late_policy,
+            "maxRevisions": assignment.max_revisions,
+            "revisionDueAt": assignment.revision_due_at.isoformat() if assignment.revision_due_at else None,
             "publishedAt": assignment.published_at.isoformat() if assignment.published_at else None,
             "classroomId": str(assignment.classroom_id) if assignment.classroom_id else None,
             "classroomName": classroom.name if classroom else None,
@@ -849,7 +955,17 @@ class AssignmentService:
         student_id: uuid.UUID,
         full: bool = False,
         classroom: Classroom | None = None,
+        assignment: Assignment | None = None,
+        revision_round: int = 1,
     ) -> dict[str, Any]:
+        deadline_assignment = assignment or revision
+        effective_due = effective_due_at(deadline_assignment, student_id)
+        now = utcnow()
+        closed = (
+            revision_is_closed(deadline_assignment, now)
+            if revision_round > 1
+            else is_closed(deadline_assignment, student_id, now)
+        )
         snapshot = revision.snapshot or {}
         instructions = revision.instructions or {}
         writing_task = snapshot.get("writingTask") or instructions.get("writing_task") or ""
@@ -883,6 +999,15 @@ class AssignmentService:
             "genre": revision.genre,
             "status": "published",
             "dueAt": (revision.due_at.isoformat() if revision.due_at else snapshot.get("dueAt")),
+            "effectiveDueAt": effective_due.isoformat() if effective_due else None,
+            "latePolicy": getattr(deadline_assignment, "late_policy", "ALLOW_LATE"),
+            "maxRevisions": getattr(deadline_assignment, "max_revisions", 0),
+            "revisionDueAt": (
+                assignment.revision_due_at.isoformat() if assignment and assignment.revision_due_at else None
+            ),
+            "hasExtension": str(student_id) in (getattr(deadline_assignment, "due_extensions", None) or {}),
+            "isClosed": closed,
+            "revisionRound": revision_round,
             "writingTask": writing_task,
             "writingTaskSummary": snapshot.get("writingTaskSummary")
             or instructions.get("writing_task_summary")

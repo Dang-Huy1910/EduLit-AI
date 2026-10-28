@@ -35,8 +35,9 @@ from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import Column, insert, inspect, select, table, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import load_only
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
@@ -117,6 +118,93 @@ from app.ai.schemas import OcrPageModel, OcrSegmentModel  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("seed_classroom_demo")
+
+
+async def _columns_present(session: AsyncSession, table_name: str) -> set[str]:
+    """Columns that exist on this database.
+
+    Alembic 0013 runs this seed before later revisions add deadline and
+    revision columns. Reads and inserts have to ignore columns that are not
+    there yet; server defaults fill them once those revisions have run.
+    """
+    cache = session.info.setdefault("present_columns", {})
+    cached = cache.get(table_name)
+    if cached is not None:
+        return cached
+    rows = await session.execute(
+        text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema = 'public' AND table_name = :table_name"
+        ),
+        {"table_name": table_name},
+    )
+    present = set(rows.scalars())
+    cache[table_name] = present
+    return present
+
+
+def _load_only_present(model: type, present: set[str]):
+    attrs = [
+        getattr(model, column.key)
+        for column in model.__table__.columns
+        if column.name in present
+    ]
+    return load_only(*attrs)
+
+
+def _schema_lags_model(model: type, present: set[str]) -> bool:
+    return any(column.name not in present for column in model.__table__.columns)
+
+
+async def _select_compatible(session: AsyncSession, model: type, *criteria):
+    present = await _columns_present(session, model.__tablename__)
+    stmt = select(model).where(*criteria)
+    if _schema_lags_model(model, present):
+        stmt = stmt.options(_load_only_present(model, present))
+    return await session.execute(stmt)
+
+
+async def _add_compatible(session: AsyncSession, instance):
+    model = type(instance)
+    present = await _columns_present(session, model.__tablename__)
+    if not _schema_lags_model(model, present):
+        session.add(instance)
+        await session.flush()
+        return instance
+    state = inspect(instance)
+    values = {}
+    for column in model.__table__.columns:
+        if column.name not in present or column.key not in state.dict:
+            continue
+        value = state.dict[column.key]
+        if value is None and column.primary_key:
+            continue
+        values[column.name] = value
+    # A Core INSERT on the mapped table still renders client-side defaults for
+    # omitted columns. Build a table of only the columns that exist so a seed
+    # running before those migrations does not mention them.
+    slim_columns = [Column(name, model.__table__.c[name].type) for name in values]
+    if "id" not in values:
+        slim_columns.append(Column("id", model.__table__.c.id.type))
+    slim = table(model.__tablename__, *slim_columns)
+    new_id = (
+        await session.execute(insert(slim).values(**values).returning(slim.c.id))
+    ).scalar_one()
+    return (
+        await session.execute(
+            select(model)
+            .options(_load_only_present(model, present))
+            .where(model.id == new_id)
+        )
+    ).scalar_one()
+
+
+async def _get_compatible(session: AsyncSession, model: type, pk):
+    present = await _columns_present(session, model.__tablename__)
+    stmt = select(model).where(model.id == pk)
+    if _schema_lags_model(model, present):
+        stmt = stmt.options(_load_only_present(model, present))
+    return (await session.execute(stmt)).scalar_one_or_none()
 
 DEMO_PASSWORD = "123456"
 DEMO_ASSIGNMENT_CODE = "VAN11-NLVH-01"
@@ -542,33 +630,34 @@ async def get_or_create_assignment(
 
     rubric_doc = rubric_document()
     existing = (
-        await session.execute(
-            select(Assignment).where(
-                Assignment.teacher_id == teacher.id,
-                Assignment.code == DEMO_ASSIGNMENT_CODE,
-            )
+        await _select_compatible(
+            session,
+            Assignment,
+            Assignment.teacher_id == teacher.id,
+            Assignment.code == DEMO_ASSIGNMENT_CODE,
         )
     ).scalar_one_or_none()
     now = utcnow()
     if existing is None:
-        assignment = Assignment(
-            teacher_id=teacher.id,
-            classroom_id=classroom.id,
-            source_prompt_id=prompt.id,
-            rubric_id=rubric_row.id if rubric_row else None,
-            rubric_version_id=rubric_version.id if rubric_version else None,
-            title=DEMO_ASSIGNMENT_TITLE,
-            extra_instructions="",
-            assignment_rubric=rubric_doc,
-            max_score=rubric_doc["maxScore"],
-            score_step=rubric_doc["scoreStep"],
-            due_at=DUE_AT,
-            code=DEMO_ASSIGNMENT_CODE,
-            status="DRAFT",
-            recipient_student_ids=student_ids,
+        assignment = await _add_compatible(
+            session,
+            Assignment(
+                teacher_id=teacher.id,
+                classroom_id=classroom.id,
+                source_prompt_id=prompt.id,
+                rubric_id=rubric_row.id if rubric_row else None,
+                rubric_version_id=rubric_version.id if rubric_version else None,
+                title=DEMO_ASSIGNMENT_TITLE,
+                extra_instructions="",
+                assignment_rubric=rubric_doc,
+                max_score=rubric_doc["maxScore"],
+                score_step=rubric_doc["scoreStep"],
+                due_at=DUE_AT,
+                code=DEMO_ASSIGNMENT_CODE,
+                status="DRAFT",
+                recipient_student_ids=student_ids,
+            ),
         )
-        session.add(assignment)
-        await session.flush()
         counts["assignment_created"] += 1
     else:
         assignment = existing
@@ -723,15 +812,16 @@ async def seed_one_submission(
 
     attempt = None
     if submission.current_attempt_id:
-        attempt = await session.get(SubmissionAttempt, submission.current_attempt_id)
+        attempt = await _get_compatible(session, SubmissionAttempt, submission.current_attempt_id)
     if attempt is None:
-        attempt = SubmissionAttempt(
-            submission_id=submission.id,
-            assignment_revision_id=revision.id,
-            attempt_number=1,
+        attempt = await _add_compatible(
+            session,
+            SubmissionAttempt(
+                submission_id=submission.id,
+                assignment_revision_id=revision.id,
+                attempt_number=1,
+            ),
         )
-        session.add(attempt)
-        await session.flush()
 
     page_rows: list[SubmissionPage] = []
     for spec, data, digest, width, height in blobs:
@@ -848,36 +938,37 @@ async def seed_one_submission(
     )
     session.add(job)
     await session.flush()
-    result = AssessmentResult(
-        job_id=job.id,
-        submission_id=submission.id,
-        attempt_id=attempt.id,
-        transcription_revision_id=tx.id,
-        assignment_revision_id=revision.id,
-        student_id=student.id,
-        rubric_snapshot=rubric,
-        prompt_version="demo",
-        schema_version=ASSESSMENT_OUTPUT_SCHEMA_VERSION,
-        provider=DEMO_PROVIDER,
-        model=DEMO_MODEL,
-        ai_payload=finalized,
-        ai_raw={"source": "classroom-demo-seed"},
-        ai_total_score=Decimal(str(finalized["totalScore"])),
-        teacher_payload=finalized,
-        teacher_id=teacher.id,
-        teacher_updated_at=now,
-        total_score=Decimal(str(finalized["totalScore"])),
-        max_score=Decimal(str(finalized["maxScore"])),
-        score_step=Decimal(str(finalized["scoreStep"])),
-        score_scale10=Decimal(str(finalized["scoreScale10"])),
-        version=1,
-        is_published=True,
-        published_payload=finalized,
-        published_at=now,
-        published_by=teacher.id,
+    result = await _add_compatible(
+        session,
+        AssessmentResult(
+            job_id=job.id,
+            submission_id=submission.id,
+            attempt_id=attempt.id,
+            transcription_revision_id=tx.id,
+            assignment_revision_id=revision.id,
+            student_id=student.id,
+            rubric_snapshot=rubric,
+            prompt_version="demo",
+            schema_version=ASSESSMENT_OUTPUT_SCHEMA_VERSION,
+            provider=DEMO_PROVIDER,
+            model=DEMO_MODEL,
+            ai_payload=finalized,
+            ai_raw={"source": "classroom-demo-seed"},
+            ai_total_score=Decimal(str(finalized["totalScore"])),
+            teacher_payload=finalized,
+            teacher_id=teacher.id,
+            teacher_updated_at=now,
+            total_score=Decimal(str(finalized["totalScore"])),
+            max_score=Decimal(str(finalized["maxScore"])),
+            score_step=Decimal(str(finalized["scoreStep"])),
+            score_scale10=Decimal(str(finalized["scoreScale10"])),
+            version=1,
+            is_published=True,
+            published_payload=finalized,
+            published_at=now,
+            published_by=teacher.id,
+        ),
     )
-    session.add(result)
-    await session.flush()
     job.result_id = result.id
     submission.current_attempt_id = attempt.id
     submission.current_assessment_job_id = job.id
@@ -1130,7 +1221,16 @@ async def run(*, apply: bool, database_url: str | None = None, allow_remote: boo
                 )
 
             await session.flush()
-            await seed_class_insight(session, settings, teacher, assignment, revision, classroom, counts)
+            # Class stats load AssessmentResult through the current model. Skip
+            # that cache while 0013 is still ahead of the superseded_at column.
+            if not _schema_lags_model(
+                AssessmentResult, await _columns_present(session, "assessment_results")
+            ):
+                await seed_class_insight(
+                    session, settings, teacher, assignment, revision, classroom, counts
+                )
+            else:
+                logger.info("Skip class insight until assessment_results matches the model.")
 
             logger.info("Classroom %s assignment %s", classroom.code, assignment.code)
             logger.info("Students in demo roster: %s", len(demo_users))

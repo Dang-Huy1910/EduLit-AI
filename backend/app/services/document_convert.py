@@ -6,11 +6,14 @@ import hashlib
 import io
 import logging
 import re
+import threading
 import zipfile
 from dataclasses import dataclass
 
 from markitdown import MarkItDown
 from markitdown._stream_info import StreamInfo
+import pypdfium2 as pdfium
+from PIL import Image
 
 from app.config import Settings, get_settings
 from app.core.errors import ERROR_MESSAGES
@@ -22,6 +25,8 @@ _PDF_MAGIC = b"%PDF"
 _ZIP_MAGIC = b"PK"
 _PAGE_COMMENT = re.compile(r"<!--.*?-->", re.S)
 _WHITESPACE = re.compile(r"\s+")
+# PDFium calls must not overlap across the request/worker rendering threads.
+_PDFIUM_LOCK = threading.Lock()
 
 MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -47,6 +52,31 @@ def sha256_bytes(data: bytes) -> str:
 
 def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def pdf_page_count(data: bytes) -> int:
+    with _PDFIUM_LOCK, pdfium.PdfDocument(data) as pdf:
+        return len(pdf)
+
+
+def render_pdf_page(data: bytes, page_index: int, dpi: int) -> bytes:
+    """Render one page to JPEG without retaining or persisting the bitmap."""
+    with _PDFIUM_LOCK, pdfium.PdfDocument(data) as pdf:
+        page = pdf[page_index]
+        try:
+            # Cap before rendering to avoid allocating huge scanned page bitmaps.
+            scale = min(max(1, dpi) / 72, 2000 / max(page.get_size()))
+            bitmap = page.render(scale=scale)
+            try:
+                with bitmap.to_pil() as rendered, rendered.convert("RGB") as image:
+                    image.thumbnail((2000, 2000), Image.Resampling.LANCZOS)
+                    output = io.BytesIO()
+                    image.save(output, format="JPEG", quality=85)
+                    return output.getvalue()
+            finally:
+                bitmap.close()
+        finally:
+            page.close()
 
 
 def safe_filename(name: str | None) -> str:

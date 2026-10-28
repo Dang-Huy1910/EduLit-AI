@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthApiError } from '@/lib/auth-types';
 import { catalogApi } from './api';
 import { downloadOriginalDocument } from './download';
@@ -39,6 +39,13 @@ export default function ImportReview({
   onClose: () => void;
   onConfirmed: (document: TeacherDocument) => void;
 }) {
+  const mounted = useRef(false);
+  const currentDocumentId = useRef(documentId);
+  currentDocumentId.current = documentId;
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const [doc, setDoc] = useState<TeacherDocument | null>(null);
   const [markdown, setMarkdown] = useState('');
   const [draft, setDraft] = useState<DocumentAnalysis>(emptyAnalysis());
@@ -53,6 +60,7 @@ export default function ImportReview({
 
   const load = useCallback(async () => {
     const payload = await catalogApi.getDocument(documentId);
+    if (!mounted.current || payload.id !== currentDocumentId.current) return payload;
     setDoc(payload);
     setMarkdown(payload.markdown || payload.convertedMarkdown || '');
     setDraft(payload.draft || payload.analysis || emptyAnalysis());
@@ -81,13 +89,18 @@ export default function ImportReview({
   }, [load]);
 
   const documentStatus = doc?.status;
+  const ocrRunning = doc?.ocrStatus === 'QUEUED' || doc?.ocrStatus === 'PROCESSING';
   useEffect(() => {
-    if (!documentStatus || !PROCESSING.has(documentStatus)) return;
-    const timer = window.setInterval(() => {
-      void load().catch(() => undefined);
-    }, 2000);
-    return () => window.clearInterval(timer);
-  }, [documentStatus, load]);
+    if (!ocrRunning && (!documentStatus || !PROCESSING.has(documentStatus))) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try { await load(); } catch { /* Retry on the next poll. */ }
+      if (!stopped) timer = setTimeout(() => void poll(), 3000);
+    };
+    timer = setTimeout(() => void poll(), 3000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [documentStatus, ocrRunning, load]);
 
   const persistDraft = async (next = draft, nextMarkdown = markdown, nextSelected = selected) => {
     return catalogApi.saveDocumentDraft(documentId, {
@@ -106,6 +119,18 @@ export default function ImportReview({
       await downloadOriginalDocument(documentId);
     } catch (err) {
       setError(err instanceof AuthApiError ? err.message : 'Không tải được file gốc.');
+    }
+  };
+
+  const handleOcr = async () => {
+    setBusy('ocr');
+    setError('');
+    try {
+      setDoc(await catalogApi.ocrDocument(documentId));
+    } catch (err) {
+      setError(err instanceof AuthApiError ? err.message : 'Không bắt đầu được nhận dạng chữ. Hãy thử lại.');
+    } finally {
+      setBusy('');
     }
   };
 
@@ -214,7 +239,7 @@ export default function ImportReview({
     });
   };
 
-  const processing = Boolean(doc && PROCESSING.has(doc.status));
+  const processing = Boolean(doc && PROCESSING.has(doc.status)) || ocrRunning;
   const confirmed = doc?.status === 'CONFIRMED';
   const needsOcr = Boolean(doc?.needsOcr || doc?.status === 'NEEDS_OCR');
   const extractedIds = new Set(draft.materials.map((item) => item.id));
@@ -254,7 +279,17 @@ export default function ImportReview({
           )}
           {needsOcr && (
             <div className="p-3 rounded-lg bg-[#FEF9C3] text-[#CA8A04] text-xs">
-              PDF không có lớp văn bản đọc được. File gốc vẫn còn. Hãy dùng bản chữ; hệ thống không đoán nội dung.
+              <p>PDF chỉ có ảnh, cần nhận dạng chữ bằng AI. Tối đa {doc?.ocrMaxPages ?? 20} trang. Hãy rà soát và sửa kết quả trước khi bấm phân tích.</p>
+              {ocrRunning ? <div role="status" className="mt-2 space-y-1">
+                <p>Đang nhận dạng: {doc?.ocrPagesDone ?? 0}/{doc?.ocrPageCount ?? 0} trang</p>
+                <progress aria-label="Tiến độ nhận dạng chữ" value={doc?.ocrPagesDone ?? 0} max={doc?.ocrPageCount || 1} className="w-full" />
+              </div> : <>
+                {doc?.ocrStatus === 'FAILED' && <p role="alert" className="mt-2 text-error">{doc.ocrError || 'Nhận dạng chưa thành công. Hãy thử lại.'}</p>}
+                {doc?.mimeType === 'application/pdf' && <button type="button" disabled={busy !== ''} onClick={() => void handleOcr()}
+                  className="mt-2 px-3 py-2 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-40">
+                  {busy === 'ocr' ? 'Đang gửi yêu cầu...' : doc.ocrStatus === 'FAILED' ? 'Thử lại nhận dạng chữ' : 'Nhận dạng chữ bằng AI'}
+                </button>}
+              </>}
             </div>
           )}
           {processing && (
@@ -275,7 +310,7 @@ export default function ImportReview({
               onClick={() => void handleAnalyze()}
               className="px-3 py-1.5 rounded-lg border border-outline-variant/60 hover:bg-surface-container disabled:opacity-40"
             >
-              {busy === 'analyze' ? 'Đang phân tích...' : 'Phân tích lại'}
+              {busy === 'analyze' ? 'Đang phân tích...' : doc?.analysis ? 'Phân tích lại' : 'Phân tích'}
             </button>
           </div>
 
@@ -285,7 +320,8 @@ export default function ImportReview({
               <textarea
                 rows={16}
                 value={markdown}
-                disabled={confirmed}
+                disabled={confirmed || processing || needsOcr}
+                aria-label="Nội dung chữ"
                 onChange={(e) => setMarkdown(e.target.value)}
                 className="w-full p-3 rounded-lg border border-outline-variant/60 font-mono text-[11px] leading-relaxed focus:outline-none focus:border-secondary disabled:bg-surface-container-low/40"
               />

@@ -16,6 +16,7 @@ from app.config import Settings, get_settings
 from app.core.errors import ERROR_MESSAGES
 from app.core.http import utcnow
 from app.db.models import (
+    AssessmentResult,
     Assignment,
     AssignmentAccess,
     AssignmentRevision,
@@ -32,9 +33,17 @@ from app.db.models import (
 )
 from app.services.document_convert import safe_filename
 from app.services.classroom_rules import classroom_read_only
+from app.services.deadline import effective_due_at, is_closed, is_late
 from app.services.image_process import ImageProcessError, validate_and_process
 from app.services.ocr_normalize import public_page
-from app.services.reopen_policy import consume_reopen_grant, student_may_reopen
+from app.services.reopen_policy import consume_reopen_grant, student_may_reopen, version_was_published
+from app.services.revision_policy import (
+    REVISION_MESSAGES,
+    can_start_revision,
+    current_round,
+    revision_is_closed,
+    revisions_used,
+)
 from app.services.submission_errors import SubmissionError
 from app.services.submission_locks import lock_attempt, lock_submission
 
@@ -316,6 +325,7 @@ class SubmissionService:
             return await self.retry_ocr(student, assignment_key)
         if attempt.state != DRAFT:
             raise SubmissionError(409, "SUBMISSION_NOT_DRAFT", ERROR_MESSAGES["SUBMISSION_NOT_DRAFT"])
+        await self._ensure_open_for_student(revision, submission, attempt)
         pages = (
             await self.session.execute(
                 select(SubmissionPage)
@@ -334,6 +344,7 @@ class SubmissionService:
             await self.session.execute(
                 select(SubmissionAttempt).where(
                     SubmissionAttempt.submission_id == submission.id,
+                    SubmissionAttempt.revision_round == current_round(attempt),
                     SubmissionAttempt.input_hash == input_hash,
                     SubmissionAttempt.state != DRAFT,
                 )
@@ -385,7 +396,9 @@ class SubmissionService:
         current = await lock_attempt(self.session, current.id)
         if submission.current_attempt_id != current.id:
             raise SubmissionError(409, "ASSESSMENT_STALE", ERROR_MESSAGES["ASSESSMENT_STALE"])
+        await self._ensure_open_for_student(revision, submission, current)
         if current.state == DRAFT:
+            await self.session.refresh(current, ["pages"])
             return await self._payload(revision, student, submission, current)
         if current.state == READY_TO_GRADE:
             allowed = await student_may_reopen(
@@ -406,6 +419,7 @@ class SubmissionService:
             submission_id=submission.id,
             assignment_revision_id=revision.id,
             attempt_number=int(nxt or 0) + 1,
+            revision_round=current_round(current),
             state=DRAFT,
             ocr_status=OcrJobStatus.NONE.value,
             ocr_max_attempts=int(self.settings.OCR_MAX_ATTEMPTS or 3),
@@ -418,6 +432,41 @@ class SubmissionService:
         submission.current_assessment_result_id = None
         consume_reopen_grant(submission)
         submission.updated_at = now
+        return await self.commit_payload(revision, student, submission, attempt)
+
+    async def start_revision(self, student: User, assignment_key: str) -> dict[str, Any]:
+        revision = await self._require_access(student, assignment_key)
+        assignment = await self._deadline_assignment(revision)
+        if isinstance(assignment, Assignment):
+            # Lock settings before the submission so a concurrent limit decrease
+            # cannot leave a student using more rounds than the assignment allows.
+            await self.session.refresh(assignment, with_for_update=True)
+        await self._ensure_writable(revision)
+        submission = await self._get_submission(revision.id, student.id)
+        attempt = None
+        if submission is not None:
+            submission = await lock_submission(self.session, submission.id)
+            if submission.current_attempt_id:
+                attempt = await lock_attempt(self.session, submission.current_attempt_id)
+                await self.session.refresh(attempt, ["pages"])
+        published = (
+            await self.session.get(AssessmentResult, submission.current_published_result_id)
+            if submission and submission.current_published_result_id else None
+        )
+        if current_round(attempt) > 1 and not await version_was_published(
+            self.session, submission=submission, transcription_revision_id=attempt.confirmed_revision_id
+        ):
+            # Resume unfinished work, including a permitted correction within
+            # this round. A manually hidden publication still stays locked.
+            return await self._payload(revision, student, submission, attempt)
+        allowed, reason = can_start_revision(assignment, submission, attempt, published, utcnow())
+        if not allowed:
+            raise SubmissionError(409, reason, REVISION_MESSAGES[reason])
+        attempt = await self._create_attempt(
+            submission, revision.id, revision_round=current_round(attempt) + 1
+        )
+        submission.current_assessment_job_id = None
+        submission.current_assessment_result_id = None
         return await self.commit_payload(revision, student, submission, attempt)
 
     def _process_image(self, data: bytes, rotation: int, masks: list, mime: str | None):
@@ -549,7 +598,25 @@ class SubmissionService:
         revision, submission, attempt = await self._require_owned(student, assignment_key)
         if attempt.state != DRAFT:
             raise SubmissionError(409, "SUBMISSION_NOT_DRAFT", ERROR_MESSAGES["SUBMISSION_NOT_DRAFT"])
+        await self._ensure_open_for_student(revision, submission, attempt)
         return revision, submission, attempt
+
+    async def _deadline_assignment(self, revision: AssignmentRevision) -> Assignment | AssignmentRevision:
+        assignment = (
+            await self.session.get(Assignment, revision.assignment_id)
+            if revision.assignment_id else None
+        )
+        return assignment or revision
+
+    async def _ensure_open_for_student(
+        self, revision: AssignmentRevision, submission: Submission, attempt: SubmissionAttempt
+    ) -> None:
+        assignment = await self._deadline_assignment(revision)
+        if current_round(attempt) > 1:
+            if revision_is_closed(assignment, utcnow()):
+                raise SubmissionError(409, "REVISION_CLOSED", REVISION_MESSAGES["REVISION_CLOSED"])
+        elif is_closed(assignment, submission.student_id, utcnow()):
+            raise SubmissionError(409, "SUBMISSION_CLOSED", ERROR_MESSAGES["SUBMISSION_CLOSED"])
 
     async def _ensure_writable(self, revision: AssignmentRevision) -> None:
         if await self._classroom_read_only(revision):
@@ -585,18 +652,24 @@ class SubmissionService:
             raise SubmissionError(500, "INTERNAL", ERROR_MESSAGES["INTERNAL"])
         return submission
 
-    async def _create_attempt(self, submission: Submission, revision_id: uuid.UUID) -> SubmissionAttempt:
-        nxt = (
+    async def _create_attempt(
+        self, submission: Submission, revision_id: uuid.UUID, *, revision_round: int | None = None
+    ) -> SubmissionAttempt:
+        nxt, highest_round = (
             await self.session.execute(
-                select(func.max(SubmissionAttempt.attempt_number)).where(
+                select(
+                    func.max(SubmissionAttempt.attempt_number),
+                    func.max(SubmissionAttempt.revision_round),
+                ).where(
                     SubmissionAttempt.submission_id == submission.id
                 )
             )
-        ).scalar_one()
+        ).one()
         attempt = SubmissionAttempt(
             submission_id=submission.id,
             assignment_revision_id=revision_id,
             attempt_number=int(nxt or 0) + 1,
+            revision_round=revision_round if revision_round is not None else int(highest_round or 1),
             state=DRAFT,
             ocr_status=OcrJobStatus.NONE.value,
             ocr_max_attempts=int(self.settings.OCR_MAX_ATTEMPTS or 3),
@@ -682,12 +755,49 @@ class SubmissionService:
         state = attempt.state if attempt else DRAFT
         ocr_status = attempt.ocr_status if attempt else OcrJobStatus.NONE.value
         classroom_read_only = await self._classroom_read_only(revision)
+        assignment = await self._deadline_assignment(revision)
+        effective_due = effective_due_at(assignment, student.id)
+        round_number = current_round(attempt)
+        now = utcnow()
+        closed = (
+            revision_is_closed(assignment, now) if round_number > 1
+            else is_closed(assignment, student.id, now)
+        )
+        published = (
+            await self.session.get(AssessmentResult, submission.current_published_result_id)
+            if submission and submission.current_published_result_id else None
+        )
+        can_start, blocked_reason = can_start_revision(
+            assignment, submission, attempt, published, now, classroom_read_only=classroom_read_only
+        )
+        maximum = int(getattr(assignment, "max_revisions", 0) or 0)
+        revision_due = getattr(assignment, "revision_due_at", None)
+        revision_settings = {
+            "maxRevisions": maximum,
+            "revisionDueAt": revision_due.isoformat() if revision_due else None,
+        }
+        deadline = {
+            "dueAt": assignment.due_at.isoformat() if assignment.due_at else None,
+            "effectiveDueAt": effective_due.isoformat() if effective_due else None,
+            "latePolicy": getattr(assignment, "late_policy", "ALLOW_LATE"),
+            "hasExtension": str(student.id) in (getattr(assignment, "due_extensions", None) or {}),
+            "isClosed": closed,
+            "isLate": round_number == 1 and is_late(attempt.submitted_at if attempt else None, effective_due),
+        }
         return {
+            **deadline,
+            **revision_settings,
+            "revisionRound": round_number,
+            "revisionsRemaining": max(0, maximum - revisions_used(attempt)),
+            "canStartRevision": can_start,
+            "startRevisionBlockedReason": blocked_reason,
             "assignment": {
                 "id": str(revision.assignment_id or revision.id),
                 "revisionId": str(revision.id),
                 "code": revision.code,
                 "title": revision.title,
+                **deadline,
+                **revision_settings,
                 "dueAt": revision.due_at.isoformat() if revision.due_at else snapshot.get("dueAt"),
                 "writingTask": snapshot.get("writingTask") or instructions.get("writing_task") or "",
                 "extraInstructions": snapshot.get("extraInstructions")
@@ -726,12 +836,18 @@ class SubmissionService:
             "transcriptionStatus": transcription_status,
             "confirmed": confirmed,
             "classroomReadOnly": classroom_read_only,
-            "canEditPages": state == DRAFT and not classroom_read_only,
-            "canSubmit": state == DRAFT and bool(pages_out) and not classroom_read_only,
+            "canEditPages": state == DRAFT and not classroom_read_only and not closed,
+            "canSubmit": state == DRAFT and bool(pages_out) and not classroom_read_only and not closed,
             "canRetryOcr": state == FAILED or ocr_status == OcrJobStatus.FAILED.value,
             "canConfirm": state == OCR_REVIEW,
             "waitingForGrade": state == READY_TO_GRADE,
-            "canReopenTranscription": await self._can_reopen(submission, attempt),
+            "canReopenTranscription": (
+                await self._can_reopen(submission, attempt)
+                and (
+                    state == OCR_REVIEW or not closed
+                    or (round_number == 1 and bool(submission and submission.reopen_granted_at))
+                )
+            ),
         }
 
     async def _can_reopen(

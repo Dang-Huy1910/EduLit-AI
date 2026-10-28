@@ -59,6 +59,8 @@ export const catalogApi = {
   listDocuments: () => apiGet<{ items: TeacherDocument[] }>('/api/teacher/documents'),
   getDocument: (id: string) => apiGet<TeacherDocument>(`/api/teacher/documents/${id}`),
   uploadDocument: (form: FormData) => apiUpload<TeacherDocument>('/api/teacher/documents', form),
+  ocrDocument: (id: string) =>
+    apiSend<TeacherDocument>(`/api/teacher/documents/${encodeURIComponent(id)}/ocr`, 'POST', {}),
   analyzeDocument: (id: string, body?: unknown) =>
     apiSend<TeacherDocument>(`/api/teacher/documents/${id}/analyze`, 'POST', body ?? {}),
   saveDocumentDraft: (id: string, body: unknown) =>

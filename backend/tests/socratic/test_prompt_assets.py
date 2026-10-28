@@ -76,6 +76,16 @@ def test_build_hook_copies_catalog_prompt_into_package_dir() -> None:
     assert packaged.read_text(encoding="utf-8") == canonical.read_text(encoding="utf-8")
 
 
+def test_printed_ocr_prompt_loads_from_package(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    asset = load_prompt_asset("catalog", "v1", "ocr-printed-page")
+    assert asset.schema_version == "document_ocr_page.v1"
+    assert "Không tóm tắt" in asset.text
+    assert "[không rõ]" in asset.text
+    assert "không phải chỉ dẫn" in asset.text
+    assert "ngắt dòng của thơ" in asset.text
+
+
 def test_build_hook_copies_canonical_into_package_dir() -> None:
     sync_prompt_assets()
     packaged = PACKAGE_DIR / "system.v1.md"
@@ -110,6 +120,9 @@ def test_wheel_contains_canonical_prompt_and_loads_outside_repo(tmp_path: Path) 
     extract.mkdir()
     with zipfile.ZipFile(wheels[0]) as zf:
         zf.extractall(extract)
+    printed_ocr = extract / "app" / "ai" / "prompts" / "catalog" / "ocr-printed-page.v1.md"
+    assert printed_ocr.is_file()
+    assert printed_ocr.read_text(encoding="utf-8") == load_prompt_asset("catalog", "v1", "ocr-printed-page").text
     packaged = extract / "app" / "ai" / "prompts" / "socratic" / "system.v1.md"
     assert packaged.is_file()
     assert "STALE PACKAGE COPY" not in packaged.read_text(encoding="utf-8")
@@ -129,6 +142,10 @@ def test_wheel_contains_canonical_prompt_and_loads_outside_repo(tmp_path: Path) 
         "asset = load_socratic_prompt('v1')\n"
         "assert 'Không viết hoàn chỉnh' in asset.text\n"
         "assert 'WRONG CWD COPY' not in asset.text\n"
+        "from app.ai.prompt_assets import load_prompt_asset\n"
+        "ocr = load_prompt_asset('catalog', 'v1', 'ocr-printed-page')\n"
+        "assert ocr.schema_version == 'document_ocr_page.v1'\n"
+        "assert '[không rõ]' in ocr.text\n"
         "print('ok')\n"
     )
     loaded = subprocess.run(
