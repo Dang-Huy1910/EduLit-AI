@@ -1,56 +1,55 @@
 # Frontend — EduLit-AI
 
-Ứng dụng web Next.js 15 dành cho Giáo viên (**Cô Đặng Loan**) và Học sinh (**Bùi Hà My**) trường **THPT Đan Phượng**, hỗ trợ chu trình Dạy – Học và Đánh giá môn Ngữ văn theo chương trình GDPT 2018.
+Ứng dụng Next.js 15 App Router, React 19, TypeScript, Tailwind CSS 3, Recharts và Zustand. Giao diện giáo viên/học sinh dùng FastAPI qua `/api`; dữ liệu nghiệp vụ nằm ở backend. Rà lại 2026-10-28 theo `src/app/`, các client trong `src/features/` và `src/lib/`.
 
-Hiện đây là prototype với mock data và Zustand/sessionStorage. [Kiến trúc MVP](../docs/architecture/system-design.md) giữ frontend, bổ sung API NestJS và TanStack Query cho dữ liệu máy chủ. [Lộ trình chuyển đổi](../docs/development/implementation-roadmap.md#chuyển-frontend-từng-phần) tách API/mock mode, scope chat/outline theo phiên và thay OCR/điểm giả lập bằng trạng thái thật. Gemini 2.5 Flash chỉ được gọi từ backend; không đưa API key vào bundle trình duyệt.
+## Chạy local
 
----
-
-## 🏛️ Cấu trúc thư mục
-
-| Thư mục | Trách nhiệm |
-| :--- | :--- |
-| `src/app/` | Next.js 15 App Router: Định tuyến, Layout và Providers toàn cục |
-| `src/app/assignments/` | Danh sách bài tập, Soạn đề & Cấu hình Rubric 10.0đ |
-| `src/app/assignments/[id]/` | Chu trình 5 bước làm bài: `/socratic`, `/submit`, `/ocr`, `/result` |
-| `src/app/materials/` | Kho học liệu & Quản lý ngữ liệu đọc hiểu, barem GDPT 2018 |
-| `src/app/reports/` | Báo cáo năng lực tổng hợp nhiều bài; URL cũ chuyển về chi tiết bài tập |
-| `src/app/assignments/[id]` | Giáo viên: đề & barem, bài nộp, thống kê từng bài |
-| `src/app/assignments/[id]/students/[studentId]/assessment` | Chi tiết chấm của một học sinh trong bài tập |
-| `src/app/login/` | Màn hình đăng nhập phong cách VLearn với nền trường THPT Đan Phượng |
-| `src/components/` | Shell giao diện (`TeacherShell`, `StudentShell`), Stepper 5 bước, Toasts |
-| `src/features/` | Components nghiệp vụ (`assignments`, `assessment`, `reports`) |
-| `src/lib/` | Zustand Store (`store.ts`), Types (`types.ts`), Dữ liệu mẫu THPT Đan Phượng (`mock/`) |
-| `public/` | Tài nguyên tĩnh (ảnh trường THPT Đan Phượng `anh-truong.jpg`, favicon) |
-
----
-
-## 🚀 Hướng dẫn khởi chạy (Local Development)
+Khởi động backend/PostgreSQL theo [README backend](../backend/README.md) hoặc [Quick start](../README.md#khởi-chạy-local), sau đó ở cửa sổ khác:
 
 ```bash
 cd frontend
+cp .env.example .env.local
 npm install
 npm run dev
 ```
 
-Truy cập trình duyệt: **[http://localhost:3000](http://localhost:3000)** (tự động chuyển hướng về `/login`).
+Mở `http://localhost:3000`. `next.config.ts` rewrite `/api/:path*` tới `API_PROXY_TARGET` (mặc định `http://localhost:4000`). Client gửi cookie với `credentials: include`; mutation có header `X-Edulit-CSRF: 1`. Không đưa khóa AI vào frontend.
 
----
+## Đăng nhập và dữ liệu
 
-## 🔑 Tài khoản đăng nhập nhanh (1-Click Demo)
+`/login` gửi `loginId`, `password`, `rememberMe` qua `authClient.login`. Giáo viên dùng tài khoản bootstrap của backend; học sinh tự đăng ký tại `/register`, được đánh dấu email đã xác minh và cấp phiên ngay. `AuthGate` lấy người dùng từ `/api/auth/me` sau refresh. Các trang xác minh email, quên/đặt lại mật khẩu và quản lý phiên vẫn có.
 
-Tại màn hình đăng nhập, hệ thống cung cấp sẵn 2 nút đăng nhập 1-click để kiểm thử nhanh hai vai trò:
+Store chung `src/lib/store.ts` giữ user đang hiển thị, toast và trạng thái sidebar; chỉ persist `sidebarCollapsed` trong `sessionStorage`. API auth quyết định danh tính. Store Socratic nằm riêng theo phiên. Dữ liệu seed lớp và ảnh demo thuộc `backend/demo/`; frontend không nạp bộ dữ liệu đó vào bundle.
 
-1. **Giáo viên:** Bấm **"Cô Đặng Loan"** (GV Ngữ văn • Lớp 12A1 THPT Đan Phượng)
-   - Quản lý đề bài, giao đề mới, cấu hình Rubric 4 tiêu chí.
-   - Theo dõi báo cáo năng lực lớp và điều chỉnh giáo án.
-2. **Học sinh:** Bấm **"Bùi Hà My"** (Học sinh Lớp 12A1 • Mã định danh: `VN-12A1-048`)
-   - Xem bài tập cần làm & bài đã nộp.
-   - Trải nghiệm chu trình: Đọc hiểu &rarr; Lập dàn ý Socratic &rarr; Viết tay & Nộp ảnh &rarr; Đối chiếu OCR &rarr; Nộp chính thức &rarr; Xem điểm sau khi giáo viên công bố.
+## Các vị trí chính
 
----
+| Vị trí | Trách nhiệm |
+| --- | --- |
+| `src/app/login/`, `register/`, `account/security/` | Đăng nhập, đăng ký, mật khẩu/phiên |
+| `src/app/classrooms/` | Lớp, thành viên, tham gia bằng mã |
+| `src/app/materials/` | Kho ngữ liệu, đề nguồn, barem và import tài liệu |
+| `src/app/assignments/` | Danh sách, tạo/giao bài và xem bài được giao |
+| `src/app/assignments/[id]/` | Chi tiết giáo viên; các bước học sinh `socratic`, `submit`, `ocr`, `result` |
+| `src/app/assignments/[id]/students/[studentId]/assessment/` | Giáo viên rà soát bài chấm |
+| `src/app/reports/` | Báo cáo năng lực nhiều bài |
+| `src/app/chatbot/`, `src/app/profile/` | Tra cứu học liệu và hồ sơ văn phong |
+| `src/features/` | API/types/components theo feature, gồm catalog, submission, assessment, socratic, classrooms, writing-profile |
+| `src/components/`, `src/lib/` | Shell, auth, toast, HTTP client và state dùng chung |
+| `public/` | Tài nguyên công khai của giao diện |
 
-## ⚡ Nút "Khôi phục Demo (Reset)"
+## Lệnh kiểm tra và build
 
-Ở thanh Header và Sidebar của cả hai vai trò đều có nút **⚡ Khôi phục Demo (Reset)**.  
-Bấm nút này sẽ xóa sạch cache `sessionStorage` và đưa toàn bộ đề bài, dàn ý, bài nộp về trạng thái xuất phát ban đầu để sẵn sàng chạy lại kịch bản thuyết trình.
+Theo [CONTRIBUTING](../CONTRIBUTING.md#lint-test-và-ci), từ `frontend/`:
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm test
+npm run test:ui
+npm run build
+npm start
+```
+
+`npm test` dùng Node test runner và cần Node 22.7 trở lên. `test:ui` dùng cấu hình Playwright `playwright.ui.config.ts`; `test:e2e` dùng cấu hình Playwright mặc định. `build`/`start` tạo và chạy bản production Next.js. CI hiện chạy lint, typecheck và unit tests; không chạy Playwright.
+
+Kiến trúc và các phần cần kiểm chứng tiếp ở [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md) và [roadmap](../docs/development/implementation-roadmap.md).

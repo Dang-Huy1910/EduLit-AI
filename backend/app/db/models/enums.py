@@ -79,14 +79,6 @@ class AssignmentRevisionStatus(StrEnum):
     CLOSED = "CLOSED"
 
 
-class MaterialVersionStatus(StrEnum):
-    """Status of a material version."""
-    UPLOADED = "UPLOADED"
-    PRIVACY_REVIEW = "PRIVACY_REVIEW"
-    READY = "READY"
-    FAILED = "FAILED"
-
-
 class SubmissionAttemptState(StrEnum):
     """Student handwritten submission attempt."""
 

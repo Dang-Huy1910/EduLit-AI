@@ -1,7 +1,7 @@
 # Fake credentials only. Tests refuse to fall back from DATABASE_URL_TEST to a
 # real DATABASE_URL. Mailpit is required by tests/integration/test_smtp_sink.py;
 # the rest of the suite captures mail in-process (CapturingEmailAdapter).
-# Migration 0013 reads frontend mock files from the full checkout.
+# Migration 0013 reads backend/demo through the shared seed helper.
 name: CI
 
 "on":
@@ -49,7 +49,6 @@ jobs:
       DATABASE_URL: postgresql://test:test@127.0.0.1:5432/test
       DATABASE_URL_TEST: postgresql://test:test@127.0.0.1:5432/test
       BOOTSTRAP_TEACHER_PASSWORD: DanPhuong@2024
-      ALLOW_DEMO_LOGIN: "false"
       AI_PROVIDER: fake
       AI_MODEL: fake-model
       OPENAI_API_KEY: test-key-for-fake

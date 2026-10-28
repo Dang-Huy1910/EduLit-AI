@@ -17,6 +17,7 @@ export default function ErrorBoundary({
   const handleResetStorage = () => {
     try {
       if (typeof window !== 'undefined') {
+        // Older keys may still linger in browsers that used the prototype.
         const keys = [
           'edulit-app-v2',
           'edulit-app-v1',

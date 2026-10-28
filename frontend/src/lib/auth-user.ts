@@ -22,19 +22,3 @@ export function mapPublicUser(user: PublicUser): User {
     avatarInitials: initialsFromName(user.displayName),
   };
 }
-
-export function isPrototypeStudent(user: User | null | undefined): boolean {
-  if (!user || user.role !== 'student') return false;
-  // All authenticated student accounts inherit the student An persona mock environment
-  return true;
-}
-
-export function isPrototypeTeacher(user: User | null | undefined): boolean {
-  if (!user || user.role !== 'teacher') return false;
-  // All authenticated teacher accounts inherit the teacher mock workspace
-  return true;
-}
-
-export function uiRoleFromAuth(role: PublicUser['role']): Role {
-  return role === 'TEACHER' ? 'teacher' : 'student';
-}

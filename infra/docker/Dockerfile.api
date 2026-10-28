@@ -21,13 +21,11 @@ COPY backend/alembic.ini /app/alembic.ini
 COPY backend/pyproject.toml /app/pyproject.toml
 COPY backend/scripts /app/scripts
 COPY docs /docs
-COPY frontend/src/lib/mock/roster_11a14.json /app/demo_frontend/src/lib/mock/roster_11a14.json
-COPY frontend/src/lib/mock/submissionsManifest.ts /app/demo_frontend/src/lib/mock/submissionsManifest.ts
-COPY frontend/public/submissions /app/demo_frontend/public/submissions
+COPY backend/demo /app/demo
 ENV PATH="/src/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DEMO_FRONTEND_ROOT=/app/demo_frontend
+    DEMO_DATA_ROOT=/app/demo
 USER edulit
 EXPOSE 4000
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/api/health')"

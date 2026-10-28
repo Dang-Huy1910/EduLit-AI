@@ -1,5 +1,7 @@
 # Gemini Prompt — EduLit-AI Clickable Prototype
 
+> **Prompt lịch sử — rà lại 2026-10-28:** Nội dung giao việc bên dưới phản ánh thời điểm tạo, không phải hiện trạng hay lệnh vận hành hiện tại. Dữ liệu lớp/ảnh demo đã dời sang `backend/demo/`; các file store/mock prototype đã bỏ. Backend hiện dùng Python theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md); không áp dụng nguyên trạng yêu cầu scaffold, tạo nhánh hoặc khôi phục mock trong prompt này.
+
 Phiên bản: 1.1 · Cập nhật: 12/10/2026.
 
 Prompt tự chứa ngữ cảnh để Gemini (hoặc mô hình code tương đương) dựng **prototype web có điều hướng**, bám 10 màn Google Stitch đã render. Sao chép toàn bộ khối `text` bên dưới vào Gemini. Nếu Gemini đọc được repository, hãy đính kèm thêm các file trong `prototype/stitch_edulit_ai_platform_mvp/` (mỗi màn có `screen.png` + `code.html`) và `prototype/stitch_edulit_ai_platform_mvp/edulit_serene_paper/DESIGN.md`.
@@ -75,7 +77,7 @@ Scaffold the running app in `frontend/` (the folder already exists and is empty 
 - Material Symbols Outlined via Google Fonts
 - Client state: Zustand (persist role/session in sessionStorage)
 - No backend, no database, no API keys, no `.env` secrets
-- Mock layer in `frontend/src/lib/mock/` (data + simulated delays)
+- Dữ liệu seed hiện ở `backend/demo/`; mock client và simulated delays của prototype đã bỏ.
 - Charts: Recharts (score distribution on the class report)
 - Package manager: npm
 - App language: Vietnamese UI copy; English code identifiers
@@ -98,8 +100,8 @@ frontend/src/app/
   (student)/assignments/[id]/result/page.tsx
   (student)/materials/page.tsx                 // read-only ngữ liệu
 frontend/src/components/                       // shells, buttons, badges, dialogs
-frontend/src/features/{identity,assignments,grounding,socratic,assessment,analytics,classrooms}/
-frontend/src/lib/mock/
+frontend/src/features/{assignments,catalog,socratic,submission,assessment,classrooms,chatbot,writing-profile}/
+backend/demo/
 frontend/src/styles/tokens.css + globals.css
 
 Teacher nav item “Trợ lý chấm & Rubric” routes to `/assignments/assign-nlxh-01` (Screen 04).

@@ -1,119 +1,98 @@
 # Mô hình dữ liệu EduLit-AI
 
-Ngày: 12/10/2026. Đây là thiết kế logical cho PostgreSQL/Prisma, chưa phải migration đã thực thi. Bổ sung cho [SRS](../../SRS.md) và [system design](system-design.md).
+Rà lại **2026-10-28** theo model SQLAlchemy trong `backend/app/db/models/` và Alembic `0001`–`0019`. Đây là mô tả schema Python hiện có; các ý tưởng chưa có bảng thực thi được ghi riêng ở cuối. Không khẳng định migration đã chạy trên database cụ thể trong đợt rà tài liệu này.
 
-## 1. Quy ước
+## 1. Quy ước hiện tại
 
-- Khóa nội bộ UUID; mã đề là thuộc tính tra cứu, không dùng làm quyền truy cập.
-- Timestamp lưu UTC, hiển thị theo timezone của trường/người dùng; không dùng timezone máy chủ làm hạn nộp.
-- Mỗi tài nguyên có scope trường/lớp và owner phù hợp. Composite foreign key hoặc validation transaction ngăn tham chiếu khác scope.
-- Điểm PostgreSQL `numeric`, tính bằng decimal hoặc đơn vị nguyên theo score step, không cộng float rồi bỏ qua sai lệch.
-- JSONB dành cho payload versioned (rubric, báo cáo, snapshot), không thay các quan hệ cần constraint hoặc index.
-- Revision đã dùng khi giao đề/nộp/chấm là bất biến. `updatedAt` không thay thế lịch sử revision.
+- Khóa nội bộ UUID, timestamp có timezone. Mã đề dùng tra cứu; quyền nằm ở owner/membership và `assignment_access`.
+- Các snapshot/payload có cấu trúc dùng JSONB. Điểm, thang điểm và bước điểm trong rubric/assessment dùng `NUMERIC(8,2)`; validator nghiệp vụ kiểm tra tổng và giới hạn.
+- Bytes gốc của tài liệu và ảnh nằm trong bảng blob PostgreSQL riêng, không phải tài nguyên frontend public.
+- Phiên bản đề, bản chép và kết quả đã công bố có con trỏ/lịch sử riêng; không dùng `updated_at` thay toàn bộ lịch sử.
 
-## 2. Entity và quan hệ
+## 2. Bảng/model đang có
 
-| Entity | Thuộc tính chính / quan hệ | Chủ sở hữu |
+| Nhóm | Model / bảng | Quan hệ và nội dung |
 | --- | --- | --- |
-| `School` | id, name, timezone | classrooms |
-| `User` | id, schoolId, loginId, passwordHash, role, status | identity |
-| `AuthSession` | id, userId, tokenHash, expiresAt, revokedAt | identity |
-| `Classroom` | id, schoolId, code, gradeLevel, academicYear | classrooms |
-| `ClassMembership` | classroomId, userId, membershipRole, status | classrooms |
-| `FileAsset` | id, scope, ownerId, storageKey, mime, bytes, checksum, privacyStatus, expiresAt | module tải file; storage adapter chỉ giữ bytes |
-| `Material` / `MaterialVersion` | classId, title; revision, fileId/text, status, privacyReview, parserVersion | grounding |
-| `MaterialChunk` | materialVersionId, section, pageRef, order, text, sourceRef | grounding |
-| `Rubric` / `RubricVersion` | classId; version, criteria JSONB, maxScore, scoreStep, status, approvedBy/At | grounding |
-| `Assignment` / `AssignmentRevision` | classId, code; instructions, genre, deadline, learningGoals, rubricVersionId, publishedAt | assignments |
-| `AssignmentMaterial` | assignmentRevisionId, materialVersionId | assignments |
-| `SocraticSession` | studentId, assignmentRevisionId, state, version, lastMessageAt | socratic |
-| `ChatMessage` | sessionId, turnId, role, content, sources, status, aiRunId | socratic |
-| `OutlineRevision` | sessionId, revision, sections, author/source refs, reviewStatus | socratic |
-| `Submission` | studentId, assignmentId, selectedAttemptId | assessment |
-| `SubmissionAttempt` | submissionId, attemptNumber, assignmentRevisionId, outlineRevisionId?, state, submittedAt | assessment |
-| `SubmissionPage` | attemptId, pageIndex, assetId, checksum, privacyReviewedBy/At | assessment |
-| `TranscriptionRevision` | attemptId, revision, status, reviewedBy/At, aiRunId? | assessment |
-| `OcrSegment` | stored in transcription revision JSON: pageId, segmentId, order, text, needsReview, reviewReason, confidence?, confidenceSource | assessment |
-| `AssessmentRevision` | attemptId, transcriptionRevisionId, rubricVersionId, aiProposal, finalResult, status, reviewedBy/At, publishedAt, aiRunId | assessment |
-| `StudentDeclaredGoal` | studentId, target, selfReportedStrength/Difficulty, updatedAt | writing-profile |
-| `WritingObservation` | studentId, kind, feature, genre, assessmentRevisionId, evidenceRefs, supportCount, eligibleCount, status | writing-profile |
-| `WritingProfileSnapshot` | studentId, revision, activeObservationIds, progressSummary, builtAt | writing-profile |
-| `AnalyticsRecommendation` | classId, assignmentId, aggregateSnapshot/hash, promptVersion, proposal, aiRunId | analytics |
-| `AiRun` | task, model, prompt/schemaVersion, inputHash, status, usage, latency, providerError, correlationId | infrastructure/ai |
-| `UsageReservation` | user/project, taskKey, estimatedTokenBudget, status, actualUsage | infrastructure/ai |
-| `IdempotencyRecord` | userId, route, keyHash, requestHash, state, resourceId/response, expiresAt | core request boundary |
-| `OutboxEvent` | eventType, scope, aggregateId/revision, payload IDs, dispatchedAt | producer module |
-| `AuditEvent` | actorId, action, resourceId/version, timestamp, reason | core audit |
+| Identity | `User`, `AuthSession`, `AuthToken`, `RateLimitBucket` | User có login/email duy nhất, role/status, password hash, email verification timestamp; session/token lưu hash và hạn dùng |
+| Học kỳ/lớp | `Term`, `Classroom`, `ClassMembership` | Lớp thuộc kỳ học và giáo viên sở hữu; mã tham gia, trạng thái tham gia, membership theo user |
+| Catalog | `Topic`, `Material`, `MaterialVersion`, `MaterialChunk` | Ngữ liệu thuộc giáo viên/chuyên đề; phiên bản nội dung và chunks có thứ tự |
+| Đề nguồn | `SourcePrompt`, `SourcePromptMaterial` | Yêu cầu viết đầy đủ/tóm tắt/hướng dẫn, liên kết các ngữ liệu |
+| Barem | `Rubric`, `RubricVersion` | Phiên bản tiêu chí JSONB, max score, score step, status |
+| Import | `TeacherDocument`, `TeacherDocumentBlob` | File gốc, Markdown chuyển đổi/giáo viên sửa, hash phân tích, draft, danh sách mục được confirm |
+| Giao bài | `Assignment`, `AssignmentRevision`, `AssignmentAccess` | Draft bài tập, người nhận, hạn nộp; published revision giữ instructions/rubric/context/snapshot; quyền theo revision + học sinh |
+| Chuẩn bị dàn ý | `StudentOutlinePrep` | Job theo revision + học sinh, outline, trạng thái, lease/token và số lần thử |
+| Socratic | `SocraticSession`, `ChatMessage`, `OutlineRevision`, `IdempotencyRecord` | FSM, reservation, logical turn, lịch sử chat, outline version và phản hồi replay |
+| Bài nộp | `Submission`, `SubmissionAttempt` | Một submission theo revision + học sinh; nhiều attempt; con trỏ attempt/job/result/published result hiện hành |
+| Trang/OCR | `SubmissionPage`, `SubmissionPageBlob`, `OcrResult`, `TranscriptionRevision` | Thứ tự/hash ảnh, bytes ORIGINAL/PROCESSED; output OCR và bản chép có revision; segments lưu trong JSONB |
+| Chấm | `AssessmentJob`, `AssessmentResult` | Job gắn attempt + transcription; kết quả giữ AI/teacher/published payload, version, điểm, actor/thời gian công bố |
+| Phân tích lớp | `ClassInsight` | Scope/mode/filter fingerprint, hash số liệu đầu vào, trạng thái/lease, payload gợi ý |
+| Hồ sơ viết | `WritingProfile`, `WritingProfileVersion` | Cache theo học sinh/source hash; payload, analyzed sources; lịch sử version/summary/traits/evidence counts |
 
-`FileAsset` là logical metadata chung; mutation do module sở hữu use case upload thực hiện. `storageKey` không lộ ra HTTP contract. Outbox/job payload chỉ chứa ID/version, không chép nguyên bài làm hoặc định danh học sinh.
+Vị trí: identity có file model riêng; catalog trong `catalog.py`; đề revision/chat/outline trong `socratic.py`; submission/OCR trong `submission.py`; chấm/insight trong `assessment.py`; profile trong `writing_profile.py`.
 
-## 3. Quan hệ cốt lõi
+## 3. Quan hệ chính
 
 ```mermaid
 erDiagram
-    School ||--o{ Classroom : contains
-    School ||--o{ User : contains
-    Classroom ||--o{ ClassMembership : enrolls
+    User ||--o{ Classroom : owns
+    Term ||--o{ Classroom : groups
+    Classroom ||--o{ ClassMembership : contains
     User ||--o{ ClassMembership : joins
-    Classroom ||--o{ Assignment : receives
-    Assignment ||--o{ AssignmentRevision : versions
-    RubricVersion ||--o{ AssignmentRevision : governs
-    AssignmentRevision ||--o{ AssignmentMaterial : links
-    MaterialVersion ||--o{ AssignmentMaterial : supplies
+    SourcePrompt ||--o{ Assignment : supplies
+    Assignment ||--o{ AssignmentRevision : freezes
+    AssignmentRevision ||--o{ AssignmentAccess : grants
+    User ||--o{ AssignmentAccess : receives
     AssignmentRevision ||--o{ SocraticSession : guides
+    SocraticSession ||--o{ ChatMessage : stores
+    SocraticSession ||--o{ OutlineRevision : versions
+    AssignmentRevision ||--o{ Submission : collects
     User ||--o{ Submission : writes
-    Assignment ||--o{ Submission : collects
     Submission ||--o{ SubmissionAttempt : attempts
-    AssignmentRevision ||--o{ SubmissionAttempt : freezes
     SubmissionAttempt ||--o{ SubmissionPage : contains
+    SubmissionPage ||--o{ SubmissionPageBlob : stores
     SubmissionAttempt ||--o{ TranscriptionRevision : transcribes
-    TranscriptionRevision ||--o{ OcrSegment : segments
-    TranscriptionRevision ||--o{ AssessmentRevision : evaluates
-    AssessmentRevision ||--o{ WritingObservation : supports
+    TranscriptionRevision ||--o{ AssessmentJob : grades
+    AssessmentJob ||--o{ AssessmentResult : produces
+    User ||--o| WritingProfile : has
+    User ||--o{ WritingProfileVersion : tracks
 ```
 
-## 4. Constraint và index cần triển khai
+## 4. Constraint và kiểm tra phiên bản
 
-- Unique membership `(classroomId, userId)`; unique login `(schoolId, loginId)`; unique assignment code `(schoolId, code)`.
-- Unique rubric/material/assignment revision `(aggregateId, version)`; chỉ published revision được chọn khi khởi tạo phiên hoặc submit.
-- Unique submission `(assignmentId, studentId)`; unique attempt `(submissionId, attemptNumber)`; unique page `(attemptId, pageIndex)`; 1–4 trang và page order kiểm tra khi freeze attempt.
-- `selectedAttemptId` phải thuộc chính submission và có assessment hiện hành đã công bố. Bài nộp mới đang chờ chấm không tự xóa kết quả trước trong báo cáo.
-- Unique transcription revision `(attemptId, revision)`; unique segment `(transcriptionRevisionId, segmentId)`; segment references luôn đi cùng transcription revision.
-- Unique logical AI task `(task, inputHash, promptVersion, schemaVersion, model)` cho kết quả thành công có thể tái dùng; không dùng unique này để cấm retry run thất bại. Mỗi execution có ID riêng và task key chung.
-- Unique active/publication pointer cho assessment của attempt; lịch sử assessment giữ đầy đủ, thay pointer trong transaction khi công bố lại.
-- Foreign keys: assessment rubric phải bằng rubric đã chốt trong assignment revision của attempt; reference consistency kiểm tra trong transaction và constraint khả thi.
-- Index theo `(classId, status)`, `(studentId, assignmentId)`, `(attemptId, state)`, `(studentId, genre, observedAt)`, outbox chưa giao, assets đến hạn xóa và session expiry.
-- Lock/version khi sửa rubric draft, outline, chốt attempt, publish assessment. Request chấm điểm dùng `resultId` + `transcriptionRevisionId` + `expectedVersion`; xung đột hoặc bản nộp đã đổi trả `409`, không chuyển thao tác sang result khác.
+Những unique constraint đã có trong model gồm:
 
-## 5. Lifecycle
+- `users.login_id`, `users.email`; `terms.code`; classroom `(term_id, subject, code)`; membership `(classroom_id, user_id)`.
+- Material version `(material_id, version)`, chunk `(material_version_id, chunk_id)`, rubric version `(rubric_id, version)`; assignment code duy nhất.
+- Assignment access `(assignment_revision_id, student_id)`; submission cũng theo revision + student, không có `school_id` trong schema hiện tại.
+- Attempt `(submission_id, attempt_number)`, page `(attempt_id, page_index)`, transcription `(attempt_id, revision)`.
+- Outline `(session_id, revision)`, chat `(session_id, turn_id, role)`; idempotency key có scope user/route.
+- Profile history `(student_id, version)`; insight `(teacher_id, scope_key, mode)`.
 
-| Aggregate | Trạng thái / chuyển tiếp |
+Quy tắc bounds/điểm, quyền truy cập, input revision và lease còn được kiểm tra trong service, không phải tất cả đều là constraint SQL. Sửa outline dùng `expectedVersion`; sửa/xác nhận bản chép kiểm tra revision; lưu/công bố/ẩn kết quả dùng `resultId` + `transcriptionRevisionId` + `expectedVersion`.
+
+## 5. Lifecycle thực thi
+
+| Dữ liệu | Trạng thái/ý nghĩa |
 | --- | --- |
-| MaterialVersion | `UPLOADED → PRIVACY_REVIEW → PROCESSING → READY`; lỗi xử lý → `FAILED` |
-| RubricVersion | `DRAFT → APPROVED`; thay đổi sau approve tạo version mới |
-| AssignmentRevision | `DRAFT → PUBLISHED → CLOSED`; việc đóng không xóa lịch sử |
-| SubmissionAttempt | `DRAFT → QUEUED → OCR_PROCESSING → OCR_REVIEW → READY_TO_GRADE`. `submitted_at` = gửi OCR; `official_submitted_at` = xác nhận nộp chính thức. Lỗi OCR → `FAILED`; retry cùng input; nộp bộ ảnh mới → attempt mới |
-| Attempt ngoại lệ | Từ bước nền → `FAILED`; retry về đúng bước với cùng input; privacy failure → `PRIVACY_REVIEW`; rút kết quả → `WITHDRAWN` |
-| TranscriptionRevision | `DRAFT → CONFIRMED`; sửa sau xác nhận → `SUPERSEDED` và tạo DRAFT mới; học sinh xác nhận lại |
-| AssessmentJob / AssessmentResult | Job `QUEUED → PROCESSING → READY/FAILED` tách khỏi kết quả. `ai_payload` bất biến; `teacher_payload` rà soát; `published_payload` + `current_published_result_id` là bản học sinh thấy. Công bố bản mới thay pointer trong transaction, giữ lịch sử. |
-| Observation | `PROVISIONAL → SUPPORTED`; có thể `RESOLVED`, `INVALIDATED`; giữ lịch sử bằng chứng |
+| TeacherDocument | `UPLOADED`, `CONVERTING`, `CONVERTED`, `ANALYZING`, `REVIEW`, `CONFIRMED`; lỗi `FAILED`, PDF không có chữ `NEEDS_OCR` |
+| MaterialVersion | Cột `VARCHAR(16)`, mặc định `READY`; không dùng PostgreSQL enum riêng. Revision `0019` bỏ enum không còn được cột dùng |
+| RubricVersion | Cột chuỗi, mặc định `APPROVED`; catalog validate và lưu version, không có endpoint approve riêng |
+| AssignmentRevision | `DRAFT`, `PUBLISHED`, `CLOSED`; giao bài tạo snapshot và grants |
+| Outline prep | `QUEUED`, `PROCESSING`, `READY`, `FAILED`, `NEEDS_CLARIFICATION` |
+| Socratic session | FSM `INIT → THESIS → OUTLINE → REVIEW`; outline `DRAFT`, `ACCEPTED`, `SUPERSEDED` |
+| SubmissionAttempt | `DRAFT → QUEUED → OCR_PROCESSING → OCR_REVIEW → READY_TO_GRADE`; lỗi OCR `FAILED` |
+| TranscriptionRevision | `DRAFT → CONFIRMED`; mở lại tạo revision mới, bản cũ `SUPERSEDED` |
+| AssessmentJob / ClassInsight | `QUEUED → PROCESSING → READY/FAILED`, có lease và số lần thử |
+| AssessmentResult | Tách `ai_payload`, `teacher_payload`, `published_payload`; `is_published`, version, lịch sử và con trỏ công bố |
 
-Học sinh tự đối chiếu ảnh với bản chép, sửa và xác nhận tại bước 4. Xác nhận là nộp chính thức: chốt transcription, ghi `official_submitted_at`, enqueue chấm cho đúng phiên bản. Không có bảng `OcrReviewIssue` và không có màn giáo viên duyệt OCR. Phiên bản chưa từng công bố thì học sinh mở lại được; phiên bản đã từng công bố (kể cả đang ẩn) cần giáo viên cấp quyền. Ẩn điểm không tự mở khóa. Grant tiêu thụ khi bắt đầu lượt sửa/nộp lại. Mở lại tạo DRAFT mới, bản cũ SUPERSEDED; kết quả cũ không thành kết quả của bản đang sửa. Worker chỉ đưa result thành hiện hành khi job còn thuộc `current_attempt_id` + `confirmed_revision_id` + job hiện hành. Báo cáo chính thức dùng `current_published_result_id` (một dòng/học sinh/bài tập). Occurrence lỗi cùng loại ở vị trí khác nhau được giữ; `studentCount` đếm mỗi học sinh một lần.
+Học sinh đối chiếu/sửa/xác nhận OCR. `submitted_at` là lúc gửi ảnh; `official_submitted_at` là nộp chính thức khi xác nhận. Xác nhận xếp job chấm theo đúng attempt và bản chép. Không có bảng yêu cầu giáo viên sửa OCR. Phiên bản từng công bố cần giáo viên cấp quyền trước khi học sinh mở lại; ẩn điểm không tự cấp quyền.
 
-## 6. Rubric, điểm và báo cáo
+Worker chấm chỉ cập nhật kết quả hiện hành khi job còn khớp các con trỏ attempt/bản chép/job. Báo cáo `official` dùng `current_published_result_id`; báo cáo `provisional` lấy bản nộp chính thức hiện hành và overlay giáo viên. Học sinh không nhận điểm draft.
 
-`weight` trong SRS là điểm tối đa, không nhân thêm. Server xác nhận tập criterion IDs đúng và duy nhất, mỗi điểm trong giới hạn, tổng criteria maxima bằng rubric max, tổng điểm cấp bằng tổng các tiêu chí. Điểm/xếp loại trong UI lấy từ final result đã công bố.
+## 6. Profile, bằng chứng và phần còn thiết kế
 
-Score step, đếm lỗi trùng và mức trừ được lưu ở rubric version được giáo viên duyệt. Không tự áp dụng `0.25` cho mọi rubric. Tổng điểm do server tính từ điểm từng tiêu chí đã hợp lệ; nếu model gửi tổng khác phải đánh dấu sai, không công bố âm thầm. Không biến “khác đáp án mẫu” thành lỗi nếu rubric chấp nhận lập luận có căn cứ.
+Profile tổng hợp từ bài đã công bố và bản chép tương ứng; source hash giúp xác định cache cũ khi nguồn đổi. Payload chứa observations/evidence, còn bảng history lưu snapshot gọn theo version. Không có bảng độc lập `WritingObservation`, `StudentDeclaredGoal` hay `WritingProfileSnapshot`; không coi số bài là xác suất tin cậy đã hiệu chuẩn.
 
-MVP báo cáo chính thức chọn một final assessment hiện hành cho `selectedAttemptId` của mỗi student/assignment. Tách bộ đếm submitted, pending, reviewed/published, failed; mẫu số phân bố là số final assessments hợp lệ. Khi nộp lại được phép, teacher chọn attempt đã công bố; cả lớp không đếm hai bài của cùng em như hai học sinh.
+Các entity trong thiết kế ban đầu như `School`, `FileAsset`, `AiRun`, `UsageReservation`, `OutboxEvent`, `AuditEvent` chưa có model/bảng thực thi. Schema multi-school, storage ngoài DB, usage ledger, audit chung và retention toàn hệ thống cần thiết kế/migration bổ sung nếu triển khai. Không mô tả chúng như constraint đang bảo vệ dữ liệu.
 
-Taxonomy heatmap dự kiến: `STRUCTURE`, `ARGUMENT`, `LANGUAGE`, `CREATIVITY`, kèm code lỗi và applicability theo rubric. Tần suất là số bài có lỗi / số bài phù hợp để đánh giá tiêu chí; occurrence count lưu riêng. Độ đạt mục tiêu chỉ tính khi learning goal có criterion mapping và ngưỡng do giáo viên đặt; thiếu mapping trả chưa đủ dữ liệu.
-
-## 7. Profile và quyền riêng tư
-
-Evidence dùng `{assessmentRevisionId, transcriptionRevisionId, pageId, segmentId, quote}`. Quote phải tồn tại trong segment được xác nhận; snapshot mô tả chỉ dựa trên observations còn hiệu lực. Không đưa profile vào tính điểm bài mới để tránh thiên kiến; profile phục vụ cách hướng dẫn và bài luyện.
-
-Không gắn confidence “cao” chỉ vì đủ bốn bài. Lưu số bài hỗ trợ, số bài có cơ hội quan sát, độ đa dạng genre và thời gian gần nhất. Chat/dàn ý giúp nhận biết cách tương tác nhưng không tự trở thành bằng chứng văn phong bài tự viết.
-
-Retention/xóa cần bao phủ ảnh, văn bản, messages, observations, snapshots, recommendation cache, provider-uploaded files và dữ liệu trong backup theo thời hạn riêng. Soft delete không tương đương xóa dữ liệu. Tách identity khỏi context gửi model; mã giả danh vẫn là dữ liệu cần bảo vệ.
+Chi tiết API ở [API design](../api/api-design.md), pipeline ở [AI pipeline](gemini-pipeline.md), phần kiểm chứng còn lại ở [roadmap](../development/implementation-roadmap.md).

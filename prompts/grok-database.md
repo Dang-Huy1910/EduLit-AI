@@ -1,5 +1,7 @@
 # Prompt Grok — Database MVP trên nhánh feat/database
 
+> **Prompt lịch sử — rà lại 2026-10-28:** Nội dung giao việc bên dưới phản ánh thời điểm tạo, không phải hiện trạng hay lệnh vận hành hiện tại. Dữ liệu lớp/ảnh demo đã dời sang `backend/demo/`; các file store/mock prototype đã bỏ. Backend hiện dùng Python theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md); không áp dụng nguyên trạng yêu cầu scaffold, tạo nhánh hoặc khôi phục mock trong prompt này.
+
 Ngày: 13/10/2026. Prompt này yêu cầu triển khai database; không yêu cầu triển khai AI, frontend hoặc toàn bộ backend.
 
 Phạm vi mới nhất do người dùng thống nhất: người dùng sở hữu database và pipeline AI; cộng sự xây backend quản lý. MVP nhập học liệu/bài viết bằng văn bản, tập trung Socratic, chấm rubric và hồ sơ văn phong. OCR, nhập PDF/DOCX, dashboard nâng cao, queue/outbox và hệ nhiều trường được để sau.
@@ -100,12 +102,12 @@ thứ hai hoặc ghi đè công việc đang tồn tại. Không đọc/in secre
 - NestJS là backend đích. Tạo database provider/client có thể tích hợp NestJS;
   chỉ scaffold cấu hình/dependency tối thiểu cần cho data layer, không scaffold
   cả server/controller/auth/worker.
-- Schema/migrations thuộc backend/prisma/ với Prisma 7; persistence dùng vị trí
-  module trong backend/src/modules/... và shared DB provider nằm trong
-  backend/src/infrastructure/database/.
-- Dev Compose nằm infra/docker/compose.database.yml, chỉ PostgreSQL, có
-  healthcheck và named volume riêng dự án. Không dùng container_name cố định
-  gây xung đột; cổng host cấu hình được, không chiếm cổng đã có dịch vụ.
+- Đường dẫn hiện tại để đối chiếu: model/persistence trong `backend/app/db/`,
+  service trong `backend/app/services/`, migration trong `backend/alembic/versions/`.
+  Đây là bản Python; yêu cầu Prisma trong prompt lịch sử không còn áp dụng.
+- Compose hiện tại ở `infra/docker/compose.auth.yml`, có PostgreSQL, Mailpit,
+  API Python và frontend, healthcheck và named volume PostgreSQL.
+  Không dùng container_name cố định; cổng host cấu hình được.
 - .env.example chứa placeholder; connection string/seed password thật đọc
   từ biến môi trường. Không in nguyên DATABASE_URL/password/token ra log.
 - Viết scripts npm rõ để validate/generate, tạo migration dev, apply migration,

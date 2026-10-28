@@ -47,7 +47,7 @@ def test_password_hash_roundtrip() -> None:
     assert not verify_password_sync(hashed, "unicode mật khẩu 15+ ")
 
 
-def test_production_rejects_prototype_password_and_demo_flag() -> None:
+def test_production_rejects_prototype_password() -> None:
     with pytest.raises(RuntimeError):
         Settings(
             APP_ENV="production",
@@ -58,17 +58,23 @@ def test_production_rejects_prototype_password_and_demo_flag() -> None:
             COOKIE_SECURE=True,
             BOOTSTRAP_TEACHER_PASSWORD=LOCAL_PROTOTYPE_TEACHER_PASSWORD,
         ).validate_runtime()
-    with pytest.raises(RuntimeError):
-        Settings(
-            APP_ENV="production",
-            APP_ORIGIN="https://edulit.example",
-            DATABASE_URL="postgresql://u:p@db/edulit",
-            SMTP_HOST="smtp.example",
-            SMTP_FROM="EduLit <noreply@example.com>",
-            COOKIE_SECURE=True,
-            BOOTSTRAP_TEACHER_PASSWORD="a-unique-operator-secret-99",
-            ALLOW_DEMO_LOGIN=True,
-        ).validate_runtime()
+
+
+def test_settings_ignore_removed_demo_login_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ALLOW_DEMO_LOGIN", "true")
+    settings = Settings(
+        APP_ENV="production",
+        APP_ORIGIN="https://edulit.example",
+        DATABASE_URL="postgresql://u:p@db/edulit_td_a",
+        SMTP_HOST="smtp.example",
+        SMTP_FROM="EduLit <noreply@example.com>",
+        COOKIE_SECURE=True,
+        BOOTSTRAP_TEACHER_PASSWORD="a-unique-operator-secret-99",
+        ALLOW_DEMO_LOGIN=True,
+    )
+    settings.validate_runtime()
+    assert settings.model_config["extra"] == "ignore"
+    assert not hasattr(settings, "ALLOW_DEMO_LOGIN")
 
 
 def test_test_database_url_required() -> None:

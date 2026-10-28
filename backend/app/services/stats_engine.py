@@ -109,10 +109,6 @@ def scale10_bin(value: float) -> str:
     return "[8, 10]"
 
 
-def empty_distribution() -> list[dict[str, Any]]:
-    return [{"range": label, "label": "Thang 10", "count": 0, "rate": None} for label, *_ in SCALE10_BINS]
-
-
 def parse_time_bound(value: str | None, *, end: bool) -> datetime | None:
     text = (value or "").strip()
     if not text:

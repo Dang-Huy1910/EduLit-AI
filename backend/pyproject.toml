@@ -1,7 +1,7 @@
 [project]
 name = "edulit-ai-auth"
 version = "0.1.0"
-description = "EduLit-AI Python FastAPI identity and authentication service"
+description = "EduLit-AI API for authentication, Socratic writing, teacher tools, and assessment"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -50,11 +50,7 @@ sdist = "_prompt_build.sdist"
 editable_wheel = "_prompt_build.editable_wheel"
 
 [tool.setuptools.package-data]
-"app.ai.prompts" = ["socratic/*.md", "catalog/*.md", "ocr/*.md", "assessment/*.md"]
-"app.ai.prompts.socratic" = ["*.md"]
-"app.ai.prompts.catalog" = ["*.md"]
-"app.ai.prompts.ocr" = ["*.md"]
-"app.ai.prompts.assessment" = ["*.md"]
+"app.ai.prompts" = ["**/*.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -62,9 +58,6 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 pythonpath = ["."]
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
 
 [tool.ruff]
 target-version = "py312"

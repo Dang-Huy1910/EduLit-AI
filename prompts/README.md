@@ -1,22 +1,28 @@
-# Prompt theo phân hệ
+# Prompt runtime và prompt lịch sử
 
-Bốn thư mục `grounding`, `socratic`, `assessment`, `analytics` giữ các chỉ dẫn mô hình tương ứng với bốn phân hệ trong SRS.
+Rà lại 2026-10-28 theo `backend/app/ai/prompt_assets.py`, `_prompt_build.py` và Settings. Provider do `AI_PROVIDER=openai|gemini|fake` chọn, model qua `AI_MODEL` và override theo tác vụ; không cố định mọi task vào Gemini 2.5 Flash.
 
-Thiết kế MVP dùng **Gemini 2.5 Flash** (`gemini-2.5-flash`) cho các task riêng; bổ sung `writing-profile` khi triển khai cá nhân hóa. [Gemini pipeline](../docs/architecture/gemini-pipeline.md) mô tả input/output, version, schema và guardrail. Prompt OCR chép nguyên văn; prompt chấm chỉ nhận bản chép đã xác nhận; profile không đưa vào scoring context.
+## Prompt runtime đã có
 
-Khi bổ sung prompt, dùng tên thể hiện vai trò và phiên bản, ví dụ `system.v1.md`, kèm mô tả đầu vào, đầu ra và bộ đánh giá liên quan. Ứng dụng nạp prompt bằng cơ chế phù hợp với môi trường build/deploy đã chọn.
+| Thư mục | File / vai trò | Cấu hình version mặc định |
+| --- | --- | --- |
+| `socratic/` | `system.v1.md`, `outline-init.v1.md`, `outline-init.v2.md` | `SOCRATIC_PROMPT_VERSION=v1`, `OUTLINE_INIT_PROMPT_VERSION=v2` |
+| `catalog/` | `document-extract.v1.md`: tách ngữ liệu/đề/barem từ Markdown | `IMPORT_PROMPT_VERSION=v1` |
+| `ocr/` | `transcribe-page.v1.md`: chép nguyên văn từng trang | `OCR_PROMPT_VERSION=v1` |
+| `assessment/` | `grade-essay.v1.md`, `class-insight.v1.md` | `ASSESSMENT_PROMPT_VERSION=v1`, `INSIGHT_PROMPT_VERSION=v1` |
+| `assessment/` | `writing-profile.v1.md`, `writing-profile.v2.md` | `WRITING_PROFILE_PROMPT_VERSION=v2` |
 
-Nội dung học liệu, rubric và bài làm được đưa vào lúc xử lý yêu cầu, không được ghi cố định vào prompt chung. Thay đổi prompt Socratic phải kiểm tra guardrail; thay đổi prompt đánh giá phải kiểm tra schema và chất lượng chấm.
+Checkout đọc prompt canonical ở đây; build đóng gói asset vào `app.ai.prompts` để wheel không phụ thuộc cwd. Loader kiểm version và hash; thiếu phiên bản yêu cầu thì báo lỗi. Schema/output validation thực thi bằng Pydantic và mã nghiệp vụ backend. Chi tiết ở [pipeline AI](../docs/architecture/gemini-pipeline.md).
 
-Prompt hiện chưa được triển khai; quy tắc Socratic tham chiếu mục 4.4 của [SRS](../SRS.md).
+Không ghi cứng bài làm/học liệu vào prompt chung. OCR giữ lỗi nguyên văn; chấm chỉ nhận bản chép đã xác nhận, đề/barem đã chốt; profile lấy nguồn đã công bố và không tham gia chấm. Thay prompt cần kiểm schema, guardrail và chất lượng liên quan; `evaluations/` còn dành sẵn M6, chưa có runner.
 
-## Prompt triển khai database
+## Prompt giao việc lịch sử
 
-- [Grok — Database MVP trên nhánh feat/database](grok-database.md): Prompt triển khai PostgreSQL/Prisma cho phạm vi MVP tối giản mới nhất. Toàn bộ schema, migrations, seed, kiểm tra và bàn giao nằm trong một nhánh `feat/database`; chuyển sang chức năng khác mới tạo nhánh mới. Chưa yêu cầu gọi AI hoặc xây CRUD HTTP.
+Các file ở gốc `prompts/` là yêu cầu tại thời điểm tạo, không phải hướng dẫn chạy code hiện tại:
 
-## Prompt giao diện (UI)
+- [Stitch](stitch-prompt.md), [Gemini prototype](gemini-prototype.md): thiết kế UI và prototype. Archive giữ ở `prototype/stitch_edulit_ai_platform_mvp/`; design tokens tại [DESIGN.md](../prototype/stitch_edulit_ai_platform_mvp/edulit_serene_paper/DESIGN.md).
+- [Grok database](grok-database.md), [Grok auth](grok-python-auth.md): yêu cầu triển khai theo nhánh/stack tại thời điểm đó; backend hiện theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md).
+- [Cập nhật lớp demo](antigravity-update-mock-11a14.md): dữ liệu đã dời sang `backend/demo/`, seed tại `backend/scripts/seed_classroom_demo.py`; các store prototype đã bỏ.
+- [Hồ sơ văn phong](claude-student-writing-profile.md): prompt giao tính năng lịch sử; code hiện ở service/router/model writing profile và `frontend/src/features/writing-profile/`.
 
-- [Google Stitch MVP Prompt](stitch-prompt.md): Prompt tự chứa ngữ cảnh để thiết kế 10 màn hình cho bốn phân hệ trong `SRS.md`, dùng bảng màu từ `DESIGN.md`. Bao gồm luồng giáo viên/học sinh, trạng thái xử lý và bố cục mobile.
-- [Gemini Clickable Prototype Prompt](gemini-prototype.md): Prompt tự chứa ngữ cảnh để Gemini dựng prototype Next.js có điều hướng từ 10 màn Stitch đã render, token EduLit Serene Paper, mock data thống nhất, trường **THPT Đan Phượng**, và bốn luồng SRS. Không gọi AI/OCR thật.
-
-Sao chép toàn bộ khối prompt trong file vào Stitch hoặc Gemini. Nếu thiết kế theo từng đợt, dùng chung phần quy tắc và dữ liệu minh họa, rồi lần lượt yêu cầu nhóm màn hình giáo viên (01–05), học sinh (06–10) và các biến thể trạng thái/mobile. Các giả định UX chưa chốt được ghi rõ trước khối prompt. Khi code prototype, đính kèm `prototype/stitch_edulit_ai_platform_mvp/` nếu công cụ đọc được repository.
+Không chạy lại yêu cầu tạo nhánh/mock/scaffold trong prompt lịch sử như kế hoạch phát triển hiện tại. Lệnh chạy/kiểm tra theo [CONTRIBUTING](../CONTRIBUTING.md), chức năng và phần còn mở theo [roadmap](../docs/development/implementation-roadmap.md).

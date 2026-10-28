@@ -35,7 +35,6 @@ ERROR_MESSAGES: dict[str, str] = {
     "CSRF_HEADER": "Yêu cầu bị từ chối vì thiếu mã chống giả mạo.",
     "AUTH_INVALID": "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.",
     "AUTH_CREDENTIALS": "Tên đăng nhập hoặc mật khẩu không đúng.",
-    "AUTH_UNVERIFIED": "Email chưa được xác minh. Hãy kiểm tra hộp thư hoặc gửi lại email xác minh.",
     "AUTH_RATE_LIMIT": "Bạn thao tác quá nhanh. Vui lòng thử lại sau.",
     "ACCOUNT_INACTIVE": "Tài khoản đã bị vô hiệu hóa.",
     "USERNAME_TAKEN": "Tên đăng nhập đã được sử dụng.",

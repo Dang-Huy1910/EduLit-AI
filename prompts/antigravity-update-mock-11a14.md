@@ -1,5 +1,7 @@
 # Prompt cho Antigravity — cập nhật mock lớp 11A14
 
+> **Prompt lịch sử — rà lại 2026-10-28:** Nội dung giao việc bên dưới phản ánh thời điểm tạo, không phải hiện trạng hay lệnh vận hành hiện tại. Dữ liệu lớp/ảnh demo đã dời sang `backend/demo/`; các file store/mock prototype đã bỏ. Backend hiện dùng Python theo [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md); không áp dụng nguyên trạng yêu cầu scaffold, tạo nhánh hoặc khôi phục mock trong prompt này.
+
 Sao chép toàn bộ nội dung bên dưới vào Antigravity khi mở repository EduLit-AI. Các đường dẫn nguồn là đường dẫn trên máy hiện tại.
 
 ---
@@ -80,7 +82,7 @@ Tạo nguồn dữ liệu lớp dùng chung, có STT tường minh, ID ổn đ�
 
 ## 3. Nhập ảnh và xây manifest
 
-- Copy đầy đủ ảnh vào `frontend/public/submissions/`, theo cấu trúc hiện có hoặc một cấu trúc rõ ràng theo assignment và student. Có thể đổi tên bản copy thành `page-1.jpg`, `page-2.jpg`, …; không sửa bản gốc.
+- Copy đầy đủ ảnh vào `backend/demo/submissions/`, theo cấu trúc hiện có hoặc một cấu trúc rõ ràng theo assignment và student. Có thể đổi tên bản copy thành `page-1.jpg`, `page-2.jpg`, …; không sửa bản gốc.
 - Lưu đường dẫn gốc tương đối, STT, trang đích và hash trong manifest hoặc tệp đối chiếu để truy ngược từng ảnh về nguồn. Nếu chọn tên file đích mới, ghi rõ ánh xạ nguồn → đích.
 - Trong từng thư mục, dùng timestamp ở đầu tên file làm thứ tự ban đầu, sau đó **mở ảnh kiểm tra nội dung nối tiếp và số trang viết tay** để xác nhận thứ tự đọc. Không mặc định timestamp luôn là thứ tự trang đúng. Ghi lại các trường hợp không xác định chắc chắn.
 - Số trang thực tế từ 1 đến 4. Không cắt thành hai trang, nhân đôi ảnh để đủ hai trang, hay bỏ bớt trang.
@@ -117,10 +119,10 @@ Nếu công cụ không đọc được ảnh hoặc còn đoạn chưa đọc r
 Các vị trí đã xác định trong code, hãy đọc và kiểm tra mọi nơi tham chiếu trước khi sửa:
 
 - `frontend/src/lib/types.ts`.
-- `frontend/src/lib/mock/assignmentData.ts`: hiện chỉ có 3 học sinh, giáo viên “Cô Đặng Loan”, lớp 12A1.
-- `frontend/src/lib/mock/submissionsManifest.ts`: ảnh, bản chép và bài nộp khởi tạo.
-- `frontend/src/lib/mock/data.ts`: các export mặc định, `MOCK_TRANSCRIPTION_LINES`, `MOCK_STUDENT_RESULT`, `computeReportMetrics`; hiện có sĩ số cố định 40 và thống kê theo ID học sinh cũ.
-- `frontend/src/lib/mock/writingProfileData.ts`: hiện cố định hồ sơ Bùi Hà My.
+- Dữ liệu lớp prototype cũ đã bỏ; roster seed hiện ở `backend/demo/roster_11a14.json`.
+- `backend/demo/submissionsManifest.ts`: ảnh, bản chép và bài nộp khởi tạo.
+- Module dữ liệu/thống kê mock cũ đã bỏ; thống kê hiện do `backend/app/services/stats_engine.py` tính từ dữ liệu backend.
+- Hồ sơ mẫu prototype đã bỏ; UI hiện ở `frontend/src/features/writing-profile/`, dữ liệu từ API.
 - `frontend/src/lib/store.ts`: `currentUser`, `setRole`, `switchDemoUser`, `START_SUBMISSIONS`, các mốc demo, reset, nạp ảnh, nộp bài, tra submission, lưu OCR và persist.
 - `frontend/src/components/StudentShell.tsx`, `TeacherShell.tsx`, `FloatingChatWidget.tsx`.
 - `frontend/src/features/assignments/StudentAssignmentsView.tsx`, `TeacherAssignmentsView.tsx`.

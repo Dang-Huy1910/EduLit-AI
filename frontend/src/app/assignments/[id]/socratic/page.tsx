@@ -11,7 +11,7 @@ import { UIOutlineSection, itemsOfSection, isValidOutlineProposal, CLARIFICATION
 import { catalogApi } from '@/features/catalog/api';
 import type { StudentAssignment } from '@/features/catalog/types';
 import { shouldResetSocraticSession, socraticSessionKey } from '@/features/socratic/lifecycle';
-import { CENTRAL_ASSIGNMENT_ID } from '@/lib/mock/assignmentData';
+import { CENTRAL_ASSIGNMENT_ID } from '@/features/socratic/constants';
 import { OutlineThinking, StyleTipNote, useOutlineReveal } from '@/features/socratic/OutlineReveal';
 import { countOutlinePoints, revealKey, tipsForSection } from '@/features/socratic/reveal';
 

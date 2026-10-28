@@ -1,33 +1,29 @@
-# Backend — xác thực EduLit-AI
+# Backend — EduLit-AI
 
-API đang chạy trên nhánh này là **Python 3.12 + FastAPI** cho tài khoản và phiên. Khung thư mục NestJS/TypeScript còn lại là vị trí dự kiến cho nghiệp vụ khác, chưa phải API xác thực.
+Backend mặc định là **Python 3.12 + FastAPI + SQLAlchemy async + Alembic**, dùng PostgreSQL. `app.main:app` gắn router `/api` cho tài khoản, lớp, kho học liệu, bài tập, Socratic, bài nộp/OCR, chấm/báo cáo, chatbot và hồ sơ viết. Xem [ADR-0004](../docs/architecture/decisions/0004-python-monolith.md).
 
-Học sinh tự đăng ký và phải xác minh email. Giáo viên dùng tài khoản prototype được bootstrap vào PostgreSQL (`dang.loan` / Cô Đặng Loan), không có đăng ký giáo viên công khai.
+Học sinh tự đăng ký: `AuthService.register` đánh dấu email đã xác minh và cấp phiên ngay. `AUTO_VERIFY_STUDENT` không điều khiển nhánh này. Các endpoint `/api/auth/verify-email` và `/api/auth/resend-verification` vẫn giữ cho luồng token xác minh. Giáo viên được bootstrap vào PostgreSQL (`dang.loan` / Cô Đặng Loan), không có đăng ký giáo viên công khai.
 
 ## Chạy local (copy/paste)
 
-Cần PostgreSQL (mặc định `localhost:5433` như stack hiện có) và Mailpit cho SMTP sink.
+Cần Python 3.12, uv và Docker Compose. Settings mặc định DB ở `localhost:5433`; lệnh dưới dùng PostgreSQL của Compose ở host `5434` và Mailpit.
 
 ```bash
-# 1) Tạo database (Postgres 17 đang chạy trên :5433)
-docker exec edulit-postgres-1 psql -U edulit -d postgres -c "CREATE DATABASE edulit_auth;"
-docker exec edulit-postgres-1 psql -U edulit -d postgres -c "CREATE DATABASE edulit_auth_test;"
+# Từ gốc repository: DB edulit_auth, DB test qua init script, SMTP sink
+docker compose -f infra/docker/compose.auth.yml up -d postgres mailpit
 
-# 2) SMTP sink
-docker run --rm -d --name mailpit-dev -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.21
-
-# 3) Cấu hình và phụ thuộc
 cd backend
 cp .env.example .env
 uv sync --extra dev
+export DATABASE_URL=postgresql://edulit:edulit_dev@localhost:5434/edulit_auth
 
-# 4) Migration + giáo viên bootstrap (idempotent, không ghi đè mật khẩu đã đổi)
+# Migration + giáo viên bootstrap (idempotent, không ghi đè mật khẩu đã đổi)
 uv run alembic upgrade head
 uv run python -m app.cli bootstrap-teacher
-
-# 5) API
 uv run uvicorn app.main:app --reload --port 4000
 ```
+
+Nếu đã có PostgreSQL riêng, đổi `DATABASE_URL` cho đúng host/port/database. Mailpit nhận SMTP ở `1025`, giao diện tại `8025`.
 
 Kiểm tra: `GET http://localhost:4000/api/health` → `{"ok":true}`.
 
@@ -90,7 +86,7 @@ Sau convert, agent (cùng adapter/provider hiện tại, prompt `document-extrac
 
 ```bash
 cd backend
-export DATABASE_URL_TEST=postgresql://edulit:edulit_dev@localhost:5433/edulit_auth_test
+export DATABASE_URL_TEST=postgresql://edulit:edulit_dev@localhost:5434/edulit_auth_test
 uv run pytest
 ```
 
@@ -107,7 +103,7 @@ uv run python -m app.cli ocr-worker
 uv run python -m app.cli assessment-worker
 ```
 
-API process đã gắn OCR worker khi `OCR_WORKER_ENABLED=true` và worker chấm/phân tích lớp khi `ASSESSMENT_WORKER_ENABLED=true` (mặc định). Chỉ chạy CLI `ocr-worker` / `assessment-worker` nếu tách worker ra process riêng và tắt worker tương ứng trong API. Chấm dùng `ASSESSMENT_MODEL` (trống thì kế thừa `AI_MODEL`). Migration `0011_assessment_grading` thêm job/kết quả/insights và backfill bài đã xác nhận.
+API process gắn bốn worker: outline (`OUTLINE_PREP_WORKER_ENABLED`), OCR (`OCR_WORKER_ENABLED`), chấm/phân tích lớp (`ASSESSMENT_WORKER_ENABLED`) và khởi tạo hồ sơ viết (`WRITING_PROFILE_AUTO_ENABLED`); mặc định đều bật, trừ khi `APP_ENV=test`. Ba worker đầu dùng helper `app/workers/_loop.py`; profile dùng sweep riêng và backoff trong bộ nhớ. Chỉ chạy CLI worker nếu tách process và tắt cờ tương ứng trong API. Chưa có CLI riêng cho writing profile. Chấm dùng `ASSESSMENT_MODEL` (trống thì kế thừa `AI_MODEL`). Migration hiện tới `0019_drop_material_status_enum`.
 
 `reset-teacher-password` chỉ dành người vận hành; thu hồi mọi phiên của giáo viên.
 
@@ -121,16 +117,15 @@ docker compose -f infra/docker/compose.auth.yml up --build
 
 Gồm PostgreSQL (host `5434`), Mailpit (`1025`/`8025`), API (`4000`), frontend (`3000`). Không đặt `container_name` cố định.
 
-Trước khi container API nhận request, chạy migration và bootstrap từ image hoặc host:
+Dockerfile API đã chạy `alembic upgrade head` trước Uvicorn. Bootstrap giáo viên idempotent có thể chạy từ container đang hoạt động:
 
 ```bash
-docker compose -f infra/docker/compose.auth.yml exec api alembic upgrade head
 docker compose -f infra/docker/compose.auth.yml exec api python -m app.cli bootstrap-teacher
 ```
 
 ## Production
 
-Bắt buộc: `APP_ENV=production`, `APP_ORIGIN` HTTPS, SMTP thật, `COOKIE_SECURE`, `BOOTSTRAP_TEACHER_PASSWORD` khác mật khẩu prototype. Thiếu một trong các mục này thì process không khởi động. Không có demo-login.
+`Settings.validate_runtime` yêu cầu `APP_ORIGIN` HTTPS, cookie Secure, `DATABASE_URL` không rỗng và `BOOTSTRAP_TEACHER_PASSWORD` khác mật khẩu prototype khi `APP_ENV=production`. Kiểm tra SMTP thật chỉ chạy nếu không có Resend/Brevo/Gmail webhook và `AUTO_VERIFY_STUDENT=false`; không nên diễn giải cờ này thành cổng xác minh khi đăng ký. Cấu hình gửi email cần phù hợp luồng quên mật khẩu đang dùng.
 
 ## Socratic AI Agent
 
@@ -154,9 +149,13 @@ SOCRATIC_PROMPT_VERSION=v1
 
 `AI_MODEL` bắt buộc với openai/gemini. Thiếu khóa hoặc model → HTTP 503 `AI_UNAVAILABLE`, không fallback giả thành công.
 
+`AI_PROVIDER` hỗ trợ `openai`, `gemini`, `fake`; Gemini dùng `GEMINI_API_KEY` và adapter REST, fake phục vụ kiểm thử. Provider mặc định trong Settings là `openai`, `AI_MODEL` mặc định trống. OCR, chấm và profile có model override riêng.
+
 Migration: `0002_socratic_schema`, `0003_socratic_reservation_access`, rồi `0004_socratic_outline_backfill` (backfill `outline_version`, chuẩn hoá ACCEPTED cũ). Không tự chạy trên DB development/production trong test.
 
 ### Seed demo (development/test)
+
+Seed tối thiểu:
 
 ```bash
 cd backend
@@ -164,6 +163,16 @@ uv run python scripts/seed_demo.py
 ```
 
 Tạo giáo viên `dang.loan`, học sinh `nguyen.van.an`, đề `VAN12-NLXH-SOC` và **cấp assignment_access**. Mã đề chỉ để tra cứu, không phải quyền truy cập.
+
+Seed lớp đầy đủ nằm ở `scripts/seed_classroom_demo.py`, đọc [backend/demo/](demo/) gồm `roster_11a14.json`, `submissionsManifest.ts` và `submissions/`. Tên file giữ dấu mốc 11A14; lớp được seed hiện là **12A14**. Manifest vẫn ở định dạng TypeScript và được script parse; chưa chuyển thành JSON thuần.
+
+```bash
+# Từ backend/, xem trước rồi áp dụng trên database demo đã chọn
+.venv/bin/python scripts/seed_classroom_demo.py --dry-run
+.venv/bin/python scripts/seed_classroom_demo.py --apply
+```
+
+Thứ tự nguồn dữ liệu: `DEMO_DATA_ROOT` (thư mục chứa trực tiếp ba mục trên), rồi `DEMO_FRONTEND_ROOT` (bố cục frontend cũ, chỉ để tương thích), rồi mặc định `backend/demo/`. Image API copy `backend/demo/` vào `/app/demo` và đặt `DEMO_DATA_ROOT=/app/demo`. Revision `0013` vẫn giữ nguyên, gọi helper seed với nguồn dữ liệu mới; không cần cây frontend trong image. Script lớp không gọi AI, tạo/cập nhật 41 học sinh, bài nộp đã xác nhận, điểm đã công bố và insight cache.
 
 ### API Endpoints
 
@@ -186,7 +195,7 @@ Idempotency (cùng key): COMPLETED replay; PROCESSING + lease còn hạn → 409
 
 ```bash
 cd backend
-export DATABASE_URL_TEST=postgresql://edulit:edulit_dev@localhost:5433/edulit_auth_test
+export DATABASE_URL_TEST=postgresql://edulit:edulit_dev@localhost:5434/edulit_auth_test
 uv run pytest
 uv run pytest tests/socratic/ -v
 ```
