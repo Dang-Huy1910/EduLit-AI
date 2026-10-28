@@ -203,7 +203,7 @@ export function printRoundCopy(round: number | null | undefined, firstScore: num
   const value = round && round > 0 ? Math.trunc(round) : 1;
   return {
     roundLine: `Bản ${value}`,
-    previousLine: value > 1 && firstScore != null ? `Bản 1: ${formatScore(firstScore)} điểm` : null,
+    previousLine: value > 1 && firstScore != null ? `${formatScore(firstScore)} điểm` : null,
   };
 }
 

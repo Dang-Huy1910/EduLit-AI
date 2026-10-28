@@ -132,7 +132,7 @@ test('Cột báo cáo và phiếu in nêu bản và điểm bản 1 khi có bả
   assert.equal(revisionScoreTrail({ revisionRound: 2, firstPublishedScore: null, score: 8 }), '');
   assert.equal(printRoundCopy(1, 6).previousLine, null);
   assert.equal(printRoundCopy(2, 6.5).roundLine, 'Bản 2');
-  assert.equal(printRoundCopy(2, 6.5).previousLine, 'Bản 1: 6.50 điểm');
-  assert.equal(printRoundCopy(3, 0).previousLine, 'Bản 1: 0.00 điểm');
+  assert.equal(printRoundCopy(2, 6.5).previousLine, '6.50 điểm');
+  assert.equal(printRoundCopy(3, 0).previousLine, '0.00 điểm');
   assert.equal(printRoundCopy(2, null).previousLine, null);
 });

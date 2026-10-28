@@ -138,7 +138,7 @@ test('giáo viên bật viết lại, học sinh nộp bản 2 và thấy so sá
     await studentPage.getByRole('link', { name: 'In phiếu', exact: true }).click();
     await expect(studentPage).toHaveURL(/\/result\/print$/, { timeout: 30_000 });
     await expect(studentPage.locator('.feedback-sheet')).toContainText('Bản 2');
-    await expect(studentPage.locator('.feedback-sheet')).toContainText(/Bản 1: .+ điểm/);
+    await expect(studentPage.locator('.feedback-sheet')).toContainText(/Điểm bản 1\s*\d+\.\d{2} điểm/);
 
     await teacherPage.goto(`/reports/${assignment.id}`);
     await teacherPage.getByLabel('Lọc trạng thái').selectOption('revised');
